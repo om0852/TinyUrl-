@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { StoreProvider, useStore } from '@/lib/storeContext';
-import { ShieldAlert, Lock, ArrowRight, Sparkles, AlertTriangle, Smartphone } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowRight, ShieldCheck, AlertTriangle, ExternalLink } from 'lucide-react';
 
 function RedirectInner() {
   const params = useParams();
@@ -28,12 +28,12 @@ function RedirectInner() {
   useEffect(() => {
     if (!mounted || !link) return;
 
-    // Check expiration or max click limits
+    // Expiration or click limit checks
     if (link.expires_at && new Date(link.expires_at) < new Date()) return;
     if (link.max_clicks && link.clicks_count >= link.max_clicks) return;
     if (link.status === 'disabled') return;
 
-    // Determine target URL based on smart rules (Device, Geo, A/B)
+    // Smart routing resolution
     let finalUrl = link.destination_url;
 
     if (link.rules && link.rules.length > 0) {
@@ -61,13 +61,13 @@ function RedirectInner() {
       }
     }
 
-    // Log click asynchronously
+    // Log click event
     logClick(link.id, {
       short_code: code,
       referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'
     });
 
-    // Execute instant redirect if no password or security block
+    // Instant redirect if clean
     if (!link.password_hash && !link.is_flagged && link.status === 'active') {
       performRedirect(finalUrl);
     }
@@ -75,18 +75,18 @@ function RedirectInner() {
 
   const performRedirect = (target: string) => {
     if (link?.retargeting_pixels && link.retargeting_pixels.length > 0) {
-      setPixelStatus(`Firing ${link.retargeting_pixels.map(p => p.provider).join(', ')} retargeting pixels...`);
+      setPixelStatus(`Syncing analytics event (${link.retargeting_pixels.map(p => p.provider).join(', ')})...`);
       setTimeout(() => {
         if (link.deep_link) {
           window.location.replace(link.deep_link.app_uri);
-          setTimeout(() => { window.location.replace(target); }, 1200);
+          setTimeout(() => { window.location.replace(target); }, 1000);
         } else {
           window.location.replace(target);
         }
-      }, 500);
+      }, 300);
     } else if (link?.deep_link) {
       window.location.replace(link.deep_link.app_uri);
-      setTimeout(() => { window.location.replace(target); }, 1200);
+      setTimeout(() => { window.location.replace(target); }, 1000);
     } else {
       window.location.replace(target);
     }
@@ -103,16 +103,23 @@ function RedirectInner() {
     }
   };
 
-  // 1. Initial hydration mount phase loader (Prevents SSR hydration mismatch)
+  // Helper to format clean domain name for destination
+  const getDestinationHost = (rawUrl: string) => {
+    try {
+      const u = new URL(rawUrl);
+      return u.hostname;
+    } catch {
+      return rawUrl;
+    }
+  };
+
+  // 1. Initial hydration phase loader (Clean minimal design)
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4">
-        <div className="bg-[#072e42] p-8 rounded-2xl text-center border border-[#008296]/30 text-white shadow-2xl max-w-sm w-full">
-          <div className="w-12 h-12 bg-[#008296]/20 text-cyan-300 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-400/30">
-            <Sparkles className="w-6 h-6 animate-spin" />
-          </div>
-          <h2 className="text-xl font-bold mb-1">Redirecting...</h2>
-          <p className="text-xs text-slate-300">Resolving destination URL</p>
+      <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4 selection:bg-[#008296]">
+        <div className="bg-[#072e42] p-8 rounded-xl text-center border border-[#0b4566] text-white shadow-2xl max-w-sm w-full space-y-4">
+          <div className="w-10 h-10 border-2 border-t-[#008296] border-slate-700 rounded-full animate-spin mx-auto" />
+          <p className="text-sm font-semibold tracking-wide text-slate-200">Connecting to destination...</p>
         </div>
       </div>
     );
@@ -122,67 +129,69 @@ function RedirectInner() {
   if (!link) {
     return (
       <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4">
-        <div className="bg-[#072e42] max-w-md w-full p-8 rounded-2xl text-center border border-white/10 shadow-2xl">
-          <div className="w-16 h-16 bg-red-500/20 text-red-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
-            <AlertTriangle className="w-8 h-8" />
+        <div className="bg-[#072e42] max-w-md w-full p-8 rounded-xl text-center border border-white/10 shadow-2xl space-y-5">
+          <div className="w-14 h-14 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+            <AlertTriangle className="w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Short Link Not Found</h1>
-          <p className="text-slate-300 text-sm mb-6">
-            The short link <code className="text-cyan-300 font-mono">/{code}</code> does not exist or may have expired.
-          </p>
+          <div>
+            <h1 className="text-xl font-bold text-white mb-1">Link Not Found</h1>
+            <p className="text-slate-300 text-xs leading-relaxed">
+              The short link <code className="text-cyan-300 font-mono">/{code}</code> does not exist or has expired.
+            </p>
+          </div>
           <button
             onClick={() => router.push('/')}
-            className="w-full py-3 rounded-xl tinyurl-btn-teal text-white font-bold flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-lg tinyurl-btn-teal text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md"
           >
-            Go to Platform Dashboard <ArrowRight className="w-4 h-4" />
+            Return to Homepage <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
     );
   }
 
-  // 3. Flagged Phishing / Security warning block
+  // 3. Security Warning / Phishing Block State
   if (link.is_flagged || link.status === 'flagged') {
     return (
       <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4">
-        <div className="bg-[#072e42] max-w-lg w-full p-8 rounded-2xl border border-red-500/40 text-left shadow-2xl">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-red-500/20 text-red-400 rounded-xl flex items-center justify-center border border-red-500/30">
+        <div className="bg-[#072e42] max-w-lg w-full p-8 rounded-xl border border-red-500/40 text-left shadow-2xl space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-red-500/20 text-red-400 rounded-lg flex items-center justify-center border border-red-500/30 shrink-0">
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Security Warning: Flagged Link</h2>
-              <p className="text-red-400 text-xs font-semibold">Flagged by Threat Intelligence Scanner</p>
+              <h2 className="text-lg font-bold text-white">Security Alert: Flagged Destination</h2>
+              <p className="text-red-400 text-xs font-semibold">Flagged by threat scanner</p>
             </div>
           </div>
 
-          <div className="bg-[#052536] border border-red-500/30 rounded-xl p-4 mb-6 text-sm text-slate-200 space-y-2">
-            <p className="font-semibold text-red-300">Target URL:</p>
-            <p className="font-mono text-xs text-red-200/90 break-all bg-black/40 p-2 rounded border border-red-500/20">
+          <div className="bg-[#052536] border border-red-500/30 rounded-lg p-4 text-xs text-slate-200 space-y-2">
+            <p className="font-bold text-red-300">Target URL:</p>
+            <p className="font-mono text-xs text-red-200 break-all bg-black/40 p-2 rounded border border-red-500/20">
               {link.destination_url}
             </p>
             <div className="pt-2 border-t border-white/10 text-xs text-slate-300">
               <p className="font-semibold text-slate-200 mb-1">Threat Reasons:</p>
-              <ul className="list-disc list-inside space-y-1 text-slate-300">
+              <ul className="list-disc list-inside space-y-0.5 text-slate-300">
                 {link.risk_reasons?.map((reason, i) => (
                   <li key={i}>{reason}</li>
-                )) || <li>High risk heuristic phishing score ({link.risk_score}/100)</li>}
+                )) || <li>High risk phishing score ({link.risk_score}/100)</li>}
               </ul>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <button
               onClick={() => router.push('/')}
-              className="w-full py-3 bg-[#0a405c] hover:bg-[#0c4c6e] text-white rounded-xl text-sm font-bold transition"
+              className="w-full py-2.5 bg-[#0a405c] hover:bg-[#0c4c6e] text-white rounded-lg text-xs font-bold transition"
             >
-              Return to Safety
+              Back to Safety
             </button>
             <button
               onClick={() => performRedirect(link.destination_url)}
               className="text-xs text-slate-400 hover:text-red-300 underline text-center"
             >
-              I understand the risks, proceed anyway
+              Proceed anyway at your own risk
             </button>
           </div>
         </div>
@@ -190,18 +199,20 @@ function RedirectInner() {
     );
   }
 
-  // 4. Password Protection lock
+  // 4. Password Protection View
   if (link.password_hash && !isUnlocked) {
     return (
       <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4">
-        <div className="bg-[#072e42] max-w-md w-full p-8 rounded-2xl text-center border border-[#008296] shadow-2xl">
-          <div className="w-14 h-14 bg-[#008296]/20 text-cyan-300 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-400/30">
-            <Lock className="w-7 h-7" />
+        <div className="bg-[#072e42] max-w-md w-full p-8 rounded-xl text-center border border-[#008296] shadow-2xl space-y-5">
+          <div className="w-12 h-12 bg-[#008296]/20 text-cyan-300 rounded-full flex items-center justify-center mx-auto border border-cyan-400/30">
+            <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-1">Password Protected Link</h2>
-          <p className="text-slate-300 text-sm mb-6">
-            Enter the password to unlock <span className="text-cyan-300 font-bold">{link.title}</span>
-          </p>
+          <div>
+            <h2 className="text-xl font-bold text-white mb-1">Protected Link</h2>
+            <p className="text-slate-300 text-xs">
+              Enter password to access <strong className="text-white">{link.title}</strong>
+            </p>
+          </div>
 
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <div>
@@ -210,7 +221,7 @@ function RedirectInner() {
                 placeholder="Enter password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-3 bg-[#052536] border border-white/20 focus:border-[#008296] rounded-xl text-white placeholder-slate-400 text-sm focus:outline-none"
+                className="w-full px-4 py-2.5 bg-[#052536] border border-white/20 focus:border-[#008296] rounded-lg text-white placeholder-slate-400 text-xs focus:outline-none"
               />
               {passwordError && (
                 <p className="text-red-400 text-xs text-left mt-1">Incorrect password. Please try again.</p>
@@ -219,9 +230,9 @@ function RedirectInner() {
 
             <button
               type="submit"
-              className="w-full py-3 tinyurl-btn-teal text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2"
+              className="w-full py-2.5 tinyurl-btn-teal text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 shadow-md"
             >
-              Unlock &amp; Redirect <ArrowRight className="w-4 h-4" />
+              Continue to Link <ArrowRight className="w-4 h-4" />
             </button>
           </form>
         </div>
@@ -229,38 +240,41 @@ function RedirectInner() {
     );
   }
 
-  // 5. Active Redirecting / Pixel Firing View
+  // 5. Active Modern Human-Crafted Redirecting View
   return (
-    <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4">
-      <div className="bg-[#072e42] max-w-md w-full p-8 rounded-2xl text-center border border-[#008296]/40 shadow-2xl text-white">
-        <div className="w-16 h-16 bg-[#008296]/30 text-cyan-300 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg border border-cyan-400/30">
-          <Sparkles className="w-8 h-8 animate-spin" style={{ animationDuration: '2s' }} />
-        </div>
+    <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4 selection:bg-[#008296]">
+      <div className="bg-[#072e42] max-w-sm w-full p-6 rounded-xl border border-[#0b4566] text-white shadow-2xl space-y-5">
         
-        <h2 className="text-2xl font-black text-white mb-2">Redirecting You...</h2>
-        <p className="text-slate-300 text-sm mb-4">
-          Navigating to <span className="text-cyan-300 font-bold break-all">{link.destination_url}</span>
-        </p>
-
-        {pixelStatus && (
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs text-cyan-200 mb-4 animate-pulse">
-            <Sparkles className="w-3.5 h-3.5" /> {pixelStatus}
+        {/* Destination Header */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-slate-300">
+            <span className="flex items-center gap-1.5 font-medium text-emerald-400">
+              <ShieldCheck className="w-4 h-4" /> Verified Safe
+            </span>
+            <span className="font-mono text-[11px] text-slate-400">/{code}</span>
           </div>
-        )}
 
-        {link.deep_link && (
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-xs text-cyan-200 mb-4">
-            <Smartphone className="w-3.5 h-3.5" /> Opening mobile native app...
+          <div className="p-3 bg-[#052536] rounded-lg border border-white/10 text-left">
+            <p className="text-[11px] text-slate-400 font-medium mb-0.5">Redirecting to:</p>
+            <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
+              <span>{getDestinationHost(link.destination_url)}</span>
+              <ExternalLink className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            </p>
           </div>
-        )}
-
-        <div className="w-full bg-[#052536] h-1.5 rounded-full overflow-hidden mb-6">
-          <div className="bg-[#008296] h-full w-full animate-pulse"></div>
         </div>
 
-        <p className="text-xs text-slate-400">
-          Powered by <span className="text-white font-bold">URL Shortener Platform</span> &bull; Redirect Latency &lt; 20ms
-        </p>
+        {/* Linear Loading Progress Bar */}
+        <div className="space-y-2">
+          <div className="w-full bg-[#052536] h-1.5 rounded-full overflow-hidden border border-white/5">
+            <div className="bg-[#008296] h-full w-full animate-pulse transition-all duration-300" />
+          </div>
+          {pixelStatus ? (
+            <p className="text-[11px] text-cyan-300 font-medium">{pixelStatus}</p>
+          ) : (
+            <p className="text-[11px] text-slate-400">Taking you to target URL...</p>
+          )}
+        </div>
+
       </div>
     </div>
   );
@@ -269,7 +283,7 @@ function RedirectInner() {
 export default function RedirectPage() {
   return (
     <StoreProvider>
-      <Suspense fallback={<div className="min-h-screen bg-[#052536] flex items-center justify-center text-white text-sm">Redirecting...</div>}>
+      <Suspense fallback={<div className="min-h-screen bg-[#052536] flex items-center justify-center text-white text-xs">Redirecting...</div>}>
         <RedirectInner />
       </Suspense>
     </StoreProvider>

@@ -194,48 +194,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onOpenCreateModal, o
                 />
               </div>
 
-              {/* Row: Domain + Alias */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
-                
-                {/* Domain Selector */}
-                <div className="sm:col-span-5 space-y-1.5">
-                  <label className="text-xs font-extrabold text-[#0c2333] flex items-center gap-1.5">
-                    <Globe className="w-3.5 h-3.5 text-[#008296]" />
-                    <span>Domain</span>
-                  </label>
-                  <select
-                    value={selectedDomain}
-                    onChange={(e) => setSelectedDomain(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 focus:border-[#008296] rounded-lg text-sm text-[#0c2333] font-medium focus:outline-none"
-                  >
-                    {domains.map((d) => (
-                      <option key={d.id} value={d.hostname}>
-                        {d.hostname}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Separator / */}
-                <div className="hidden sm:flex col-span-1 pt-8 justify-center text-slate-400 font-extrabold text-lg">
-                  /
-                </div>
-
-                {/* Alias Input */}
-                <div className="sm:col-span-6 space-y-1.5">
-                  <label className="text-xs font-extrabold text-[#0c2333] flex items-center gap-1.5">
-                    <Pencil className="w-3.5 h-3.5 text-[#008296]" />
-                    <span>Alias (optional)</span>
-                  </label>
+              {/* Custom Alias Input */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-extrabold text-[#0c2333] flex items-center gap-1.5">
+                  <Pencil className="w-3.5 h-3.5 text-[#008296]" />
+                  <span>Custom Alias (optional)</span>
+                </label>
+                <div className="flex items-center">
+                  <span className="px-3.5 py-2.5 bg-slate-100 border border-r-0 border-slate-300 rounded-l-lg text-xs font-mono font-bold text-slate-600 select-none">
+                    {domains[0]?.hostname || 'localhost:3000'}/
+                  </span>
                   <input
                     type="text"
                     placeholder="Add alias here"
                     value={alias}
                     onChange={(e) => setAlias(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 focus:border-[#008296] focus:bg-white rounded-lg text-sm text-[#0c2333] placeholder-slate-400 focus:outline-none transition shadow-sm"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 focus:border-[#008296] focus:bg-white rounded-r-lg text-sm text-[#0c2333] font-mono placeholder-slate-400 focus:outline-none transition shadow-sm"
                   />
-                  <p className="text-[10px] text-slate-500 font-medium">Must be at least 5 characters</p>
                 </div>
+                <p className="text-[10px] text-slate-500 font-medium">Must be at least 5 characters if specified</p>
               </div>
 
               {/* Error Message if any */}
