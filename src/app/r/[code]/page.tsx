@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useStore } from '@/lib/storeContext';
+import { StoreProvider, useStore } from '@/lib/storeContext';
 import { ShieldAlert, Lock, ArrowRight, Sparkles, ExternalLink, Clock, Smartphone, AlertTriangle } from 'lucide-react';
 
 function RedirectInner() {
@@ -268,8 +268,10 @@ function RedirectInner() {
 
 export default function RedirectPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#090d16] flex items-center justify-center text-white text-sm">Redirecting...</div>}>
-      <RedirectInner />
-    </Suspense>
+    <StoreProvider>
+      <Suspense fallback={<div className="min-h-screen bg-[#052536] flex items-center justify-center text-white text-sm">Redirecting...</div>}>
+        <RedirectInner />
+      </Suspense>
+    </StoreProvider>
   );
 }

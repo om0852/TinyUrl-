@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { useStore } from '@/lib/storeContext';
+import { StoreProvider, useStore } from '@/lib/storeContext';
 import { ExternalLink, Zap, Book, Camera, Briefcase, Sparkles, Share2, Check } from 'lucide-react';
 
 function BioPageInner() {
@@ -108,8 +108,10 @@ function BioPageInner() {
 
 export default function BioPageView() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#090d16] flex items-center justify-center text-white text-sm">Loading Bio Page...</div>}>
-      <BioPageInner />
-    </Suspense>
+    <StoreProvider>
+      <Suspense fallback={<div className="min-h-screen bg-[#052536] flex items-center justify-center text-white text-sm">Loading Bio Page...</div>}>
+        <BioPageInner />
+      </Suspense>
+    </StoreProvider>
   );
 }
