@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useStore } from '@/lib/storeContext';
 import { 
   LayoutDashboard, 
   Link2, 
@@ -37,6 +38,9 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+  const { domains } = useStore();
+  const activeDomain = domains[0]?.hostname || 'localhost:3000';
+
   const navItems: { id: TabType; label: string; icon: React.ReactNode; badge?: string }[] = [
     { id: 'overview', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'links', label: 'Link Management', icon: <Link2 className="w-4 h-4" /> },
@@ -94,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active SSL
             </span>
           </div>
-          <p className="text-[11px] text-slate-200 font-mono">short.link</p>
+          <p className="text-[11px] text-slate-200 font-mono">{activeDomain}</p>
         </div>
 
         <div className="flex items-center justify-between px-2 text-[11px] text-slate-400">

@@ -69,10 +69,10 @@ export const initialWorkspaces: Workspace[] = [
   { id: 'ws_2', name: 'Personal Projects', slug: 'personal', role: 'owner', plan: 'free', created_at: '2026-02-01T14:30:00Z' }
 ];
 
+const defaultWebsiteDomain = process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || 'localhost:3000';
+
 export const initialDomains: Domain[] = [
-  { id: 'dom_1', hostname: 'short.link', verified: true, ssl_status: 'active', is_default: true, workspace_id: 'ws_1' },
-  { id: 'dom_2', hostname: 'go.client.com', verified: true, ssl_status: 'active', is_default: false, workspace_id: 'ws_1' },
-  { id: 'dom_3', hostname: 'buy.acme.shop', verified: true, ssl_status: 'active', is_default: false, workspace_id: 'ws_1' }
+  { id: 'dom_1', hostname: defaultWebsiteDomain, verified: true, ssl_status: 'active', is_default: true, workspace_id: 'ws_1' }
 ];
 
 export const initialCampaigns: Campaign[] = [

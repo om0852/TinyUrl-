@@ -219,7 +219,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 </div>
                 <div className="flex items-center">
                   <span className="px-2.5 py-2.5 bg-[#052536] border border-r-0 border-white/20 rounded-l-xl text-xs font-mono text-slate-300">
-                    tinyurl.com/
+                    {domains[0]?.hostname || 'localhost:3000'}/
                   </span>
                   <input
                     type="text"

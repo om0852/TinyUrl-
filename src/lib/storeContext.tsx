@@ -93,24 +93,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialApiKeys);
   const [webhooks, setWebhooks] = useState<Webhook[]>(initialWebhooks);
 
-  // Initialize clicks, dynamic host domain, and sync from localStorage if available
+  // Initialize single website domain dynamically matching browser host or env & sync localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const currentHost = window.location.host;
-      if (currentHost) {
-        setDomains(prev => {
-          const filtered = prev.filter(d => d.id !== 'dom_current');
-          const currentDom: Domain = {
-            id: 'dom_current',
-            hostname: currentHost,
-            verified: true,
-            ssl_status: 'active',
-            is_default: true,
-            workspace_id: 'ws_1'
-          };
-          return [currentDom, ...filtered.map(d => ({ ...d, is_default: false }))];
-        });
-      }
+      const activeDomain = window.location.host || process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || 'localhost:3000';
+      setDomains([
+        {
+          id: 'dom_primary',
+          hostname: activeDomain,
+          verified: true,
+          ssl_status: 'active',
+          is_default: true,
+          workspace_id: 'ws_1'
+        }
+      ]);
     }
     try {
       const savedLinks = localStorage.getItem('url_shortener_links');

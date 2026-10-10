@@ -206,7 +206,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onOpenCreateModal, o
                     onChange={(e) => setSelectedDomain(e.target.value)}
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 focus:border-[#008296] rounded-lg text-sm text-[#0c2333] font-medium focus:outline-none"
                   >
-                    <option value="tinyurl.com">tinyurl.com</option>
                     {domains.map((d) => (
                       <option key={d.id} value={d.hostname}>
                         {d.hostname}
