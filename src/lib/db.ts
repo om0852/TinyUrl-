@@ -5,7 +5,6 @@ import {
   Domain,
   Campaign,
   QRCodeConfig,
-  BioPage,
   ApiKey,
   Webhook,
   LinkRule,
@@ -15,7 +14,7 @@ import {
 // Reserved words that cannot be used as short codes or custom slugs
 export const RESERVED_SLUGS = new Set([
   'admin', 'api', 'login', 'register', 'dashboard', 'auth', 'settings',
-  'security', 'terms', 'privacy', 's', 'bio', 'qr', 'analytics', 'help',
+  'security', 'terms', 'privacy', 's', 'qr', 'analytics', 'help',
   'support', 'pricing', 'logout', 'user', 'account', 'status'
 ]);
 
@@ -251,22 +250,7 @@ export function generateMockClicks(): ClickEvent[] {
   return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
-export const initialBioPage: BioPage = {
-  id: 'bio_1',
-  workspace_id: 'ws_1',
-  slug: 'acme',
-  title: 'Acme Platform Links',
-  bio: 'Link management and marketing attribution for growth teams.',
-  avatar_url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80',
-  theme: 'cyberpunk',
-  created_at: '2026-09-20T10:00:00Z',
-  links: [
-    { id: 'bl_1', title: 'Black Friday Special Offer', url: 'https://short.link/sale26', icon: 'zap', active: true },
-    { id: 'bl_2', title: 'Read Platform V2 Overview', url: 'https://short.link/v2launch', icon: 'book', active: true },
-    { id: 'bl_3', title: 'Follow Us On Instagram', url: 'https://short.link/igapp', icon: 'instagram', active: true },
-    { id: 'bl_4', title: 'Career Opportunities', url: 'https://acme.com/careers', icon: 'briefcase', active: true }
-  ]
-};
+
 
 export const initialApiKeys: ApiKey[] = [
   {

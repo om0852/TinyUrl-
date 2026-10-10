@@ -9,7 +9,6 @@ import { LinksView } from '@/components/LinksView';
 import { AnalyticsView } from '@/components/AnalyticsView';
 import { SmartRoutingView } from '@/components/SmartRoutingView';
 import { QrCodeView } from '@/components/QrCodeView';
-import { LinkInBioView } from '@/components/LinkInBioView';
 import { SecurityView } from '@/components/SecurityView';
 import { CampaignsView } from '@/components/CampaignsView';
 import { AiSuiteView } from '@/components/AiSuiteView';
@@ -49,7 +48,6 @@ function DashboardContent() {
           {activeTab === 'analytics' && <AnalyticsView />}
           {activeTab === 'routing' && <SmartRoutingView />}
           {activeTab === 'qr' && <QrCodeView />}
-          {activeTab === 'bio' && <LinkInBioView />}
           {activeTab === 'security' && <SecurityView />}
           {activeTab === 'campaigns' && <CampaignsView />}
           {activeTab === 'ai' && <AiSuiteView />}

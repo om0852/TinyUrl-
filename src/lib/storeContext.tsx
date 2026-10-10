@@ -8,7 +8,6 @@ import {
   Domain,
   Campaign,
   QRCodeConfig,
-  BioPage,
   ApiKey,
   Webhook,
   LinkRule,
@@ -20,7 +19,6 @@ import {
   initialCampaigns,
   initialLinks,
   generateMockClicks,
-  initialBioPage,
   initialApiKeys,
   initialWebhooks,
   generateBase62Code,
@@ -37,7 +35,6 @@ interface StoreContextType {
   campaigns: Campaign[];
   links: Link[];
   clicks: ClickEvent[];
-  bioPage: BioPage;
   apiKeys: ApiKey[];
   webhooks: Webhook[];
   
@@ -70,7 +67,6 @@ interface StoreContextType {
   deleteApiKey: (id: string) => void;
   addWebhook: (url: string, events: string[]) => Webhook;
   deleteWebhook: (id: string) => void;
-  updateBioPage: (updates: Partial<BioPage>) => void;
   
   // Security & AI utilities
   scanUrlSecurity: (url: string) => SecurityReport;
@@ -89,7 +85,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
   const [links, setLinks] = useState<Link[]>(initialLinks);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
-  const [bioPage, setBioPage] = useState<BioPage>(initialBioPage);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialApiKeys);
   const [webhooks, setWebhooks] = useState<Webhook[]>(initialWebhooks);
 
@@ -120,10 +115,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const mock = generateMockClicks();
         setClicks(mock);
         localStorage.setItem('url_shortener_clicks', JSON.stringify(mock));
-      }
-      const savedBio = localStorage.getItem('url_shortener_bio');
-      if (savedBio) {
-        setBioPage(JSON.parse(savedBio));
       }
     } catch {
       setClicks(generateMockClicks());
@@ -363,14 +354,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setWebhooks(webhooks.filter(w => w.id !== id));
   };
 
-  const updateBioPage = (updates: Partial<BioPage>) => {
-    const newBio = { ...bioPage, ...updates };
-    setBioPage(newBio);
-    try {
-      localStorage.setItem('url_shortener_bio', JSON.stringify(newBio));
-    } catch {}
-  };
-
   // AI Slug Generator
   const aiSuggestSlugs = (url: string, title?: string): string[] => {
     const text = (title || url).toLowerCase().replace(/[^a-z0-9]/g, '-').split('-').filter(Boolean);
@@ -460,7 +443,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       campaigns,
       links,
       clicks,
-      bioPage,
       apiKeys,
       webhooks,
       createShortLink,
@@ -474,7 +456,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deleteApiKey,
       addWebhook,
       deleteWebhook,
-      updateBioPage,
       scanUrlSecurity,
       aiSuggestSlugs,
       aiSummarizePerformance,

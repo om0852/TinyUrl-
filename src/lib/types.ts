@@ -110,25 +110,7 @@ export interface QRCodeConfig {
   error_correction: 'L' | 'M' | 'Q' | 'H';
 }
 
-export interface BioLinkItem {
-  id: string;
-  title: string;
-  url: string;
-  icon?: string;
-  active: boolean;
-}
 
-export interface BioPage {
-  id: string;
-  workspace_id: string;
-  slug: string;
-  title: string;
-  bio: string;
-  avatar_url: string;
-  theme: 'dark' | 'cyberpunk' | 'emerald' | 'sunset';
-  links: BioLinkItem[];
-  created_at: string;
-}
 
 export interface ApiKey {
   id: string;

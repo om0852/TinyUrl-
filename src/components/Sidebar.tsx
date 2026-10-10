@@ -25,7 +25,6 @@ export type TabType =
   | 'analytics' 
   | 'routing' 
   | 'qr' 
-  | 'bio' 
   | 'security' 
   | 'campaigns' 
   | 'ai' 
@@ -47,7 +46,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     { id: 'analytics', label: 'Advanced Analytics', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'routing', label: 'Smart Rules & A/B', icon: <GitFork className="w-4 h-4" /> },
     { id: 'qr', label: 'QR Code Studio', icon: <QrCode className="w-4 h-4" /> },
-    { id: 'bio', label: 'Link-in-Bio Page', icon: <Smartphone className="w-4 h-4" /> },
     { id: 'security', label: 'Security & Safety', icon: <ShieldAlert className="w-4 h-4" />, badge: 'Safe' },
     { id: 'campaigns', label: 'Campaigns & Workspaces', icon: <FolderKanban className="w-4 h-4" /> },
     { id: 'ai', label: 'AI Marketing Suite', icon: <Sparkles className="w-4 h-4 text-cyan-400" />, badge: 'AI' },
