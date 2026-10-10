@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { getShortUrlPrefix } from '@/lib/db';
 import { 
   X, 
   Sparkles, 
@@ -82,7 +83,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setErrorMsg(res.error);
     } else if (res.link) {
       setCreatedResult({
-        short_url: `https://${domains[0]?.hostname || 'tinyurl.com'}/r/${res.link.short_code}`,
+        short_url: `${getShortUrlPrefix(domains[0]?.hostname)}/${res.link.short_code}`,
         code: res.link.short_code
       });
     }

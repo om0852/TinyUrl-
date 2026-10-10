@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { getShortUrlPrefix } from '@/lib/db';
 import { QrCode, Download, Palette, Sparkles, Copy, Check } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -16,7 +17,7 @@ export const QrCodeView: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   const selectedLink = links.find(l => l.id === selectedLinkId) || links[0];
-  const shortUrl = selectedLink ? `https://${domains[0]?.hostname || 'short.link'}/r/${selectedLink.short_code}` : 'https://short.link';
+  const shortUrl = selectedLink ? `${getShortUrlPrefix(domains[0]?.hostname)}/${selectedLink.short_code}` : getShortUrlPrefix(domains[0]?.hostname);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(shortUrl);

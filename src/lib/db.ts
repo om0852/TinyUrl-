@@ -43,6 +43,13 @@ export function normalizeUrl(rawUrl: string): string {
   }
 }
 
+export function getShortUrlPrefix(domainName: string = ''): string {
+  const host = domainName || (typeof window !== 'undefined' ? window.location.host : '');
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+  const protocol = isLocal ? 'http://' : 'https://';
+  return `${protocol}${host || 'localhost:3000'}`;
+}
+
 export function buildUtmUrl(baseUrl: string, utms: {
   source?: string;
   medium?: string;

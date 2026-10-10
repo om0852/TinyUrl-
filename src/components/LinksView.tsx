@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { getShortUrlPrefix } from '@/lib/db';
 import { 
   Link2, 
   Search, 
@@ -133,7 +134,7 @@ export const LinksView: React.FC<LinksViewProps> = ({ onOpenCreateModal }) => {
                 </tr>
               ) : (
                 filteredLinks.map((link) => {
-                  const fullShortUrl = `https://${domains[0]?.hostname || 'short.link'}/r/${link.short_code}`;
+                  const fullShortUrl = `${getShortUrlPrefix(domains[0]?.hostname)}/${link.short_code}`;
                   return (
                     <tr key={link.id} className="hover:bg-white/[0.02] transition">
                       

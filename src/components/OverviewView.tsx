@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { getShortUrlPrefix } from '@/lib/db';
 import { 
   Link2, 
   MousePointerClick, 
@@ -74,7 +75,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onOpenCreateModal, o
     if (res.error) {
       setErrorMsg(res.error);
     } else if (res.link) {
-      const fullUrl = `https://${selectedDomain}/${res.link.short_code}`;
+      const prefix = getShortUrlPrefix(selectedDomain);
+      const fullUrl = `${prefix}/${res.link.short_code}`;
       setCreatedResult(fullUrl);
       setLongUrl('');
       setAlias('');
