@@ -8,7 +8,8 @@ import {
   ApiKey,
   Webhook,
   LinkRule,
-  SecurityReport
+  SecurityReport,
+  TeamMember
 } from './types';
 
 // Reserved words that cannot be used as short codes or custom slugs
@@ -73,6 +74,13 @@ export function buildUtmUrl(baseUrl: string, utms: {
 export const initialWorkspaces: Workspace[] = [
   { id: 'ws_1', name: 'Acme Growth Platform', slug: 'acme-corp', role: 'owner', plan: 'enterprise', created_at: '2026-01-10T10:00:00Z' },
   { id: 'ws_2', name: 'Personal Projects', slug: 'personal', role: 'owner', plan: 'free', created_at: '2026-02-01T14:30:00Z' }
+];
+
+export const initialTeamMembers: TeamMember[] = [
+  { id: 'tm_1', workspace_id: 'ws_1', name: 'Alex Morgan', email: 'alex@acme.com', role: 'owner', status: 'active', avatar: 'AM' },
+  { id: 'tm_2', workspace_id: 'ws_1', name: 'Sarah Jenkins', email: 'sarah@acme.com', role: 'admin', status: 'active', avatar: 'SJ' },
+  { id: 'tm_3', workspace_id: 'ws_1', name: 'Dave Miller', email: 'dave@acme.com', role: 'editor', status: 'active', avatar: 'DM' },
+  { id: 'tm_4', workspace_id: 'ws_1', name: 'Client Analyst', email: 'analyst@client.com', role: 'viewer', status: 'active', avatar: 'CA' }
 ];
 
 const defaultWebsiteDomain = process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || 'localhost:3000';

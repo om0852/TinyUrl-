@@ -1,5 +1,23 @@
 export type WorkspaceRole = 'owner' | 'admin' | 'editor' | 'viewer';
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  role: WorkspaceRole;
+}
+
+export interface TeamMember {
+  id: string;
+  workspace_id: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  status: 'active' | 'invited';
+  avatar?: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;

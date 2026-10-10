@@ -11,10 +11,14 @@ import {
   ApiKey,
   Webhook,
   LinkRule,
-  SecurityReport
+  SecurityReport,
+  User,
+  TeamMember,
+  WorkspaceRole
 } from './types';
 import {
   initialWorkspaces,
+  initialTeamMembers,
   initialDomains,
   initialCampaigns,
   initialLinks,
@@ -28,9 +32,20 @@ import {
 } from './db';
 
 interface StoreContextType {
+  currentUser: User | null;
+  login: (email: string, pass: string) => void;
+  signup: (name: string, email: string, pass: string) => void;
+  logout: () => void;
+
   workspaces: Workspace[];
   currentWorkspace: Workspace;
   setCurrentWorkspace: (ws: Workspace) => void;
+  createWorkspace: (name: string, plan?: 'free' | 'pro' | 'enterprise') => Workspace;
+
+  teamMembers: TeamMember[];
+  inviteTeamMember: (name: string, email: string, role: WorkspaceRole) => void;
+  removeTeamMember: (id: string) => void;
+
   domains: Domain[];
   campaigns: Campaign[];
   links: Link[];
@@ -79,8 +94,17 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | null>(null);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>({
+    id: 'usr_1',
+    name: 'Alex Morgan',
+    email: 'alex@acme.com',
+    avatar: 'AM',
+    role: 'owner'
+  });
+
   const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspaces[0]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers);
   const [domains, setDomains] = useState<Domain[]>(initialDomains);
   const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
   const [links, setLinks] = useState<Link[]>(initialLinks);
@@ -415,6 +439,81 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     document.body.removeChild(link);
   };
 
+  // Auth functions
+  const login = (email: string, pass: string) => {
+    const namePart = email.split('@')[0];
+    const initials = namePart.substring(0, 2).toUpperCase();
+    const newUser: User = {
+      id: `usr_${Date.now()}`,
+      name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
+      email: email,
+      avatar: initials,
+      role: 'owner'
+    };
+    setCurrentUser(newUser);
+    try {
+      localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
+    } catch {}
+  };
+
+  const signup = (name: string, email: string, pass: string) => {
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
+    const newUser: User = {
+      id: `usr_${Date.now()}`,
+      name: name,
+      email: email,
+      avatar: initials,
+      role: 'owner'
+    };
+    setCurrentUser(newUser);
+    try {
+      localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
+    } catch {}
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('url_shortener_user');
+    } catch {}
+  };
+
+  // Workspace creation
+  const createWorkspace = (name: string, plan: 'free' | 'pro' | 'enterprise' = 'pro') => {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const newWs: Workspace = {
+      id: `ws_${Date.now()}`,
+      name,
+      slug,
+      role: 'owner',
+      plan,
+      created_at: new Date().toISOString()
+    };
+    const updated = [newWs, ...workspaces];
+    setWorkspaces(updated);
+    setCurrentWorkspace(newWs);
+    return newWs;
+  };
+
+  // Team Member management
+  const inviteTeamMember = (name: string, email: string, role: WorkspaceRole) => {
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
+    const newMember: TeamMember = {
+      id: `tm_${Date.now()}`,
+      workspace_id: currentWorkspace.id,
+      name,
+      email,
+      role,
+      status: 'active',
+      avatar: initials
+    };
+    setTeamMembers([...teamMembers, newMember]);
+  };
+
+  const removeTeamMember = (id: string) => {
+    setTeamMembers(teamMembers.filter(m => m.id !== id));
+  };
+
   const importLinksCsv = (csvContent: string): number => {
     const lines = csvContent.split('\n').filter(Boolean);
     if (lines.length <= 1) return 0;
@@ -436,9 +535,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{
+      currentUser,
+      login,
+      signup,
+      logout,
       workspaces,
       currentWorkspace,
       setCurrentWorkspace,
+      createWorkspace,
+      teamMembers,
+      inviteTeamMember,
+      removeTeamMember,
       domains,
       campaigns,
       links,
