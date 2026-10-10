@@ -1,26 +1,112 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg-primary: #052536;
+    --bg-secondary: #08334a;
+    --bg-card: #072e42;
+    --bg-card-hover: #0b3a54;
+    --border-color: rgba(255, 255, 255, 0.12);
+    --border-glow: rgba(0, 130, 150, 0.35);
+    
+    --accent-teal: #008296;
+    --accent-teal-dark: #006878;
+    --accent-cyan: #00a3b8;
+    --accent-green: #1e8a4c;
+    --accent-green-hover: #167a3f;
+    --accent-rose: #e11d48;
+    --accent-amber: #f59e0b;
+
+    --text-primary: #ffffff;
+    --text-secondary: #cbdce6;
+    --text-muted: #85a4b5;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-plus-jakarta), system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* TinyURL Theme Custom Utilities */
+.tinyurl-card {
+  background: #ffffff;
+  color: #0c2333;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.35);
+}
+
+.tinyurl-btn-green {
+  background-color: #1e8a4c;
+  color: #ffffff;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.tinyurl-btn-green:hover {
+  background-color: #167a3f;
+  box-shadow: 0 4px 14px rgba(30, 138, 76, 0.4);
+}
+
+.tinyurl-btn-teal {
+  background-color: #008296;
+  color: #ffffff;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.tinyurl-btn-teal:hover {
+  background-color: #006c7d;
+  box-shadow: 0 4px 14px rgba(0, 130, 150, 0.4);
+}
+
+.tinyurl-btn-white {
+  background-color: #ffffff;
+  color: #052536;
+  font-weight: 700;
+  border: 1px solid #ffffff;
+  transition: all 0.2s ease;
+}
+
+.tinyurl-btn-white:hover {
+  background-color: #f1f5f9;
+  color: #008296;
+}
+
+.glass-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25);
+}
+
+.glass-panel-glow {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glow);
+  box-shadow: 0 0 25px -5px rgba(0, 130, 150, 0.3);
+}
+
+.gradient-text {
+  color: #ffffff;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #052536;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0c3d59;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #008296;
 }
