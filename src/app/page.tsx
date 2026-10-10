@@ -68,9 +68,5 @@ function DashboardContent() {
 }
 
 export default function Home() {
-  return (
-    <StoreProvider>
-      <DashboardContent />
-    </StoreProvider>
-  );
+  return <DashboardContent />;
 }
