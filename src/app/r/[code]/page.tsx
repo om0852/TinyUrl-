@@ -25,13 +25,17 @@ function RedirectInner() {
     l => l.short_code.toLowerCase() === code.toLowerCase() || l.custom_slug?.toLowerCase() === code.toLowerCase()
   );
 
+  const hasLoggedRef = React.useRef(false);
+
   useEffect(() => {
-    if (!mounted || !link) return;
+    if (!mounted || !link || hasLoggedRef.current) return;
 
     // Expiration or click limit checks
     if (link.expires_at && new Date(link.expires_at) < new Date()) return;
     if (link.max_clicks && link.clicks_count >= link.max_clicks) return;
     if (link.status === 'disabled') return;
+
+    hasLoggedRef.current = true;
 
     // Smart routing resolution
     let finalUrl = link.destination_url;

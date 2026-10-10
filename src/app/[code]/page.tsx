@@ -1,3 +1,3 @@
-import RedirectPage from '../r/[code]/page';
+import RedirectPage from '@/app/r/[code]/page';
 
 export default RedirectPage;
