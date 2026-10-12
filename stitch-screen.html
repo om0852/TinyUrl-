@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-background" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Loomlink — Enterprise URL Infrastructure &amp; Link Operations</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#f2f3ff",
+            "on-secondary": "#ffffff",
+            "on-error": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "on-error-container": "#93000a",
+            "surface-container-lowest": "#ffffff",
+            "on-surface": "#131b2e",
+            "surface-container": "#eaedff",
+            "background": "#faf8ff",
+            "inverse-surface": "#283044",
+            "tertiary-fixed": "#6ffbbe",
+            "secondary-fixed-dim": "#d2bbff",
+            "secondary-container": "#8a4cfc",
+            "surface": "#faf8ff",
+            "on-secondary-fixed": "#25005a",
+            "secondary": "#712ae2",
+            "on-secondary-container": "#fffbff",
+            "inverse-on-surface": "#eef0ff",
+            "surface-container-highest": "#dae2fd",
+            "surface-dim": "#d2d9f4",
+            "outline-variant": "#c7c4d8",
+            "tertiary-fixed-dim": "#4edea3",
+            "inverse-primary": "#c3c0ff",
+            "on-tertiary-fixed": "#002113",
+            "primary-fixed-dim": "#c3c0ff",
+            "surface-tint": "#4d44e3",
+            "on-primary-container": "#dad7ff",
+            "on-primary-fixed-variant": "#3323cc",
+            "on-secondary-fixed-variant": "#5a00c6",
+            "primary-container": "#4f46e5",
+            "error-container": "#ffdad6",
+            "primary-fixed": "#e2dfff",
+            "tertiary": "#005338",
+            "outline": "#777587",
+            "secondary-fixed": "#eaddff",
+            "on-primary-fixed": "#0f0069",
+            "surface-container-high": "#e2e7ff",
+            "surface-variant": "#dae2fd",
+            "error": "#ba1a1a",
+            "on-tertiary-container": "#67f4b7",
+            "tertiary-container": "#006e4b",
+            "on-tertiary-fixed-variant": "#005236",
+            "on-surface-variant": "#464555",
+            "primary": "#3525cd",
+            "on-background": "#131b2e",
+            "surface-bright": "#faf8ff",
+            "on-primary": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xl": "2.5rem",
+            "gutter-mobile": "1rem",
+            "margin-mobile": "1rem",
+            "gutter": "1.5rem",
+            "space-xs": "0.25rem",
+            "space-md": "1rem",
+            "margin": "2rem",
+            "space-lg": "1.5rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "label-sm": ["Inter"],
+            "headline-sm": ["Plus Jakarta Sans"],
+            "display-hero-mobile": ["Plus Jakarta Sans"],
+            "display-hero": ["Plus Jakarta Sans"],
+            "headline-md": ["Plus Jakarta Sans"],
+            "label-md": ["Inter"],
+            "body-md": ["Inter"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "body-lg": ["Inter"],
+            "headline-lg-mobile": ["Plus Jakarta Sans"],
+            "body-sm": ["Inter"],
+            "code-sm": ["JetBrains Mono"]
+          },
+          "fontSize": {
+            "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "600" }],
+            "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "display-hero-mobile": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.025em", "fontWeight": "700" }],
+            "display-hero": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+            "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "label-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.005em", "fontWeight": "500" }],
+            "body-md": ["14px", { "lineHeight": "22px", "letterSpacing": "-0.006em", "fontWeight": "400" }],
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "26px", "letterSpacing": "-0.011em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+            "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "code-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "-0.01em", "fontWeight": "500" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      vertical-align: middle;
+      display: inline-block;
+      line-height: 1;
+    }
+    .material-symbols-outlined.fill-icon {
+      font-variation-settings: 'FILL' 1;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c7c4d8;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #777587;
+    }
+  </style>
+</head>
+<body class="h-full bg-background text-on-surface antialiased overflow-x-hidden">
+<!-- ========================================================================= -->
+<!-- 1. LEFT SIDEBAR NAVIGATION (SideNavBar) - Shared Component JSON Conformance -->
+<!-- ========================================================================= -->
+<aside class="fixed top-0 left-0 h-screen w-60 z-30 bg-surface-container-lowest dark:bg-inverse-surface border-r border-outline-variant dark:border-surface-variant shadow-sm dark:shadow-none flex flex-col justify-between p-space-md">
+<!-- Top Brand & Workspace Header -->
+<div class="flex flex-col space-y-4">
+<div class="flex items-center justify-between pb-3 border-b border-surface-container">
+<div class="flex items-center space-x-2.5">
+<div class="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center text-on-primary shadow-sm ring-2 ring-primary/20">
+<span class="material-symbols-outlined text-[18px]">link</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm font-bold text-primary dark:text-inverse-primary tracking-tight">Loomlink</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Corp Infrastructure</span>
+</div>
+</div>
+</div>
+<!-- Workspace Switcher Pill -->
+<button class="w-full flex items-center justify-between px-3 py-2 bg-surface-container-low hover:bg-surface-container transition-colors duration-150 rounded-lg text-left border border-outline-variant/40">
+<div class="flex items-center space-x-2 min-w-0">
+<div class="w-6 h-6 rounded bg-primary text-on-primary flex items-center justify-center text-xs font-bold uppercase shrink-0">
+            L
+          </div>
+<div class="truncate">
+<p class="font-label-md text-label-md text-on-surface truncate font-semibold">Loomlink Corp</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Enterprise Tier</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-[18px] shrink-0">unfold_more</span>
+</button>
+<!-- Navigation Tabs (7 exact matching JSON items) -->
+<!-- Active Tab: Links (closest semantic match to URL Manager) -->
+<nav aria-label="Main Navigation" class="flex flex-col space-y-1 pt-1">
+<!-- 1. Links (ACTIVE) -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-primary dark:text-inverse-primary bg-surface-container dark:bg-surface-container-high rounded-lg font-label-md text-label-md" href="#links">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px] text-primary">link</span>
+<span class="font-label-md text-label-md font-semibold">Links</span>
+</div>
+<span class="px-1.5 py-0.5 rounded-full font-code-sm text-[10px] bg-primary text-on-primary font-bold">1,420</span>
+</a>
+<!-- 2. Analytics -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg" href="#analytics">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim"></span>
+</a>
+<!-- 3. Custom Domains -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg" href="#domains">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px]">domain</span>
+<span class="font-label-md text-label-md">Custom Domains</span>
+</div>
+<span class="font-code-sm text-[10px] text-tertiary font-medium bg-tertiary-fixed/30 px-1 rounded">42</span>
+</a>
+<!-- 4. QR Codes -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg" href="#qrcodes">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px]">qr_code_2</span>
+<span class="font-label-md text-label-md">QR Codes</span>
+</div>
+</a>
+<!-- 5. Bio Links -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg" href="#biolinks">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+<span class="font-label-md text-label-md">Bio Links</span>
+</div>
+</a>
+<!-- 6. Campaigns -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg" href="#campaigns">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px]">label</span>
+<span class="font-label-md text-label-md">Campaigns</span>
+</div>
+</a>
+<!-- 7. Settings -->
+<a class="flex items-center justify-between px-3 py-2 transition-colors duration-150 text-on-surface-variant dark:text-outline-variant hover:text-on-surface dark:hover:text-inverse-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg" href="#settings">
+<div class="flex items-center space-x-2.5">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</div>
+</a>
+</nav>
+</div>
+<!-- Sidebar Bottom: System Card & JSON Footer items -->
+<div class="flex flex-col space-y-3 pt-3 border-t border-surface-container">
+<!-- Domain Health & Uptime Card -->
+<div class="p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 flex flex-col space-y-1.5">
+<div class="flex items-center justify-between">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-semibold">System SLA</span>
+<span class="flex items-center space-x-1 font-code-sm text-[11px] text-tertiary font-bold bg-white px-1.5 py-0.5 rounded shadow-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<span>99.99%</span>
+</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant">Global edge redirects healthy in 24 regions.</p>
+<button class="text-left font-label-sm text-label-sm text-primary hover:text-primary-container font-semibold transition-colors flex items-center space-x-1 pt-1">
+<span>+ Invite Team Member</span>
+</button>
+</div>
+<!-- Plan CTA -->
+<button class="w-full py-2 px-3 bg-surface-container hover:bg-surface-container-high text-primary font-label-md text-label-md font-semibold rounded-lg transition-colors duration-150 flex items-center justify-center space-x-1.5">
+<span class="material-symbols-outlined text-[16px]">stars</span>
+<span>Upgrade Plan</span>
+</button>
+<!-- Footer Tabs from JSON -->
+<div class="flex items-center justify-between pt-1 px-1">
+<a class="flex items-center space-x-1.5 font-label-sm text-label-sm text-on-surface-variant hover:text-on-surface transition-colors" href="#docs">
+<span class="material-symbols-outlined text-[16px]">help</span>
+<span>Documentation</span>
+</a>
+<a class="flex items-center space-x-1 font-label-sm text-label-sm text-outline hover:text-error transition-colors" href="#logout" title="Sign Out">
+<span class="material-symbols-outlined text-[16px]">logout</span>
+<span>Sign Out</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- ========================================================================= -->
+<!-- 2. GLOBAL TOP NAVBAR (TopNavBar) - Shared Component JSON Conformance      -->
+<!-- ========================================================================= -->
+<header class="sticky top-0 right-0 z-20 w-full pl-60 bg-surface-container-lowest/80 dark:bg-inverse-surface/80 backdrop-blur-md border-b border-outline-variant dark:border-surface-variant shadow-sm dark:shadow-none">
+<div class="flex items-center justify-between px-space-lg h-16 w-full">
+<!-- Left: Global Search Command Bar (⌘K) -->
+<div class="flex items-center space-x-3 w-full max-w-lg">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="w-full pl-9 pr-16 py-2 bg-surface rounded-lg border border-outline-variant/60 font-body-md text-body-md text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs" placeholder="Search links, tags, or domains... (⌘K / Ctrl+K)" type="text"/>
+<div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center space-x-0.5">
+<kbd class="font-code-sm text-[10px] px-1.5 py-0.5 bg-surface-container-low border border-outline-variant/70 rounded text-on-surface-variant shadow-xs">⌘K</kbd>
+</div>
+</div>
+</div>
+<!-- Right: Telemetry, Actions & Profile -->
+<div class="flex items-center space-x-3">
+<!-- Secondary Action: Health status pill -->
+<div class="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-surface-container text-tertiary border border-outline-variant/30">
+<span class="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-ping"></span>
+<span class="font-label-sm text-label-sm font-semibold">System Healthy: 42 domains</span>
+</div>
+<!-- Trailing Icon Actions: Help & Notifications -->
+<button aria-label="Notifications" class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-secondary-container"></span>
+</button>
+<button aria-label="Help" class="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[20px]">help</span>
+</button>
+<!-- Divider -->
+<div class="h-5 w-[1px] bg-outline-variant/40"></div>
+<!-- Primary CTA: + Create Link with Dropdown -->
+<div class="relative flex items-center">
+<button class="flex items-center space-x-1.5 px-3.5 py-2 bg-primary-container text-on-primary rounded-lg font-label-md text-label-md font-semibold hover:bg-primary transition-all shadow-sm active:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span>New Shortlink</span>
+</button>
+</div>
+<!-- User Profile Avatar with Online dot -->
+<div class="flex items-center pl-2 space-x-2">
+<div class="relative cursor-pointer">
+<img alt="User Profile Avatar" class="w-8 h-8 rounded-full ring-2 ring-outline-variant/50 object-cover" data-alt="Modern close-up corporate studio portrait of a technology lead with warm ambient natural light, soft violet backdrop highlights, high contrast minimal aesthetic, professional confident expression, modern glass spectacles, contemporary corporate wardrobe." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCm_t4ui7362BEh_JbNV_NLc2cAk0zUHpEN1ApJ6KXTcDhcbBh9h7BR0oJkKfw6u4rvNWC55HomJmOGKQ39DVfF9rcCfd9JS2r1sJkDwyZvpMPmSxcUWiqZCQCHFgI-JSzzQuTkrw2VTyt54bpp5NtES5DSZCQEicJbDgJ8J-BHA1wJtEhl_UIhRK9REzc7NEfHvo1lov-Qd7u2QB77BDSHm6ku47kqXo_Lz6OrwSM32RnMIcoLm6PL9yyCACAFIoa_zFLFQIt06UU"/>
+<span class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
+</div>
+</div>
+</div>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- MAIN WORKSPACE CANVAS                                                     -->
+<!-- ========================================================================= -->
+<main class="pl-60 min-h-[calc(100vh-64px)] p-space-lg pb-16">
+<div class="max-w-[1360px] mx-auto space-y-6">
+<!-- ========================================================================= -->
+<!-- 3. HERO QUICK-SHORTEN FLOATING CARD                                        -->
+<!-- ========================================================================= -->
+<section class="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/60 shadow-sm relative overflow-hidden transition-all duration-200">
+<!-- Subtle background accent glow -->
+<div class="absolute -top-24 -right-24 w-72 h-72 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="flex flex-col space-y-4 relative z-10">
+<!-- Card Header & Value Proposition -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+<div>
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-primary text-[20px]">bolt</span>
+<h1 class="font-headline-sm text-headline-sm font-bold text-on-surface">Quick Shortlink Engine</h1>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">Shorten any destination URL with enterprise trust, zero latency, and custom edge routing.</p>
+</div>
+<!-- SafeBrowsing Badge -->
+<div class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60 text-xs font-semibold self-start sm:self-auto">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">verified_user</span>
+<span>SafeBrowsing Verified: Zero malware detected, SSL valid</span>
+</div>
+</div>
+<!-- Quick URL Creation Input Group -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-2">
+<!-- Long URL Input (lg: 7 cols) -->
+<div class="lg:col-span-7 relative">
+<div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-outline">
+<span class="material-symbols-outlined text-[18px]">link</span>
+</div>
+<input class="w-full pl-10 pr-4 py-3 rounded-lg bg-surface border border-outline-variant/80 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-code-sm text-xs" id="target-url-input" placeholder="https://loomlink.io/resources/whitepaper-launch-2025?utm_source=..." type="url" value="https://loomlink.io/resources/whitepaper-launch-2025?utm_source=spring_summit"/>
+</div>
+<!-- Domain Dropdown & Alias (lg: 3 cols) -->
+<div class="lg:col-span-3 flex rounded-lg border border-outline-variant/80 bg-surface overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
+<select class="bg-surface-container-low border-r border-outline-variant/60 text-on-surface font-code-sm text-xs px-2.5 py-3 focus:outline-none cursor-pointer">
+<option value="lmk.to/">lmk.to/</option>
+<option value="brand.click/">brand.click/</option>
+<option value="go.corp/">go.corp/</option>
+</select>
+<input class="w-full px-2.5 py-3 bg-surface font-code-sm text-xs text-on-surface focus:outline-none" id="alias-input" placeholder="alias" type="text" value="spring-launch"/>
+</div>
+<!-- Submit Button (lg: 2 cols) -->
+<div class="lg:col-span-2">
+<button class="w-full h-full min-h-[44px] bg-primary-container hover:bg-primary text-on-primary font-label-md text-label-md font-semibold rounded-lg flex items-center justify-center space-x-1.5 shadow-sm transition-all active:scale-[0.98]" id="create-shortlink-btn">
+<span class="material-symbols-outlined text-[18px]">auto_fix_high</span>
+<span>Shorten Link</span>
+</button>
+</div>
+</div>
+<!-- Feature Toggles & Capabilities Row -->
+<div class="flex flex-wrap items-center gap-2 pt-1 border-t border-surface-container">
+<button class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-surface-container text-primary border border-outline-variant/40 hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[15px]">campaign</span>
+<span>UTM Parameters: Enabled</span>
+</button>
+<button class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-surface text-on-surface-variant border border-outline-variant/40 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[15px]">lock</span>
+<span>Password: Disabled</span>
+</button>
+<button class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-surface text-on-surface-variant border border-outline-variant/40 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[15px]">public</span>
+<span>Geo-Routing: US, EU</span>
+</button>
+<button class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-surface text-on-surface-variant border border-outline-variant/40 hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[15px]">image</span>
+<span>Custom OG Preview</span>
+</button>
+<span class="text-xs text-outline ml-auto hidden sm:inline">Edge TTL: Instant sync (24ms)</span>
+</div>
+<!-- Instant Live Preview Generated Vanity Banner -->
+<div class="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/40 flex flex-col md:flex-row items-center justify-between gap-3">
+<div class="flex items-center space-x-3 w-full md:w-auto">
+<div class="w-8 h-8 rounded bg-primary/10 text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Live Branded vanity link generated</span>
+<span class="font-code-sm text-code-sm font-semibold text-primary select-all">https://lmk.to/spring-launch</span>
+</div>
+</div>
+<!-- Vanity Link Micro Actions -->
+<div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+<button class="px-3 py-1.5 bg-surface-container-lowest hover:bg-surface text-on-surface font-label-md text-label-md rounded border border-outline-variant/60 flex items-center space-x-1.5 shadow-xs transition-colors" id="copy-banner-btn">
+<span class="material-symbols-outlined text-[16px] text-primary" id="copy-icon">content_copy</span>
+<span id="copy-text">Copy Link</span>
+</button>
+<button class="px-2.5 py-1.5 bg-surface-container-lowest hover:bg-surface text-on-surface font-label-md text-label-md rounded border border-outline-variant/60 flex items-center space-x-1 shadow-xs transition-colors" title="Generate Dynamic QR">
+<span class="material-symbols-outlined text-[16px]">qr_code_2</span>
+<span class="text-xs">QR</span>
+</button>
+<a class="px-2.5 py-1.5 text-xs text-primary hover:text-primary-container font-semibold flex items-center space-x-1" href="#">
+<span>Test Redirect</span>
+<span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- 4. HUMANIZED ANALYTICS & INSIGHTS OVERVIEW (Grid of 4 Bento Cards)       -->
+<!-- ========================================================================= -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Metric 1: Total Clicks -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/60 shadow-xs flex flex-col justify-between hover:border-primary/40 transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">Total Clicks (30d)</span>
+<span class="material-symbols-outlined text-outline text-[18px]">bar_chart</span>
+</div>
+<div class="my-3">
+<div class="flex items-baseline space-x-2">
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">248,912</span>
+</div>
+<!-- Human insight pill -->
+<div class="mt-2 inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
+<span class="material-symbols-outlined text-[14px] text-emerald-600">trending_up</span>
+<span>↗ 23.4% faster growth than last month</span>
+</div>
+</div>
+<!-- Sparkline representation -->
+<div class="h-6 w-full flex items-end space-x-1 pt-1 opacity-70">
+<div class="w-full bg-primary/20 h-3 rounded-xs"></div>
+<div class="w-full bg-primary/25 h-4 rounded-xs"></div>
+<div class="w-full bg-primary/30 h-3 rounded-xs"></div>
+<div class="w-full bg-primary/40 h-5 rounded-xs"></div>
+<div class="w-full bg-primary/50 h-4 rounded-xs"></div>
+<div class="w-full bg-primary/70 h-6 rounded-xs"></div>
+<div class="w-full bg-primary h-7 rounded-xs"></div>
+</div>
+</div>
+<!-- Metric 2: Unique Visitors -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/60 shadow-xs flex flex-col justify-between hover:border-primary/40 transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">Unique Visitors</span>
+<span class="material-symbols-outlined text-outline text-[18px]">group</span>
+</div>
+<div class="my-3">
+<div class="flex items-baseline space-x-2">
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">184,209</span>
+</div>
+<!-- Human geography pill -->
+<div class="mt-2 inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-surface-container text-primary border border-outline-variant/40 text-xs font-medium">
+<span class="material-symbols-outlined text-[14px]">public</span>
+<span>Top region: US 42% &amp; DE 18%</span>
+</div>
+</div>
+<div class="h-6 w-full flex items-end space-x-1 pt-1 opacity-70">
+<div class="w-full bg-secondary/20 h-2 rounded-xs"></div>
+<div class="w-full bg-secondary/30 h-4 rounded-xs"></div>
+<div class="w-full bg-secondary/40 h-5 rounded-xs"></div>
+<div class="w-full bg-secondary/50 h-3 rounded-xs"></div>
+<div class="w-full bg-secondary/60 h-5 rounded-xs"></div>
+<div class="w-full bg-secondary/80 h-6 rounded-xs"></div>
+<div class="w-full bg-secondary h-6 rounded-xs"></div>
+</div>
+</div>
+<!-- Metric 3: Top Converting Referrer -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/60 shadow-xs flex flex-col justify-between hover:border-primary/40 transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">Top Converting Referrer</span>
+<span class="material-symbols-outlined text-outline text-[18px]">hub</span>
+</div>
+<div class="my-3">
+<div class="flex items-baseline space-x-1.5 truncate">
+<span class="font-headline-md text-headline-md font-bold text-on-surface truncate">Product Hunt</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-normal">64.2k</span>
+</div>
+<div class="mt-2 inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-surface-container-low text-on-surface-variant border border-outline-variant/40 text-xs font-medium">
+<span class="material-symbols-outlined text-[14px]">schedule</span>
+<span>Peak surge: 14:30 UTC</span>
+</div>
+</div>
+<div class="text-[11px] font-code-sm text-outline flex justify-between pt-1">
+<span>Direct: 31%</span>
+<span>Social: 45%</span>
+<span>Email: 24%</span>
+</div>
+</div>
+<!-- Metric 4: Link Health & Security -->
+<div class="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/60 shadow-xs flex flex-col justify-between hover:border-primary/40 transition-colors">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">Infrastructure Guard</span>
+<span class="material-symbols-outlined text-tertiary text-[18px]">verified</span>
+</div>
+<div class="my-3">
+<div class="flex items-center space-x-2">
+<span class="font-headline-lg text-headline-lg font-bold text-tertiary tracking-tight">100% Clean</span>
+</div>
+<div class="mt-2 inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium">
+<span class="material-symbols-outlined text-[14px] text-emerald-600">lock</span>
+<span>0 flagged URLs · 42 SSL valid</span>
+</div>
+</div>
+<div class="w-full bg-emerald-100 h-1.5 rounded-full overflow-hidden">
+<div class="bg-emerald-500 h-full w-full rounded-full"></div>
+</div>
+</div>
+</section>
+<!-- ========================================================================= -->
+<!-- 5. INTERACTIVE LINK STREAM TABLE                                          -->
+<!-- ========================================================================= -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant/60 shadow-sm overflow-hidden">
+<!-- Stream Control Toolbar & Filter Tabs -->
+<div class="p-4 border-b border-surface-container flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+<!-- Category Tabs -->
+<div class="flex items-center space-x-1 overflow-x-auto pb-1 lg:pb-0">
+<button class="px-3 py-1.5 bg-surface-container text-primary font-label-md text-label-md font-semibold rounded-lg shrink-0">
+              All Links (1,420)
+            </button>
+<button class="px-3 py-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg shrink-0 transition-colors">
+              Active Campaigns
+            </button>
+<button class="px-3 py-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg shrink-0 transition-colors">
+              Expiring Soon (3)
+            </button>
+<button class="px-3 py-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low font-label-md text-label-md rounded-lg shrink-0 transition-colors">
+              Archived
+            </button>
+</div>
+<!-- Quick Tag Filter Pills -->
+<div class="flex items-center space-x-2 overflow-x-auto">
+<span class="text-xs text-outline shrink-0">Tags:</span>
+<button class="px-2 py-1 rounded text-xs bg-surface-container-low text-on-surface-variant border border-outline-variant/40 hover:border-primary/50 transition-colors">#Marketing</button>
+<button class="px-2 py-1 rounded text-xs bg-surface-container-low text-on-surface-variant border border-outline-variant/40 hover:border-primary/50 transition-colors">#Twitter/X</button>
+<button class="px-2 py-1 rounded text-xs bg-surface-container-low text-on-surface-variant border border-outline-variant/40 hover:border-primary/50 transition-colors">#ProductLaunch</button>
+<button class="px-2 py-1 rounded text-xs bg-surface-container-low text-on-surface-variant border border-outline-variant/40 hover:border-primary/50 transition-colors">#Affiliates</button>
+<button class="p-1 text-outline hover:text-on-surface" title="Clear Filters">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Links Table View -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-surface-container bg-surface-container-low/50 text-on-surface-variant font-label-sm text-label-sm">
+<th class="py-3 px-4 w-12 text-center">
+<input class="rounded border-outline-variant text-primary focus:ring-0 w-4 h-4" type="checkbox"/>
+</th>
+<th class="py-3 px-4 font-semibold">Destination &amp; Branded Shortlink</th>
+<th class="py-3 px-4 font-semibold">Tags &amp; Domain</th>
+<th class="py-3 px-4 font-semibold">Clicks &amp; Momentum</th>
+<th class="py-3 px-4 font-semibold">Routing &amp; Security</th>
+<th class="py-3 px-4 font-semibold text-right">Quick Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container text-body-md font-body-md">
+<!-- ROW 1: Stripe Annual Letter -->
+<tr class="hover:bg-surface-container-low/60 transition-colors group">
+<td class="py-3.5 px-4 text-center">
+<input class="rounded border-outline-variant text-primary focus:ring-0 w-4 h-4" type="checkbox"/>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-primary text-[18px]">newspaper</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center space-x-2">
+<span class="font-headline-sm text-[15px] font-semibold text-on-surface hover:text-primary cursor-pointer truncate">Stripe Annual Letter 2025</span>
+<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">200 OK</span>
+</div>
+<div class="flex items-center space-x-2 mt-0.5">
+<span class="font-code-sm text-code-sm text-primary font-semibold">lmk.to/stripe-letter</span>
+<span class="text-xs text-outline">→</span>
+<span class="text-xs text-on-surface-variant truncate max-w-xs" title="https://stripe.com/annual-updates/2025/letter-to-shareholders">stripe.com/annual-updates/2025/...</span>
+</div>
+<span class="text-[11px] text-outline mt-0.5">Created 2 hours ago by Sarah C.</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col space-y-1">
+<div class="flex items-center space-x-1">
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#InvestorRelations</span>
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#Twitter</span>
+</div>
+<span class="text-xs text-on-surface-variant font-code-sm">Host: lmk.to (Root)</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline space-x-1.5">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">78,410</span>
+<span class="text-xs text-emerald-600 font-semibold">+31.2%</span>
+</div>
+<div class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary h-full w-4/5 rounded-full"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+<span class="material-symbols-outlined text-[14px] text-emerald-600">verified</span>
+<span>Safe · Geo-Routed</span>
+</div>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end space-x-1 opacity-90 group-hover:opacity-100">
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Copy Vanity Link">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Download QR">
+<span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Inspect Analytics">
+<span class="material-symbols-outlined text-[18px]">insights</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-outline hover:text-on-surface transition-colors" title="More options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 2: Figma Config 2025 -->
+<tr class="hover:bg-surface-container-low/60 transition-colors group">
+<td class="py-3.5 px-4 text-center">
+<input class="rounded border-outline-variant text-primary focus:ring-0 w-4 h-4" type="checkbox"/>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-lg bg-purple-50 border border-purple-200 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-secondary text-[18px]">confirmation_number</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center space-x-2">
+<span class="font-headline-sm text-[15px] font-semibold text-on-surface hover:text-primary cursor-pointer truncate">Figma Config 2025 Livestream VIP Pass</span>
+<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">200 OK</span>
+</div>
+<div class="flex items-center space-x-2 mt-0.5">
+<span class="font-code-sm text-code-sm text-primary font-semibold">lmk.to/config-vip</span>
+<span class="text-xs text-outline">→</span>
+<span class="text-xs text-on-surface-variant truncate max-w-xs" title="https://figma.com/config/2025/livestream?vip=true&amp;tier=enterprise">figma.com/config/2025/live...</span>
+</div>
+<span class="text-[11px] text-outline mt-0.5">Created 1 day ago by David M.</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col space-y-1">
+<div class="flex items-center space-x-1">
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#Community</span>
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#Event</span>
+</div>
+<span class="text-xs text-on-surface-variant font-code-sm">Host: lmk.to</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline space-x-1.5">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">45,190</span>
+<span class="text-xs text-emerald-600 font-semibold">+18.4%</span>
+</div>
+<div class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-secondary-container h-full w-3/5 rounded-full"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-xs font-semibold">
+<span class="material-symbols-outlined text-[14px] text-blue-600">devices</span>
+<span>Deep Link iOS/Android</span>
+</div>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end space-x-1 opacity-90 group-hover:opacity-100">
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Copy Vanity Link">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Download QR">
+<span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Inspect Analytics">
+<span class="material-symbols-outlined text-[18px]">insights</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-outline hover:text-on-surface transition-colors" title="More options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 3: Q2 Product Launch Notion Workspace -->
+<tr class="hover:bg-surface-container-low/60 transition-colors group">
+<td class="py-3.5 px-4 text-center">
+<input class="rounded border-outline-variant text-primary focus:ring-0 w-4 h-4" type="checkbox"/>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-amber-700 text-[18px]">lock</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center space-x-2">
+<span class="font-headline-sm text-[15px] font-semibold text-on-surface hover:text-primary cursor-pointer truncate">Q2 Product Launch Notion Workspace</span>
+<span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">Protected</span>
+</div>
+<div class="flex items-center space-x-2 mt-0.5">
+<span class="font-code-sm text-code-sm text-primary font-semibold">lmk.to/q2-roadmap</span>
+<span class="text-xs text-outline">→</span>
+<span class="text-xs text-on-surface-variant truncate max-w-xs" title="https://notion.so/loomlink/q2-confidential-roadmap-2025">notion.so/loomlink/q2-confid...</span>
+</div>
+<span class="text-[11px] text-outline mt-0.5">Created 3 days ago by Elena R.</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col space-y-1">
+<div class="flex items-center space-x-1">
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#Internal</span>
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#Product</span>
+</div>
+<span class="text-xs text-on-surface-variant font-code-sm">Host: lmk.to</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline space-x-1.5">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">31,040</span>
+<span class="text-xs text-emerald-600 font-semibold">+8.7%</span>
+</div>
+<div class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary/70 h-full w-2/5 rounded-full"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold">
+<span class="material-symbols-outlined text-[14px] text-amber-600">vpn_key</span>
+<span>Password Required</span>
+</div>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end space-x-1 opacity-90 group-hover:opacity-100">
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Copy Vanity Link">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Download QR">
+<span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Inspect Analytics">
+<span class="material-symbols-outlined text-[18px]">insights</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-outline hover:text-on-surface transition-colors" title="More options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- ROW 4: GitHub Copilot Engineering Deep Dive -->
+<tr class="hover:bg-surface-container-low/60 transition-colors group">
+<td class="py-3.5 px-4 text-center">
+<input class="rounded border-outline-variant text-primary focus:ring-0 w-4 h-4" type="checkbox"/>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container border border-outline-variant/60 flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-on-surface text-[18px]">code</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center space-x-2">
+<span class="font-headline-sm text-[15px] font-semibold text-on-surface hover:text-primary cursor-pointer truncate">GitHub Copilot Engineering Deep Dive</span>
+<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">200 OK</span>
+</div>
+<div class="flex items-center space-x-2 mt-0.5">
+<span class="font-code-sm text-code-sm text-primary font-semibold">lmk.to/gh-ai-blog</span>
+<span class="text-xs text-outline">→</span>
+<span class="text-xs text-on-surface-variant truncate max-w-xs" title="https://github.blog/engineering/ai-infrastructure-deep-dive">github.blog/engineering/ai-infra...</span>
+</div>
+<span class="text-[11px] text-outline mt-0.5">Created 5 days ago by Marcus K.</span>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col space-y-1">
+<div class="flex items-center space-x-1">
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#Engineering</span>
+<span class="px-2 py-0.5 rounded text-xs bg-surface-container text-on-surface font-medium">#DevRel</span>
+</div>
+<span class="text-xs text-on-surface-variant font-code-sm">Host: lmk.to</span>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="flex flex-col">
+<div class="flex items-baseline space-x-1.5">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">18,220</span>
+<span class="text-xs text-emerald-600 font-semibold">+42.8%</span>
+</div>
+<div class="w-24 bg-surface-container h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-primary/50 h-full w-1/4 rounded-full"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-4">
+<div class="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
+<span class="material-symbols-outlined text-[14px] text-emerald-600">verified</span>
+<span>Safe · Clean</span>
+</div>
+</td>
+<td class="py-3.5 px-4 text-right">
+<div class="flex items-center justify-end space-x-1 opacity-90 group-hover:opacity-100">
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Copy Vanity Link">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Download QR">
+<span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="Inspect Analytics">
+<span class="material-symbols-outlined text-[18px]">insights</span>
+</button>
+<button class="p-1.5 rounded-md hover:bg-surface-container text-outline hover:text-on-surface transition-colors" title="More options">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Pagination & Bulk Meta Footer -->
+<div class="p-3.5 bg-surface-container-low/40 border-t border-surface-container flex flex-col sm:flex-row items-center justify-between text-xs text-on-surface-variant gap-2">
+<div class="flex items-center space-x-2">
+<span>Showing <strong class="font-semibold text-on-surface">1 - 4</strong> of <strong class="font-semibold text-on-surface">1,420</strong> enterprise links</span>
+<span class="text-outline">·</span>
+<span class="text-tertiary font-semibold flex items-center space-x-1">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span>All redirects synchronized with Cloudflare Edge</span>
+</span>
+</div>
+<div class="flex items-center space-x-1">
+<button class="px-2 py-1 rounded border border-outline-variant/60 bg-surface text-outline cursor-not-allowed" disabled="">Previous</button>
+<button class="px-2.5 py-1 rounded bg-primary text-on-primary font-semibold">1</button>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container text-on-surface">2</button>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container text-on-surface">3</button>
+<span class="px-1 text-outline">...</span>
+<button class="px-2.5 py-1 rounded hover:bg-surface-container text-on-surface">71</button>
+<button class="px-2 py-1 rounded border border-outline-variant/60 bg-surface text-on-surface hover:bg-surface-container transition-colors">Next</button>
+</div>
+</div>
+</section>
+<!-- Bottom Contextual Status Strip -->
+<footer class="pt-2 flex flex-col sm:flex-row items-center justify-between text-xs text-on-surface-variant border-t border-surface-container">
+<div class="flex items-center space-x-4">
+<span class="flex items-center space-x-1">
+<span class="material-symbols-outlined text-[15px] text-tertiary">check_circle</span>
+<span>Enterprise SLA: ISO27001 &amp; SOC2 Type II Certified</span>
+</span>
+<span class="text-outline">·</span>
+<span>Avg Edge Hop: <strong>14.2ms</strong> globally</span>
+</div>
+<div class="flex items-center space-x-3 mt-2 sm:mt-0 font-code-sm">
+<a class="hover:text-primary transition-colors" href="#api">v2.4.0 REST API</a>
+<span class="text-outline">·</span>
+<a class="hover:text-primary transition-colors" href="#status">Live Status Page</a>
+</div>
+</footer>
+</div>
+</main>
+<!-- Interactive Logic for Simulation & Feedback -->
+<script>
+    // Copy vanity link animation simulation
+    const copyBtn = document.getElementById('copy-banner-btn');
+    const copyText = document.getElementById('copy-text');
+    const copyIcon = document.getElementById('copy-icon');
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard?.writeText('https://lmk.to/spring-launch');
+        copyText.textContent = 'Copied!';
+        copyIcon.textContent = 'check';
+        copyBtn.classList.add('bg-emerald-50', 'text-emerald-800', 'border-emerald-300');
+
+        setTimeout(() => {
+          copyText.textContent = 'Copy Link';
+          copyIcon.textContent = 'content_copy';
+          copyBtn.classList.remove('bg-emerald-50', 'text-emerald-800', 'border-emerald-300');
+        }, 2200);
+      });
+    }
+
+    // Dynamic input feedback for Quick Shorten
+    const createBtn = document.getElementById('create-shortlink-btn');
+    const aliasInput = document.getElementById('alias-input');
+    if (createBtn && aliasInput) {
+      createBtn.addEventListener('click', () => {
+        const originalText = createBtn.innerHTML;
+        createBtn.innerHTML = `
+          <span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+          <span>Deploying...</span>
+        `;
+        createBtn.disabled = true;
+
+        setTimeout(() => {
+          createBtn.innerHTML = `
+            <span class="material-symbols-outlined text-[18px]">done_all</span>
+            <span>Live on Edge</span>
+          `;
+          setTimeout(() => {
+            createBtn.innerHTML = originalText;
+            createBtn.disabled = false;
+          }, 1500);
+        }, 700);
+      });
+    }
+  </script>
+</body></html>

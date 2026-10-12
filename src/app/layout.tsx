@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
-  title: "TinyURL / TrimLink — URL Shortener, Branded Short Links & Analytics",
-  description: "Simplifying the Internet through the power of the URL. Instant short links, branded domains, QR code studio, and real-time click analytics.",
+  title: "TinyURL — Enterprise URL Shortener & Link Operations Console",
+  description: "Enterprise link operations, OpeninApp deep routing, threat inspection, and zero-latency analytics.",
 };
 
 export default function RootLayout({
@@ -27,9 +28,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakarta.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#052536] text-slate-100 font-sans">
+      <body className="min-h-full flex flex-col bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary transition-colors">
         <Providers>{children}</Providers>
       </body>
     </html>

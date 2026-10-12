@@ -2,7 +2,10 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
-import { FileSpreadsheet, Upload, Download, Check, Sparkles } from 'lucide-react';
+import { FileSpreadsheet, Upload, Download, Check } from 'lucide-react';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 
 export const BulkToolsView: React.FC = () => {
   const { importLinksCsv, exportLinksCsv } = useStore();
@@ -10,9 +13,9 @@ export const BulkToolsView: React.FC = () => {
   const [importCount, setImportCount] = useState<number | null>(null);
 
   const sampleCsv = `destination_url,title,custom_slug
-https://acme.com/promo-1,Black Friday Deal,bfdeal26
-https://acme.com/promo-2,Cyber Monday Special,cyber26
-https://acme.com/blog/guide,SaaS Marketing Guide,saasguide`;
+https://example.com/promo-1,Black Friday Deal,bfdeal26
+https://example.com/promo-2,Cyber Monday Special,cyber26
+https://example.com/blog/guide,SaaS Marketing Guide,saasguide`;
 
   const handleDownloadSample = () => {
     const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + sampleCsv);
@@ -34,77 +37,102 @@ https://acme.com/blog/guide,SaaS Marketing Guide,saasguide`;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in text-foreground">
       
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-indigo-400" /> Bulk CSV Import & Export Tools
-        </h1>
-        <p className="text-xs text-slate-400">Batch generate hundreds of short links at once via CSV spreadsheet or export link analytics</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/40">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-primary" /> Bulk CSV Import &amp; Export Automation
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Batch generate hundreds of short links at once via CSV spreadsheet or export link analytics into reports.
+          </p>
+        </div>
+
+        <Badge variant="primary" className="px-3 py-1 text-xs">
+          High-Throughput Batch
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Bulk Import */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Upload className="w-4 h-4 text-indigo-400" /> Import Short Links via CSV
+        <Card className="p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border/40">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Upload className="w-4 h-4 text-primary" /> Import Short Links via CSV
             </h3>
             <button
               onClick={handleDownloadSample}
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1"
+              className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" /> Sample CSV
+              <Download className="w-3.5 h-3.5" /> Sample CSV Template
             </button>
           </div>
 
           {importCount !== null && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center gap-2">
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs rounded-xl flex items-center gap-2 font-medium">
               <Check className="w-4 h-4" /> Successfully imported {importCount} short links into workspace!
             </div>
           )}
 
-          <form onSubmit={handleImport} className="space-y-3 text-xs">
+          <form onSubmit={handleImport} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">Paste CSV Contents</label>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">
+                Paste CSV Rows (destination_url, title, custom_slug)
+              </label>
               <textarea
                 rows={6}
+                required
                 placeholder={sampleCsv}
                 value={csvContent}
                 onChange={(e) => setCsvContent(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono text-[11px] resize-none placeholder-slate-600"
+                className="w-full p-3 bg-background border border-border/60 focus:border-primary rounded-xl text-xs font-mono text-foreground placeholder:text-muted-foreground/60 outline-none resize-none transition"
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="w-full py-2.5 gradient-button text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+              size="lg"
+              className="w-full text-xs font-bold"
             >
-              <Upload className="w-4 h-4" /> Process & Bulk Create Links
-            </button>
+              <Upload className="w-4 h-4 mr-2" /> Start Batch Ingestion
+            </Button>
           </form>
-        </div>
+        </Card>
 
-        {/* Bulk Export */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-4 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-2">
-              <Download className="w-4 h-4 text-cyan-400" /> Export All Workspace Links
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Export all active short links, click counts, security status, and creation timestamps to a formatted CSV file compatible with Excel, Google Sheets, and CRM tools.
+        {/* Bulk Export & Instructions */}
+        <Card className="p-6 shadow-sm space-y-4 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-border/40">
+              <Download className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Export All Workspace Links</h3>
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Export all links, current click counts, creation timestamps, and target destinations in a standard UTF-8 CSV spreadsheet compatible with Excel, Google Sheets, and data pipelines.
             </p>
+
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={exportLinksCsv}
+              className="w-full text-xs font-bold"
+            >
+              <Download className="w-4 h-4 mr-2" /> Download Full Workspace Export (.csv)
+            </Button>
           </div>
 
-          <button
-            onClick={exportLinksCsv}
-            className="w-full py-3 bg-slate-800 hover:bg-slate-700 border border-white/10 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 transition"
-          >
-            <Download className="w-4 h-4 text-emerald-400" /> Export Workspace Links to CSV
-          </button>
-        </div>
+          <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-2 text-xs">
+            <span className="font-semibold text-foreground block">Format Specifications:</span>
+            <ul className="list-disc list-inside space-y-1 text-muted-foreground text-[11px]">
+              <li>Columns: <code className="text-primary font-mono">destination_url, title, custom_slug</code></li>
+              <li>URLs must include protocol (<code className="text-foreground font-mono">https://</code>)</li>
+              <li>Custom slugs are checked for collisions automatically</li>
+            </ul>
+          </div>
+        </Card>
 
       </div>
 

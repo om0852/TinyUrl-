@@ -2,8 +2,11 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
-import { ShieldAlert, ShieldCheck, Search, AlertTriangle, Check, RefreshCw } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Search, AlertTriangle, RefreshCw, Lock, Radio } from 'lucide-react';
 import { SecurityReport } from '@/lib/types';
+import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 
 export const SecurityView: React.FC = () => {
   const { links, updateLink, scanUrlSecurity } = useStore();
@@ -25,53 +28,63 @@ export const SecurityView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in text-foreground">
       
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <ShieldAlert className="w-5 h-5 text-rose-400" /> Link Safety & Malware Prevention Suite
-        </h1>
-        <p className="text-xs text-slate-400">Automated Google Safe Browsing API, VirusTotal scanning, and spamlink quarantine enforcement</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/40">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-destructive" /> Zero-Trust Threat &amp; Malware Inspector
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Automated Google Safe Browsing API, VirusTotal link risk scoring, and spam quarantine enforcement.
+          </p>
+        </div>
+
+        <Badge variant="success" className="px-3 py-1 text-xs">
+          Zero-Day Shield Active
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* On-Demand URL Scanner */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Search className="w-4 h-4 text-indigo-400" /> Real-time URL Threat Inspector
-          </h3>
+        <Card className="shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-border/40">
+            <Search className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">Real-time URL Threat Inspector</h3>
+          </div>
 
-          <form onSubmit={handleScan} className="space-y-3 text-xs">
+          <form onSubmit={handleScan} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-300 font-semibold mb-1">Enter URL to Inspect</label>
+              <label className="block text-xs font-semibold text-foreground mb-1.5">Enter URL to Inspect</label>
               <input
                 type="url"
                 required
                 placeholder="https://example.com/check-link"
                 value={scanInput}
                 onChange={(e) => setScanInput(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono placeholder-slate-500"
+                className="w-full h-10 px-3.5 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="w-full py-2.5 gradient-button text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+              size="lg"
+              className="w-full text-xs font-bold"
             >
-              <ShieldCheck className="w-4 h-4" /> Run Safe Browsing & VirusTotal Scan
-            </button>
+              <ShieldCheck className="w-4 h-4 mr-2" /> Run Safe Browsing Scan
+            </Button>
           </form>
 
           {reportResult && (
             <div className={`p-4 rounded-xl border text-xs space-y-2 ${
               reportResult.is_blacklisted 
-                ? 'bg-rose-950/40 border-rose-500/30 text-rose-200' 
-                : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
+                ? 'bg-destructive/10 border-destructive/20 text-destructive' 
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500'
             }`}>
               <div className="flex items-center justify-between font-bold">
-                <span>Safe Browsing Status:</span>
+                <span>Threat Classification:</span>
                 <span className="uppercase">{reportResult.safe_browsing}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -79,9 +92,9 @@ export const SecurityView: React.FC = () => {
                 <span className="font-mono font-bold">{reportResult.virustotal_risk} / 100</span>
               </div>
               {reportResult.threat_categories.length > 0 && (
-                <div className="pt-2 border-t border-white/10">
-                  <span className="font-semibold block mb-1">Threat Categories:</span>
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px] opacity-90">
+                <div className="pt-2 border-t border-border/40">
+                  <span className="font-semibold block mb-1 text-[11px]">Flagged Categories:</span>
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px]">
                     {reportResult.threat_categories.map((t, idx) => (
                       <li key={idx}>{t}</li>
                     ))}
@@ -90,46 +103,59 @@ export const SecurityView: React.FC = () => {
               )}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Flagged / Quarantined Links */}
-        <div className="glass-panel p-5 rounded-2xl border border-white/10 lg:col-span-2 space-y-4">
-          <h3 className="text-sm font-bold text-white flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400" /> Quarantined Suspicious Links ({flaggedLinks.length})
-            </span>
-            <span className="text-xs text-slate-400 font-normal">Auto-Disabled</span>
-          </h3>
-
-          {flaggedLinks.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-xs bg-slate-900/40 rounded-xl border border-white/5">
-              No flagged links currently in quarantine.
+        <Card className="lg:col-span-2 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border/40">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500" /> Quarantined Threat Queue
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Links flagged by automated anti-phishing algorithms are locked from edge redirection.
+              </p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {flaggedLinks.map((link) => (
-                <div key={link.id} className="p-4 bg-slate-900/80 border border-rose-500/30 rounded-xl flex items-center justify-between gap-4 text-xs">
-                  <div className="space-y-1">
+            <Badge variant="destructive">
+              {flaggedLinks.length} Flagged
+            </Badge>
+          </div>
+
+          <div className="space-y-3">
+            {flaggedLinks.length === 0 ? (
+              <div className="p-8 text-center border border-dashed border-border/50 rounded-xl bg-muted/10 space-y-2">
+                <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto" />
+                <p className="text-sm font-semibold text-foreground">Zero Quarantined Threats</p>
+                <p className="text-xs text-muted-foreground">All active shortlinks in your workspace pass zero-phish checks.</p>
+              </div>
+            ) : (
+              flaggedLinks.map((link) => (
+                <div
+                  key={link.id}
+                  className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 flex items-center justify-between gap-4"
+                >
+                  <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white">{link.title}</span>
-                      <span className="px-2 py-0.5 text-[9px] bg-rose-500/20 text-rose-300 font-bold border border-rose-500/30 rounded">
-                        Risk Score: {link.risk_score}
-                      </span>
+                      <span className="font-semibold text-foreground text-xs">{link.title}</span>
+                      <span className="font-mono text-xs text-destructive font-bold">/{link.short_code}</span>
                     </div>
-                    <p className="font-mono text-rose-400 text-[11px] truncate max-w-md">{link.destination_url}</p>
+                    <p className="text-xs text-muted-foreground font-mono truncate">{link.destination_url}</p>
+                    <Badge variant="destructive" className="text-[10px]">Suspicious Domain / Phishing Alert</Badge>
                   </div>
 
-                  <button
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => handleRestoreLink(link.id)}
-                    className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 transition"
+                    className="shrink-0"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" /> Override & Restore
-                  </button>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" /> Restore
+                  </Button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        </Card>
 
       </div>
 

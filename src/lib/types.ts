@@ -51,10 +51,15 @@ export interface RetargetingPixel {
 }
 
 export interface DeepLinkConfig {
-  app: 'instagram' | 'youtube' | 'whatsapp' | 'custom';
-  app_uri: string;
+  enabled?: boolean;
+  app: string;
+  app_name?: string;
+  app_uri?: string;
+  ios_uri?: string;
+  android_intent?: string;
   fallback_url: string;
 }
+
 
 export interface Link {
   id: string;

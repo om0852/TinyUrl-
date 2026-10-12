@@ -4,15 +4,15 @@ import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { 
   GitFork, 
-  Plus, 
-  Smartphone, 
-  Globe, 
-  Percent, 
   Trash2, 
   Check, 
-  ArrowRight,
-  Sparkles
+  Sparkles,
+  Link2,
+  Smartphone
 } from 'lucide-react';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 
 export const SmartRoutingView: React.FC = () => {
   const { links, addRuleToLink, removeRuleFromLink } = useStore();
@@ -44,101 +44,125 @@ export const SmartRoutingView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in text-foreground">
       
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <GitFork className="w-5 h-5 text-indigo-400" /> Smart Routing & A/B Traffic Splitter
-        </h1>
-        <p className="text-xs text-slate-400">Direct traffic dynamically based on device (iOS/Android), country, or weighted split testing</p>
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/40">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-primary" /> OpeninApp &amp; Smart Routing Console
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Direct traffic dynamically based on device (iOS/Android), country geolocation, or weighted split testing.
+          </p>
+        </div>
+
+        <Badge variant="primary" className="px-3 py-1 text-xs">
+          Edge Routing Active
+        </Badge>
       </div>
 
-      {/* Target Link Selector */}
-      <div className="glass-panel p-4 rounded-xl border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <label className="text-xs font-semibold text-slate-300">Select Link to Configure Rules:</label>
+      {/* Target Link Selector Card */}
+      <Card className="p-4 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <label className="text-xs font-semibold text-foreground flex items-center gap-2 shrink-0">
+          <Link2 className="w-4 h-4 text-primary" /> Select Link to Configure Rules:
+        </label>
+        
         <select
           value={selectedLinkId}
           onChange={(e) => setSelectedLinkId(e.target.value)}
-          className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none w-full sm:w-80 font-mono"
+          className="h-9 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs font-semibold text-foreground focus:outline-none cursor-pointer w-full sm:w-80 truncate"
         >
-          {links.map(l => (
-            <option key={l.id} value={l.id}>{l.title} (/r/{l.short_code})</option>
+          {links.map((link) => (
+            <option key={link.id} value={link.id}>
+              {link.title} (/{link.short_code})
+            </option>
           ))}
         </select>
-      </div>
+      </Card>
 
       {currentLink && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Add Rule Form */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Plus className="w-4 h-4 text-indigo-400" /> Add Routing Rule
-            </h3>
+          {/* Add Rule Form Card */}
+          <Card className="p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-border/40">
+              <GitFork className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Add Dynamic Condition</h3>
+            </div>
 
             {msg && (
-              <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs flex items-center gap-2">
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs rounded-lg flex items-center gap-2">
                 <Check className="w-4 h-4" /> {msg}
               </div>
             )}
 
             <form onSubmit={handleAddRule} className="space-y-4 text-xs">
-              
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Rule Engine Type</label>
-                <select
-                  value={ruleType}
-                  onChange={(e) => {
-                    const t = e.target.value as any;
-                    setRuleType(t);
-                    if (t === 'device') setCondition('iOS');
-                    else if (t === 'geo') setCondition('US');
-                    else setCondition('A/B Split');
-                  }}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
-                >
-                  <option value="device">Device Targeting (iOS / Android / Desktop)</option>
-                  <option value="geo">Geo Location (US / UK / IN / DE)</option>
-                  <option value="ab">A/B Split Testing (% Traffic Split)</option>
-                </select>
+                <label className="block text-foreground font-semibold text-xs mb-1.5">Rule Strategy</label>
+                <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/30 border border-border/40 rounded-lg">
+                  {(['device', 'geo', 'ab'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => {
+                        setRuleType(type);
+                        if (type === 'device') setCondition('iOS');
+                        if (type === 'geo') setCondition('US');
+                        if (type === 'ab') setCondition('50/50 Split');
+                      }}
+                      className={`h-7 rounded-md text-[11px] font-semibold transition uppercase cursor-pointer ${
+                        ruleType === type
+                          ? 'bg-card text-foreground shadow-2xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Condition Selector */}
               {ruleType === 'device' && (
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Target Device OS</label>
+                  <label className="block text-foreground font-semibold text-xs mb-1.5">Target OS Platform</label>
                   <select
                     value={condition}
                     onChange={(e) => setCondition(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
+                    className="w-full h-9 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground outline-none"
                   >
-                    <option value="iOS">Apple iOS (iPhone / iPad)</option>
-                    <option value="Android">Google Android</option>
-                    <option value="Desktop">Desktop (Windows / macOS / Linux)</option>
+                    <option value="iOS">Apple iOS (iPhone/iPad)</option>
+                    <option value="Android">Google Android Device</option>
+                    <option value="Windows">Microsoft Windows</option>
+                    <option value="macOS">Apple macOS</option>
                   </select>
                 </div>
               )}
 
               {ruleType === 'geo' && (
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Target Country Code</label>
+                  <label className="block text-foreground font-semibold text-xs mb-1.5">Country / Geolocation</label>
                   <select
                     value={condition}
                     onChange={(e) => setCondition(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white"
+                    className="w-full h-9 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground outline-none"
                   >
                     <option value="US">United States (US)</option>
-                    <option value="UK">United Kingdom (UK)</option>
                     <option value="IN">India (IN)</option>
+                    <option value="GB">United Kingdom (GB)</option>
                     <option value="DE">Germany (DE)</option>
-                    <option value="JP">Japan (JP)</option>
+                    <option value="CA">Canada (CA)</option>
                   </select>
                 </div>
               )}
 
               {ruleType === 'ab' && (
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Traffic Weight Allocation ({weight}%)</label>
+                  <div className="flex items-center justify-between text-xs mb-1.5 font-semibold text-foreground">
+                    <span>A/B Traffic Allocation</span>
+                    <span className="font-mono text-primary">{weight}% Variant</span>
+                  </div>
                   <input
                     type="range"
                     min="10"
@@ -146,72 +170,92 @@ export const SmartRoutingView: React.FC = () => {
                     step="10"
                     value={weight}
                     onChange={(e) => setWeight(Number(e.target.value))}
-                    className="w-full accent-indigo-500"
+                    className="w-full accent-primary"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Destination Target URL</label>
+                <label className="block text-foreground font-semibold text-xs mb-1.5">Destination Target URL</label>
                 <input
                   type="url"
                   required
-                  placeholder="https://apps.apple.com/app/custom-link"
+                  placeholder="https://apps.apple.com/app/custom_link"
                   value={targetUrl}
                   onChange={(e) => setTargetUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white font-mono placeholder-slate-500"
+                  className="w-full h-9 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-foreground text-xs placeholder:text-muted-foreground/60 outline-none transition"
                 />
               </div>
 
-              <button
+              <Button
                 type="submit"
-                className="w-full py-2.5 gradient-button text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
+                size="lg"
+                className="w-full text-xs font-bold mt-2"
               >
-                <GitFork className="w-4 h-4" /> Save Smart Rule
-              </button>
+                <GitFork className="w-3.5 h-3.5 mr-1.5" /> Save Smart Rule
+              </Button>
             </form>
-          </div>
+          </Card>
 
-          {/* Active Rules List */}
-          <div className="glass-panel p-5 rounded-2xl border border-white/10 lg:col-span-2 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-violet-400" /> Active Routing Rules for <code className="text-indigo-400">/r/{currentLink.short_code}</code>
-              </span>
-              <span className="text-xs text-slate-400 font-normal">Default Fallback: {currentLink.destination_url}</span>
-            </h3>
-
-            {!currentLink.rules || currentLink.rules.length === 0 ? (
-              <div className="p-8 text-center text-slate-500 text-xs bg-slate-900/40 rounded-xl border border-white/5">
-                No active smart rules set for this link. All visitors will be directed to default URL.
+          {/* Active Rules List Card */}
+          <Card className="p-6 shadow-sm lg:col-span-2 space-y-4 flex flex-col justify-between">
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border/40">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-xs font-bold text-foreground truncate">
+                    Active Routing Rules for <code className="text-primary font-mono font-semibold">/{currentLink.short_code}</code>
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground truncate shrink-0 max-w-xs font-mono">
+                  Fallback: <span className="text-foreground">{currentLink.destination_url}</span>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {currentLink.rules.map((rule) => (
-                  <div key={rule.id} className="p-4 bg-slate-900/80 border border-white/10 rounded-xl flex items-center justify-between gap-4 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 font-bold uppercase text-[9px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded">
-                          {rule.rule_type}
-                        </span>
-                        <span className="font-semibold text-white">Condition: {rule.condition}</span>
-                        {rule.weight && <span className="text-slate-400 font-mono">({rule.weight}% traffic)</span>}
-                      </div>
-                      <p className="font-mono text-slate-400 text-[11px] truncate max-w-md">{rule.target_url}</p>
-                    </div>
 
-                    <button
-                      onClick={() => removeRuleFromLink(currentLink.id, rule.id)}
-                      className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition"
-                      title="Remove Rule"
+              {!currentLink.rules || currentLink.rules.length === 0 ? (
+                <div className="p-10 text-center text-muted-foreground text-xs bg-muted/10 rounded-xl border border-dashed border-border/50">
+                  No active smart rules set for this link. All visitors will be directed to default URL.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {currentLink.rules.map((rule) => (
+                    <div 
+                      key={rule.id} 
+                      className="p-3.5 bg-muted/20 border border-border/40 hover:border-border rounded-xl flex items-center justify-between gap-3 text-xs transition"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="primary" className="text-[9px]">
+                            {rule.rule_type}
+                          </Badge>
+                          <span className="font-semibold text-foreground text-xs truncate">
+                            Condition: {rule.condition}
+                          </span>
+                          {rule.weight && (
+                            <span className="text-muted-foreground text-[11px] shrink-0 font-mono">
+                              ({rule.weight}% traffic)
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate max-w-md font-mono">
+                          {rule.target_url}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => removeRuleFromLink(currentLink.id, rule.id)}
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition shrink-0 cursor-pointer"
+                        title="Remove Rule"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </Card>
 
         </div>
       )}

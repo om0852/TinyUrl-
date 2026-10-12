@@ -3,31 +3,18 @@
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { AuthModal } from '@/components/AuthModal';
-import { CreateTeamModal } from '@/components/CreateTeamModal';
-import { 
-  Link2, 
-  ChevronDown, 
-  Plus, 
-  Layers, 
-  Check, 
-  Activity,
-  LogOut,
-  User as UserIcon,
-  Building2
-} from 'lucide-react';
 
 interface NavbarProps {
   onOpenCreateModal: () => void;
+  onOpenCommandPalette?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal }) => {
-  const { workspaces, currentWorkspace, setCurrentWorkspace, currentUser, logout } = useStore();
+export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommandPalette }) => {
+  const { currentWorkspace, currentUser, logout } = useStore();
   
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [createTeamModalOpen, setCreateTeamModalOpen] = useState(false);
 
   const handleOpenAuth = (mode: 'login' | 'signup') => {
     setAuthMode(mode);
@@ -35,171 +22,133 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal }) => {
   };
 
   return (
-    <header className="h-16 border-b border-[#0b3d56] bg-[#052536] sticky top-0 z-40 px-4 md:px-8 flex items-center justify-between shadow-md">
-      
-      {/* Left Brand Logo & Primary Nav Links */}
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-2 cursor-pointer">
-          <span className="font-black text-2xl tracking-tighter text-white uppercase font-sans">
-            TINYURL
-          </span>
-          <span className="px-1.5 py-0.5 text-[9px] uppercase font-bold bg-[#008296] text-white rounded">
-            PRO
-          </span>
+    <header className="sticky top-0 right-0 z-20 w-full pl-60 bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant shadow-sm">
+      <div className="flex items-center justify-between px-space-lg h-16 w-full">
+        
+        {/* Left: Global Search Command Bar (⌘K) */}
+        <div className="flex items-center space-x-3 w-full max-w-lg">
+          <div className="relative w-full">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+              search
+            </span>
+            <input 
+              type="text"
+              onClick={onOpenCommandPalette}
+              readOnly
+              placeholder="Search links, tags, or domains... (⌘K / Ctrl+K)"
+              className="w-full pl-9 pr-16 py-2 bg-surface rounded-lg border border-outline-variant/60 font-body-md text-body-md text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs cursor-pointer"
+            />
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 pointer-events-none">
+              <kbd className="font-code-sm text-[10px] px-1.5 py-0.5 bg-surface-container-low border border-outline-variant/70 rounded text-on-surface-variant shadow-xs">
+                ⌘K
+              </kbd>
+            </div>
+          </div>
         </div>
 
-        {/* Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-200">
-          <a href="#plans" className="hover:text-cyan-400 transition">Plans</a>
-          <a href="#features" className="hover:text-cyan-400 transition">Features</a>
-          <a href="#domains" className="hover:text-cyan-400 transition">Domains</a>
-          <a href="#resources" className="hover:text-cyan-400 transition">Resources</a>
-        </nav>
-      </div>
+        {/* Right: Telemetry, Actions & Profile */}
+        <div className="flex items-center space-x-3">
+          
+          {/* Secondary Action: Health status pill */}
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-surface-container text-tertiary border border-outline-variant/30">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-ping"></span>
+            <span className="font-label-sm text-label-sm font-semibold">
+              System Healthy: 42 domains
+            </span>
+          </div>
 
-      {/* Center Workspace Switcher & Status */}
-      <div className="hidden md:flex items-center gap-4">
-        {/* Workspace Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setDropdownOpen(!dropdownOpen);
-              setUserMenuOpen(false);
-            }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#07334a] hover:bg-[#0a405c] border border-white/10 text-xs text-slate-100 transition"
+          {/* Trailing Icon Actions: Notifications */}
+          <button 
+            type="button" 
+            onClick={onOpenCommandPalette}
+            aria-label="Notifications"
+            className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors relative"
           >
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-semibold max-w-[130px] truncate">{currentWorkspace.name}</span>
-            <span className="px-1.5 py-0.5 text-[9px] bg-[#008296] text-white rounded uppercase font-bold">{currentWorkspace.role}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <span className="material-symbols-outlined text-[20px]">notifications</span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-secondary-container"></span>
           </button>
 
-          {dropdownOpen && (
-            <div className="absolute top-full left-0 mt-2 w-64 bg-[#072e42] rounded-xl border border-white/15 p-2 shadow-2xl z-50 space-y-1">
-              <p className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Switch Workspace</p>
-              
-              {workspaces.map((ws) => (
-                <button
-                  key={ws.id}
-                  onClick={() => {
-                    setCurrentWorkspace(ws);
-                    setDropdownOpen(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium flex items-center justify-between transition ${
-                    ws.id === currentWorkspace.id ? 'bg-[#008296] text-white font-bold' : 'text-slate-200 hover:bg-white/10'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-3.5 h-3.5 text-cyan-300" />
-                    <span>{ws.name}</span>
-                  </div>
-                  {ws.id === currentWorkspace.id && <Check className="w-3.5 h-3.5 text-white" />}
-                </button>
-              ))}
+          {/* Help Action */}
+          <button 
+            type="button" 
+            onClick={() => handleOpenAuth('login')}
+            aria-label="Help"
+            className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]">help</span>
+          </button>
 
-              <div className="pt-1 border-t border-white/10">
-                <button
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    setCreateTeamModalOpen(true);
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-cyan-300 hover:bg-white/10 flex items-center gap-2 transition"
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>+ Create New Workspace</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+          {/* Divider */}
+          <div className="h-5 w-[1px] bg-outline-variant/40"></div>
 
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-          <Activity className="w-3.5 h-3.5 animate-pulse" />
-          <span>21ms Redis Latency</span>
-        </div>
-      </div>
-
-      {/* Right Auth & User Profile */}
-      <div className="flex items-center gap-3">
-        {currentUser ? (
-          <div className="relative">
+          {/* Primary CTA: + New Shortlink */}
+          <div className="relative flex items-center">
             <button
-              onClick={() => {
-                setUserMenuOpen(!userMenuOpen);
-                setDropdownOpen(false);
-              }}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#07334a] hover:bg-[#0a405c] border border-white/10 transition"
+              type="button"
+              onClick={onOpenCreateModal}
+              className="flex items-center space-x-1.5 px-3.5 py-2 bg-primary-container text-on-primary rounded-lg font-label-md text-label-md font-semibold hover:bg-primary transition-all shadow-sm active:scale-[0.98]"
             >
-              <div className="w-7 h-7 rounded-full bg-[#008296] text-white font-bold text-xs flex items-center justify-center shadow-md">
-                {currentUser.avatar || currentUser.name.substring(0, 2).toUpperCase()}
-              </div>
-              <div className="text-left hidden sm:block">
-                <p className="text-xs font-bold text-white leading-tight">{currentUser.name}</p>
-                <p className="text-[10px] text-cyan-300 font-medium leading-tight">{currentUser.role.toUpperCase()}</p>
-              </div>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>New Shortlink</span>
             </button>
+          </div>
 
-            {userMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-56 bg-[#072e42] rounded-xl border border-white/15 p-2 shadow-2xl z-50 space-y-1 text-xs">
-                <div className="px-3 py-2 border-b border-white/10">
-                  <p className="font-bold text-white">{currentUser.name}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
-                </div>
-
+          {/* User Profile Avatar with Online dot */}
+          <div className="flex items-center pl-2 space-x-2 relative">
+            {currentUser ? (
+              <div>
                 <button
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    logout();
-                  }}
-                  className="w-full text-left px-3 py-2 rounded-lg font-bold text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition"
+                  type="button"
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="w-8 h-8 rounded-full bg-primary text-on-primary font-bold flex items-center justify-center text-xs ring-2 ring-outline-variant/50 shadow-xs cursor-pointer"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Log Out</span>
+                  {currentUser.name.charAt(0)}
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
                 </button>
+
+                {userMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-52 bg-surface-container-lowest rounded-xl border border-outline-variant/60 p-2 shadow-xl z-50 space-y-1 text-xs">
+                    <div className="px-3 py-2 border-b border-surface-container">
+                      <p className="font-bold text-on-surface truncate font-headline-sm text-xs">{currentUser.name}</p>
+                      <p className="text-[10px] text-on-surface-variant truncate font-body-sm">{currentUser.email}</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setUserMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-error hover:bg-error-container/20 font-medium flex items-center gap-2 transition"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">logout</span>
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div 
+                onClick={() => handleOpenAuth('login')}
+                className="relative cursor-pointer"
+              >
+                <img 
+                  alt="User Profile Avatar" 
+                  className="w-8 h-8 rounded-full ring-2 ring-outline-variant/50 object-cover" 
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCm_t4ui7362BEh_JbNV_NLc2cAk0zUHpEN1ApJ6KXTcDhcbBh9h7BR0oJkKfw6u4rvNWC55HomJmOGKQ39DVfF9rcCfd9JS2r1sJkDwyZvpMPmSxcUWiqZCQCHFgI-JSzzQuTkrw2VTyt54bpp5NtES5DSZCQEicJbDgJ8J-BHA1wJtEhl_UIhRK9REzc7NEfHvo1lov-Qd7u2QB77BDSHm6ku47kqXo_Lz6OrwSM32RnMIcoLm6PL9yyCACAFIoa_zFLFQIt06UU" 
+                />
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
               </div>
             )}
           </div>
-        ) : (
-          <>
-            <button
-              onClick={() => handleOpenAuth('login')}
-              className="text-sm font-semibold text-slate-200 hover:text-white px-2 py-1 transition hidden sm:block"
-            >
-              Log In
-            </button>
 
-            <button
-              onClick={() => handleOpenAuth('signup')}
-              className="tinyurl-btn-teal text-xs px-4 py-2 rounded-lg transition font-bold"
-            >
-              Sign Up
-            </button>
-          </>
-        )}
+        </div>
 
-        <button
-          onClick={onOpenCreateModal}
-          className="tinyurl-btn-green text-xs px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-md"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Shorten Link</span>
-        </button>
       </div>
 
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authMode}
+      <AuthModal 
+        isOpen={authModalOpen} 
+        initialMode={authMode} 
+        onClose={() => setAuthModalOpen(false)} 
       />
-
-      {/* Create Team Modal */}
-      <CreateTeamModal
-        isOpen={createTeamModalOpen}
-        onClose={() => setCreateTeamModalOpen(false)}
-      />
-
     </header>
   );
 };

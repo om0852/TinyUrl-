@@ -14,7 +14,8 @@ import {
   SecurityReport,
   User,
   TeamMember,
-  WorkspaceRole
+  WorkspaceRole,
+  DeepLinkConfig
 } from './types';
 import {
   initialWorkspaces,
@@ -30,9 +31,12 @@ import {
   buildUtmUrl,
   RESERVED_SLUGS
 } from './db';
+import { detectAppDeepLink } from './deepLink';
+
 
 interface StoreContextType {
   currentUser: User | null;
+  authLoaded: boolean;
   login: (email: string, pass: string) => void;
   signup: (name: string, email: string, pass: string) => void;
   logout: () => void;
@@ -69,7 +73,9 @@ interface StoreContextType {
     utm_campaign?: string;
     utm_term?: string;
     utm_content?: string;
+    deep_link?: DeepLinkConfig;
   }) => { link: Link | null; error?: string };
+
 
   updateLink: (id: string, updates: Partial<Link>) => void;
   deleteLink: (id: string) => void;
@@ -94,13 +100,8 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | null>(null);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>({
-    id: 'usr_1',
-    name: 'Alex Morgan',
-    email: 'alex@acme.com',
-    avatar: 'AM',
-    role: 'owner'
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoaded, setAuthLoaded] = useState<boolean>(false);
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspaces[0]);
@@ -112,7 +113,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialApiKeys);
   const [webhooks, setWebhooks] = useState<Webhook[]>(initialWebhooks);
 
-  // Initialize single website domain dynamically matching browser host or env & sync localStorage
+  // Initialize dynamic domain & sync localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const activeDomain = window.location.host || process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || 'localhost:3000';
@@ -128,6 +129,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ]);
     }
     try {
+      const savedUser = localStorage.getItem('url_shortener_user');
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+      } else {
+        setCurrentUser(null);
+      }
+
+      const savedWs = localStorage.getItem('url_shortener_workspaces');
+      if (savedWs) {
+        const parsedWs = JSON.parse(savedWs);
+        if (Array.isArray(parsedWs) && parsedWs.length > 0) {
+          setWorkspaces(parsedWs);
+          setCurrentWorkspace(parsedWs[0]);
+        }
+      }
+
       const savedLinks = localStorage.getItem('url_shortener_links');
       if (savedLinks) {
         setLinks(JSON.parse(savedLinks));
@@ -142,7 +159,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch {
       setClicks(generateMockClicks());
+    } finally {
+      setAuthLoaded(true);
     }
+
+    // Cross-tab and active-window real-time synchronization
+    const handleSyncFromStorage = () => {
+      try {
+        const rawLinks = localStorage.getItem('url_shortener_links');
+        if (rawLinks) {
+          const parsed = JSON.parse(rawLinks);
+          if (Array.isArray(parsed)) {
+            setLinks(parsed);
+          }
+        }
+        const rawClicks = localStorage.getItem('url_shortener_clicks');
+        if (rawClicks) {
+          const parsedClicks = JSON.parse(rawClicks);
+          if (Array.isArray(parsedClicks)) {
+            setClicks(parsedClicks);
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', handleSyncFromStorage);
+    window.addEventListener('focus', handleSyncFromStorage);
+    window.addEventListener('url_shortener_sync', handleSyncFromStorage);
+
+    return () => {
+      window.removeEventListener('storage', handleSyncFromStorage);
+      window.removeEventListener('focus', handleSyncFromStorage);
+      window.removeEventListener('url_shortener_sync', handleSyncFromStorage);
+    };
   }, []);
 
   // Sync state changes to localStorage
@@ -150,6 +199,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLinks(newLinks);
     try {
       localStorage.setItem('url_shortener_links', JSON.stringify(newLinks));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
     } catch {}
   };
 
@@ -157,6 +209,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setClicks(newClicks);
     try {
       localStorage.setItem('url_shortener_clicks', JSON.stringify(newClicks));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
     } catch {}
   };
 
@@ -228,6 +283,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const defaultDomain = domains.find(d => d.is_default) || domains[0];
 
+    // Detect platform deep link (OpeninApp feature)
+    const appDetection = detectAppDeepLink(finalDestUrl);
+    const deepLinkConfig: DeepLinkConfig | undefined = data.deep_link || (appDetection ? {
+      enabled: true,
+      app: appDetection.app,
+      app_name: appDetection.appName,
+      app_uri: appDetection.iosUri,
+      ios_uri: appDetection.iosUri,
+      android_intent: appDetection.androidIntent,
+      fallback_url: appDetection.fallbackUrl
+    } : undefined);
+
     const newLink: Link = {
       id: `link_${Date.now()}`,
       short_code: code,
@@ -253,10 +320,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utm_campaign: data.utm_campaign,
       utm_term: data.utm_term,
       utm_content: data.utm_content,
+      deep_link: deepLinkConfig,
       rules: []
     };
 
     saveLinksState([newLink, ...links]);
+
+
+    // Asynchronously sync with Neon PostgreSQL
+    if (typeof window !== 'undefined') {
+      fetch('/api/v1/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destination_url: newLink.destination_url,
+          custom_slug: newLink.short_code,
+          title: newLink.title,
+          tags: newLink.tags,
+          rules: newLink.rules
+        })
+      }).catch(() => {});
+    }
+
     return { link: newLink };
   };
 
@@ -297,30 +382,87 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Log click event
   const logClick = (linkId: string, clientInfo?: Partial<ClickEvent>): ClickEvent => {
-    const targetLink = links.find(l => l.id === linkId || l.short_code === linkId);
+    // 1. Resolve freshest state from localStorage if available
+    let currentLinks = [...links];
+    let currentClicks = [...clicks];
+
+    if (typeof window !== 'undefined') {
+      try {
+        const rawLinks = localStorage.getItem('url_shortener_links');
+        if (rawLinks) {
+          const parsed = JSON.parse(rawLinks);
+          if (Array.isArray(parsed)) currentLinks = parsed;
+        }
+        const rawClicks = localStorage.getItem('url_shortener_clicks');
+        if (rawClicks) {
+          const parsed = JSON.parse(rawClicks);
+          if (Array.isArray(parsed)) currentClicks = parsed;
+        }
+      } catch {}
+    }
+
+    const cleanTargetId = (linkId || '').toLowerCase().trim();
+    const targetLink = currentLinks.find(
+      l => (l.id && l.id.toLowerCase() === cleanTargetId) ||
+           (l.short_code && l.short_code.toLowerCase() === cleanTargetId) ||
+           (l.custom_slug && l.custom_slug.toLowerCase() === cleanTargetId)
+    );
+
+    const targetShortCode = targetLink ? targetLink.short_code : (clientInfo?.short_code || linkId);
+    const targetRealId = targetLink ? targetLink.id : linkId;
 
     const newClick: ClickEvent = {
-      id: `clk_${Date.now()}`,
-      link_id: targetLink ? targetLink.id : linkId,
-      short_code: targetLink ? targetLink.short_code : linkId,
+      id: `clk_${Date.now()}_${Math.floor(Math.random() * 8999 + 1000)}`,
+      link_id: targetRealId,
+      short_code: targetShortCode,
       timestamp: new Date().toISOString(),
       ip_hash: clientInfo?.ip_hash || `ip_${Math.floor(Math.random() * 90000 + 10000)}`,
       country: clientInfo?.country || 'United States',
       country_code: clientInfo?.country_code || 'US',
       city: clientInfo?.city || 'San Francisco',
-      device: clientInfo?.device || 'mobile',
-      os: clientInfo?.os || 'iOS',
-      browser: clientInfo?.browser || 'Safari',
-      referrer: clientInfo?.referrer || 'Direct / None',
+      device: clientInfo?.device || (typeof navigator !== 'undefined' && /iPad|Tablet/i.test(navigator.userAgent) ? 'tablet' : typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop'),
+      os: clientInfo?.os || (typeof navigator !== 'undefined' && /iPhone|iPad/i.test(navigator.userAgent) ? 'iOS' : typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent) ? 'Android' : typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? 'macOS' : 'Windows'),
+      browser: clientInfo?.browser || (typeof navigator !== 'undefined' && /Chrome/i.test(navigator.userAgent) ? 'Chrome' : typeof navigator !== 'undefined' && /Safari/i.test(navigator.userAgent) ? 'Safari' : typeof navigator !== 'undefined' && /Firefox/i.test(navigator.userAgent) ? 'Firefox' : 'Edge'),
+      referrer: clientInfo?.referrer || (typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'),
       is_bot: clientInfo?.is_bot || false,
       is_unique: clientInfo?.is_unique ?? true,
       latency_ms: clientInfo?.latency_ms || Math.floor(15 + Math.random() * 20)
     };
 
-    saveClicksState([newClick, ...clicks]);
+    // 2. Atomically update clicks list
+    const updatedClicks = [newClick, ...currentClicks];
 
-    if (targetLink) {
-      updateLink(targetLink.id, { clicks_count: targetLink.clicks_count + 1 });
+    // 3. Atomically increment link click count
+    const updatedLinks = currentLinks.map(l => {
+      if (
+        (targetLink && l.id === targetLink.id) ||
+        (l.id && l.id.toLowerCase() === cleanTargetId) ||
+        (l.short_code && l.short_code.toLowerCase() === cleanTargetId)
+      ) {
+        return {
+          ...l,
+          clicks_count: (l.clicks_count || 0) + 1,
+          updated_at: new Date().toISOString()
+        };
+      }
+      return l;
+    });
+
+    // 4. Update React state and write to localStorage
+    saveClicksState(updatedClicks);
+    saveLinksState(updatedLinks);
+
+    // 5. Notify server in background
+    if (typeof window !== 'undefined') {
+      fetch('/api/v1/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          link_id: targetRealId,
+          short_code: targetShortCode,
+          click: newClick
+        })
+      }).catch(() => {});
     }
 
     return newClick;
@@ -441,7 +583,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Auth functions
   const login = (email: string, pass: string) => {
-    const namePart = email.split('@')[0];
+    const namePart = email.split('@')[0] || 'User';
     const initials = namePart.substring(0, 2).toUpperCase();
     const newUser: User = {
       id: `usr_${Date.now()}`,
@@ -457,17 +599,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const signup = (name: string, email: string, pass: string) => {
-    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
+    const trimmedName = name.trim() || 'New User';
+    const initials = trimmedName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
     const newUser: User = {
       id: `usr_${Date.now()}`,
-      name: name,
-      email: email,
+      name: trimmedName,
+      email: email.trim(),
       avatar: initials,
       role: 'owner'
     };
+    
+    // Auto-create personalized workspace for new signup
+    const wsName = `${trimmedName}'s Workspace`;
+    const newWs: Workspace = {
+      id: `ws_${Date.now()}`,
+      name: wsName,
+      slug: trimmedName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      role: 'owner',
+      plan: 'pro',
+      created_at: new Date().toISOString()
+    };
+    const updatedWs = [newWs, ...workspaces];
+    setWorkspaces(updatedWs);
+    setCurrentWorkspace(newWs);
     setCurrentUser(newUser);
+
     try {
       localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(updatedWs));
     } catch {}
   };
 
@@ -492,6 +651,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = [newWs, ...workspaces];
     setWorkspaces(updated);
     setCurrentWorkspace(newWs);
+    try {
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(updated));
+    } catch {}
     return newWs;
   };
 
@@ -536,6 +698,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <StoreContext.Provider value={{
       currentUser,
+      authLoaded,
       login,
       signup,
       logout,

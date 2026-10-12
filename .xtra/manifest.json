@@ -1,0 +1,59 @@
+{
+  "projectId": "6acc64fc75854c4511d38c8b",
+  "environment": "development",
+  "lastSyncedAt": "2026-10-12T04:57:30.787Z",
+  "secrets": {
+    "NEXT_PUBLIC_APP_URL": {
+      "hash": "f1de9e489ba88cb15968b97f40f59e8ef0da5ca03ad1f37fc13a2aa45a2512a9",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "NEXT_PUBLIC_DEFAULT_DOMAIN": {
+      "hash": "79cbb35a3d5a3cef4d68411a1e238ad8e1b6cef432a17fd243454377972c7247",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "NODE_ENV": {
+      "hash": "875b9380866e9d56e7110b0ee310962c16d9d4ae103f829d62bdffd2cbe7c61d",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "DATABASE_URL": {
+      "hash": "1a214d74930900b9f9b5bde9c73b036e2e8171d6244f6d682ed08f2423b3ff83",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "REDIS_URL": {
+      "hash": "60ea7b7ca1d5870fd4f4bfee284ca4eae67424e5085e68bec625e64641877492",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "AWS_ENDPOINT_URL_S3": {
+      "hash": "bc88a6cdcab0058a38eee2d00f10e1ad7d7b5f50debba64e559a8a20dbe0a9fb",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "AWS_ACCESS_KEY_ID": {
+      "hash": "ac9ddec43a9e8941f4da20966eae613c09c053234f7b26ace213ed10fb9c35b7",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "AWS_SECRET_ACCESS_KEY": {
+      "hash": "33a7ec819960439d22562331efa216363ce3cc90cdfae7094e3a9a8aa471fa5d",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "AWS_REGION": {
+      "hash": "72252b46fadf7e7c0388cc3b33ffa26f54e14b2de909f8b41e42e6343fb6ce33",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "SAFE_BROWSING_API_KEY": {
+      "hash": "7e968f875aa56d9940af1638eb9bed00ed09db1474bf633ad4dbaf1c85f61705",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "VIRUSTOTAL_API_KEY": {
+      "hash": "662b510ecfdf05cc8f286139bad3b11041fe196a234a5465b0cbf0505ef58076",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "JWT_SECRET": {
+      "hash": "4ec58f542fcf7d3a87ffbe73d706cf9a5783ac745cc0d1aa66aecf46105a93b9",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    },
+    "WEBHOOK_SECRET": {
+      "hash": "553361addc9baf5d76fa0a3331636cdbd89fa70133d3cf838e932582f010c1ce",
+      "updatedAt": "2026-10-12T04:57:30.789Z"
+    }
+  }
+}

@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { StoreProvider, useStore } from '@/lib/storeContext';
-import { ShieldAlert, Lock, ArrowRight, ShieldCheck, AlertTriangle, ExternalLink } from 'lucide-react';
+import { useStore } from '@/lib/storeContext';
+import { Link } from '@/lib/types';
+import { ShieldAlert, Lock, ArrowRight, ShieldCheck, AlertTriangle, ExternalLink, Smartphone, Sparkles, RefreshCw } from 'lucide-react';
+import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
 
 function RedirectInner() {
   const params = useParams();
@@ -12,32 +14,78 @@ function RedirectInner() {
   const { links, logClick } = useStore();
 
   const [mounted, setMounted] = useState(false);
+  const [resolving, setResolving] = useState(true);
+  const [resolvedLink, setResolvedLink] = useState<Link | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pixelStatus, setPixelStatus] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(2);
+  const [manualAttempt, setManualAttempt] = useState(false);
 
+  // Dynamic link resolution across store, localStorage, and API
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    const cleanCode = code.toLowerCase().trim();
+    if (!cleanCode) {
+      setResolving(false);
+      setMounted(true);
+      return;
+    }
 
-  const link = links.find(
-    l => l.short_code.toLowerCase() === code.toLowerCase() || l.custom_slug?.toLowerCase() === code.toLowerCase()
-  );
+    // 1. Try resolving from store state
+    let target = links.find(
+      l => (l.short_code && l.short_code.toLowerCase() === cleanCode) ||
+           (l.custom_slug && l.custom_slug.toLowerCase() === cleanCode)
+    );
 
+    // 2. Direct localStorage lookup fallback
+    if (!target && typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('url_shortener_links');
+        if (raw) {
+          const parsed: Link[] = JSON.parse(raw);
+          target = parsed.find(
+            l => (l.short_code && l.short_code.toLowerCase() === cleanCode) ||
+                 (l.custom_slug && l.custom_slug.toLowerCase() === cleanCode)
+          );
+        }
+      } catch {}
+    }
+
+    if (target) {
+      setResolvedLink(target);
+      setResolving(false);
+      setMounted(true);
+      return;
+    }
+
+    // 3. Fallback to API if not in local storage yet
+    fetch('/api/v1/links')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.links && Array.isArray(data.links)) {
+          const apiTarget = data.links.find(
+            (l: any) => (l.short_code && l.short_code.toLowerCase() === cleanCode) ||
+                        (l.custom_slug && l.custom_slug.toLowerCase() === cleanCode)
+          );
+          if (apiTarget) {
+            setResolvedLink(apiTarget);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setResolving(false);
+        setMounted(true);
+      });
+  }, [code, links]);
+
+  const link = resolvedLink;
   const hasLoggedRef = React.useRef(false);
 
-  useEffect(() => {
-    if (!mounted || !link || hasLoggedRef.current) return;
-
-    // Expiration or click limit checks
-    if (link.expires_at && new Date(link.expires_at) < new Date()) return;
-    if (link.max_clicks && link.clicks_count >= link.max_clicks) return;
-    if (link.status === 'disabled') return;
-
-    hasLoggedRef.current = true;
-
-    // Smart routing resolution
+  // Compute smart destination URL
+  const resolvedTarget = useMemo(() => {
+    if (!link) return '';
     let finalUrl = link.destination_url;
 
     if (link.rules && link.rules.length > 0) {
@@ -64,6 +112,65 @@ function RedirectInner() {
         }
       }
     }
+    return finalUrl;
+  }, [link]);
+
+  // Client device and in-app browser detection
+  const clientContext = useMemo(() => {
+    if (typeof navigator === 'undefined') {
+      return { isIOS: false, isAndroid: false, isMobile: false, inAppInfo: { isInApp: false } };
+    }
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
+    const isMobile = isIOS || isAndroid;
+    const inAppInfo = detectInAppBrowser(ua);
+    return { isIOS, isAndroid, isMobile, inAppInfo };
+  }, [mounted]);
+
+  // Deep Link details (OpeninApp feature)
+  const appDeepLink = useMemo(() => {
+    if (!resolvedTarget) return null;
+    
+    // Check if configured explicitly or auto-detected
+    if (link?.deep_link && link.deep_link.enabled !== false) {
+      const auto = detectAppDeepLink(resolvedTarget);
+      return {
+        app: link.deep_link.app,
+        appName: link.deep_link.app_name || auto?.appName || 'App',
+        color: auto?.color || '#4f46e5',
+        iosUri: link.deep_link.ios_uri || link.deep_link.app_uri || auto?.iosUri || resolvedTarget,
+        androidIntent: link.deep_link.android_intent || auto?.androidIntent || resolvedTarget,
+        fallbackUrl: link.deep_link.fallback_url || resolvedTarget
+      };
+    }
+
+    const auto = detectAppDeepLink(resolvedTarget);
+    return auto;
+  }, [resolvedTarget, link]);
+
+  // The active mobile URI (Android Intent vs iOS URI)
+  const activeNativeUri = useMemo(() => {
+    if (!appDeepLink) return resolvedTarget;
+    if (clientContext.isAndroid && appDeepLink.androidIntent) {
+      return appDeepLink.androidIntent;
+    }
+    if (clientContext.isIOS && appDeepLink.iosUri) {
+      return appDeepLink.iosUri;
+    }
+    return appDeepLink.androidIntent || appDeepLink.iosUri || resolvedTarget;
+  }, [appDeepLink, clientContext, resolvedTarget]);
+
+  // Main redirect logic & click tracking
+  useEffect(() => {
+    if (!mounted || !link || hasLoggedRef.current) return;
+
+    // Expiration or click limit checks
+    if (link.expires_at && new Date(link.expires_at) < new Date()) return;
+    if (link.max_clicks && link.clicks_count >= link.max_clicks) return;
+    if (link.status === 'disabled') return;
+
+    hasLoggedRef.current = true;
 
     // Log click event
     logClick(link.id, {
@@ -71,28 +178,40 @@ function RedirectInner() {
       referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'
     });
 
-    // Instant redirect if clean
-    if (!link.password_hash && !link.is_flagged && link.status === 'active') {
-      performRedirect(finalUrl);
-    }
-  }, [mounted, link, code]);
+    // If password-protected or flagged, do not redirect automatically
+    if (link.password_hash || link.is_flagged || link.status !== 'active') return;
 
-  const performRedirect = (target: string) => {
-    if (link?.retargeting_pixels && link.retargeting_pixels.length > 0) {
-      setPixelStatus(`Syncing analytics event (${link.retargeting_pixels.map(p => p.provider).join(', ')})...`);
-      setTimeout(() => {
-        if (link.deep_link) {
-          window.location.replace(link.deep_link.app_uri);
-          setTimeout(() => { window.location.replace(target); }, 1000);
-        } else {
-          window.location.replace(target);
-        }
-      }, 300);
-    } else if (link?.deep_link) {
-      window.location.replace(link.deep_link.app_uri);
-      setTimeout(() => { window.location.replace(target); }, 1000);
-    } else {
-      window.location.replace(target);
+    // If OpeninApp deep link applies on mobile:
+    if (appDeepLink && (clientContext.isMobile || clientContext.inAppInfo.isInApp)) {
+      // Countdown for auto-trigger
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            tryRedirectToApp();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+
+    // Standard redirect for desktop or general websites
+    const timeout = setTimeout(() => {
+      window.location.replace(resolvedTarget);
+    }, 600);
+
+    return () => clearTimeout(timeout);
+  }, [mounted, link, resolvedTarget, appDeepLink, clientContext]);
+
+  const tryRedirectToApp = () => {
+    if (!activeNativeUri) return;
+    try {
+      window.location.href = activeNativeUri;
+    } catch {
+      window.location.href = resolvedTarget;
     }
   };
 
@@ -101,26 +220,28 @@ function RedirectInner() {
     if (link && link.password_hash === passwordInput) {
       setPasswordError(false);
       setIsUnlocked(true);
-      performRedirect(link.destination_url);
+      if (appDeepLink && clientContext.isMobile) {
+        tryRedirectToApp();
+      } else {
+        window.location.replace(resolvedTarget);
+      }
     } else {
       setPasswordError(true);
     }
   };
 
-  // Helper to format clean domain name for destination
   const getDestinationHost = (rawUrl: string) => {
     try {
-      const u = new URL(rawUrl);
-      return u.hostname;
+      return new URL(rawUrl).hostname;
     } catch {
       return rawUrl;
     }
   };
 
-  // 1. Initial hydration phase loader (Clean minimal design)
-  if (!mounted) {
+  // 1. Initial hydration and link resolution loader
+  if (!mounted || resolving) {
     return (
-      <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4 selection:bg-[#008296]">
+      <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4">
         <div className="bg-[#072e42] p-8 rounded-xl text-center border border-[#0b4566] text-white shadow-2xl max-w-sm w-full space-y-4">
           <div className="w-10 h-10 border-2 border-t-[#008296] border-slate-700 rounded-full animate-spin mx-auto" />
           <p className="text-sm font-semibold tracking-wide text-slate-200">Connecting to destination...</p>
@@ -145,7 +266,7 @@ function RedirectInner() {
           </div>
           <button
             onClick={() => router.push('/')}
-            className="w-full py-3 rounded-lg tinyurl-btn-teal text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md"
+            className="w-full py-3 rounded-lg tinyurl-btn-teal text-white text-xs font-bold flex items-center justify-center gap-2 shadow-md cursor-pointer"
           >
             Return to Homepage <ArrowRight className="w-4 h-4" />
           </button>
@@ -179,23 +300,23 @@ function RedirectInner() {
               <ul className="list-disc list-inside space-y-0.5 text-slate-300">
                 {link.risk_reasons?.map((reason, i) => (
                   <li key={i}>{reason}</li>
-                )) || <li>High risk phishing score ({link.risk_score}/100)</li>}
+                )) || <li>Potential phishing, credential harvesting, or malware vector</li>}
               </ul>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2.5">
+          <div className="flex gap-3">
             <button
               onClick={() => router.push('/')}
-              className="w-full py-2.5 bg-[#0a405c] hover:bg-[#0c4c6e] text-white rounded-lg text-xs font-bold transition"
+              className="flex-1 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold transition"
             >
-              Back to Safety
+              Go to Safety
             </button>
             <button
-              onClick={() => performRedirect(link.destination_url)}
-              className="text-xs text-slate-400 hover:text-red-300 underline text-center"
+              onClick={() => window.location.replace(link.destination_url)}
+              className="px-4 py-2.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-xs font-semibold transition"
             >
-              Proceed anyway at your own risk
+              Proceed Anyway (Unsafe)
             </button>
           </div>
         </div>
@@ -244,7 +365,92 @@ function RedirectInner() {
     );
   }
 
-  // 5. Active Modern Human-Crafted Redirecting View
+  // 5. OpeninApp Smart Interstitial Screen (Mobile App Deep Link)
+  if (appDeepLink) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#031520] via-[#052536] to-[#072e42] flex items-center justify-center p-4 text-white selection:bg-[#008296]">
+        <div className="relative bg-[#072e42]/90 backdrop-blur-xl max-w-md w-full p-7 rounded-2xl border border-white/10 shadow-2xl space-y-6 text-center">
+          
+          {/* OpeninApp Header Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[11px] font-semibold text-cyan-300 mx-auto">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>OpeninApp Smart Redirect</span>
+          </div>
+
+          {/* App Icon with Halo */}
+          <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
+            <div 
+              className="absolute inset-0 rounded-2xl opacity-40 blur-lg animate-pulse"
+              style={{ backgroundColor: appDeepLink.color }}
+            />
+            <div 
+              className="relative w-20 h-20 rounded-2xl flex items-center justify-center shadow-2xl border border-white/20 text-white"
+              style={{ backgroundColor: appDeepLink.color }}
+            >
+              <Smartphone className="w-10 h-10" />
+            </div>
+          </div>
+
+          {/* Title & App Info */}
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              Opening in {appDeepLink.appName}...
+            </h1>
+            <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
+              Bypassing in-app webview so you stay logged in and enjoy the full native experience.
+            </p>
+          </div>
+
+          {/* In-App Browser Warning Alert */}
+          {clientContext.inAppInfo.isInApp && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left flex items-start gap-2.5">
+              <span className="text-amber-400 text-sm">💡</span>
+              <p className="text-[11px] text-amber-200 leading-tight">
+                <strong>{clientContext.inAppInfo.browserName || 'In-App Browser'} detected:</strong> If the app doesn&apos;t open automatically, tap the button below or tap the <strong>•••</strong> menu at the top-right to open in Safari/Chrome.
+              </p>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="space-y-3 pt-2">
+            <a
+              href={activeNativeUri}
+              onClick={() => {
+                setManualAttempt(true);
+                tryRedirectToApp();
+              }}
+              className="w-full py-3.5 px-5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xl hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer"
+              style={{ backgroundColor: appDeepLink.color }}
+            >
+              <Smartphone className="w-4 h-4" />
+              <span>Open in {appDeepLink.appName} App</span>
+            </a>
+
+            <a
+              href={resolvedTarget}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center gap-2 transition"
+            >
+              <span>Continue in Web Browser</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+
+          {/* Countdown & Status */}
+          <div className="pt-2 border-t border-white/5 text-[11px] text-slate-400 flex items-center justify-center gap-2">
+            <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
+            {countdown > 0 ? (
+              <span>Auto-opening in <strong>{countdown}s</strong>...</span>
+            ) : (
+              <span>Attempted native app launch</span>
+            )}
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // 6. Active Standard Web Redirect View
   return (
     <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4 selection:bg-[#008296]">
       <div className="bg-[#072e42] max-w-sm w-full p-6 rounded-xl border border-[#0b4566] text-white shadow-2xl space-y-5">
@@ -261,7 +467,7 @@ function RedirectInner() {
           <div className="p-3 bg-[#052536] rounded-lg border border-white/10 text-left">
             <p className="text-[11px] text-slate-400 font-medium mb-0.5">Redirecting to:</p>
             <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
-              <span>{getDestinationHost(link.destination_url)}</span>
+              <span>{getDestinationHost(resolvedTarget)}</span>
               <ExternalLink className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             </p>
           </div>
@@ -286,10 +492,8 @@ function RedirectInner() {
 
 export default function RedirectPage() {
   return (
-    <StoreProvider>
-      <Suspense fallback={<div className="min-h-screen bg-[#052536] flex items-center justify-center text-white text-xs">Redirecting...</div>}>
-        <RedirectInner />
-      </Suspense>
-    </StoreProvider>
+    <Suspense fallback={<div className="min-h-screen bg-[#052536] flex items-center justify-center text-white text-xs">Redirecting...</div>}>
+      <RedirectInner />
+    </Suspense>
   );
 }
