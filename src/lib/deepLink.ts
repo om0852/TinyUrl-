@@ -36,7 +36,8 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
       }
 
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.google.android.youtube;scheme=https;end`;
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
       const iosUri = videoId ? `vnd.youtube://${videoId}` : `youtube://${cleanTarget}`;
 
       return {
@@ -54,7 +55,8 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 2. Instagram (Profiles, Reels, Posts)
     if (host.includes('instagram.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.instagram.android;scheme=https;end`;
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.instagram.android;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
       
       let iosUri = `instagram://url?url=${encodeURIComponent(parsed.href)}`;
       const pathParts = pathname.split('/').filter(Boolean);
@@ -78,6 +80,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 3. Spotify (Tracks, Albums, Playlists, Artists)
     if (host.includes('spotify.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
+      const encodedTarget = encodeURIComponent(parsed.href);
       const pathParts = pathname.split('/').filter(Boolean);
       let spotifyUri = `spotify://${cleanTarget}`;
 
@@ -88,7 +91,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         }
       }
 
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.spotify.music;scheme=https;end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.spotify.music;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
 
       return {
         isSupported: true,
@@ -105,7 +108,8 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 4. Amazon (Products, Storefronts)
     if (host.includes('amazon.') || host.includes('amzn.to')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.amazon.mShop.android.shopping;scheme=https;end`;
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.amazon.mShop.android.shopping;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
       const iosUri = `com.amazon.mobile.shopping.web://${cleanTarget}`;
 
       return {
@@ -123,7 +127,8 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 5. Twitter / X
     if (host.includes('twitter.com') || host.includes('x.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.twitter.android;scheme=https;end`;
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.twitter.android;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
       
       let iosUri = `twitter://timeline`;
       if (pathname.includes('/status/')) {
@@ -146,7 +151,8 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 6. LinkedIn
     if (host.includes('linkedin.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.linkedin.android;scheme=https;end`;
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.linkedin.android;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
       const iosUri = `linkedin://${cleanTarget}`;
 
       return {
@@ -164,8 +170,9 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 7. Telegram
     if (host.includes('t.me') || host.includes('telegram.me')) {
       const username = pathname.replace('/', '').split('?')[0];
+      const encodedTarget = encodeURIComponent(parsed.href);
       const iosUri = username ? `tg://resolve?domain=${username}` : 'tg://';
-      const androidIntent = `intent://resolve?domain=${username}#Intent;package=org.telegram.messenger;scheme=tg;end`;
+      const androidIntent = `intent://resolve?domain=${username}#Intent;package=org.telegram.messenger;scheme=tg;S.browser_fallback_url=${encodedTarget};end`;
 
       return {
         isSupported: true,
@@ -182,8 +189,9 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     // 8. WhatsApp
     if (host.includes('wa.me') || host.includes('whatsapp.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
+      const encodedTarget = encodeURIComponent(parsed.href);
       const iosUri = `whatsapp://${cleanTarget}`;
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.whatsapp;scheme=https;end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.whatsapp;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
 
       return {
         isSupported: true,

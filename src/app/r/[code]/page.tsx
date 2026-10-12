@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/storeContext';
 import { Link } from '@/lib/types';
-import { ShieldAlert, Lock, ArrowRight, ShieldCheck, AlertTriangle, ExternalLink, Smartphone, Sparkles, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Lock, ArrowRight, ShieldCheck, AlertTriangle, ExternalLink } from 'lucide-react';
 import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
 
 function RedirectInner() {
@@ -20,8 +20,6 @@ function RedirectInner() {
   const [passwordError, setPasswordError] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pixelStatus, setPixelStatus] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(2);
-  const [manualAttempt, setManualAttempt] = useState(false);
 
   // Dynamic link resolution across store, localStorage, and API
   useEffect(() => {
@@ -133,7 +131,8 @@ function RedirectInner() {
     if (!resolvedTarget) return null;
     
     // Check if configured explicitly or auto-detected
-    if (link?.deep_link && link.deep_link.enabled !== false) {
+    if (link?.deep_link) {
+      if (link.deep_link.enabled === false) return null;
       const auto = detectAppDeepLink(resolvedTarget);
       return {
         app: link.deep_link.app,
@@ -145,8 +144,8 @@ function RedirectInner() {
       };
     }
 
-    const auto = detectAppDeepLink(resolvedTarget);
-    return auto;
+    // Auto-detect deep link if not explicitly configured
+    return detectAppDeepLink(resolvedTarget);
   }, [resolvedTarget, link]);
 
   // The active mobile URI (Android Intent vs iOS URI)
@@ -161,7 +160,16 @@ function RedirectInner() {
     return appDeepLink.androidIntent || appDeepLink.iosUri || resolvedTarget;
   }, [appDeepLink, clientContext, resolvedTarget]);
 
-  // Main redirect logic & click tracking
+  const tryRedirectToApp = () => {
+    if (!activeNativeUri) return;
+    try {
+      window.location.href = activeNativeUri;
+    } catch {
+      window.location.replace(resolvedTarget);
+    }
+  };
+
+  // Main redirect logic & click tracking: direct app opening or instant browser fallback
   useEffect(() => {
     if (!mounted || !link || hasLoggedRef.current) return;
 
@@ -181,47 +189,58 @@ function RedirectInner() {
     // If password-protected or flagged, do not redirect automatically
     if (link.password_hash || link.is_flagged || link.status !== 'active') return;
 
-    // If OpeninApp deep link applies on mobile:
+    // Direct OpenInApp / Mobile Deep Link execution
     if (appDeepLink && (clientContext.isMobile || clientContext.inAppInfo.isInApp)) {
-      // Countdown for auto-trigger
-      const timer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            tryRedirectToApp();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      let hasNavigatedAway = false;
+      const markNavigated = () => {
+        hasNavigatedAway = true;
+      };
 
-      return () => clearInterval(timer);
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) markNavigated();
+      });
+      window.addEventListener('pagehide', markNavigated);
+
+      // Directly attempt to open the native app without showing prompt options
+      try {
+        window.location.href = activeNativeUri;
+      } catch {
+        window.location.replace(resolvedTarget);
+      }
+
+      // If the native app is not available (not installed), automatically fall back to browser URL
+      const fallbackTimer = setTimeout(() => {
+        if (!hasNavigatedAway && !document.hidden) {
+          window.location.replace(resolvedTarget);
+        }
+      }, 600);
+
+      return () => {
+        clearTimeout(fallbackTimer);
+        window.removeEventListener('pagehide', markNavigated);
+      };
     }
 
-    // Standard redirect for desktop or general websites
+    // Standard direct redirect for desktop or web links (immediate browser open)
     const timeout = setTimeout(() => {
       window.location.replace(resolvedTarget);
-    }, 600);
+    }, 120);
 
     return () => clearTimeout(timeout);
-  }, [mounted, link, resolvedTarget, appDeepLink, clientContext]);
-
-  const tryRedirectToApp = () => {
-    if (!activeNativeUri) return;
-    try {
-      window.location.href = activeNativeUri;
-    } catch {
-      window.location.href = resolvedTarget;
-    }
-  };
+  }, [mounted, link, resolvedTarget, appDeepLink, activeNativeUri, clientContext]);
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (link && link.password_hash === passwordInput) {
       setPasswordError(false);
       setIsUnlocked(true);
-      if (appDeepLink && clientContext.isMobile) {
+      if (appDeepLink && (clientContext.isMobile || clientContext.inAppInfo.isInApp)) {
         tryRedirectToApp();
+        setTimeout(() => {
+          if (!document.hidden) {
+            window.location.replace(resolvedTarget);
+          }
+        }, 600);
       } else {
         window.location.replace(resolvedTarget);
       }
@@ -365,92 +384,7 @@ function RedirectInner() {
     );
   }
 
-  // 5. OpeninApp Smart Interstitial Screen (Mobile App Deep Link)
-  if (appDeepLink) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-[#031520] via-[#052536] to-[#072e42] flex items-center justify-center p-4 text-white selection:bg-[#008296]">
-        <div className="relative bg-[#072e42]/90 backdrop-blur-xl max-w-md w-full p-7 rounded-2xl border border-white/10 shadow-2xl space-y-6 text-center">
-          
-          {/* OpeninApp Header Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[11px] font-semibold text-cyan-300 mx-auto">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>OpeninApp Smart Redirect</span>
-          </div>
-
-          {/* App Icon with Halo */}
-          <div className="relative mx-auto w-20 h-20 flex items-center justify-center">
-            <div 
-              className="absolute inset-0 rounded-2xl opacity-40 blur-lg animate-pulse"
-              style={{ backgroundColor: appDeepLink.color }}
-            />
-            <div 
-              className="relative w-20 h-20 rounded-2xl flex items-center justify-center shadow-2xl border border-white/20 text-white"
-              style={{ backgroundColor: appDeepLink.color }}
-            >
-              <Smartphone className="w-10 h-10" />
-            </div>
-          </div>
-
-          {/* Title & App Info */}
-          <div className="space-y-1.5">
-            <h1 className="text-xl font-bold tracking-tight text-white">
-              Opening in {appDeepLink.appName}...
-            </h1>
-            <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
-              Bypassing in-app webview so you stay logged in and enjoy the full native experience.
-            </p>
-          </div>
-
-          {/* In-App Browser Warning Alert */}
-          {clientContext.inAppInfo.isInApp && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left flex items-start gap-2.5">
-              <span className="text-amber-400 text-sm">💡</span>
-              <p className="text-[11px] text-amber-200 leading-tight">
-                <strong>{clientContext.inAppInfo.browserName || 'In-App Browser'} detected:</strong> If the app doesn&apos;t open automatically, tap the button below or tap the <strong>•••</strong> menu at the top-right to open in Safari/Chrome.
-              </p>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="space-y-3 pt-2">
-            <a
-              href={activeNativeUri}
-              onClick={() => {
-                setManualAttempt(true);
-                tryRedirectToApp();
-              }}
-              className="w-full py-3.5 px-5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xl hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer"
-              style={{ backgroundColor: appDeepLink.color }}
-            >
-              <Smartphone className="w-4 h-4" />
-              <span>Open in {appDeepLink.appName} App</span>
-            </a>
-
-            <a
-              href={resolvedTarget}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center gap-2 transition"
-            >
-              <span>Continue in Web Browser</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-
-          {/* Countdown & Status */}
-          <div className="pt-2 border-t border-white/5 text-[11px] text-slate-400 flex items-center justify-center gap-2">
-            <RefreshCw className="w-3 h-3 animate-spin text-cyan-400" />
-            {countdown > 0 ? (
-              <span>Auto-opening in <strong>{countdown}s</strong>...</span>
-            ) : (
-              <span>Attempted native app launch</span>
-            )}
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
-  // 6. Active Standard Web Redirect View
+  // Active Direct Redirect View (No options prompt, direct app launch or browser redirect)
   return (
     <div className="min-h-screen bg-[#052536] flex items-center justify-center p-4 selection:bg-[#008296]">
       <div className="bg-[#072e42] max-w-sm w-full p-6 rounded-xl border border-[#0b4566] text-white shadow-2xl space-y-5">
@@ -465,9 +399,11 @@ function RedirectInner() {
           </div>
 
           <div className="p-3 bg-[#052536] rounded-lg border border-white/10 text-left">
-            <p className="text-[11px] text-slate-400 font-medium mb-0.5">Redirecting to:</p>
+            <p className="text-[11px] text-slate-400 font-medium mb-0.5">
+              {appDeepLink ? `Opening ${appDeepLink.appName}...` : 'Redirecting to:'}
+            </p>
             <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
-              <span>{getDestinationHost(resolvedTarget)}</span>
+              <span>{appDeepLink ? `${appDeepLink.appName} (${getDestinationHost(resolvedTarget)})` : getDestinationHost(resolvedTarget)}</span>
               <ExternalLink className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             </p>
           </div>
@@ -481,7 +417,9 @@ function RedirectInner() {
           {pixelStatus ? (
             <p className="text-[11px] text-cyan-300 font-medium">{pixelStatus}</p>
           ) : (
-            <p className="text-[11px] text-slate-400">Taking you to target URL...</p>
+            <p className="text-[11px] text-slate-400">
+              {appDeepLink ? `Opening in ${appDeepLink.appName} app or browser...` : 'Taking you to target URL...'}
+            </p>
           )}
         </div>
 
