@@ -103,15 +103,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoaded, setAuthLoaded] = useState<boolean>(false);
 
-  const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspaces);
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(initialWorkspaces[0]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers);
+  const defaultWs: Workspace = {
+    id: 'ws_default',
+    name: 'My Workspace',
+    slug: 'my-workspace',
+    role: 'owner',
+    plan: 'pro',
+    created_at: new Date().toISOString()
+  };
+
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([defaultWs]);
+  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(defaultWs);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [domains, setDomains] = useState<Domain[]>(initialDomains);
-  const [campaigns, setCampaigns] = useState<Campaign[]>(initialCampaigns);
-  const [links, setLinks] = useState<Link[]>(initialLinks);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [links, setLinks] = useState<Link[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>(initialApiKeys);
-  const [webhooks, setWebhooks] = useState<Webhook[]>(initialWebhooks);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
 
   // Initialize dynamic domain & sync localStorage
   useEffect(() => {
@@ -124,41 +133,91 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           verified: true,
           ssl_status: 'active',
           is_default: true,
-          workspace_id: 'ws_1'
+          workspace_id: 'ws_default'
         }
       ]);
     }
     try {
+      let user: User | null = null;
       const savedUser = localStorage.getItem('url_shortener_user');
       if (savedUser) {
-        setCurrentUser(JSON.parse(savedUser));
+        user = JSON.parse(savedUser);
+        setCurrentUser(user);
       } else {
         setCurrentUser(null);
       }
 
+      // Load workspaces & purge demo workspaces (Acme Growth Platform, Personal Projects, ws_1, ws_2)
       const savedWs = localStorage.getItem('url_shortener_workspaces');
+      let loadedWs: Workspace[] = [];
       if (savedWs) {
-        const parsedWs = JSON.parse(savedWs);
-        if (Array.isArray(parsedWs) && parsedWs.length > 0) {
-          setWorkspaces(parsedWs);
-          setCurrentWorkspace(parsedWs[0]);
-        }
+        try {
+          const parsedWs = JSON.parse(savedWs);
+          if (Array.isArray(parsedWs)) {
+            loadedWs = parsedWs.filter(
+              (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && 
+                                w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
+            );
+          }
+        } catch {}
       }
 
+      if (loadedWs.length === 0) {
+        const wsName = user ? `${user.name}'s Workspace` : 'My Workspace';
+        const userWs: Workspace = {
+          id: `ws_${Date.now()}`,
+          name: wsName,
+          slug: (user ? user.name : 'my').toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          role: 'owner',
+          plan: 'pro',
+          created_at: new Date().toISOString()
+        };
+        loadedWs = [userWs];
+      }
+
+      setWorkspaces(loadedWs);
+      setCurrentWorkspace(loadedWs[0]);
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(loadedWs));
+
+      // Load links & purge static demo links
       const savedLinks = localStorage.getItem('url_shortener_links');
+      let loadedLinks: Link[] = [];
       if (savedLinks) {
-        setLinks(JSON.parse(savedLinks));
+        try {
+          const parsed = JSON.parse(savedLinks);
+          if (Array.isArray(parsed)) {
+            loadedLinks = parsed.filter(
+              (l: Link) => l.workspace_id !== 'ws_1' && 
+                           l.id !== 'link_1' && l.id !== 'link_2' && l.id !== 'link_3' && l.id !== 'link_4' && l.id !== 'link_5' &&
+                           l.short_code !== 'sale26' && l.short_code !== 'v2launch' && l.short_code !== 'audit26' && l.short_code !== 'dl-app' && l.short_code !== 'suspicious-link'
+            );
+          }
+        } catch {}
       }
+      setLinks(loadedLinks);
+      localStorage.setItem('url_shortener_links', JSON.stringify(loadedLinks));
+
+      // Load clicks & purge fake generated mock clicks
       const savedClicks = localStorage.getItem('url_shortener_clicks');
+      let loadedClicks: ClickEvent[] = [];
       if (savedClicks) {
-        setClicks(JSON.parse(savedClicks));
-      } else {
-        const mock = generateMockClicks();
-        setClicks(mock);
-        localStorage.setItem('url_shortener_clicks', JSON.stringify(mock));
+        try {
+          const parsed = JSON.parse(savedClicks);
+          if (Array.isArray(parsed)) {
+            const userLinkIds = new Set(loadedLinks.map(l => l.id.toLowerCase()));
+            const userShortCodes = new Set(loadedLinks.map(l => l.short_code.toLowerCase()));
+            loadedClicks = parsed.filter(
+              (c: ClickEvent) => (c.link_id && userLinkIds.has(c.link_id.toLowerCase())) ||
+                                 (c.short_code && userShortCodes.has(c.short_code.toLowerCase()))
+            );
+          }
+        } catch {}
       }
+      setClicks(loadedClicks);
+      localStorage.setItem('url_shortener_clicks', JSON.stringify(loadedClicks));
     } catch {
-      setClicks(generateMockClicks());
+      setLinks([]);
+      setClicks([]);
     } finally {
       setAuthLoaded(true);
     }
@@ -170,14 +229,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (rawLinks) {
           const parsed = JSON.parse(rawLinks);
           if (Array.isArray(parsed)) {
-            setLinks(parsed);
+            const filteredLinks = parsed.filter(
+              (l: Link) => l.workspace_id !== 'ws_1' && 
+                           l.id !== 'link_1' && l.id !== 'link_2' && l.id !== 'link_3' && l.id !== 'link_4' && l.id !== 'link_5' &&
+                           l.short_code !== 'sale26' && l.short_code !== 'v2launch' && l.short_code !== 'audit26' && l.short_code !== 'dl-app' && l.short_code !== 'suspicious-link'
+            );
+            setLinks(filteredLinks);
           }
         }
         const rawClicks = localStorage.getItem('url_shortener_clicks');
         if (rawClicks) {
           const parsedClicks = JSON.parse(rawClicks);
           if (Array.isArray(parsedClicks)) {
-            setClicks(parsedClicks);
+            const currentLinksRaw = localStorage.getItem('url_shortener_links');
+            const validCodes = currentLinksRaw ? new Set(JSON.parse(currentLinksRaw).map((l: any) => l.short_code?.toLowerCase())) : new Set();
+            setClicks(parsedClicks.filter((c: any) => validCodes.has(c.short_code?.toLowerCase())));
+          }
+        }
+        const rawWs = localStorage.getItem('url_shortener_workspaces');
+        if (rawWs) {
+          const parsedWs = JSON.parse(rawWs);
+          if (Array.isArray(parsedWs)) {
+            const cleanWs = parsedWs.filter(
+              (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
+            );
+            setWorkspaces(cleanWs);
           }
         }
       } catch {}
@@ -585,16 +661,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const login = (email: string, pass: string) => {
     const namePart = email.split('@')[0] || 'User';
     const initials = namePart.substring(0, 2).toUpperCase();
+    const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
     const newUser: User = {
       id: `usr_${Date.now()}`,
-      name: namePart.charAt(0).toUpperCase() + namePart.slice(1),
+      name: displayName,
       email: email,
       avatar: initials,
       role: 'owner'
     };
     setCurrentUser(newUser);
+
+    // Filter out any lingering mock/demo workspaces
+    let userWorkspaces = workspaces.filter(
+      w => w.id !== 'ws_1' && w.id !== 'ws_2' && w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
+    );
+    if (userWorkspaces.length === 0) {
+      const defaultWs: Workspace = {
+        id: `ws_${Date.now()}`,
+        name: `${displayName}'s Workspace`,
+        slug: displayName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        role: 'owner',
+        plan: 'pro',
+        created_at: new Date().toISOString()
+      };
+      userWorkspaces = [defaultWs];
+    }
+
+    setWorkspaces(userWorkspaces);
+    setCurrentWorkspace(userWorkspaces[0]);
+
     try {
       localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(userWorkspaces));
+      localStorage.setItem('url_shortener_current_workspace_id', userWorkspaces[0].id);
     } catch {}
   };
 
@@ -619,14 +718,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       plan: 'pro',
       created_at: new Date().toISOString()
     };
-    const updatedWs = [newWs, ...workspaces];
-    setWorkspaces(updatedWs);
+    
+    // Fresh user starts strictly with their own workspace and clean 0 data
+    const userWorkspaces = [newWs];
+    setWorkspaces(userWorkspaces);
     setCurrentWorkspace(newWs);
     setCurrentUser(newUser);
+    setLinks([]);
+    setClicks([]);
+    setCampaigns([]);
 
     try {
       localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
-      localStorage.setItem('url_shortener_workspaces', JSON.stringify(updatedWs));
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(userWorkspaces));
+      localStorage.setItem('url_shortener_current_workspace_id', newWs.id);
+      localStorage.setItem('url_shortener_links', JSON.stringify([]));
+      localStorage.setItem('url_shortener_clicks', JSON.stringify([]));
+      localStorage.setItem('url_shortener_campaigns', JSON.stringify([]));
     } catch {}
   };
 
@@ -648,11 +756,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       plan,
       created_at: new Date().toISOString()
     };
-    const updated = [newWs, ...workspaces];
+    const validWorkspaces = workspaces.filter(
+      w => w.id !== 'ws_1' && w.id !== 'ws_2' && w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
+    );
+    const updated = [newWs, ...validWorkspaces];
     setWorkspaces(updated);
     setCurrentWorkspace(newWs);
     try {
       localStorage.setItem('url_shortener_workspaces', JSON.stringify(updated));
+      localStorage.setItem('url_shortener_current_workspace_id', newWs.id);
     } catch {}
     return newWs;
   };

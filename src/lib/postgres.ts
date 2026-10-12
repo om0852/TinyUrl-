@@ -1,13 +1,23 @@
 import { neon } from '@neondatabase/serverless';
 
-const connectionString = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_wZplFvQ2nz8d@ep-polished-resonance-b4em09ck-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require';
+const connectionString = process.env.DATABASE_URL || '';
 
-export const sql = neon(connectionString);
+const fallbackClient = Object.assign(
+  async () => [],
+  {
+    query: async () => []
+  }
+);
+
+export const sql = connectionString ? neon(connectionString) : (fallbackClient as any);
 
 /**
  * Auto-initializes PostgreSQL tables in Neon if they do not exist yet.
  */
 export async function initializeDatabase() {
+  if (!connectionString) {
+    return { success: false, error: 'DATABASE_URL environment variable is not configured.' };
+  }
   try {
     // 1. Workspaces
     await sql.query(`

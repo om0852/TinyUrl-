@@ -11,7 +11,6 @@ import {
   Eye, 
   EyeOff, 
   ShieldCheck, 
-  Zap,
   CheckCircle2,
   KeyRound
 } from 'lucide-react';
@@ -63,15 +62,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
       setIsLoading(false);
       if (onSuccess) onSuccess();
     }, 400);
-  };
-
-  const handleDemoLogin = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      login('alex@acme.com', 'password123');
-      setIsLoading(false);
-      if (onSuccess) onSuccess();
-    }, 300);
   };
 
   return (
@@ -219,27 +209,6 @@ export const AuthView: React.FC<AuthViewProps> = ({ onSuccess }) => {
             )}
           </Button>
         </form>
-
-        {/* Divider */}
-        <div className="relative py-1">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border/40" />
-          </div>
-          <div className="relative flex justify-center text-[10px] uppercase font-semibold text-muted-foreground">
-            <span className="bg-card px-2">or quick access</span>
-          </div>
-        </div>
-
-        {/* One-click Demo Login */}
-        <button
-          type="button"
-          onClick={handleDemoLogin}
-          disabled={isLoading}
-          className="w-full h-9 rounded-lg bg-muted/30 hover:bg-muted border border-border/60 text-xs font-medium text-foreground flex items-center justify-center gap-2 transition cursor-pointer"
-        >
-          <Zap className="w-3.5 h-3.5 text-primary" />
-          <span>One-Click Demo Sign-In (Alex Morgan)</span>
-        </button>
 
         {/* Security / Trust Badges */}
         <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/40 text-[11px] text-muted-foreground">
