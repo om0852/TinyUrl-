@@ -112,12 +112,31 @@ export async function middleware(request: NextRequest) {
         if (geoRule && geoRule.target_url) {
           destinationUrl = geoRule.target_url;
         } else {
-          // A/B test rule
+          // A/B test rule with sticky visitor assignment (cookie-based)
           const abRule = rules.find((r: any) => r.rule_type === 'ab');
           if (abRule && abRule.target_url) {
             const weight = abRule.weight || 50;
-            if (Math.random() * 100 < weight) {
+            const existingVariant = request.cookies.get(`ab_${code}`)?.value;
+
+            if (existingVariant === 'B') {
               destinationUrl = abRule.target_url;
+            } else if (existingVariant === 'A') {
+              destinationUrl = linkData.destination_url;
+            } else {
+              const assignB = Math.random() * 100 < weight;
+              destinationUrl = assignB ? abRule.target_url : linkData.destination_url;
+
+              const response = pathname.startsWith('/r/')
+                ? NextResponse.next()
+                : NextResponse.rewrite(new URL(`/r/${code}`, request.url));
+
+              response.cookies.set(`ab_${code}`, assignB ? 'B' : 'A', {
+                path: '/',
+                maxAge: 60 * 60 * 24 * 30, // 30 days
+                sameSite: 'lax',
+              });
+
+              return response;
             }
           }
         }

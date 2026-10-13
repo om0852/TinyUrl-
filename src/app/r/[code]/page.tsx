@@ -473,23 +473,46 @@ function RedirectInner() {
     };
   }, [mounted, link, resolvedTarget, appDeepLink, activeNativeUri, clientContext, code, logClick]);
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (link && link.password_hash === passwordInput) {
-      setPasswordError(false);
-      setIsUnlocked(true);
-      if (appDeepLink && (clientContext.isMobile || clientContext.inAppInfo.isInApp)) {
-        tryRedirectToApp();
-        setTimeout(() => {
-          if (!document.hidden) {
-            window.location.replace(resolvedTarget);
-          }
-        }, 3500);
+    if (!passwordInput.trim() || isVerifyingPassword) return;
+
+    setIsVerifyingPassword(true);
+    setPasswordError(false);
+
+    try {
+      const res = await fetch('/api/v1/links/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, password: passwordInput.trim() })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success && data.destination_url) {
+        setIsUnlocked(true);
+        setPasswordError(false);
+        const unlockedUrl = data.destination_url;
+
+        if (appDeepLink && (clientContext.isMobile || clientContext.inAppInfo.isInApp)) {
+          tryRedirectToApp();
+          setTimeout(() => {
+            if (!document.hidden) {
+              window.location.replace(unlockedUrl);
+            }
+          }, 3500);
+        } else {
+          window.location.replace(unlockedUrl);
+        }
       } else {
-        window.location.replace(resolvedTarget);
+        setPasswordError(true);
       }
-    } else {
+    } catch {
       setPasswordError(true);
+    } finally {
+      setIsVerifyingPassword(false);
     }
   };
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { TrackApiRequest, TrackApiResponse } from '@/lib/types';
@@ -57,17 +58,23 @@ export async function POST(request: Request) {
         let resolvedCode = (vercelCountry || click.country_code || '').trim().toUpperCase();
         let resolvedCity = vercelCity ? decodeURIComponent(vercelCity) : (click.city || 'Direct');
 
-        if (!resolvedCode || (resolvedCode === 'US' && !vercelCountry && click.country?.toLowerCase().includes('india'))) {
-          resolvedCode = 'IN';
+        // Only override if client explicitly indicated India, otherwise respect headers or mark Unknown
+        if (!resolvedCode) {
+          if (click.country?.toLowerCase().includes('india')) {
+            resolvedCode = 'IN';
+          } else {
+            resolvedCode = 'Unknown';
+          }
         }
-        if (!resolvedCode) resolvedCode = 'IN';
 
-        let resolvedCountry = 'India';
-        try {
-          const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-          resolvedCountry = regionNames.of(resolvedCode) || (resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode);
-        } catch {
-          resolvedCountry = resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode;
+        let resolvedCountry = 'Unknown';
+        if (resolvedCode !== 'Unknown') {
+          try {
+            const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+            resolvedCountry = regionNames.of(resolvedCode) || (resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode);
+          } catch {
+            resolvedCountry = resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode;
+          }
         }
 
         const INDIAN_STATES: Record<string, string> = {
@@ -117,7 +124,7 @@ export async function POST(request: Request) {
           }
         }
 
-        const clickId = click.id || `clk_${Date.now()}_${Math.floor(Math.random() * 8999 + 1000)}`;
+        const clickId = click.id || `clk_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 
         try {
           await sql.query(

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { generateBase62Code, normalizeUrl, buildUtmUrl, RESERVED_SLUGS } from '@/lib/db';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // 3. Custom Slug Validation
+    // 3. Custom Slug Validation & Collision Protection
     let code = custom_slug && typeof custom_slug === 'string' ? custom_slug.trim() : '';
     if (code) {
       if (!/^[a-zA-Z0-9_-]{3,64}$/.test(code)) {
@@ -70,8 +71,40 @@ export async function POST(request: Request) {
           error: `Custom slug "${code}" is a reserved system keyword and cannot be used.` 
         }, { status: 422 });
       }
+
+      // Check if custom slug already exists in Neon DB
+      try {
+        const existing = await sql.query(
+          `SELECT id, workspace_id FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+          [code.toLowerCase()]
+        );
+        if (existing && existing.length > 0) {
+          return NextResponse.json<ShortenApiResponse>({
+            success: false,
+            error: `The custom slug "${code}" is already in use by another link. Please choose a different slug.`
+          }, { status: 409 });
+        }
+      } catch (checkErr) {
+        console.warn('PostgreSQL slug collision check fallback:', checkErr);
+      }
     } else {
-      code = generateBase62Code(6);
+      // Auto-generate code and guarantee no collision
+      let attempts = 0;
+      let uniqueCode = generateBase62Code(6);
+      while (attempts < 5) {
+        try {
+          const existing = await sql.query(
+            `SELECT id FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+            [uniqueCode.toLowerCase()]
+          );
+          if (!existing || existing.length === 0) break;
+          uniqueCode = generateBase62Code(6);
+          attempts++;
+        } catch {
+          break;
+        }
+      }
+      code = uniqueCode;
     }
 
     const finalUrl = buildUtmUrl(normUrl, {
@@ -80,8 +113,10 @@ export async function POST(request: Request) {
       campaign: utm_campaign
     });
 
+    const uniqueId = `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
+
     const newLink: Link = {
-      id: `link_${Date.now()}`,
+      id: uniqueId,
       workspace_id: workspace_id.trim(),
       short_code: code,
       custom_slug: custom_slug ? code : undefined,
@@ -101,12 +136,13 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString()
     };
 
-    // Save to PostgreSQL with workspace scoping
+    // Save to PostgreSQL with collision guard
     try {
-      await sql.query(
+      const insertResult = await sql.query(
         `INSERT INTO links (id, workspace_id, short_code, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         ON CONFLICT (short_code) DO UPDATE SET destination_url = EXCLUDED.destination_url`,
+         ON CONFLICT (short_code) DO NOTHING
+         RETURNING id`,
         [
           newLink.id,
           newLink.workspace_id,
@@ -123,6 +159,13 @@ export async function POST(request: Request) {
           newLink.created_at
         ]
       );
+
+      if (Array.isArray(insertResult) && insertResult.length === 0) {
+        return NextResponse.json<ShortenApiResponse>({
+          success: false,
+          error: `The short code "${code}" could not be reserved because it was just taken. Please try again.`
+        }, { status: 409 });
+      }
     } catch (dbErr) {
       console.warn('PostgreSQL write fallback:', dbErr);
     }

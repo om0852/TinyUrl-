@@ -9,6 +9,8 @@ function hashPassword(password: string, salt: string): string {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+let isDbInitialized = false;
+
 export async function POST(request: Request) {
   try {
     let body: Partial<AuthApiRequest>;
@@ -62,10 +64,13 @@ export async function POST(request: Request) {
       }, { status: 422 });
     }
 
-    // Ensure database tables exist
-    try {
-      await initializeDatabase();
-    } catch {}
+    // Ensure database tables exist once per process lifecycle (not on every request)
+    if (!isDbInitialized) {
+      try {
+        await initializeDatabase();
+        isDbInitialized = true;
+      } catch {}
+    }
 
     if (action === 'signup') {
       const cleanName = (name && typeof name === 'string' ? name.trim() : '') || cleanEmail.split('@')[0];
@@ -87,24 +92,12 @@ export async function POST(request: Request) {
           }, { status: 409 });
         }
       } catch (dbErr) {
-        try {
-          await sql.query(`
-            CREATE TABLE IF NOT EXISTS users (
-              id VARCHAR(64) PRIMARY KEY,
-              name VARCHAR(255) NOT NULL,
-              email VARCHAR(255) UNIQUE NOT NULL,
-              password_hash VARCHAR(255) NOT NULL,
-              salt VARCHAR(64) NOT NULL,
-              role VARCHAR(32) DEFAULT 'owner',
-              created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-          `);
-        } catch {}
+        console.warn('PostgreSQL user check error:', dbErr);
       }
 
       const salt = crypto.randomBytes(16).toString('hex');
       const passwordHash = hashPassword(password, salt);
-      const userId = `usr_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+      const userId = `usr_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
       const initials = cleanName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
 
       // Insert new user into database
