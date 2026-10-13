@@ -124,12 +124,13 @@ export async function middleware(request: NextRequest) {
               destinationUrl = linkData.destination_url;
             } else {
               const assignB = Math.random() * 100 < weight;
-              destinationUrl = assignB ? abRule.target_url : linkData.destination_url;
+              const target = assignB ? abRule.target_url : linkData.destination_url;
 
               const response = pathname.startsWith('/r/')
                 ? NextResponse.next()
                 : NextResponse.rewrite(new URL(`/r/${code}`, request.url));
 
+              response.headers.set('x-destination-url', target);
               response.cookies.set(`ab_${code}`, assignB ? 'B' : 'A', {
                 path: '/',
                 maxAge: 60 * 60 * 24 * 30, // 30 days
@@ -153,7 +154,9 @@ export async function middleware(request: NextRequest) {
     // - LocalStorage & StoreContext update in real time
     // - OpeninApp deep linking handles mobile apps cleanly
     // - Verified safe transition displays properly
-    return NextResponse.rewrite(new URL(`/r/${code}`, request.url));
+    const res = NextResponse.rewrite(new URL(`/r/${code}`, request.url));
+    res.headers.set('x-destination-url', destinationUrl);
+    return res;
   } catch (error) {
     console.error('Edge middleware error:', error);
     return NextResponse.next();

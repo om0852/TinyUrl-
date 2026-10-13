@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,7 +12,6 @@ import {
   ExternalLink, 
   QrCode, 
   Trash2, 
-  Plus, 
   FileDown, 
   Calendar, 
   TrendingUp, 
@@ -24,9 +23,7 @@ import {
   SlidersHorizontal, 
   BarChart2, 
   X, 
-  Download,
-  CheckCircle2,
-  Share2
+  Download
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 
@@ -39,7 +36,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
   onOpenCreateModal,
   onNavigateTab 
 }) => {
-  const { links, domains, deleteLink } = useStore();
+  const { links, deleteLink } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -85,7 +82,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
   };
 
   // Helper to detect placement / platform from link
-  const getPlacementTag = (link: typeof links[0]) => {
+  const getPlacementTag = useCallback((link: typeof links[0]) => {
     const url = (link.destination_url || '').toLowerCase();
     const tags = (link.tags || []).map(t => t.toLowerCase());
     const app = (link.deep_link?.app || '').toLowerCase();
@@ -169,7 +166,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
       bg: 'bg-surface-container-low text-on-surface-variant',
       dot: 'bg-outline'
     };
-  };
+  }, []);
 
   // Filter links
   const filteredLinks = useMemo(() => {
@@ -198,7 +195,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
       return true;
     }).sort((a, b) => (b.clicks_count || 0) - (a.clicks_count || 0));
-  }, [links, searchTerm, platformFilter, statusFilter]);
+  }, [links, searchTerm, platformFilter, statusFilter, getPlacementTag]);
 
   // Paginated links
   const totalPages = Math.max(1, Math.ceil(filteredLinks.length / pageSize));

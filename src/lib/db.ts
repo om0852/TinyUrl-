@@ -4,11 +4,8 @@ import {
   Workspace,
   Domain,
   Campaign,
-  QRCodeConfig,
   ApiKey,
   Webhook,
-  LinkRule,
-  SecurityReport,
   TeamMember
 } from './types';
 

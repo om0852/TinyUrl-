@@ -15,9 +15,7 @@ import {
   MousePointerClick, 
   CheckCircle2, 
   Layers, 
-  ArrowRight,
-  TrendingUp,
-  Share2
+  ArrowRight
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { detectAppDeepLink } from '@/lib/deepLink';
@@ -25,13 +23,13 @@ import { SocialCardModal } from './SocialCardModal';
 
 interface OverviewViewProps {
   onOpenCreateModal: () => void;
-  onNavigateTab: (tab: string) => void;
+  onNavigateTab?: (tab: string) => void;
   onOpenCommandPalette?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({ 
   onOpenCreateModal, 
-  onNavigateTab
+  onNavigateTab: _onNavigateTab
 }) => {
   const { links, clicks, domains, createShortLink, deleteLink } = useStore();
 

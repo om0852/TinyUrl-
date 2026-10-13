@@ -9,19 +9,12 @@ import {
   Server, 
   Globe2, 
   Info, 
-  Link2, 
   Mail, 
-  MoreVertical, 
   Plus, 
   RefreshCw, 
-  ShieldCheck, 
-  Sliders, 
   Smartphone, 
   Video, 
-  Sparkles,
-  ExternalLink,
-  CheckCircle2,
-  Trash2
+  CheckCircle2
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -82,8 +75,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
   const [copiedHandle, setCopiedHandle] = useState(false);
 
   // Custom Domains state
-  const [newDomainModal, setNewDomainModal] = useState(false);
-  const [newDomainInput, setNewDomainInput] = useState('');
   const [dnsTestStatus, setDnsTestStatus] = useState<string | null>(null);
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
@@ -357,7 +348,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             </div>
             <button
               type="button"
-              onClick={() => setNewDomainModal(true)}
+              onClick={() => alert('Custom domain routing: Please configure the CNAME record at your DNS registrar pointing to cname.' + originDomain)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold transition-all shadow-xs border border-outline-variant/30 cursor-pointer self-start sm:self-auto"
             >
               <Plus className="w-4 h-4 text-primary-container" />

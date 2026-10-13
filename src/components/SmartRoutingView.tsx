@@ -8,7 +8,6 @@ import {
   Play, 
   Plus, 
   ChevronRight, 
-  Sparkles, 
   Zap, 
   Cpu, 
   Layers, 
@@ -16,13 +15,9 @@ import {
   Copy, 
   Download, 
   Filter, 
-  Globe, 
-  Edit, 
   Trash2, 
   X, 
   ExternalLink,
-  ShieldCheck,
-  TrendingUp,
   AlertCircle
 } from 'lucide-react';
 

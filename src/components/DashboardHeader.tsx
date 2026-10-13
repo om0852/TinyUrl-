@@ -19,7 +19,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  activeTabTitle,
+  activeTabTitle: _activeTabTitle,
   onOpenCreateModal,
   onOpenCommandPalette,
   onToggleMobileMenu,

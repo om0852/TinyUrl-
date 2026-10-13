@@ -13,9 +13,7 @@ import {
   Share2, 
   ArrowRight, 
   FileText, 
-  Download, 
   RefreshCw,
-  Sliders,
   Flame,
   CheckCircle2,
   Wand2

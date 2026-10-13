@@ -7,7 +7,6 @@ import {
   Workspace,
   Domain,
   Campaign,
-  QRCodeConfig,
   ApiKey,
   Webhook,
   LinkRule,
@@ -18,14 +17,7 @@ import {
   DeepLinkConfig
 } from './types';
 import {
-  initialWorkspaces,
-  initialTeamMembers,
   initialDomains,
-  initialCampaigns,
-  initialLinks,
-  generateMockClicks,
-  initialApiKeys,
-  initialWebhooks,
   generateBase62Code,
   normalizeUrl,
   buildUtmUrl,
@@ -205,7 +197,7 @@ export const detectClientGeo = (): { country: string; country_code: string; regi
 
 export const normalizeCountryName = (country?: string, code?: string): { country: string; country_code: string } => {
   let c = (country || '').trim();
-  let cd = (code || '').trim().toUpperCase();
+  const cd = (code || '').trim().toUpperCase();
 
   if (!c || c.toLowerCase() === 'unknown') {
     c = cd === 'US' ? 'United States' : 'India';

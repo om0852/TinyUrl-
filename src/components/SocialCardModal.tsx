@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Copy, Check, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { X, Copy, Check, Image as ImageIcon } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 
 interface SocialCardModalProps {
   isOpen: boolean;

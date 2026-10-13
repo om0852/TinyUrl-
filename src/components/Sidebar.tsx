@@ -45,7 +45,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ 
   activeTab, 
   setActiveTab, 
-  onOpenCreateModal,
+  onOpenCreateModal: _onOpenCreateModal,
   className = '',
   onCloseMobile
 }) => {

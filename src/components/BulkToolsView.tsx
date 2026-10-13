@@ -10,7 +10,6 @@ import {
   Check, 
   ChevronRight, 
   Database, 
-  Cloud, 
   CloudUpload, 
   CheckCircle2, 
   ArrowRight, 
@@ -19,14 +18,11 @@ import {
   Calendar, 
   HardDrive, 
   Webhook, 
-  FileText, 
-  Filter, 
   Search, 
   X, 
   Layers, 
   Plus, 
   AlertCircle,
-  ExternalLink,
   Table,
   Radio,
   CheckCircle
@@ -47,7 +43,7 @@ interface JobRecord {
 }
 
 export const BulkToolsView: React.FC = () => {
-  const { importLinksCsv, exportLinksCsv, links } = useStore();
+  const { importLinksCsv, exportLinksCsv } = useStore();
   const [mounted, setMounted] = useState(false);
 
   // File state
@@ -59,7 +55,6 @@ export const BulkToolsView: React.FC = () => {
 
   // Filter & Search
   const [jobSearch, setJobSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
 
   // Schedule Modal
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
@@ -183,7 +178,7 @@ https://notion.so/templates/agency,agency-operating-os,tiktok_pin`;
     }
   ];
 
-  const [jobs, setJobs] = useState<JobRecord[]>(initialJobs);
+  const [jobs] = useState<JobRecord[]>(initialJobs);
 
   const filteredJobs = jobs.filter(j => 
     j.id.toLowerCase().includes(jobSearch.toLowerCase()) ||

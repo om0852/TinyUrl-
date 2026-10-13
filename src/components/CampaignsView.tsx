@@ -16,18 +16,16 @@ import {
   Sparkles, 
   Settings, 
   UserPlus, 
-  ExternalLink, 
   Clock, 
   CheckCircle2, 
   TrendingUp, 
   Link2,
-  MoreVertical,
   Activity,
   X
 } from 'lucide-react';
 
 export const CampaignsView: React.FC = () => {
-  const { currentUser, campaigns, addCampaign, deleteCampaign, currentWorkspace, teamMembers, links } = useStore();
+  const { currentUser, campaigns, addCampaign, deleteCampaign, teamMembers, links } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

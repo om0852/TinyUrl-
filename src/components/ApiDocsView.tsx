@@ -3,22 +3,18 @@
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { 
-  Code2, 
   Key, 
   Plus, 
   Trash2, 
   Play, 
   Copy, 
   Check, 
-  ExternalLink, 
   Terminal, 
   ShieldCheck, 
   Radio, 
   RefreshCw,
   Server,
-  Layers,
   Webhook as WebhookIcon,
-  CheckCircle2,
   AlertCircle
 } from 'lucide-react';
 

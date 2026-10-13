@@ -21,7 +21,6 @@ import {
   ShieldCheck,
   Settings
 } from 'lucide-react';
-import { Badge } from './ui/badge';
 
 interface CommandPaletteModalProps {
   isOpen: boolean;

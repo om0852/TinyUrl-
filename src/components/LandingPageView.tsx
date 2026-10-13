@@ -23,8 +23,7 @@ import {
   ChevronUp, 
   ShieldCheck,
   TrendingUp,
-  LayoutDashboard,
-  ExternalLink
+  LayoutDashboard
 } from 'lucide-react';
 
 interface LandingPageViewProps {
@@ -36,7 +35,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   onOpenAuth,
   onGoToDashboard,
 }) => {
-  const { currentUser, createShortLink, updateLink, links } = useStore();
+  const { currentUser, createShortLink, updateLink } = useStore();
 
   // Shortener form state
   const [urlInput, setUrlInput] = useState('');

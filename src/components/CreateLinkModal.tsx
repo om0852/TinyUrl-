@@ -28,7 +28,7 @@ interface CreateLinkModalProps {
 }
 
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
-  const { createShortLink, domains, campaigns, links } = useStore();
+  const { createShortLink, links } = useStore();
 
   const [destinationUrl, setDestinationUrl] = useState('');
   const [title, setTitle] = useState('');

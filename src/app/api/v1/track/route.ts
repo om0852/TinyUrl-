@@ -56,7 +56,7 @@ export async function POST(request: Request) {
         const vercelCity = request.headers.get('x-vercel-ip-city') || request.headers.get('cf-ipcity');
 
         let resolvedCode = (vercelCountry || click.country_code || '').trim().toUpperCase();
-        let resolvedCity = vercelCity ? decodeURIComponent(vercelCity) : (click.city || 'Direct');
+        const resolvedCity = vercelCity ? decodeURIComponent(vercelCity) : (click.city || 'Direct');
 
         // Only override if client explicitly indicated India, otherwise respect headers or mark Unknown
         if (!resolvedCode) {

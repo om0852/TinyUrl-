@@ -17,22 +17,14 @@ import {
   Laptop, 
   Tablet, 
   ArrowRight, 
-  ArrowUpRight, 
   Check, 
   Copy, 
-  ExternalLink, 
   Sparkles, 
   Verified, 
-  ChevronRight,
-  TrendingUp,
-  SlidersHorizontal,
-  Flame,
-  Camera,
-  Music,
-  Headphones,
-  Palette,
-  Layers,
-  MapPin,
+  TrendingUp, 
+  Palette, 
+  Layers, 
+  MapPin, 
   HardDrive
 } from 'lucide-react';
 
@@ -41,7 +33,7 @@ interface AnalyticsViewProps {
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) => {
-  const { links, clicks, aiSummarizePerformance } = useStore();
+  const { links, clicks } = useStore();
 
   const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h'>('30d');
   const [geoLevel, setGeoLevel] = useState<'countries' | 'regions' | 'cities'>('countries');
@@ -171,7 +163,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     : (totalClicks > 0 ? timeSeriesData[timeSeriesData.length - 1] : null);
 
   const channelBreakdown = useMemo(() => {
-    const resolvePlatformName = (url: string, deepApp?: string, tags?: string[]) => {
+    const resolvePlatformName = (url: string, deepApp?: string, _tags?: string[]) => {
       const dest = (url || '').toLowerCase();
       if (dest.includes('drive.google.com') || dest.includes('docs.google.com') || deepApp?.includes('drive')) {
         return { name: 'Google Drive', color: 'bg-blue-600' };
@@ -1216,7 +1208,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   const cityStr = c.city || 'Mumbai';
                   const regStr = c.region || 'Maharashtra';
                   const countryStr = c.country || 'India';
-                  const locationFormatted = `${cityStr}, ${regStr}, ${countryStr}`;
 
                   const dateFormatted = c.timestamp 
                     ? new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })

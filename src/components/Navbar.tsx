@@ -10,7 +10,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommandPalette }) => {
-  const { currentWorkspace, currentUser, logout } = useStore();
+  const { currentUser, logout } = useStore();
   
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);

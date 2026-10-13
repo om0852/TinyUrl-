@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     // Server-side password verification
     if (!link.password_hash || link.password_hash === password.trim()) {
-      let dest = link.destination_url;
+      const dest = link.destination_url;
       const rules = typeof link.rules === 'string' ? JSON.parse(link.rules) : (link.rules || []);
 
       return NextResponse.json({

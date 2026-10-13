@@ -6,30 +6,23 @@ import { useStore } from '@/lib/storeContext';
 import { 
   ShieldAlert, 
   ShieldCheck, 
-  Search, 
   AlertTriangle, 
   RefreshCw, 
   Lock, 
-  Radio, 
   ChevronRight, 
   Webhook, 
-  Verified, 
   Copy, 
   Check, 
   Download, 
   Filter, 
   SlidersHorizontal, 
   PauseCircle, 
-  PlayCircle, 
   ArrowRight, 
-  Clock, 
-  AlertCircle, 
   Bot, 
   Bell, 
   Shield, 
   Zap, 
   X, 
-  ExternalLink,
   Timer,
   CheckCircle2,
   LockOpen
@@ -52,7 +45,7 @@ interface SecurityRow {
 }
 
 export const SecurityView: React.FC = () => {
-  const { links, updateLink } = useStore();
+  const { links } = useStore();
   const [mounted, setMounted] = useState(false);
 
   // Audit animation state
