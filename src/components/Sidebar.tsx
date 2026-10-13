@@ -16,15 +16,9 @@ import {
   ChevronsUpDown, 
   Check, 
   Settings, 
-  Headphones, 
-  LogOut, 
-  Sun, 
-  Moon,
-  Radio,
-  Server
+  LogOut
 } from 'lucide-react';
 import { CreateTeamModal } from './CreateTeamModal';
-import { Badge } from './ui/badge';
 
 export type TabType = 
   | 'overview' 
@@ -36,7 +30,8 @@ export type TabType =
   | 'campaigns' 
   | 'ai' 
   | 'api' 
-  | 'bulk';
+  | 'bulk'
+  | 'settings';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -56,9 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentWorkspace, workspaces, setCurrentWorkspace, links, currentUser, logout } = useStore();
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  // Scroll state preservation
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef<number>(0);
 
@@ -76,211 +69,169 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [activeTab]);
 
-  const navGroups = [
-    {
-      label: 'Platform',
-      items: [
-        { id: 'overview', label: 'Links & Overview', icon: Link2, badge: links.length },
-        { id: 'routing', label: 'OpeninApp & Routing', icon: Smartphone, badge: 'Smart' },
-        { id: 'qr', label: 'QR Code Studio', icon: QrCode },
-        { id: 'campaigns', label: 'Campaigns & UTM', icon: FolderKanban },
-        { id: 'bulk', label: 'Bulk Shortener', icon: Layers },
-      ]
-    },
-    {
-      label: 'Security & Intelligence',
-      items: [
-        { id: 'security', label: 'Security & Scanner', icon: ShieldCheck, badge: 'Zero-Phish' },
-        { id: 'ai', label: 'AI Slug & Insights', icon: Sparkles },
-        { id: 'analytics', label: 'Usage & Analytics', icon: BarChart3 },
-      ]
-    },
-    {
-      label: 'Configuration & Dev',
-      items: [
-        { id: 'api', label: 'API & Developer', icon: Code2 },
-      ]
-    }
+  const primaryNavItems: { id: TabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number }[] = [
+    { id: 'links', label: 'Links', icon: Link2, badge: links.length },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'qr', label: 'QR Codes', icon: QrCode },
+    { id: 'routing', label: 'Routing', icon: Smartphone, badge: 'Smart' },
+    { id: 'campaigns', label: 'Campaigns', icon: FolderKanban },
+    { id: 'bulk', label: 'Bulk Tools', icon: Layers },
+    { id: 'security', label: 'Security', icon: ShieldCheck },
+    { id: 'ai', label: 'AI Slugs & Bio', icon: Sparkles },
+    { id: 'api', label: 'API & Webhooks', icon: Code2 },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <aside className={`w-64 h-full bg-card border-r border-border/40 flex flex-col justify-between select-none ${className}`}>
+    <aside className={`fixed left-0 top-0 h-full w-64 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-r border-outline-variant/30 z-50 flex flex-col justify-between py-4 select-none ${className}`}>
       
-      {/* 1. Brand Bar (h-14 flex items-center px-6 border-b border-border/40) */}
-      <div className="h-14 flex items-center justify-between px-6 border-b border-border/40 shrink-0">
+      {/* Top Section */}
+      <div className="flex flex-col flex-1 min-h-0">
+        
+        {/* Brand Bar matching reference HTML */}
         <div 
-          onClick={() => handleNavClick('overview')}
-          className="flex items-center gap-2.5 cursor-pointer group"
+          onClick={() => handleNavClick('links')}
+          className="h-14 px-6 flex items-center gap-3 cursor-pointer group shrink-0"
         >
-          <div className="w-7 h-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-md shadow-primary/25 transition-transform group-hover:scale-105">
-            <Link2 className="w-4 h-4" />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-base font-bold tracking-tight text-foreground">
-              TinyURL<span className="text-primary">.app</span>
-            </span>
-            <Badge variant="primary" className="text-[9px] px-1.5 py-0 font-mono">
-              V2
-            </Badge>
-          </div>
+          <img 
+            alt="Snip Creator Logo" 
+            className="h-8 w-8 rounded-lg object-contain transition-transform group-hover:scale-105 shadow-2xs" 
+            src="/senior_brand_identity_designer._1024x1024_production_app_store_icon_for_snip.png"
+          />
+          <span className="text-xl font-bold tracking-tight text-on-surface">
+            Snip
+          </span>
+          <span className="ml-auto text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-surface-container-high text-primary-container">
+            Pro
+          </span>
+        </div>
+
+        {/* Workspace Switcher */}
+        <div className="px-4 py-2 relative shrink-0">
+          <button
+            onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
+            className="w-full justify-between h-9 px-3 rounded-xl border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center text-left transition cursor-pointer group shadow-2xs"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-5 h-5 rounded-md bg-surface-container-highest text-primary-container flex items-center justify-center text-[11px] font-bold shrink-0">
+                {currentWorkspace.name.charAt(0) || 'W'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-on-surface truncate leading-tight">
+                  {currentWorkspace.name || "Creator Studio"}
+                </p>
+              </div>
+            </div>
+            <ChevronsUpDown className="w-3.5 h-3.5 text-on-surface-variant group-hover:text-on-surface shrink-0 transition" />
+          </button>
+
+          {/* Workspace Dropdown */}
+          {workspaceMenuOpen && (
+            <div className="absolute top-[50px] left-4 right-4 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl py-1.5 z-50 animate-fade-in">
+              <div className="px-3 py-1 text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
+                Switch Workspace
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                {workspaces.map((ws) => (
+                  <button
+                    key={ws.id}
+                    onClick={() => {
+                      setCurrentWorkspace(ws);
+                      setWorkspaceMenuOpen(false);
+                    }}
+                    className="w-full px-3 py-1.5 text-xs text-left hover:bg-surface-container-low text-on-surface flex items-center justify-between transition cursor-pointer"
+                  >
+                    <span className="truncate">{ws.name}</span>
+                    {ws.id === currentWorkspace.id && (
+                      <Check className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-1 mt-1 border-t border-outline-variant/20 px-1">
+                <button
+                  onClick={() => {
+                    setWorkspaceMenuOpen(false);
+                    setCreateWorkspaceOpen(true);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold text-primary-container hover:bg-surface-container-low rounded-lg flex items-center gap-2 transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Workspace</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Scrollable Navigation List */}
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 min-h-0 px-4 py-2 overflow-y-auto space-y-4"
+        >
+          {/* Main Reference Tabs */}
+          <nav className="flex flex-col gap-1">
+            {primaryNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavClick(item.id)}
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-surface-container-high text-primary-container font-semibold shadow-xs'
+                      : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface font-medium'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary-container' : 'text-on-surface-variant'}`} />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+                  {item.badge !== undefined && (
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold ${
+                      isActive
+                        ? 'bg-primary-container text-on-primary'
+                        : 'bg-surface-container text-on-surface-variant'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
-      {/* 2. Workspace Switcher (p-4 pb-2) */}
-      <div className="p-4 pb-2 relative shrink-0">
-        <button
-          onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
-          className="w-full justify-between h-10 px-3 rounded-lg border border-border/60 bg-background/50 hover:bg-background text-foreground flex items-center text-left transition cursor-pointer group shadow-2xs"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-muted border border-border/40 text-foreground flex items-center justify-center text-xs font-bold shrink-0">
-              {currentWorkspace.name.charAt(0) || 'W'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground truncate leading-tight">
-                {currentWorkspace.name || "Default Workspace"}
-              </p>
-              <p className="text-[10px] text-muted-foreground uppercase font-mono tracking-wider leading-tight">
-                {currentWorkspace.plan || "PRO"} TIER
-              </p>
-            </div>
-          </div>
-          <ChevronsUpDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground shrink-0 transition" />
-        </button>
-
-        {/* Dropdown Popover */}
-        {workspaceMenuOpen && (
-          <div className="absolute top-[54px] left-4 right-4 bg-card border border-border/60 rounded-xl shadow-xl py-1.5 z-50 animate-fade-in backdrop-blur-xl">
-            <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Switch Workspace
-            </div>
-            <div className="max-h-48 overflow-y-auto">
-              {workspaces.map((ws) => (
-                <button
-                  key={ws.id}
-                  onClick={() => {
-                    setCurrentWorkspace(ws);
-                    setWorkspaceMenuOpen(false);
-                  }}
-                  className="w-full px-3 py-2 text-xs text-left hover:bg-muted text-foreground flex items-center justify-between transition cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 truncate">
-                    <span className="w-2 h-2 rounded-full bg-primary/60 shrink-0" />
-                    <span className="truncate">{ws.name}</span>
-                  </div>
-                  {ws.id === currentWorkspace.id && (
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="pt-1.5 mt-1 border-t border-border/40 px-1">
-              <button
-                onClick={() => {
-                  setWorkspaceMenuOpen(false);
-                  setCreateWorkspaceOpen(true);
-                }}
-                className="w-full px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 rounded-md flex items-center gap-2 transition cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create New Workspace</span>
-              </button>
+      {/* User Footer Profile Pill matching reference HTML */}
+      <div className="px-4 shrink-0 pt-2">
+        <div className="p-3 rounded-xl bg-surface-container-low flex items-center justify-between gap-3 border border-outline-variant/30 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              alt="Profile"
+              className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-outline-variant/40"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_A7G9u5WJPA8v686YLQsUyQnZVrbqp0w75ybNsaz7o8Ck4XwmBXaqobir8NxybWjb1YRvLSxwYEascmlOCLf1HEYKZKzCjvJjhVNBMrlB3GGAks-rigHC8EHW-H_Dg3DT0vkY7GmGUQIh_JUz2tRiGgL7I-mT4nXTdtdId57iVKQREXS4eNtzBQnWEy-xfzcv95bBdGPXyo_nhZ7FSGlF_JvuLaVDRnUmQMbxUCumh7cRJDESYXF0gA"
+            />
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-xs font-semibold text-on-surface truncate">
+                {currentUser?.name || "Creator Studio"}
+              </span>
+              <span className="text-[11px] text-on-surface-variant truncate">
+                Pro Plan
+              </span>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Quick Action Button */}
-      <div className="px-4 pb-2 shrink-0">
-        <button
-          onClick={onOpenCreateModal}
-          className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Short Link</span>
-        </button>
-      </div>
-
-      {/* 3. Scrollable Navigation Area (flex-1 min-h-0 px-4 py-2) */}
-      <div 
-        ref={scrollContainerRef}
-        className="flex-1 min-h-0 px-4 py-2 overflow-y-auto space-y-4"
-      >
-        {navGroups.map((group) => (
-          <div key={group.label} className="space-y-1">
-            <h4 className="px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {group.label}
-            </h4>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNavClick(item.id as TabType)}
-                    className={`w-full h-8.5 px-3 rounded-md text-sm font-medium flex items-center justify-between transition text-left cursor-pointer ${
-                      isActive
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <span className="truncate">{item.label}</span>
-                    </div>
-                    {item.badge && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-semibold tracking-wide ${
-                        isActive
-                          ? 'bg-primary/20 text-primary'
-                          : 'bg-muted/60 text-muted-foreground'
-                      }`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 4. User Footer Bar (p-4 border-t border-border/40 bg-zinc-50/50 dark:bg-zinc-900/50) */}
-      <div className="p-4 border-t border-border/40 bg-muted/20 shrink-0 relative">
-        {currentUser ? (
-          <div className="flex items-center justify-between gap-2">
-            <div 
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 group"
-            >
-              <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/40 text-primary flex items-center justify-center text-xs font-bold shrink-0">
-                {currentUser.avatar || currentUser.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate leading-tight group-hover:text-primary transition">
-                  {currentUser.name}
-                </p>
-                <p className="text-xs text-muted-foreground truncate leading-tight font-mono">
-                  {currentUser.email}
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => logout()}
-              title="Sign Out"
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition cursor-pointer shrink-0"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Guest Session</p>
-          </div>
-        )}
+          <button
+            onClick={() => logout()}
+            title="Sign Out"
+            className="p-1.5 text-on-surface-variant hover:text-error hover:bg-surface-container transition-colors rounded-lg cursor-pointer shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Create Workspace Modal */}

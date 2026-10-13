@@ -84,6 +84,7 @@ interface StoreContextType {
   logClick: (linkId: string, clientInfo?: Partial<ClickEvent>) => ClickEvent;
   
   addCampaign: (name: string, description: string, tags: string[], target_clicks?: number) => Campaign;
+  deleteCampaign: (id: string) => void;
   addApiKey: (name: string, permissions: string[]) => ApiKey;
   deleteApiKey: (id: string) => void;
   addWebhook: (url: string, events: string[]) => Webhook;
@@ -215,6 +216,111 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       setClicks(loadedClicks);
       localStorage.setItem('url_shortener_clicks', JSON.stringify(loadedClicks));
+
+      // Load campaigns with default templates if empty
+      const savedCampaigns = localStorage.getItem('url_shortener_campaigns');
+      let loadedCampaigns: Campaign[] = [];
+      if (savedCampaigns) {
+        try {
+          const parsedCamp = JSON.parse(savedCampaigns);
+          if (Array.isArray(parsedCamp)) loadedCampaigns = parsedCamp;
+        } catch {}
+      }
+      if (loadedCampaigns.length === 0) {
+        loadedCampaigns = [
+          {
+            id: 'cmp_sony_fx3',
+            workspace_id: loadedWs[0]?.id || 'ws_default',
+            name: 'Sony FX3 Cinema Rig Showcase',
+            description: 'Sony Alpha Creators Sponsorship',
+            tags: ['youtube', 'affiliate', 'hardware'],
+            target_clicks: 75000,
+            created_at: new Date(Date.now() - 86400000 * 5).toISOString()
+          },
+          {
+            id: 'cmp_gymshark',
+            workspace_id: loadedWs[0]?.id || 'ws_default',
+            name: 'Gymshark Fall Onyx Drop',
+            description: 'Fitness Athlete Promotion',
+            tags: ['instagram', 'discount-code'],
+            target_clicks: 50000,
+            created_at: new Date(Date.now() - 86400000 * 12).toISOString()
+          },
+          {
+            id: 'cmp_audible',
+            workspace_id: loadedWs[0]?.id || 'ws_default',
+            name: 'Audible Creator Sponsorship Q4',
+            description: 'Podcast Mid-Roll Bundle',
+            tags: ['podcast', 'audio'],
+            target_clicks: 30000,
+            created_at: new Date(Date.now() - 86400000 * 20).toISOString()
+          }
+        ];
+      }
+      setCampaigns(loadedCampaigns);
+      localStorage.setItem('url_shortener_campaigns', JSON.stringify(loadedCampaigns));
+
+      // Load API keys
+      const savedKeys = localStorage.getItem('url_shortener_api_keys');
+      if (savedKeys) {
+        try {
+          const parsedKeys = JSON.parse(savedKeys);
+          if (Array.isArray(parsedKeys)) setApiKeys(parsedKeys);
+        } catch {}
+      }
+
+      // Load Webhooks
+      const savedWh = localStorage.getItem('url_shortener_webhooks');
+      if (savedWh) {
+        try {
+          const parsedWh = JSON.parse(savedWh);
+          if (Array.isArray(parsedWh)) setWebhooks(parsedWh);
+        } catch {}
+      }
+
+      // Synchronize with PostgreSQL database backend
+      fetch('/api/v1/links')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && Array.isArray(data.links) && data.links.length > 0) {
+            setLinks(currentActive => {
+              const codeMap = new Map(currentActive.map(l => [l.short_code.toLowerCase(), l]));
+              let addedCount = 0;
+              data.links.forEach((remote: any) => {
+                const codeKey = (remote.short_code || '').toLowerCase();
+                if (!codeMap.has(codeKey)) {
+                  codeMap.set(codeKey, {
+                    id: remote.id || `lnk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    domain_id: 'dom_primary',
+                    workspace_id: loadedWs[0]?.id || 'ws_default',
+                    short_code: remote.short_code,
+                    custom_slug: remote.custom_slug || remote.short_code,
+                    destination_url: remote.destination_url,
+                    title: remote.title || 'Short Link',
+                    status: remote.status || 'active',
+                    is_flagged: false,
+                    risk_score: 0,
+                    created_by: 'user',
+                    clicks_count: Number(remote.clicks_count) || 0,
+                    tags: Array.isArray(remote.tags) ? remote.tags : [],
+                    rules: [],
+                    created_at: remote.created_at || new Date().toISOString()
+                  });
+                  addedCount++;
+                }
+              });
+              if (addedCount > 0) {
+                const combined = Array.from(codeMap.values());
+                try {
+                  localStorage.setItem('url_shortener_links', JSON.stringify(combined));
+                } catch {}
+                return combined;
+              }
+              return currentActive;
+            });
+          }
+        })
+        .catch(() => {});
     } catch {
       setLinks([]);
       setClicks([]);
@@ -285,6 +391,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setClicks(newClicks);
     try {
       localStorage.setItem('url_shortener_clicks', JSON.stringify(newClicks));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
+    } catch {}
+  };
+
+  const saveCampaignsState = (newCampaigns: Campaign[]) => {
+    setCampaigns(newCampaigns);
+    try {
+      localStorage.setItem('url_shortener_campaigns', JSON.stringify(newCampaigns));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
+    } catch {}
+  };
+
+  const saveApiKeysState = (newKeys: ApiKey[]) => {
+    setApiKeys(newKeys);
+    try {
+      localStorage.setItem('url_shortener_api_keys', JSON.stringify(newKeys));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
+    } catch {}
+  };
+
+  const saveWebhooksState = (newHooks: Webhook[]) => {
+    setWebhooks(newHooks);
+    try {
+      localStorage.setItem('url_shortener_webhooks', JSON.stringify(newHooks));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
       }
@@ -547,15 +683,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addCampaign = (name: string, description: string, tags: string[], target_clicks = 10000) => {
     const newCamp: Campaign = {
       id: `cmp_${Date.now()}`,
-      workspace_id: currentWorkspace.id,
+      workspace_id: currentWorkspace?.id || 'ws_default',
       name,
       description,
       tags,
       target_clicks,
       created_at: new Date().toISOString()
     };
-    setCampaigns([newCamp, ...campaigns]);
+    saveCampaignsState([newCamp, ...campaigns]);
     return newCamp;
+  };
+
+  const deleteCampaign = (id: string) => {
+    const updated = campaigns.filter(c => c.id !== id);
+    saveCampaignsState(updated);
   };
 
   const addApiKey = (name: string, permissions: string[]) => {
@@ -563,37 +704,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const fullKey = `${prefix}_${Math.random().toString(36).substring(2, 18)}${Math.random().toString(36).substring(2, 18)}`;
     const newKey: ApiKey = {
       id: `key_${Date.now()}`,
-      workspace_id: currentWorkspace.id,
+      workspace_id: currentWorkspace?.id || 'ws_default',
       name,
       key_prefix: prefix,
       full_key: fullKey,
       permissions,
       created_at: new Date().toISOString()
     };
-    setApiKeys([newKey, ...apiKeys]);
+    saveApiKeysState([newKey, ...apiKeys]);
     return newKey;
   };
 
   const deleteApiKey = (id: string) => {
-    setApiKeys(apiKeys.filter(k => k.id !== id));
+    const updated = apiKeys.filter(k => k.id !== id);
+    saveApiKeysState(updated);
   };
 
   const addWebhook = (url: string, events: string[]) => {
     const newWh: Webhook = {
       id: `wh_${Date.now()}`,
-      workspace_id: currentWorkspace.id,
+      workspace_id: currentWorkspace?.id || 'ws_default',
       url,
       events,
       secret: `whsec_${Math.random().toString(36).substring(2, 20)}`,
       active: true,
       created_at: new Date().toISOString()
     };
-    setWebhooks([newWh, ...webhooks]);
+    saveWebhooksState([newWh, ...webhooks]);
     return newWh;
   };
 
   const deleteWebhook = (id: string) => {
-    setWebhooks(webhooks.filter(w => w.id !== id));
+    const updated = webhooks.filter(w => w.id !== id);
+    saveWebhooksState(updated);
   };
 
   // AI Slug Generator
@@ -742,6 +885,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser(null);
     try {
       localStorage.removeItem('url_shortener_user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('auth_token');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+        window.dispatchEvent(new Event('storage'));
+      }
     } catch {}
   };
 
@@ -834,6 +983,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       removeRuleFromLink,
       logClick,
       addCampaign,
+      deleteCampaign,
       addApiKey,
       deleteApiKey,
       addWebhook,

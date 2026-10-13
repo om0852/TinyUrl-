@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
-import { AuthView } from '@/components/AuthView';
+import { LandingPageView } from '@/components/LandingPageView';
+import { AuthModal } from '@/components/AuthModal';
 import { Sidebar, TabType } from '@/components/Sidebar';
 import { DashboardHeader } from '@/components/DashboardHeader';
 import { OverviewView } from '@/components/OverviewView';
@@ -15,6 +16,7 @@ import { CampaignsView } from '@/components/CampaignsView';
 import { AiSuiteView } from '@/components/AiSuiteView';
 import { ApiDocsView } from '@/components/ApiDocsView';
 import { BulkToolsView } from '@/components/BulkToolsView';
+import { SettingsView } from '@/components/SettingsView';
 import { CreateLinkModal } from '@/components/CreateLinkModal';
 import { CommandPaletteModal } from '@/components/CommandPaletteModal';
 
@@ -29,14 +31,28 @@ const TAB_TITLES: Record<TabType, string> = {
   ai: 'AI Slug & Traffic Insights',
   api: 'API & Developer Keys',
   bulk: 'Bulk Link Generation',
+  settings: 'Workspace Settings',
 };
 
-function DashboardContent() {
+export default function Home() {
   const { currentUser, authLoaded } = useStore();
+  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
+
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // When user logs in, automatically switch to dashboard unless they explicitly clicked to stay on landing
+  useEffect(() => {
+    if (currentUser) {
+      setViewMode('dashboard');
+    } else {
+      setViewMode('landing');
+    }
+  }, [currentUser]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -61,18 +77,35 @@ function DashboardContent() {
       <div className="min-h-screen bg-background flex items-center justify-center text-foreground antialiased">
         <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-card border border-border/60 shadow-lg">
           <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-semibold tracking-tight">Initializing TinyURL Console...</span>
+          <span className="text-sm font-semibold tracking-tight">Initializing Snip Platform...</span>
         </div>
       </div>
     );
   }
 
-  if (!currentUser) {
-    return <AuthView />;
+  // If not logged in or explicitly toggled to view landing page
+  if (!currentUser || viewMode === 'landing') {
+    return (
+      <>
+        <LandingPageView
+          onOpenAuth={(mode) => {
+            setAuthInitialMode(mode);
+            setAuthModalOpen(true);
+          }}
+          onGoToDashboard={() => setViewMode('dashboard')}
+        />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          initialMode={authInitialMode}
+        />
+      </>
+    );
   }
 
+  // Authenticated Console / Workspace
   return (
-    <div className="min-h-screen bg-muted/20 text-foreground transition-colors selection:bg-primary/20 selection:text-primary">
+    <div className="min-h-screen bg-surface text-on-surface selection:bg-primary-container/20 selection:text-primary-container">
       
       {/* 1. Desktop Sidebar (Fixed) */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col z-50">
@@ -87,11 +120,11 @@ function DashboardContent() {
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         >
           <div 
-            className="w-64 h-full bg-card shadow-2xl"
+            className="w-64 h-full bg-surface-container-lowest shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <Sidebar 
@@ -108,7 +141,7 @@ function DashboardContent() {
       )}
 
       {/* 2. Main Workspace (Offset by sidebar width) */}
-      <div className="lg:pl-64 flex flex-col min-h-screen">
+      <div className="lg:pl-64 flex flex-col min-h-screen bg-surface">
         
         {/* Sticky Top Header Bar */}
         <DashboardHeader 
@@ -116,6 +149,7 @@ function DashboardContent() {
           onOpenCreateModal={() => setCreateModalOpen(true)}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
+          onViewLandingPage={() => setViewMode('landing')}
         />
 
         {/* Dynamic Main Canvas */}
@@ -123,16 +157,20 @@ function DashboardContent() {
           {activeTab === 'overview' && (
             <OverviewView 
               onOpenCreateModal={() => setCreateModalOpen(true)} 
-              onNavigateTab={(tab) => setActiveTab(tab)} 
+              onNavigateTab={(tab) => setActiveTab(tab as TabType)} 
               onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             />
           )}
 
           {activeTab === 'links' && (
-            <LinksView onOpenCreateModal={() => setCreateModalOpen(true)} />
+            <LinksView 
+              onOpenCreateModal={() => setCreateModalOpen(true)} 
+              onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+            />
           )}
 
-          {activeTab === 'analytics' && <AnalyticsView />}
+          {activeTab === 'analytics' && <AnalyticsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
+          {activeTab === 'settings' && <SettingsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
           {activeTab === 'routing' && <SmartRoutingView />}
           {activeTab === 'qr' && <QrCodeView />}
           {activeTab === 'security' && <SecurityView />}
@@ -156,10 +194,13 @@ function DashboardContent() {
         onNavigateTab={(tab) => setActiveTab(tab)}
         onOpenCreateModal={() => setCreateModalOpen(true)}
       />
+
+      {/* Auth Modal if triggered */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authInitialMode}
+      />
     </div>
   );
-}
-
-export default function Home() {
-  return <DashboardContent />;
 }

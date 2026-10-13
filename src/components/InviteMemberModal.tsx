@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { WorkspaceRole } from '@/lib/types';
 import { X, UserPlus, Check } from 'lucide-react';
@@ -13,12 +14,17 @@ interface InviteMemberModalProps {
 
 export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, onClose }) => {
   const { inviteTeamMember, currentWorkspace } = useStore();
+  const [mounted, setMounted] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<WorkspaceRole>('editor');
   const [success, setSuccess] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted || typeof document === 'undefined') return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,13 +40,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
     }, 1000);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
-      <div 
-        className="fixed inset-0" 
-        onClick={onClose} 
-      />
-
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="bg-card border border-border/60 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-foreground relative z-10">
         
         {/* Close Button */}
@@ -123,6 +124,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
         )}
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

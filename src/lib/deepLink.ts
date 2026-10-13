@@ -84,7 +84,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     if (host.includes('instagram.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.instagram.android;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.instagram.android;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
       
       let iosUri = `instagram://url?url=${encodeURIComponent(parsed.href)}`;
       const pathParts = pathname.split('/').filter(Boolean);
@@ -99,7 +99,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Instagram',
         color: '#E1306C',
         icon: 'instagram',
-        desktopUri: iosUri,
+        desktopUri: parsed.href, // Desktop uses web
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -120,7 +120,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         }
       }
 
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.spotify.music;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.spotify.music;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
 
       return {
         isSupported: true,
@@ -128,7 +128,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Spotify',
         color: '#1DB954',
         icon: 'music',
-        desktopUri: spotifyUri,
+        desktopUri: spotifyUri, // Spotify desktop app supported on Windows/Mac
         iosUri: spotifyUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -139,7 +139,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     if (host.includes('amazon.') || host.includes('amzn.to')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.amazon.mShop.android.shopping;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.amazon.mShop.android.shopping;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
       const iosUri = `com.amazon.mobile.shopping.web://${cleanTarget}`;
 
       return {
@@ -148,7 +148,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Amazon',
         color: '#FF9900',
         icon: 'shopping-cart',
-        desktopUri: iosUri,
+        desktopUri: parsed.href, // Desktop uses web
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -159,7 +159,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     if (host.includes('twitter.com') || host.includes('x.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.twitter.android;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.twitter.android;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
       
       let iosUri = `twitter://timeline`;
       if (pathname.includes('/status/')) {
@@ -173,7 +173,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'X / Twitter',
         color: '#000000',
         icon: 'twitter',
-        desktopUri: iosUri,
+        desktopUri: parsed.href, // Desktop uses web
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -184,7 +184,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     if (host.includes('linkedin.com')) {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.linkedin.android;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.linkedin.android;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
       const iosUri = `linkedin://${cleanTarget}`;
 
       return {
@@ -193,7 +193,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'LinkedIn',
         color: '#0A66C2',
         icon: 'linkedin',
-        desktopUri: iosUri,
+        desktopUri: parsed.href, // Desktop uses web
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -205,7 +205,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
       const username = pathname.replace('/', '').split('?')[0];
       const encodedTarget = encodeURIComponent(parsed.href);
       const iosUri = username ? `tg://resolve?domain=${username}` : 'tg://';
-      const androidIntent = `intent://resolve?domain=${username}#Intent;package=org.telegram.messenger;scheme=tg;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://resolve?domain=${username}#Intent;package=org.telegram.messenger;scheme=tg;S.browser_fallback_url=${encodedTarget};end;`;
 
       return {
         isSupported: true,
@@ -213,7 +213,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Telegram',
         color: '#24A1DE',
         icon: 'send',
-        desktopUri: iosUri,
+        desktopUri: iosUri, // Telegram Desktop supported on Windows/Mac
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -225,7 +225,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
       const iosUri = `whatsapp://${cleanTarget}`;
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.whatsapp;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.whatsapp;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
 
       return {
         isSupported: true,
@@ -233,7 +233,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'WhatsApp',
         color: '#25D366',
         icon: 'message-circle',
-        desktopUri: iosUri,
+        desktopUri: iosUri, // WhatsApp Desktop supported on Windows/Mac
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -245,7 +245,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
       const discordUri = `discord://${cleanTarget}`;
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.discord;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.discord;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
 
       return {
         isSupported: true,
@@ -253,7 +253,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Discord',
         color: '#5865F2',
         icon: 'message-square',
-        desktopUri: discordUri,
+        desktopUri: discordUri, // Discord Desktop supported on Windows/Mac
         iosUri: discordUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -265,7 +265,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
       const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
       const encodedTarget = encodeURIComponent(parsed.href);
       const redditUri = `reddit://${cleanTarget}`;
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.reddit.frontpage;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.reddit.frontpage;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
 
       return {
         isSupported: true,
@@ -273,7 +273,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Reddit',
         color: '#FF4500',
         icon: 'message-circle',
-        desktopUri: redditUri,
+        desktopUri: parsed.href, // Desktop uses web
         iosUri: redditUri,
         androidIntent,
         fallbackUrl: parsed.href

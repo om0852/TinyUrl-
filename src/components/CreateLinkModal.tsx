@@ -1,24 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { QRCodeSVG } from 'qrcode.react';
 import { 
   X, 
+  Link2, 
   Sparkles, 
   Copy, 
   Check, 
   ExternalLink, 
   ShieldAlert, 
-  ChevronDown, 
-  Lock, 
-  Clock, 
-  Zap, 
+  CheckCircle2, 
   Smartphone, 
-  CheckCircle2 
+  Sliders, 
+  Download,
+  Video,
+  Camera,
+  Music,
+  Radio
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -26,410 +28,483 @@ interface CreateLinkModalProps {
 }
 
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
-  const { createShortLink, domains, campaigns, aiSuggestSlugs } = useStore();
+  const { createShortLink, domains, campaigns, links } = useStore();
 
   const [destinationUrl, setDestinationUrl] = useState('');
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
-  const [campaignId, setCampaignId] = useState('');
-  const [tagsInput, setTagsInput] = useState('');
-  const [password, setPassword] = useState('');
-  const [maxClicks, setMaxClicks] = useState<number | ''>('');
-  const [expiresAt, setExpiresAt] = useState('');
-  const [deepLinkEnabled, setDeepLinkEnabled] = useState(true);
+  const [placementTag, setPlacementTag] = useState<'youtube' | 'instagram' | 'tiktok' | 'x' | 'podcast'>('youtube');
+  
+  // UTM params
+  const [utmSource, setUtmSource] = useState('youtube');
+  const [utmMedium, setUtmMedium] = useState('description');
+  const [utmCampaign, setUtmCampaign] = useState('summer_launch');
+  const [neverExpires, setNeverExpires] = useState(true);
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [suggestedSlugs, setSuggestedSlugs] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [createdResult, setCreatedResult] = useState<any>(null);
+  const [createdResult, setCreatedResult] = useState<{
+    id: string;
+    slug: string;
+    shortUrl: string;
+    destinationUrl: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Sync UTM Source with placement tag
+  useEffect(() => {
+    setUtmSource(placementTag);
+    if (placementTag === 'youtube') setUtmMedium('description');
+    else if (placementTag === 'instagram') setUtmMedium('bio');
+    else if (placementTag === 'tiktok') setUtmMedium('profile');
+    else if (placementTag === 'x') setUtmMedium('post');
+    else if (placementTag === 'podcast') setUtmMedium('show_notes');
+  }, [placementTag]);
 
   if (!isOpen) return null;
 
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
   const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
 
-  const handleAiSuggest = () => {
-    if (!destinationUrl && !title) {
-      setErrorMsg('Enter a Destination URL or Title first to get AI slug ideas.');
-      return;
-    }
-    setErrorMsg('');
-    const suggestions = aiSuggestSlugs(destinationUrl, title);
-    setSuggestedSlugs(suggestions);
-    if (suggestions.length > 0) {
-      setCustomSlug(suggestions[0]);
-    }
+  // Slug availability check
+  const isSlugTaken = customSlug.trim() 
+    ? links.some(l => (l.custom_slug || l.short_code).toLowerCase() === customSlug.trim().toLowerCase())
+    : false;
+
+  const handlePlacementChange = (p: 'youtube' | 'instagram' | 'tiktok' | 'x' | 'podcast') => {
+    setPlacementTag(p);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
+    if (!destinationUrl.trim()) {
+      setErrorMsg('Please enter a destination URL.');
+      return;
+    }
+
     if (!destinationUrl.startsWith('http://') && !destinationUrl.startsWith('https://')) {
       setErrorMsg('Destination URL must start with http:// or https://');
       return;
     }
 
-    const tags = tagsInput
-      .split(',')
-      .map(t => t.trim().toLowerCase())
-      .filter(t => t.length > 0);
-
-    const res = createShortLink({
-      destination_url: destinationUrl,
-      custom_slug: customSlug.trim() || undefined,
-      title: title.trim() || undefined,
-      campaign_id: campaignId || undefined,
-      tags: tags.length > 0 ? tags : undefined,
-      password: password || undefined,
-      max_clicks: maxClicks !== '' ? Number(maxClicks) : undefined,
-      expires_at: expiresAt || undefined,
-      deep_link: detectedApp && deepLinkEnabled ? {
-        enabled: true,
-        app: detectedApp.app,
-        app_name: detectedApp.appName,
-        app_uri: detectedApp.iosUri,
-        ios_uri: detectedApp.iosUri,
-        android_intent: detectedApp.androidIntent,
-        fallback_url: detectedApp.fallbackUrl
-      } : undefined
-    });
-
-    if (res.error) {
-      setErrorMsg(res.error);
+    if (isSlugTaken) {
+      setErrorMsg(`Slug "${customSlug}" is already taken. Please choose another.`);
       return;
     }
 
-    if (res.link) {
-      const activeDomain = domains[0]?.hostname || 'tiny-url-self.vercel.app';
-      setCreatedResult({
-        ...res.link,
-        short_url: `https://${activeDomain}/${res.link.short_code}`
+    setIsSubmitting(true);
+
+    try {
+      const tags = [placementTag];
+
+      const res = createShortLink({
+        destination_url: destinationUrl.trim(),
+        title: title.trim() || undefined,
+        custom_slug: customSlug.trim() ? customSlug.trim().toLowerCase() : undefined,
+        tags,
+        utm_source: utmSource,
+        utm_medium: utmMedium,
+        utm_campaign: utmCampaign,
+        deep_link: detectedApp ? {
+          enabled: true,
+          app: detectedApp.app,
+          app_name: detectedApp.appName,
+          app_uri: detectedApp.iosUri,
+          ios_uri: detectedApp.iosUri,
+          android_intent: detectedApp.androidIntent,
+          fallback_url: detectedApp.fallbackUrl
+        } : undefined
       });
+
+      if (res.error) {
+        setErrorMsg(res.error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (res.link) {
+        const slug = res.link.custom_slug || res.link.short_code;
+        const shortUrl = typeof window !== 'undefined'
+          ? `${window.location.origin}/${slug}`
+          : `${originDomain}/${slug}`;
+
+        setCreatedResult({
+          id: res.link.id,
+          slug,
+          shortUrl,
+          destinationUrl: res.link.destination_url
+        });
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to create link');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCopy = () => {
-    if (createdResult) {
-      navigator.clipboard.writeText(createdResult.short_url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    if (!createdResult) return;
+    navigator.clipboard.writeText(createdResult.shortUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const resetForm = () => {
+  const resetAndClose = () => {
     setDestinationUrl('');
     setTitle('');
     setCustomSlug('');
-    setCampaignId('');
-    setTagsInput('');
-    setPassword('');
-    setMaxClicks('');
-    setExpiresAt('');
-    setSuggestedSlugs([]);
     setErrorMsg('');
     setCreatedResult(null);
     onClose();
   };
 
+  const previewSlug = customSlug.trim() || 'custom-alias';
+  const previewShortUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/${previewSlug}`
+    : `${originDomain}/${previewSlug}`;
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-xs transition-all duration-200 animate-fade-in">
       <div 
-        className="fixed inset-0" 
-        onClick={resetForm} 
+        className="fixed inset-0"
+        onClick={resetAndClose}
       />
 
-      <div className="relative bg-card border border-border/60 max-w-lg w-full rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto text-foreground z-10 space-y-5">
+      <div className="relative bg-surface-container-lowest rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col border border-outline-variant/40 z-10 text-on-surface">
         
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-border/40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/25 shrink-0">
-              <Zap className="w-4 h-4" />
+        {/* Modal Header */}
+        <div className="p-6 pb-4 flex items-center justify-between border-b border-outline-variant/30">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-surface-container-high text-primary-container flex items-center justify-center shadow-xs">
+              <Link2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-foreground">Create New Shortlink</h2>
-              <p className="text-xs text-muted-foreground">Direct edge deep routing &bull; Zero-latency bypass</p>
+              <h2 className="text-base font-bold text-on-surface">Create new short link</h2>
+              <p className="text-xs text-on-surface-variant">Instant redirection, branded slugs &amp; integrated QR creation</p>
             </div>
           </div>
           <button
-            onClick={resetForm}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition cursor-pointer"
+            type="button"
+            onClick={resetAndClose}
+            className="p-1.5 text-outline hover:text-on-surface rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Success Modal View */}
+        {/* Modal Content */}
         {createdResult ? (
-          <div className="text-center py-4 space-y-4">
-            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-sm">
+          <div className="p-6 text-center space-y-5">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-200 shadow-xs">
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-foreground mb-1">Shortlink Ready!</h3>
-              <p className="text-muted-foreground text-xs">Your shortlink is active and syncing across global edge regions.</p>
+              <h3 className="text-lg font-bold text-on-surface">Short Link Created!</h3>
+              <p className="text-xs text-on-surface-variant mt-1 max-w-md mx-auto">
+                Your short link is live and active with real-time analytics and mobile deep routing.
+              </p>
             </div>
 
-            <div className="p-3 bg-background rounded-xl border border-border/60 flex items-center justify-between gap-3">
-              <span className="font-mono text-primary font-bold text-xs truncate">{createdResult.short_url}</span>
-              <Button
+            {/* Short link box */}
+            <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/40 flex items-center justify-between gap-3 text-left">
+              <div className="min-w-0">
+                <span className="font-mono text-sm font-bold text-primary-container truncate block">
+                  {createdResult.shortUrl}
+                </span>
+                <span className="text-xs text-on-surface-variant truncate block mt-0.5">
+                  &rarr; {createdResult.destinationUrl}
+                </span>
+              </div>
+              <button
                 type="button"
-                size="sm"
                 onClick={handleCopy}
-                className="shrink-0"
+                className="px-3.5 py-2 bg-surface-container-lowest hover:bg-surface-container text-on-surface rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
               >
-                {copied ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-300" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied!' : 'Copy'}</span>
-              </Button>
+              </button>
+            </div>
+
+            {/* QR Preview in Success */}
+            <div className="w-36 h-36 mx-auto p-2 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center">
+              <QRCodeSVG
+                value={createdResult.shortUrl}
+                size={120}
+                level="H"
+                fgColor="#141b2b"
+                bgColor="#ffffff"
+              />
             </div>
 
             <div className="flex items-center gap-3 pt-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="default"
-                onClick={resetForm}
-                className="w-full"
+                onClick={() => {
+                  setCreatedResult(null);
+                  setDestinationUrl('');
+                  setTitle('');
+                  setCustomSlug('');
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors cursor-pointer"
               >
                 Create Another Link
-              </Button>
+              </button>
               <a
-                href={createdResult.short_url}
+                href={createdResult.shortUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-on-primary text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
-                Test Link
+                <span>Test Link</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 text-xs">
             
             {errorMsg && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-xs flex items-center gap-2">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
+              <div className="p-3 bg-error-container text-on-error-container rounded-xl flex items-center gap-2 font-medium">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-error" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {/* Destination URL */}
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Destination URL <span className="text-destructive">*</span>
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-on-surface flex items-center justify-between">
+                <span>Destination URL <span className="text-error">*</span></span>
+                <span className="text-on-surface-variant font-normal">Where users will land</span>
               </label>
-              <input
-                type="url"
-                required
-                placeholder="https://yourbrand.com/special-product-launch"
-                value={destinationUrl}
-                onChange={(e) => setDestinationUrl(e.target.value)}
-                className="w-full h-10 px-3.5 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
-              />
-            </div>
-
-            {/* OpeninApp Smart Deep Link Badge */}
-            {detectedApp && (
-              <div className="p-3 bg-muted/20 border border-border/60 rounded-xl flex items-center justify-between transition-all animate-fade-in">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div 
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[10px] font-bold shadow-xs shrink-0"
-                    style={{ backgroundColor: detectedApp.color }}
-                  >
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-foreground truncate">
-                        ⚡ OpeninApp: {detectedApp.appName} App
-                      </span>
-                      <Badge variant="success" className="text-[9px]">
-                        Auto-detected
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      Opens directly in native app &bull; Bypasses browser webview
-                    </p>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-2">
-                  <input
-                    type="checkbox"
-                    checked={deepLinkEnabled}
-                    onChange={(e) => setDeepLinkEnabled(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-              </div>
-            )}
-
-            {/* Title & Custom Slug Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">Link Label (Optional)</label>
+              <div className="relative flex items-center">
+                <Link2 className="w-4 h-4 text-outline absolute left-3 pointer-events-none" />
                 <input
-                  type="text"
-                  placeholder="e.g. Q3 Launch Campaign"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full h-10 px-3.5 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                  type="url"
+                  required
+                  value={destinationUrl}
+                  onChange={(e) => setDestinationUrl(e.target.value)}
+                  placeholder="https://yourstore.com/special-offer"
+                  className="w-full pl-9 pr-3 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
                 />
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-semibold text-foreground">Custom Slug</label>
-                  <button
-                    type="button"
-                    onClick={handleAiSuggest}
-                    className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3" /> AI Suggest
-                  </button>
-                </div>
-                <div className="flex items-center">
-                  <span className="h-10 px-3 bg-muted border border-r-0 border-border/60 rounded-l-lg text-xs font-mono text-muted-foreground flex items-center select-none shrink-0">
-                    {domains[0]?.hostname || 'tiny.url'}/
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="custom_slug"
-                    value={customSlug}
-                    onChange={(e) => setCustomSlug(e.target.value)}
-                    className="w-full h-10 px-3 bg-background border border-border/60 focus:border-primary rounded-r-lg text-xs font-mono text-foreground placeholder:text-muted-foreground/60 outline-none transition"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* AI Suggested Slugs Pills */}
-            {suggestedSlugs.length > 0 && (
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] text-muted-foreground uppercase font-semibold">Suggested Slugs:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {suggestedSlugs.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setCustomSlug(s)}
-                      className={`px-2 py-0.5 rounded-md font-mono text-[11px] border transition cursor-pointer ${
-                        customSlug === s
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted/40 text-muted-foreground border-border/40 hover:text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Advanced Settings Accordion */}
-            <div className="pt-2 border-t border-border/40">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full flex items-center justify-between py-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition cursor-pointer"
-              >
-                <span>Advanced Security &amp; Access Controls</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showAdvanced && (
-                <div className="space-y-3 pt-3 animate-fade-in">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                        Campaign Folder
-                      </label>
-                      <select
-                        value={campaignId}
-                        onChange={(e) => setCampaignId(e.target.value)}
-                        className="w-full h-9 px-3 bg-background border border-border/60 rounded-lg text-xs text-foreground focus:border-primary outline-none"
-                      >
-                        <option value="">No Campaign</option>
-                        {campaigns.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                        Tags (comma-separated)
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="meta_ads, promo"
-                        value={tagsInput}
-                        onChange={(e) => setTagsInput(e.target.value)}
-                        className="w-full h-9 px-3 bg-background border border-border/60 rounded-lg text-xs text-foreground outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                        <Lock className="w-3 h-3 text-primary" /> Password Protection
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="Optional passphrase"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full h-9 px-3 bg-background border border-border/60 rounded-lg text-xs text-foreground outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-primary" /> Max Visits / Click Limit
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 500"
-                        value={maxClicks}
-                        onChange={(e) => setMaxClicks(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full h-9 px-3 bg-background border border-border/60 rounded-lg text-xs text-foreground outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Expiration Date</label>
-                    <input
-                      type="datetime-local"
-                      value={expiresAt}
-                      onChange={(e) => setExpiresAt(e.target.value)}
-                      className="w-full h-9 px-3 bg-background border border-border/60 rounded-lg text-xs text-foreground outline-none"
-                    />
-                  </div>
+              {/* Real-time deep link indicator */}
+              {detectedApp && (
+                <div className="mt-1 flex items-center gap-2 p-2 bg-surface-container-low rounded-lg text-xs font-medium text-on-surface">
+                  <Smartphone className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                  <span>⚡ OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
                 </div>
               )}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3 pt-3">
-              <Button
+            {/* Title / Label */}
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-on-surface">
+                Link Title <span className="text-error">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Summer Merch Launch, Instagram Link in Bio"
+                className="w-full px-3 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+              />
+            </div>
+
+            {/* Custom Back-Half / Slug */}
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-on-surface flex items-center justify-between">
+                <span>Short Link Custom Slug</span>
+                {customSlug.trim() && (
+                  <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-error' : 'text-emerald-600'}`}>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
+                  </span>
+                )}
+              </label>
+              <div className="flex rounded-xl overflow-hidden bg-surface-container-low p-1 border border-outline-variant/40">
+                <div className="px-3 py-1.5 text-on-surface-variant font-mono text-xs flex items-center select-none bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+                  {originDomain} /
+                </div>
+                <input
+                  type="text"
+                  value={customSlug}
+                  onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                  placeholder="custom-alias"
+                  className="flex-1 px-3 py-1.5 bg-transparent font-mono text-xs text-primary-container font-semibold focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Platform Pill Tags */}
+            <div className="flex flex-col gap-2">
+              <label className="font-semibold text-on-surface">
+                Primary Placement Tag
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePlacementChange('youtube')}
+                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    placementTag === 'youtube'
+                      ? 'bg-error-container text-on-error-container shadow-xs'
+                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>YouTube</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePlacementChange('instagram')}
+                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    placementTag === 'instagram'
+                      ? 'bg-primary-container text-on-primary shadow-xs'
+                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Instagram</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePlacementChange('tiktok')}
+                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    placementTag === 'tiktok'
+                      ? 'bg-inverse-surface text-inverse-on-surface shadow-xs'
+                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <Music className="w-3.5 h-3.5" />
+                  <span>TikTok</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePlacementChange('x')}
+                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    placementTag === 'x'
+                      ? 'bg-surface-container-highest text-on-surface font-bold shadow-xs'
+                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <span className="font-bold text-[12px] leading-none">𝕏</span>
+                  <span>X / Twitter</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handlePlacementChange('podcast')}
+                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    placementTag === 'podcast'
+                      ? 'bg-emerald-100 text-emerald-800 shadow-xs'
+                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  <span>Podcast</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Two Column Extras: UTM & Instant QR Code Preview */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-1">
+              
+              {/* UTM Section (8 cols) */}
+              <div className="md:col-span-8 flex flex-col gap-2.5 bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-on-surface flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-outline" />
+                    <span>Automatic UTM Parameters</span>
+                  </span>
+                  <span className="text-[10px] font-semibold text-primary-container">Included in redirect</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Source</span>
+                    <input
+                      type="text"
+                      value={utmSource}
+                      onChange={(e) => setUtmSource(e.target.value)}
+                      className="font-mono text-[11px] px-2 py-1.5 bg-surface-container-lowest rounded-lg text-on-surface border border-outline-variant/30 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Medium</span>
+                    <input
+                      type="text"
+                      value={utmMedium}
+                      onChange={(e) => setUtmMedium(e.target.value)}
+                      className="font-mono text-[11px] px-2 py-1.5 bg-surface-container-lowest rounded-lg text-on-surface border border-outline-variant/30 focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Campaign</span>
+                    <input
+                      type="text"
+                      value={utmCampaign}
+                      onChange={(e) => setUtmCampaign(e.target.value)}
+                      className="font-mono text-[11px] px-2 py-1.5 bg-surface-container-lowest rounded-lg text-on-surface border border-outline-variant/30 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-outline-variant/20">
+                  <span className="text-[11px] text-on-surface-variant">Expiration date</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <span className="text-[11px] text-outline font-medium">Never expires</span>
+                    <input
+                      type="checkbox"
+                      checked={neverExpires}
+                      onChange={(e) => setNeverExpires(e.target.checked)}
+                      className="rounded accent-primary-container w-3.5 h-3.5 cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Instant QR Code Preview (4 cols) */}
+              <div className="md:col-span-4 flex flex-col items-center justify-center p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 gap-2 text-center">
+                <div className="w-20 h-20 bg-surface-container-lowest p-1.5 rounded-lg shadow-xs flex items-center justify-center border border-outline-variant/30">
+                  <QRCodeSVG
+                    value={previewShortUrl}
+                    size={64}
+                    level="M"
+                    fgColor="#141b2b"
+                    bgColor="#ffffff"
+                  />
+                </div>
+                <span className="text-[10px] text-on-surface-variant font-medium">Auto-generated QR</span>
+                <span className="font-mono text-[10px] text-primary-container truncate max-w-[120px]">
+                  /{previewSlug}
+                </span>
+              </div>
+
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-outline-variant/30">
+              <button
                 type="button"
-                variant="outline"
-                size="lg"
-                onClick={resetForm}
-                className="w-full"
+                onClick={resetAndClose}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
               >
                 Cancel
-              </Button>
-              <Button
+              </button>
+              <button
                 type="submit"
-                size="lg"
-                className="w-full"
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-xl text-xs bg-primary-container hover:bg-primary text-on-primary transition-all shadow-md shadow-primary-container/20 font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                Create Shortlink
-              </Button>
+                <Check className="w-4 h-4" />
+                <span>{isSubmitting ? 'Creating...' : 'Create Link'}</span>
+              </button>
             </div>
 
           </form>

@@ -19,8 +19,13 @@ function RedirectInner() {
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [pixelStatus, setPixelStatus] = useState<string | null>(null);
+  const [abRoll, setAbRoll] = useState(50);
   const [countdown, setCountdown] = useState(4);
+
+  // Initialize random seed for A/B testing safely inside effect
+  useEffect(() => {
+    setAbRoll(Math.floor(Math.random() * 100));
+  }, []);
 
   // Dynamic link resolution across store, localStorage, and API
   useEffect(() => {
@@ -64,7 +69,7 @@ function RedirectInner() {
       .then(data => {
         if (data?.links && Array.isArray(data.links)) {
           const apiTarget = data.links.find(
-            (l: any) => (l.short_code && l.short_code.toLowerCase() === cleanCode) ||
+            (l: Link) => (l.short_code && l.short_code.toLowerCase() === cleanCode) ||
                         (l.custom_slug && l.custom_slug.toLowerCase() === cleanCode)
           );
           if (apiTarget) {
@@ -106,7 +111,7 @@ function RedirectInner() {
         const abRule = link.rules.find(r => r.rule_type === 'ab');
         if (abRule) {
           const weight = abRule.weight || 50;
-          if (Math.random() * 100 < weight) {
+          if (abRoll < weight) {
             finalUrl = abRule.target_url;
           }
         }
@@ -116,7 +121,7 @@ function RedirectInner() {
       finalUrl = 'https://' + finalUrl;
     }
     return finalUrl;
-  }, [link]);
+  }, [link, abRoll]);
 
   // Client device and in-app browser detection
   const clientContext = useMemo(() => {
@@ -124,12 +129,13 @@ function RedirectInner() {
       return { isIOS: false, isAndroid: false, isMobile: false, inAppInfo: { isInApp: false } };
     }
     const ua = navigator.userAgent;
-    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isIPad = /iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isIOS = /iPhone|iPod/i.test(ua) || isIPad;
     const isAndroid = /Android/i.test(ua);
     const isMobile = isIOS || isAndroid;
     const inAppInfo = detectInAppBrowser(ua);
     return { isIOS, isAndroid, isMobile, inAppInfo };
-  }, [mounted]);
+  }, []);
 
   // Deep Link details (OpeninApp feature)
   const appDeepLink = useMemo(() => {

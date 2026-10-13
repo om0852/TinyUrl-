@@ -17,7 +17,8 @@ import {
   Copy, 
   Check, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Settings
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 
@@ -60,13 +61,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   if (!isOpen) return null;
 
   const navigationItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Links & Overview', icon: <Link2 className="w-4 h-4 text-primary" /> },
+    { id: 'links', label: 'All Short Links (Directory)', icon: <Link2 className="w-4 h-4 text-primary" /> },
+    { id: 'overview', label: 'Links & Overview', icon: <Layers className="w-4 h-4 text-primary" /> },
+    { id: 'analytics', label: 'Usage & Analytics Engine', icon: <BarChart3 className="w-4 h-4 text-blue-500" /> },
     { id: 'routing', label: 'OpeninApp & Dynamic Routing', icon: <Smartphone className="w-4 h-4 text-emerald-500" /> },
-    { id: 'analytics', label: 'Usage & Analytics', icon: <BarChart3 className="w-4 h-4 text-blue-500" /> },
-    { id: 'qr', label: 'QR Code Studio', icon: <QrCode className="w-4 h-4 text-primary" /> },
+    { id: 'qr', label: 'Dynamic QR Code Studio', icon: <QrCode className="w-4 h-4 text-primary" /> },
     { id: 'campaigns', label: 'Campaigns & UTM Tagging', icon: <FolderKanban className="w-4 h-4 text-amber-500" /> },
     { id: 'ai', label: 'AI Slug & Traffic Insights', icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
     { id: 'security', label: 'Security & Zero-Phish Scanner', icon: <ShieldCheck className="w-4 h-4 text-emerald-500" /> },
+    { id: 'settings', label: 'Workspace Settings & Profile', icon: <Settings className="w-4 h-4 text-indigo-500" /> },
     { id: 'api', label: 'API & Developer Keys', icon: <Code2 className="w-4 h-4 text-muted-foreground" /> },
     { id: 'bulk', label: 'Bulk Shortener', icon: <Layers className="w-4 h-4 text-primary" /> },
   ];

@@ -1,23 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Search, 
   Plus, 
-  Sun, 
-  Moon, 
   Menu, 
-  ShieldCheck, 
-  Radio
+  Globe,
+  LogOut
 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { useStore } from '@/lib/storeContext';
 
 interface DashboardHeaderProps {
   activeTabTitle: string;
   onOpenCreateModal: () => void;
   onOpenCommandPalette: () => void;
   onToggleMobileMenu?: () => void;
+  onViewLandingPage?: () => void;
 }
 
 export function DashboardHeader({
@@ -25,98 +23,132 @@ export function DashboardHeader({
   onOpenCreateModal,
   onOpenCommandPalette,
   onToggleMobileMenu,
+  onViewLandingPage,
 }: DashboardHeaderProps) {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  useEffect(() => {
-    // Check saved theme or system preference
-    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      if (savedTheme === 'light') {
-        document.documentElement.classList.add('light');
-      } else {
-        document.documentElement.classList.remove('light');
-      }
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    localStorage.setItem('theme', nextTheme);
-    if (nextTheme === 'light') {
-      document.documentElement.classList.add('light');
-    } else {
-      document.documentElement.classList.remove('light');
-    }
-  };
+  const { currentUser, logout } = useStore();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   return (
-    <header className="h-14 sticky top-0 z-40 px-4 sm:px-6 border-b border-border/40 bg-background/85 backdrop-blur-md flex items-center justify-between transition-colors">
+    <header className="h-16 sticky top-0 z-40 px-4 sm:px-6 lg:px-8 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/30 flex items-center justify-between transition-colors">
       
-      {/* Left: Mobile Toggle & Breadcrumb Title */}
-      <div className="flex items-center gap-3">
+      {/* Left: Mobile Toggle + Search Bar */}
+      <div className="flex items-center gap-3 flex-1 max-w-xl">
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
-            className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition cursor-pointer"
+            className="lg:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low transition cursor-pointer"
+            aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:inline">
-            Console
-          </span>
-          <span className="text-muted-foreground/40 hidden sm:inline">/</span>
-          <h2 className="text-sm sm:text-base font-bold text-foreground tracking-tight capitalize">
-            {activeTabTitle}
-          </h2>
+
+        {/* Reference Search Bar */}
+        <div className="relative w-72 sm:w-96 flex items-center">
+          <Search className="w-4 h-4 absolute left-3 text-outline pointer-events-none" />
+          <input
+            type="text"
+            onClick={onOpenCommandPalette}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onOpenCommandPalette();
+            }}
+            placeholder="Search links, tags, campaigns..."
+            className="w-full pl-9 pr-12 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"
+            readOnly
+          />
+          <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-on-surface-variant/80 bg-surface-container-lowest border border-outline-variant/40 rounded shadow-2xs pointer-events-none">
+            ⌘K
+          </kbd>
         </div>
       </div>
 
-      {/* Center: Command Palette Trigger Button (⌘K) */}
-      <div className="hidden md:flex items-center flex-1 max-w-md mx-8">
+      {/* Right Actions: Public Page, Create link CTA, User Avatar */}
+      <div className="flex items-center gap-3">
+        {onViewLandingPage && (
+          <button
+            onClick={onViewLandingPage}
+            title="View Public Landing Page"
+            className="h-9 px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium flex items-center gap-1.5 transition cursor-pointer border border-outline-variant/20"
+          >
+            <Globe className="w-3.5 h-3.5 text-primary-container" />
+            <span className="hidden sm:inline">Landing Page</span>
+          </button>
+        )}
+
+        {/* Reference Create Link button */}
         <button
-          onClick={onOpenCommandPalette}
-          className="w-full h-9 px-3 rounded-lg border border-border/60 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground text-xs flex items-center justify-between transition cursor-pointer group shadow-2xs"
-        >
-          <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition" />
-            <span>Search links, domains, campaigns, or routes...</span>
-          </div>
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted border border-border/60 rounded text-muted-foreground shadow-2xs">
-            ⌘K
-          </kbd>
-        </button>
-      </div>
-
-      {/* Right: Theme Toggle & Primary CTA */}
-      <div className="flex items-center gap-2.5 sm:gap-3">
-
-        {/* Theme Toggle (Light / Dark) */}
-        <button
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          className="h-8 w-8 rounded-lg border border-border/60 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition cursor-pointer"
-        >
-          {theme === 'dark' ? (
-            <Sun className="w-4 h-4 text-amber-400" />
-          ) : (
-            <Moon className="w-4 h-4 text-cyan-600" />
-          )}
-        </button>
-
-        {/* Primary CTA Button */}
-        <Button
           onClick={onOpenCreateModal}
-          size="default"
-          className="shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
+          type="button"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-3.5 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer"
         >
-          <Plus className="w-3.5 h-3.5 mr-1.5" />
-          <span className="text-xs font-bold">New Short Link</span>
-        </Button>
+          <Plus className="w-4 h-4" />
+          <span>Create link</span>
+        </button>
+
+        {/* User Profile Avatar with Interactive Dropdown */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary-container/30 transition cursor-pointer"
+            aria-label="User account menu"
+          >
+            <img
+              alt={currentUser?.name || "Profile"}
+              className="w-8 h-8 rounded-full object-cover ring-2 ring-primary-container/20"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_A7G9u5WJPA8v686YLQsUyQnZVrbqp0w75ybNsaz7o8Ck4XwmBXaqobir8NxybWjb1YRvLSxwYEascmlOCLf1HEYKZKzCjvJjhVNBMrlB3GGAks-rigHC8EHW-H_Dg3DT0vkY7GmGUQIh_JUz2tRiGgL7I-mT4nXTdtdId57iVKQREXS4eNtzBQnWEy-xfzcv95bBdGPXyo_nhZ7FSGlF_JvuLaVDRnUmQMbxUCumh7cRJDESYXF0gA"
+            />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-2 z-50 animate-fade-in text-xs">
+              <div className="p-3 bg-surface-container-low rounded-xl mb-1.5 flex items-center gap-3">
+                <img
+                  alt="Avatar"
+                  className="w-9 h-9 rounded-full object-cover ring-1 ring-outline-variant/40 shrink-0"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_A7G9u5WJPA8v686YLQsUyQnZVrbqp0w75ybNsaz7o8Ck4XwmBXaqobir8NxybWjb1YRvLSxwYEascmlOCLf1HEYKZKzCjvJjhVNBMrlB3GGAks-rigHC8EHW-H_Dg3DT0vkY7GmGUQIh_JUz2tRiGgL7I-mT4nXTdtdId57iVKQREXS4eNtzBQnWEy-xfzcv95bBdGPXyo_nhZ7FSGlF_JvuLaVDRnUmQMbxUCumh7cRJDESYXF0gA"
+                />
+                <div className="min-w-0 flex-1">
+                  <span className="font-bold text-on-surface truncate block">
+                    {currentUser?.name || "Creator Studio"}
+                  </span>
+                  <span className="text-[11px] text-on-surface-variant truncate block">
+                    {currentUser?.email || "creator@loomlink.io"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="py-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    onViewLandingPage?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-on-surface hover:bg-surface-container-low transition cursor-pointer text-left"
+                >
+                  <Globe className="w-4 h-4 text-outline" />
+                  <span>Public Landing Page</span>
+                </button>
+              </div>
+
+              <div className="h-px bg-outline-variant/30 my-1" />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  logout();
+                  if (onViewLandingPage) onViewLandingPage();
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-error hover:bg-error-container/20 font-semibold transition cursor-pointer text-left"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
     </header>
