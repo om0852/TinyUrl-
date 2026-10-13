@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { detectAppDeepLink } from '@/lib/deepLink';
 import { 
   BarChart3, 
   Calendar, 
@@ -173,8 +174,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       const dest = (l.destination_url || '').toLowerCase();
       const tags = (l.tags || []).map(t => t.toLowerCase());
       const app = (l.deep_link?.app || '').toLowerCase();
+      const detected = detectAppDeepLink(l.destination_url);
 
-      let platform = 'direct';
+      let platform = detected?.app || 'direct';
       if (dest.includes('youtube.com') || dest.includes('youtu.be') || app === 'youtube' || tags.includes('youtube')) {
         platform = 'youtube';
       } else if (dest.includes('instagram.com') || app === 'instagram' || tags.includes('instagram')) {
