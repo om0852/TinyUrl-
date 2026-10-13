@@ -103,21 +103,24 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, rules, status, title } = body;
+    const { id, rules, status, title, destination_url } = body;
     if (!id || typeof id !== 'string') {
       return NextResponse.json({ success: false, error: 'Link ID is required.' }, { status: 400 });
     }
 
-    const rows = await sql.query(
+    const rulesJson = Array.isArray(rules) ? JSON.stringify(rules) : null;
+
+    const rows = (await sql.query(
       `UPDATE links 
-       SET rules = COALESCE($1, rules),
+       SET rules = CASE WHEN $1::text IS NOT NULL THEN $1::jsonb ELSE rules END,
            status = COALESCE($2, status),
            title = COALESCE($3, title),
+           destination_url = COALESCE($4, destination_url),
            updated_at = NOW()
-       WHERE id = $4 OR LOWER(short_code) = LOWER($4)
+       WHERE id = $5 OR LOWER(short_code) = LOWER($5)
        RETURNING *`,
-      [rules ? JSON.stringify(rules) : null, status || null, title || null, id.trim()]
-    );
+      [rulesJson, status || null, title || null, destination_url || null, id.trim()]
+    )) as unknown as RawLinkRow[];
 
     if (rows && rows.length > 0) {
       const updatedRow = rows[0];
@@ -136,6 +139,51 @@ export async function PATCH(request: Request) {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database update error';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    let id = searchParams.get('id') || searchParams.get('code');
+
+    if (!id) {
+      try {
+        const body = await request.json();
+        id = body?.id || body?.code;
+      } catch {
+        // Body might be empty
+      }
+    }
+
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json({ success: false, error: 'Link ID or short code is required.' }, { status: 400 });
+    }
+
+    const cleanId = id.trim();
+    const rows = (await sql.query(
+      `DELETE FROM links WHERE id = $1 OR LOWER(short_code) = LOWER($1) RETURNING *`,
+      [cleanId]
+    )) as unknown as RawLinkRow[];
+
+    if (rows && rows.length > 0) {
+      const deletedRow = rows[0];
+      if (deletedRow.short_code) {
+        linkCache.delete(`link_${deletedRow.short_code.toLowerCase()}`);
+      }
+      if (deletedRow.custom_slug) {
+        linkCache.delete(`link_${deletedRow.custom_slug.toLowerCase()}`);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Link deleted successfully from database.',
+      deleted: rows && rows.length > 0 ? rows[0] : null
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Database delete error';
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }

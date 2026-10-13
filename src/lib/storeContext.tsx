@@ -877,8 +877,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteLink = (id: string) => {
+    const target = links.find(l => l.id === id || l.short_code?.toLowerCase() === id.toLowerCase());
     const updated = links.filter(l => l.id !== id && l.short_code?.toLowerCase() !== id.toLowerCase());
     saveLinksState(updated);
+
+    if (typeof window !== 'undefined') {
+      fetch(`/api/v1/links?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      }).catch(err => {
+        console.warn('Failed to delete link on server:', err);
+      });
+
+      if (target?.short_code && target.short_code.toLowerCase() !== id.toLowerCase()) {
+        fetch(`/api/v1/links?code=${encodeURIComponent(target.short_code)}`, {
+          method: 'DELETE'
+        }).catch(() => {});
+      }
+    }
   };
 
   const addRuleToLink = (linkId: string, rule: { rule_type: 'geo' | 'device' | 'ab'; condition: string; target_url: string; weight?: number }) => {
