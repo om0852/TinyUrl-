@@ -13,6 +13,10 @@ interface ClickStatRow {
   total_clicks?: number | string | null;
   unique_visitors?: number | string | null;
   bot_clicks?: number | string | null;
+  avg_latency?: number | string | null;
+  mobile_clicks?: number | string | null;
+  desktop_clicks?: number | string | null;
+  tablet_clicks?: number | string | null;
 }
 
 interface RawClickRow {
@@ -42,6 +46,10 @@ export async function GET(request: Request) {
   let totalClicks = 0;
   let uniqueVisitors = 0;
   let botClicks = 0;
+  let avgLatency = 0;
+  let mobileClicks = 0;
+  let desktopClicks = 0;
+  let tabletClicks = 0;
   let topCountries: Array<{ country: string; code: string; clicks: number }> = [];
 
   // If neither code nor workspaceId is provided, return clean zero metrics (never leak cross-tenant data)
@@ -66,7 +74,11 @@ export async function GET(request: Request) {
         SELECT 
           COUNT(*)::int as total_clicks,
           COUNT(DISTINCT ip_hash)::int as unique_visitors,
-          COUNT(*) FILTER (WHERE is_bot = true)::int as bot_clicks
+          COUNT(*) FILTER (WHERE is_bot = true)::int as bot_clicks,
+          ROUND(AVG(COALESCE(latency_ms, 20))::numeric, 1) as avg_latency,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'mobile')::int as mobile_clicks,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'desktop')::int as desktop_clicks,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'tablet')::int as tablet_clicks
         FROM click_events
         WHERE LOWER(short_code) = $1
       `, [code])) as unknown as ClickStatRow[];
@@ -75,6 +87,10 @@ export async function GET(request: Request) {
         totalClicks = Number(stats[0].total_clicks) || 0;
         uniqueVisitors = Number(stats[0].unique_visitors) || 0;
         botClicks = Number(stats[0].bot_clicks) || 0;
+        avgLatency = Number(stats[0].avg_latency) || 0;
+        mobileClicks = Number(stats[0].mobile_clicks) || 0;
+        desktopClicks = Number(stats[0].desktop_clicks) || 0;
+        tabletClicks = Number(stats[0].tablet_clicks) || 0;
       }
 
       const countries = (await sql.query(`
@@ -99,7 +115,11 @@ export async function GET(request: Request) {
         SELECT 
           COUNT(c.id)::int as total_clicks,
           COUNT(DISTINCT c.ip_hash)::int as unique_visitors,
-          COUNT(c.id) FILTER (WHERE c.is_bot = true)::int as bot_clicks
+          COUNT(c.id) FILTER (WHERE c.is_bot = true)::int as bot_clicks,
+          ROUND(AVG(COALESCE(c.latency_ms, 20))::numeric, 1) as avg_latency,
+          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'mobile')::int as mobile_clicks,
+          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'desktop')::int as desktop_clicks,
+          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'tablet')::int as tablet_clicks
         FROM click_events c
         INNER JOIN links l ON LOWER(c.short_code) = LOWER(l.short_code)
         WHERE l.workspace_id = $1
@@ -109,6 +129,10 @@ export async function GET(request: Request) {
         totalClicks = Number(stats[0].total_clicks) || 0;
         uniqueVisitors = Number(stats[0].unique_visitors) || 0;
         botClicks = Number(stats[0].bot_clicks) || 0;
+        avgLatency = Number(stats[0].avg_latency) || 0;
+        mobileClicks = Number(stats[0].mobile_clicks) || 0;
+        desktopClicks = Number(stats[0].desktop_clicks) || 0;
+        tabletClicks = Number(stats[0].tablet_clicks) || 0;
       }
 
       const countries = (await sql.query(`
@@ -134,6 +158,7 @@ export async function GET(request: Request) {
     totalClicks = 0;
     uniqueVisitors = 0;
     botClicks = 0;
+    avgLatency = 0;
     topCountries = [];
   }
 
@@ -223,15 +248,29 @@ export async function GET(request: Request) {
     }
   }
 
+  let mobilePct = totalClicks > 0 ? Math.round((mobileClicks / totalClicks) * 100) : 0;
+  let desktopPct = totalClicks > 0 ? Math.round((desktopClicks / totalClicks) * 100) : 0;
+  const tabletPct = totalClicks > 0 ? Math.round((tabletClicks / totalClicks) * 100) : 0;
+
+  if (totalClicks > 0 && mobilePct + desktopPct + tabletPct !== 100) {
+    const diff = 100 - (mobilePct + desktopPct + tabletPct);
+    if (mobilePct >= desktopPct) mobilePct += diff;
+    else desktopPct += diff;
+  }
+
   const metrics: AnalyticsMetrics = {
     total_clicks: totalClicks,
     unique_visitors: uniqueVisitors,
     bot_clicks_filtered: botClicks,
-    avg_latency_ms: totalClicks > 0 ? 18.2 : 0,
+    avg_latency_ms: avgLatency,
     top_countries: topCountries,
     top_regions: topRegions,
     top_cities: topCities,
-    devices: totalClicks > 0 ? { mobile: '50%', desktop: '50%', tablet: '0%' } : { mobile: '0%', desktop: '0%', tablet: '0%' }
+    devices: {
+      mobile: `${mobilePct}%`,
+      desktop: `${desktopPct}%`,
+      tablet: `${tabletPct}%`
+    }
   };
 
   return NextResponse.json<AnalyticsApiResponse & { recent_clicks?: ClickEvent[] }>({

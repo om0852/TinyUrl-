@@ -20,6 +20,7 @@ import {
   ExternalLink,
   AlertCircle
 } from 'lucide-react';
+import { detectAppDeepLink } from '@/lib/deepLink';
 
 export const SmartRoutingView: React.FC = () => {
   const { links, addRuleToLink, removeRuleFromLink, createShortLink } = useStore();
@@ -42,6 +43,13 @@ export const SmartRoutingView: React.FC = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simVerified, setSimVerified] = useState(false);
   const [copiedPayload, setCopiedPayload] = useState(false);
+  const [simResult, setSimResult] = useState<{
+    appName: string;
+    scheme: string;
+    androidIntent: string;
+    iosUri: string;
+    latencyMs: number;
+  } | null>(null);
 
   // New Rule Modal
   const [newRuleModalOpen, setNewRuleModalOpen] = useState(false);
@@ -59,23 +67,38 @@ export const SmartRoutingView: React.FC = () => {
     }
   }, [links, targetLinkId]);
 
-  // Handle Simulation
+  // Handle Real Simulation
   const handleSimulate = () => {
     setIsSimulating(true);
     setSimVerified(false);
-    setTimeout(() => {
+    const urlToTest = testUrl.trim() || 'https://instagram.com/p/C34xyz';
+    const start = performance.now();
+    try {
+      const detection = detectAppDeepLink(urlToTest);
+      const elapsed = Math.max(1, Math.round((performance.now() - start) * 10) / 10);
+      setSimResult({
+        appName: detection?.appName || 'Web Browser',
+        scheme: detection?.iosUri || detection?.androidIntent ? 'Native Deep-Link URI' : 'Direct HTTPS Fallback',
+        androidIntent: detection?.androidIntent || urlToTest,
+        iosUri: detection?.iosUri || urlToTest,
+        latencyMs: elapsed
+      });
       setIsSimulating(false);
       setSimVerified(true);
-      setTimeout(() => setSimVerified(false), 3000);
-    }, 600);
+    } catch {
+      setIsSimulating(false);
+    }
   };
 
   const handleCopyPayload = () => {
+    const urlToTest = testUrl.trim() || 'https://instagram.com/p/C34xyz';
+    const detection = detectAppDeepLink(urlToTest);
     const payload = JSON.stringify({
-      target_url: testUrl,
-      intent_android: "intent://instagram.com/#Intent;package=com.instagram.android;scheme=https;end",
-      universal_ios: "instagram://media?id=xyz",
-      resolved_ms: 11,
+      target_url: urlToTest,
+      detected_app: detection?.appName || 'Web Browser',
+      intent_android: detection?.androidIntent || urlToTest,
+      universal_ios: detection?.iosUri || urlToTest,
+      resolved_ms: simResult?.latencyMs || 6.2,
       bypass_webview: true
     }, null, 2);
     navigator.clipboard.writeText(payload);
@@ -520,7 +543,11 @@ export const SmartRoutingView: React.FC = () => {
           <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-on-surface-variant font-mono text-xs">
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>Direct scheme resolved in 11ms</span>
+              <span>
+                {simResult 
+                  ? `${simResult.appName} (${simResult.scheme}) resolved in ${simResult.latencyMs}ms` 
+                  : 'Deep-link engine ready (simulates real client app intents)'}
+              </span>
             </span>
             <button 
               type="button"

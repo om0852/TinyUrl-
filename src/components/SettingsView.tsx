@@ -22,7 +22,7 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => {
-  const { currentUser, currentWorkspace, domains, links } = useStore();
+  const { currentUser, currentWorkspace, domains, links, addDomain, verifyDomain } = useStore();
 
   // Active Settings Tab
   const [activeSettingsTab, setActiveSettingsTab] = useState<
@@ -95,12 +95,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
     }, 500);
   };
 
-  const handleTestDns = () => {
+  const handleTestDns = async () => {
     setDnsTestStatus('testing');
-    setTimeout(() => {
-      setDnsTestStatus('verified');
-      setTimeout(() => setDnsTestStatus(null), 3000);
-    }, 800);
+    const target = domains[0]?.id || originDomain;
+    const ok = await verifyDomain(target);
+    setDnsTestStatus(ok ? 'verified' : 'failed');
+    setTimeout(() => setDnsTestStatus(null), 3000);
+  };
+
+  const handleAddCustomDomain = async () => {
+    const input = window.prompt('Enter your custom domain or subdomain (e.g. go.yourbrand.com):');
+    if (!input || !input.trim()) return;
+    await addDomain(input.trim());
   };
 
   return (
@@ -348,7 +354,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             </div>
             <button
               type="button"
-              onClick={() => alert('Custom domain routing: Please configure the CNAME record at your DNS registrar pointing to cname.' + originDomain)}
+              onClick={handleAddCustomDomain}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold transition-all shadow-xs border border-outline-variant/30 cursor-pointer self-start sm:self-auto"
             >
               <Plus className="w-4 h-4 text-primary-container" />

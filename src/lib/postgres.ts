@@ -36,9 +36,9 @@ export async function initializeDatabase() {
         salt VARCHAR(64) NOT NULL,
         role VARCHAR(32) DEFAULT 'owner',
         created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+      )
     `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users (email)`);
 
     // 1. Workspaces
     await sql.query(`
@@ -141,6 +141,35 @@ export async function initializeDatabase() {
     await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS region VARCHAR(128);`).catch(() => {});
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_clicks_short_code ON click_events (short_code);`);
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_clicks_timestamp ON click_events (timestamp);`);
+
+    // 6. API Keys table
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id VARCHAR(64) PRIMARY KEY,
+        workspace_id VARCHAR(64),
+        name VARCHAR(255) NOT NULL,
+        key_prefix VARCHAR(32) NOT NULL,
+        key_hash VARCHAR(255) NOT NULL,
+        permissions JSONB DEFAULT '["links:read", "links:write"]'::jsonb,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        last_used TIMESTAMPTZ
+      )
+    `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_workspace ON api_keys (workspace_id)`);
+
+    // 7. Webhooks table
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id VARCHAR(64) PRIMARY KEY,
+        workspace_id VARCHAR(64),
+        url TEXT NOT NULL,
+        events JSONB DEFAULT '["link.created", "link.clicked"]'::jsonb,
+        is_active BOOLEAN DEFAULT true,
+        secret VARCHAR(128),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_webhooks_workspace ON webhooks (workspace_id)`);
 
     return { success: true };
   } catch (error) {

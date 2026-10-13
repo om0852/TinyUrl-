@@ -77,6 +77,10 @@ interface StoreContextType {
   removeRuleFromLink: (linkId: string, ruleId: string) => void;
   logClick: (linkId: string, clientInfo?: Partial<ClickEvent>) => ClickEvent;
   
+  addDomain: (hostname: string, is_default?: boolean) => Promise<Domain | null>;
+  verifyDomain: (idOrHostname: string) => Promise<boolean>;
+  deleteDomain: (idOrHostname: string) => Promise<boolean>;
+  
   addCampaign: (name: string, description: string, tags: string[], target_clicks?: number) => Campaign;
   deleteCampaign: (id: string) => void;
   addApiKey: (name: string, permissions: string[]) => ApiKey;
@@ -611,6 +615,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return currentClicks;
           });
         }
+
+        // 3. Fetch custom domains from PostgreSQL
+        fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWs.id)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.success && Array.isArray(d.domains) && d.domains.length > 0) {
+              setDomains(d.domains);
+            }
+          }).catch(() => {});
+
+        // 4. Fetch API keys from PostgreSQL
+        fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(activeWs.id)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.success && Array.isArray(d.keys)) {
+              setApiKeys(d.keys);
+            }
+          }).catch(() => {});
+
+        // 5. Fetch Webhooks from PostgreSQL
+        fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(activeWs.id)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.success && Array.isArray(d.webhooks)) {
+              setWebhooks(d.webhooks);
+            }
+          }).catch(() => {});
       } catch {}
     };
 
@@ -1047,8 +1078,77 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveCampaignsState(updated);
   };
 
+  const addDomain = async (hostname: string, is_default?: boolean): Promise<Domain | null> => {
+    const cleanHost = hostname.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const newDom: Domain = {
+      id: generateId('dom'),
+      workspace_id: currentWorkspace?.id || 'ws_default',
+      hostname: cleanHost,
+      verified: false,
+      ssl_status: 'pending',
+      is_default: !!is_default
+    };
+    const updated = [newDom, ...domains];
+    setDomains(updated);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/v1/domains', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: newDom.id,
+            workspace_id: newDom.workspace_id,
+            hostname: cleanHost,
+            is_default: !!is_default
+          })
+        });
+        const data = await res.json();
+        if (data?.success && data.domain) {
+          setDomains(prev => prev.map(d => d.id === newDom.id ? { ...d, id: data.domain.id } : d));
+          return data.domain;
+        }
+      } catch (err) {
+        console.warn('Failed to register domain on server:', err);
+      }
+    }
+    return newDom;
+  };
+
+  const verifyDomain = async (idOrHostname: string): Promise<boolean> => {
+    setDomains(prev => prev.map(d => (d.id === idOrHostname || d.hostname === idOrHostname) ? { ...d, verified: true, ssl_status: 'active' } : d));
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/v1/domains', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idOrHostname, verified: true, ssl_status: 'active' })
+        });
+        const data = await res.json();
+        return !!data?.success;
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const deleteDomain = async (idOrHostname: string): Promise<boolean> => {
+    setDomains(prev => prev.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname));
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch(`/api/v1/domains?id=${encodeURIComponent(idOrHostname)}`, { method: 'DELETE' });
+        const data = await res.json();
+        return !!data?.success;
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  };
+
   const addApiKey = (name: string, permissions: string[]) => {
-    const prefix = `ak_live_${Math.random().toString(36).substring(2, 6)}`;
+    const prefix = `sk_live_${Math.random().toString(36).substring(2, 6)}`;
     const fullKey = `${prefix}_${Math.random().toString(36).substring(2, 18)}${Math.random().toString(36).substring(2, 18)}`;
     const newKey: ApiKey = {
       id: generateId('key'),
@@ -1060,12 +1160,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       created_at: new Date().toISOString()
     };
     saveApiKeysState([newKey, ...apiKeys]);
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/v1/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          workspace_id: currentWorkspace?.id || 'ws_default',
+          permissions
+        })
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d.key) {
+          setApiKeys(prev => prev.map(k => k.id === newKey.id ? { ...k, id: d.key.id, key_prefix: d.key.key_prefix } : k));
+        }
+      })
+      .catch(err => console.warn('Failed to save API key on server:', err));
+    }
+
     return newKey;
   };
 
   const deleteApiKey = (id: string) => {
     const updated = apiKeys.filter(k => k.id !== id);
     saveApiKeysState(updated);
+    if (typeof window !== 'undefined') {
+      fetch(`/api/v1/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   const addWebhook = (url: string, events: string[]) => {
@@ -1079,12 +1202,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       created_at: new Date().toISOString()
     };
     saveWebhooksState([newWh, ...webhooks]);
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/v1/webhooks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          events,
+          workspace_id: currentWorkspace?.id || 'ws_default'
+        })
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && d.webhook) {
+          setWebhooks(prev => prev.map(w => w.id === newWh.id ? { ...w, id: d.webhook.id } : w));
+        }
+      })
+      .catch(err => console.warn('Failed to save webhook on server:', err));
+    }
+
     return newWh;
   };
 
   const deleteWebhook = (id: string) => {
     const updated = webhooks.filter(w => w.id !== id);
     saveWebhooksState(updated);
+    if (typeof window !== 'undefined') {
+      fetch(`/api/v1/webhooks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   // AI Slug Generator
@@ -1593,6 +1739,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem(userKey, newWs.id);
       localStorage.setItem('url_shortener_current_workspace_id', newWs.id);
     } catch {}
+    if (typeof window !== 'undefined') {
+      fetch('/api/v1/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newWs.id,
+          name: newWs.name,
+          slug: newWs.slug,
+          plan: newWs.plan
+        })
+      }).catch(err => console.warn('Failed to save workspace on server:', err));
+    }
     return newWs;
   };
 
@@ -1649,6 +1807,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       inviteTeamMember,
       removeTeamMember,
       domains,
+      addDomain,
+      verifyDomain,
+      deleteDomain,
       campaigns,
       links,
       clicks,
