@@ -86,6 +86,12 @@ export async function GET(request: Request) {
         source: 'neon_postgresql',
         total: formattedLinks.length,
         links: formattedLinks
+      }, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, OPTIONS',
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+        }
       });
     }
   } catch (err) {
@@ -186,5 +192,16 @@ export async function DELETE(request: Request) {
     const msg = err instanceof Error ? err.message : 'Database delete error';
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id'
+    }
+  });
 }
 
