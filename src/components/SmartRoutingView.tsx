@@ -52,6 +52,13 @@ export const SmartRoutingView: React.FC = () => {
   const [selectedDevice, setSelectedDevice] = useState<'ios' | 'android' | 'all'>('all');
   const [searchFilter, setSearchFilter] = useState('');
 
+  // Sync default targetLinkId when links load
+  useEffect(() => {
+    if (!targetLinkId && links.length > 0) {
+      setTargetLinkId(links[0].id);
+    }
+  }, [links, targetLinkId]);
+
   // Handle Simulation
   const handleSimulate = () => {
     setIsSimulating(true);
@@ -80,18 +87,14 @@ export const SmartRoutingView: React.FC = () => {
     e.preventDefault();
     if (!ruleName || !ruleAppScheme) return;
 
-    let linkIdToUse = targetLinkId;
+    let linkIdToUse = targetLinkId || links[0]?.id;
     if (!linkIdToUse) {
-      if (links.length > 0) {
-        linkIdToUse = links[0].id;
-      } else {
-        const newLnk = createShortLink({
-          destination_url: ruleFallback || 'https://instagram.com',
-          title: ruleName
-        });
-        if (newLnk.link) {
-          linkIdToUse = newLnk.link.id;
-        }
+      const newLnk = createShortLink({
+        destination_url: ruleFallback || 'https://instagram.com',
+        title: ruleName
+      });
+      if (newLnk.link) {
+        linkIdToUse = newLnk.link.id;
       }
     }
 

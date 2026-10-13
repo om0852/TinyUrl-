@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
+import { linkCache } from '@/lib/cache';
 import { LinksApiResponse, Link } from '@/lib/types';
 
 export async function GET(request: Request) {
@@ -89,10 +90,20 @@ export async function PATCH(request: Request) {
            status = COALESCE($2, status),
            title = COALESCE($3, title),
            updated_at = NOW()
-       WHERE id = $4
+       WHERE id = $4 OR LOWER(short_code) = LOWER($4)
        RETURNING *`,
       [rules ? JSON.stringify(rules) : null, status || null, title || null, id.trim()]
     );
+
+    if (rows && rows.length > 0) {
+      const updatedRow = rows[0];
+      if (updatedRow.short_code) {
+        linkCache.delete(`link_${updatedRow.short_code.toLowerCase()}`);
+      }
+      if (updatedRow.custom_slug) {
+        linkCache.delete(`link_${updatedRow.custom_slug.toLowerCase()}`);
+      }
+    }
 
     return NextResponse.json({
       success: true,

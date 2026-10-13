@@ -855,11 +855,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateLink = (id: string, updates: Partial<Link>) => {
-    const updated = links.map(l => l.id === id ? { ...l, ...updates } : l);
+    const updated = links.map(l => (l.id === id || l.short_code?.toLowerCase() === id.toLowerCase()) ? { ...l, ...updates } : l);
     saveLinksState(updated);
 
     if (typeof window !== 'undefined') {
-      const target = updated.find(l => l.id === id);
+      const target = updated.find(l => l.id === id || l.short_code?.toLowerCase() === id.toLowerCase());
       if (target) {
         fetch('/api/v1/links', {
           method: 'PATCH',
@@ -876,33 +876,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteLink = (id: string) => {
-    const updated = links.filter(l => l.id !== id);
+    const updated = links.filter(l => l.id !== id && l.short_code?.toLowerCase() !== id.toLowerCase());
     saveLinksState(updated);
   };
 
   const addRuleToLink = (linkId: string, rule: { rule_type: 'geo' | 'device' | 'ab'; condition: string; target_url: string; weight?: number }) => {
-    const targetLink = links.find(l => l.id === linkId);
+    const targetLink = links.find(l => l.id === linkId || l.short_code?.toLowerCase() === linkId.toLowerCase());
     if (!targetLink) return;
 
     const newRule: LinkRule = {
       id: `rule_${Date.now()}`,
-      link_id: linkId,
+      link_id: targetLink.id,
       rule_type: rule.rule_type,
-      condition: rule.condition,
+      condition: rule.condition.toLowerCase(),
       target_url: normalizeUrl(rule.target_url),
       weight: rule.weight
     };
 
-    const existingRules = targetLink.rules || [];
-    updateLink(linkId, { rules: [...existingRules, newRule] });
+    // Filter out existing rule with same rule_type and condition to prevent conflicts
+    const existingRules = (targetLink.rules || []).filter(
+      r => !(r.rule_type === rule.rule_type && r.condition?.toLowerCase() === rule.condition.toLowerCase())
+    );
+    updateLink(targetLink.id, { rules: [...existingRules, newRule] });
   };
 
   const removeRuleFromLink = (linkId: string, ruleId: string) => {
-    const targetLink = links.find(l => l.id === linkId);
+    const targetLink = links.find(l => l.id === linkId || l.short_code?.toLowerCase() === linkId.toLowerCase());
     if (!targetLink || !targetLink.rules) return;
 
     const updatedRules = targetLink.rules.filter(r => r.id !== ruleId);
-    updateLink(linkId, { rules: updatedRules });
+    updateLink(targetLink.id, { rules: updatedRules });
   };
 
   // Log click event

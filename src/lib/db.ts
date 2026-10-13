@@ -29,14 +29,14 @@ export function generateBase62Code(length = 6): string {
 
 export function normalizeUrl(rawUrl: string): string {
   let url = rawUrl.trim();
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+  if (!url.startsWith('http://') && !url.startsWith('https://') && !url.includes('://')) {
     url = 'https://' + url;
   }
   try {
     const parsed = new URL(url);
     return parsed.toString();
   } catch {
-    return rawUrl;
+    return url;
   }
 }
 

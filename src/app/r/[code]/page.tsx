@@ -271,28 +271,38 @@ function RedirectInner() {
   const hasLoggedRef = useRef(false);
   const hasRedirectedRef = useRef(false);
 
+  const edgeTarget = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('target') || '';
+    } catch {
+      return '';
+    }
+  }, []);
+
   // Compute smart destination URL
   const resolvedTarget = useMemo(() => {
-    if (!link) return '';
-    let finalUrl = link.destination_url;
+    let finalUrl = edgeTarget || (link ? link.destination_url : '');
 
-    if (link.rules && link.rules.length > 0) {
+    if (!edgeTarget && link?.rules && link.rules.length > 0) {
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
       const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
       const isAndroid = /Android/i.test(userAgent);
 
       const deviceRule = link.rules.find(r => 
         r.rule_type === 'device' && (
-          (r.condition.toLowerCase() === 'ios' && isIOS) ||
-          (r.condition.toLowerCase() === 'android' && isAndroid)
+          (r.condition?.toLowerCase() === 'ios' && isIOS) ||
+          (r.condition?.toLowerCase() === 'android' && isAndroid) ||
+          (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
         )
       );
 
-      if (deviceRule) {
+      if (deviceRule && deviceRule.target_url) {
         finalUrl = deviceRule.target_url;
       } else {
         const abRule = link.rules.find(r => r.rule_type === 'ab');
-        if (abRule) {
+        if (abRule && abRule.target_url) {
           const weight = abRule.weight || 50;
           if (abRoll < weight) {
             finalUrl = abRule.target_url;
@@ -300,11 +310,11 @@ function RedirectInner() {
         }
       }
     }
-    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+    if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.includes('://')) {
       finalUrl = 'https://' + finalUrl;
     }
     return finalUrl;
-  }, [link, abRoll]);
+  }, [edgeTarget, link, abRoll]);
 
   // Client device and in-app browser detection
   const clientContext = useMemo(() => {
@@ -325,7 +335,10 @@ function RedirectInner() {
     if (!resolvedTarget) return null;
     
     // Check if configured explicitly or auto-detected
-    if (link?.deep_link) {
+    // If the resolved target is different from the link's default destination URL
+    // (e.g. a device rule redirected it to another URL), do not inherit the old default deep link intent!
+    const isTargetChanged = link?.destination_url && resolvedTarget !== link.destination_url;
+    if (link?.deep_link && !isTargetChanged) {
       if (link.deep_link.enabled === false) return null;
       const auto = detectAppDeepLink(resolvedTarget);
       return {
@@ -339,7 +352,7 @@ function RedirectInner() {
       };
     }
 
-    // Auto-detect deep link if not explicitly configured
+    // Auto-detect deep link if not explicitly configured or if targeted by a rule
     return detectAppDeepLink(resolvedTarget);
   }, [resolvedTarget, link]);
 

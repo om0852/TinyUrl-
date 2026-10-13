@@ -97,7 +97,8 @@ export async function middleware(request: NextRequest) {
       const deviceRule = rules.find((r: any) => 
         r.rule_type === 'device' && (
           (r.condition?.toLowerCase() === 'ios' && isIOS) ||
-          (r.condition?.toLowerCase() === 'android' && isAndroid)
+          (r.condition?.toLowerCase() === 'android' && isAndroid) ||
+          (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
         )
       );
 
@@ -126,9 +127,11 @@ export async function middleware(request: NextRequest) {
               const assignB = Math.random() * 100 < weight;
               const target = assignB ? abRule.target_url : linkData.destination_url;
 
+              const abRewriteUrl = new URL(`/r/${code}`, request.url);
+              abRewriteUrl.searchParams.set('target', target);
               const response = pathname.startsWith('/r/')
                 ? NextResponse.next()
-                : NextResponse.rewrite(new URL(`/r/${code}`, request.url));
+                : NextResponse.rewrite(abRewriteUrl);
 
               response.headers.set('x-destination-url', target);
               response.cookies.set(`ab_${code}`, assignB ? 'B' : 'A', {
@@ -154,7 +157,9 @@ export async function middleware(request: NextRequest) {
     // - LocalStorage & StoreContext update in real time
     // - OpeninApp deep linking handles mobile apps cleanly
     // - Verified safe transition displays properly
-    const res = NextResponse.rewrite(new URL(`/r/${code}`, request.url));
+    const rewriteUrl = new URL(`/r/${code}`, request.url);
+    rewriteUrl.searchParams.set('target', destinationUrl);
+    const res = NextResponse.rewrite(rewriteUrl);
     res.headers.set('x-destination-url', destinationUrl);
     return res;
   } catch (error) {
