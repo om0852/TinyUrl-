@@ -6,7 +6,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { 
   X, 
   Link2, 
-  Sparkles, 
   Copy, 
   Check, 
   ExternalLink, 
@@ -14,7 +13,6 @@ import {
   CheckCircle2, 
   Smartphone, 
   Sliders, 
-  Download,
   Video,
   Camera,
   Music,
@@ -166,61 +164,62 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     : `${originDomain}/${previewSlug}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-xs transition-all duration-200 animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-all duration-200 animate-fade-in">
       <div 
         className="fixed inset-0"
         onClick={resetAndClose}
       />
 
-      <div className="relative bg-surface-container-lowest rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col border border-outline-variant/40 z-10 text-on-surface">
+      <div className="relative bg-surface-container-lowest rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-outline-variant/40 z-10 text-on-surface">
         
-        {/* Modal Header */}
-        <div className="p-6 pb-4 flex items-center justify-between border-b border-outline-variant/30">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-surface-container-high text-primary-container flex items-center justify-center shadow-xs">
-              <Link2 className="w-5 h-5" />
+        {/* Modal Header (Fixed) */}
+        <div className="px-5 py-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary-container flex items-center justify-center shadow-xs shrink-0">
+              <Link2 className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-on-surface">Create new short link</h2>
-              <p className="text-xs text-on-surface-variant">Instant redirection, branded slugs &amp; integrated QR creation</p>
+              <h2 className="text-sm font-bold text-on-surface">Create new short link</h2>
+              <p className="text-[11px] text-on-surface-variant">Instant redirection, branded slugs &amp; integrated QR creation</p>
             </div>
           </div>
           <button
             type="button"
             onClick={resetAndClose}
-            className="p-1.5 text-outline hover:text-on-surface rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
+            className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Modal Content */}
         {createdResult ? (
-          <div className="p-6 text-center space-y-5">
-            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-200 shadow-xs">
-              <CheckCircle2 className="w-6 h-6" />
+          <div className="px-5 py-4 text-center flex flex-col items-center gap-3 overflow-y-auto custom-scrollbar flex-1">
+            <div className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-200 shadow-xs shrink-0 mt-1">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
+            
             <div>
-              <h3 className="text-lg font-bold text-on-surface">Short Link Created!</h3>
-              <p className="text-xs text-on-surface-variant mt-1 max-w-md mx-auto">
+              <h3 className="text-base font-bold text-on-surface">Short Link Created!</h3>
+              <p className="text-xs text-on-surface-variant mt-0.5 max-w-md mx-auto">
                 Your short link is live and active with real-time analytics and mobile deep routing.
               </p>
             </div>
 
             {/* Short link box */}
-            <div className="p-4 bg-surface-container-low rounded-xl border border-outline-variant/40 flex items-center justify-between gap-3 text-left">
-              <div className="min-w-0">
-                <span className="font-mono text-sm font-bold text-primary-container truncate block">
+            <div className="w-full p-2.5 bg-surface-container-low rounded-xl border border-outline-variant/40 flex items-center justify-between gap-2.5 text-left">
+              <div className="min-w-0 flex-1">
+                <span className="font-mono text-xs font-bold text-primary-container truncate block">
                   {createdResult.shortUrl}
                 </span>
-                <span className="text-xs text-on-surface-variant truncate block mt-0.5">
+                <span className="text-[11px] text-on-surface-variant truncate block mt-0.5">
                   &rarr; {createdResult.destinationUrl}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={handleCopy}
-                className="px-3.5 py-2 bg-surface-container-lowest hover:bg-surface-container text-on-surface rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
+                className="px-3 py-1.5 bg-surface-container-lowest hover:bg-surface-container text-on-surface rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -228,17 +227,17 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
 
             {/* QR Preview in Success */}
-            <div className="w-36 h-36 mx-auto p-2 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center">
+            <div className="w-24 h-24 p-1.5 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center shrink-0">
               <QRCodeSVG
                 value={createdResult.shortUrl}
-                size={120}
+                size={80}
                 level="H"
                 fgColor="#141b2b"
                 bgColor="#ffffff"
               />
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="w-full flex items-center gap-2 pt-1 mt-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -247,7 +246,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   setTitle('');
                   setCustomSlug('');
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors cursor-pointer"
               >
                 Create Another Link
               </button>
@@ -255,7 +254,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 href={createdResult.shortUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 py-2.5 rounded-xl bg-primary-container hover:bg-primary text-on-primary text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                className="flex-1 py-2 rounded-xl bg-primary-container hover:bg-primary text-on-primary text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <span>Test Link</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -263,246 +262,251 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 text-xs">
+          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             
-            {errorMsg && (
-              <div className="p-3 bg-error-container text-on-error-container rounded-xl flex items-center gap-2 font-medium">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-error" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {/* Destination URL */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface flex items-center justify-between">
-                <span>Destination URL <span className="text-error">*</span></span>
-                <span className="text-on-surface-variant font-normal">Where users will land</span>
-              </label>
-              <div className="relative flex items-center">
-                <Link2 className="w-4 h-4 text-outline absolute left-3 pointer-events-none" />
-                <input
-                  type="url"
-                  required
-                  value={destinationUrl}
-                  onChange={(e) => setDestinationUrl(e.target.value)}
-                  placeholder="https://yourstore.com/special-offer"
-                  className="w-full pl-9 pr-3 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
-                />
-              </div>
-
-              {/* Real-time deep link indicator */}
-              {detectedApp && (
-                <div className="mt-1 flex items-center gap-2 p-2 bg-surface-container-low rounded-lg text-xs font-medium text-on-surface">
-                  <Smartphone className="w-3.5 h-3.5 text-primary-container shrink-0" />
-                  <span>⚡ OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
+            {/* Scrollable Form Body */}
+            <div className="px-5 py-3.5 flex flex-col gap-3 text-xs overflow-y-auto custom-scrollbar flex-1">
+              
+              {errorMsg && (
+                <div className="p-2.5 bg-error-container text-on-error-container rounded-xl flex items-center gap-2 font-medium text-xs">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-error" />
+                  <span>{errorMsg}</span>
                 </div>
               )}
-            </div>
 
-            {/* Title / Label */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface">
-                Link Title <span className="text-error">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Summer Merch Launch, Instagram Link in Bio"
-                className="w-full px-3 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
-              />
-            </div>
-
-            {/* Custom Back-Half / Slug */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface flex items-center justify-between">
-                <span>Short Link Custom Slug</span>
-                {customSlug.trim() && (
-                  <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-error' : 'text-emerald-600'}`}>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
-                  </span>
-                )}
-              </label>
-              <div className="flex rounded-xl overflow-hidden bg-surface-container-low p-1 border border-outline-variant/40">
-                <div className="px-3 py-1.5 text-on-surface-variant font-mono text-xs flex items-center select-none bg-surface-container-lowest rounded-lg border border-outline-variant/30">
-                  {originDomain} /
-                </div>
-                <input
-                  type="text"
-                  value={customSlug}
-                  onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                  placeholder="custom-alias"
-                  className="flex-1 px-3 py-1.5 bg-transparent font-mono text-xs text-primary-container font-semibold focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Platform Pill Tags */}
-            <div className="flex flex-col gap-2">
-              <label className="font-semibold text-on-surface">
-                Primary Placement Tag
-              </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => handlePlacementChange('youtube')}
-                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    placementTag === 'youtube'
-                      ? 'bg-error-container text-on-error-container shadow-xs'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <Video className="w-3.5 h-3.5" />
-                  <span>YouTube</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePlacementChange('instagram')}
-                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    placementTag === 'instagram'
-                      ? 'bg-primary-container text-on-primary shadow-xs'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <Camera className="w-3.5 h-3.5" />
-                  <span>Instagram</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePlacementChange('tiktok')}
-                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    placementTag === 'tiktok'
-                      ? 'bg-inverse-surface text-inverse-on-surface shadow-xs'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <Music className="w-3.5 h-3.5" />
-                  <span>TikTok</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePlacementChange('x')}
-                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    placementTag === 'x'
-                      ? 'bg-surface-container-highest text-on-surface font-bold shadow-xs'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <span className="font-bold text-[12px] leading-none">𝕏</span>
-                  <span>X / Twitter</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handlePlacementChange('podcast')}
-                  className={`px-3 py-1.5 rounded-full font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    placementTag === 'podcast'
-                      ? 'bg-emerald-100 text-emerald-800 shadow-xs'
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <Radio className="w-3.5 h-3.5" />
-                  <span>Podcast</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Two Column Extras: UTM & Instant QR Code Preview */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 pt-1">
-              
-              {/* UTM Section (8 cols) */}
-              <div className="md:col-span-8 flex flex-col gap-2.5 bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-on-surface flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-outline" />
-                    <span>Automatic UTM Parameters</span>
-                  </span>
-                  <span className="text-[10px] font-semibold text-primary-container">Included in redirect</span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Source</span>
-                    <input
-                      type="text"
-                      value={utmSource}
-                      onChange={(e) => setUtmSource(e.target.value)}
-                      className="font-mono text-[11px] px-2 py-1.5 bg-surface-container-lowest rounded-lg text-on-surface border border-outline-variant/30 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Medium</span>
-                    <input
-                      type="text"
-                      value={utmMedium}
-                      onChange={(e) => setUtmMedium(e.target.value)}
-                      className="font-mono text-[11px] px-2 py-1.5 bg-surface-container-lowest rounded-lg text-on-surface border border-outline-variant/30 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Campaign</span>
-                    <input
-                      type="text"
-                      value={utmCampaign}
-                      onChange={(e) => setUtmCampaign(e.target.value)}
-                      className="font-mono text-[11px] px-2 py-1.5 bg-surface-container-lowest rounded-lg text-on-surface border border-outline-variant/30 focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1 border-t border-outline-variant/20">
-                  <span className="text-[11px] text-on-surface-variant">Expiration date</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <span className="text-[11px] text-outline font-medium">Never expires</span>
-                    <input
-                      type="checkbox"
-                      checked={neverExpires}
-                      onChange={(e) => setNeverExpires(e.target.checked)}
-                      className="rounded accent-primary-container w-3.5 h-3.5 cursor-pointer"
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Instant QR Code Preview (4 cols) */}
-              <div className="md:col-span-4 flex flex-col items-center justify-center p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 gap-2 text-center">
-                <div className="w-20 h-20 bg-surface-container-lowest p-1.5 rounded-lg shadow-xs flex items-center justify-center border border-outline-variant/30">
-                  <QRCodeSVG
-                    value={previewShortUrl}
-                    size={64}
-                    level="M"
-                    fgColor="#141b2b"
-                    bgColor="#ffffff"
+              {/* Destination URL */}
+              <div className="flex flex-col gap-1">
+                <label className="font-semibold text-on-surface flex items-center justify-between text-xs">
+                  <span>Destination URL <span className="text-error">*</span></span>
+                  <span className="text-on-surface-variant font-normal text-[11px]">Where users will land</span>
+                </label>
+                <div className="relative flex items-center">
+                  <Link2 className="w-3.5 h-3.5 text-outline absolute left-3 pointer-events-none" />
+                  <input
+                    type="url"
+                    required
+                    value={destinationUrl}
+                    onChange={(e) => setDestinationUrl(e.target.value)}
+                    placeholder="https://yourstore.com/special-offer"
+                    className="w-full pl-8 pr-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
                   />
                 </div>
-                <span className="text-[10px] text-on-surface-variant font-medium">Auto-generated QR</span>
-                <span className="font-mono text-[10px] text-primary-container truncate max-w-[120px]">
-                  /{previewSlug}
-                </span>
+
+                {/* Real-time deep link indicator */}
+                {detectedApp && (
+                  <div className="mt-0.5 flex items-center gap-1.5 p-1.5 bg-surface-container-low rounded-lg text-[11px] font-medium text-on-surface">
+                    <Smartphone className="w-3 h-3 text-primary-container shrink-0" />
+                    <span>⚡ OpeninApp: Direct native launch for <strong>{detectedApp.appName}</strong></span>
+                  </div>
+                )}
+              </div>
+
+              {/* Title / Label */}
+              <div className="flex flex-col gap-1">
+                <label className="font-semibold text-on-surface text-xs">
+                  Link Title <span className="text-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Summer Merch Launch, Instagram Link in Bio"
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+                />
+              </div>
+
+              {/* Custom Back-Half / Slug */}
+              <div className="flex flex-col gap-1">
+                <label className="font-semibold text-on-surface flex items-center justify-between text-xs">
+                  <span>Short Link Custom Slug</span>
+                  {customSlug.trim() && (
+                    <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-error' : 'text-emerald-600'}`}>
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
+                    </span>
+                  )}
+                </label>
+                <div className="flex rounded-xl overflow-hidden bg-surface-container-low p-0.5 border border-outline-variant/40">
+                  <div className="px-2.5 py-1 text-on-surface-variant font-mono text-[11px] flex items-center select-none bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+                    {originDomain} /
+                  </div>
+                  <input
+                    type="text"
+                    value={customSlug}
+                    onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                    placeholder="custom-alias"
+                    className="flex-1 px-2.5 py-1 bg-transparent font-mono text-xs text-primary-container font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Platform Pill Tags */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-semibold text-on-surface text-xs">
+                  Primary Placement Tag
+                </label>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePlacementChange('youtube')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'youtube'
+                        ? 'bg-error-container text-on-error-container shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Video className="w-3 h-3" />
+                    <span>YouTube</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePlacementChange('instagram')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'instagram'
+                        ? 'bg-primary-container text-on-primary shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Camera className="w-3 h-3" />
+                    <span>Instagram</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePlacementChange('tiktok')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'tiktok'
+                        ? 'bg-inverse-surface text-inverse-on-surface shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Music className="w-3 h-3" />
+                    <span>TikTok</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePlacementChange('x')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'x'
+                        ? 'bg-surface-container-highest text-on-surface font-bold shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="font-bold text-[11px] leading-none">𝕏</span>
+                    <span>X</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePlacementChange('podcast')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'podcast'
+                        ? 'bg-emerald-100 text-emerald-800 shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Radio className="w-3 h-3" />
+                    <span>Podcast</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Two Column Extras: UTM & Instant QR Code Preview */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-0.5">
+                
+                {/* UTM Section (8 cols) */}
+                <div className="md:col-span-8 flex flex-col gap-2 bg-surface-container-low p-2.5 rounded-xl border border-outline-variant/30">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-on-surface flex items-center gap-1.5 text-[11px]">
+                      <Sliders className="w-3 h-3 text-outline" />
+                      <span>Automatic UTM Parameters</span>
+                    </span>
+                    <span className="text-[10px] font-semibold text-primary-container">Included</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] font-medium text-on-surface-variant uppercase">Source</span>
+                      <input
+                        type="text"
+                        value={utmSource}
+                        onChange={(e) => setUtmSource(e.target.value)}
+                        className="font-mono text-[10px] px-1.5 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/30 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] font-medium text-on-surface-variant uppercase">Medium</span>
+                      <input
+                        type="text"
+                        value={utmMedium}
+                        onChange={(e) => setUtmMedium(e.target.value)}
+                        className="font-mono text-[10px] px-1.5 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/30 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] font-medium text-on-surface-variant uppercase">Campaign</span>
+                      <input
+                        type="text"
+                        value={utmCampaign}
+                        onChange={(e) => setUtmCampaign(e.target.value)}
+                        className="font-mono text-[10px] px-1.5 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/30 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-outline-variant/20">
+                    <span className="text-[10px] text-on-surface-variant">Expiration</span>
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <span className="text-[10px] text-outline font-medium">Never expires</span>
+                      <input
+                        type="checkbox"
+                        checked={neverExpires}
+                        onChange={(e) => setNeverExpires(e.target.checked)}
+                        className="rounded accent-primary-container w-3 h-3 cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Instant QR Code Preview (4 cols) */}
+                <div className="md:col-span-4 flex flex-col items-center justify-center p-2 bg-surface-container-low rounded-xl border border-outline-variant/30 gap-1 text-center">
+                  <div className="w-14 h-14 bg-surface-container-lowest p-1 rounded-md shadow-xs flex items-center justify-center border border-outline-variant/30">
+                    <QRCodeSVG
+                      value={previewShortUrl}
+                      size={48}
+                      level="M"
+                      fgColor="#141b2b"
+                      bgColor="#ffffff"
+                    />
+                  </div>
+                  <span className="text-[9px] text-on-surface-variant font-medium">Auto QR</span>
+                  <span className="font-mono text-[9px] text-primary-container truncate max-w-[100px]">
+                    /{previewSlug}
+                  </span>
+                </div>
+
               </div>
 
             </div>
 
-            {/* Modal Actions Footer */}
-            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-outline-variant/30">
+            {/* Modal Actions Footer (Fixed at bottom) */}
+            <div className="px-5 py-3 flex items-center justify-end gap-2 border-t border-outline-variant/30 shrink-0 bg-surface-container-lowest">
               <button
                 type="button"
                 onClick={resetAndClose}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-xl text-xs bg-primary-container hover:bg-primary text-on-primary transition-all shadow-md shadow-primary-container/20 font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-1.5 rounded-xl text-xs bg-primary-container hover:bg-primary text-on-primary transition-all shadow-sm font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                <Check className="w-4 h-4" />
+                <Check className="w-3.5 h-3.5" />
                 <span>{isSubmitting ? 'Creating...' : 'Create Link'}</span>
               </button>
             </div>

@@ -50,39 +50,39 @@ export const Modal: React.FC<ModalProps> = ({
         aria-hidden="true"
       />
       
-      <div className={`relative w-full ${maxWidth} rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-6 sm:p-8 flex flex-col gap-6 overflow-hidden z-10 max-h-[90vh] overflow-y-auto`}>
+      <div className={`relative w-full ${maxWidth} rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden z-10 max-h-[90vh]`}>
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-outline-variant/30 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             {icon && (
-              <div className="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary-container shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary-container shrink-0">
                 {icon}
               </div>
             )}
             <div className="min-w-0">
-              <h3 className="text-lg font-bold text-on-surface truncate">{title}</h3>
+              <h3 className="text-sm font-bold text-on-surface truncate">{title}</h3>
               {description && (
-                <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">{description}</p>
+                <p className="text-[11px] text-on-surface-variant mt-0.5 leading-snug">{description}</p>
               )}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer shrink-0"
+            className="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex flex-col gap-4 text-xs">
+        <div className="px-5 py-4 flex flex-col gap-3 text-xs overflow-y-auto custom-scrollbar flex-1">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-outline-variant/30">
+          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-outline-variant/30 shrink-0 bg-surface-container-lowest">
             {footer}
           </div>
         )}

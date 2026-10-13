@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { getShortUrlPrefix } from '@/lib/db';
-import { QrCode, Download, Palette, Copy, Check, Plus, ExternalLink, Link2, Globe, AlertCircle, Info } from 'lucide-react';
+import { QrCode, Download, Palette, Copy, Check, Link2, Globe } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -14,13 +14,15 @@ interface QrCodeViewProps {
   onOpenCreateModal?: () => void;
 }
 
-export const QrCodeView: React.FC<QrCodeViewProps> = ({ onNavigateTab, onOpenCreateModal }) => {
+export const QrCodeView: React.FC<QrCodeViewProps> = () => {
   const { links, domains } = useStore();
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
+  const defaultDomainUrl = `https://${domains[0]?.hostname || originDomain}`;
   
-  // Source mode: 'link' (short link from workspace) or 'custom' (any direct URL / text)
-  const [sourceMode, setSourceMode] = useState<'link' | 'custom'>('link');
+  // Initialize to 'link' if links exist, otherwise 'custom' so the user is never stranded on an empty screen
+  const [sourceMode, setSourceMode] = useState<'link' | 'custom'>(links.length > 0 ? 'link' : 'custom');
   const [selectedLinkId, setSelectedLinkId] = useState<string>(links[0]?.id || '');
-  const [customUrl, setCustomUrl] = useState<string>('https://snip.to');
+  const [customUrl, setCustomUrl] = useState<string>(defaultDomainUrl);
   
   // Customization state
   const [fgColor, setFgColor] = useState('#000000');
@@ -37,10 +39,10 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({ onNavigateTab, onOpenCre
 
   const selectedLink = links.find(l => l.id === selectedLinkId) || links[0];
   
-  // Computed target URL for QR code
+  // Computed target URL for QR code (always falls back to workspace URL so the generator is always live)
   const activeQrValue = sourceMode === 'link' 
-    ? (selectedLink ? `${getShortUrlPrefix(domains[0]?.hostname)}/${selectedLink.short_code}` : '')
-    : customUrl;
+    ? (selectedLink ? `${getShortUrlPrefix(domains[0]?.hostname)}/${selectedLink.short_code}` : defaultDomainUrl)
+    : (customUrl.trim() || defaultDomainUrl);
 
   const handleCopy = () => {
     if (!activeQrValue) return;
@@ -95,7 +97,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({ onNavigateTab, onOpenCre
             </div>
           </div>
 
-          {/* Mode Switcher: Short Link vs Custom URL */}
+          {/* Source Toggle */}
           <div>
             <label className="block text-xs font-semibold text-foreground mb-1.5">Destination Source</label>
             <div className="grid grid-cols-2 p-1 bg-muted/60 rounded-xl border border-border/60 text-xs font-semibold">
@@ -154,34 +156,10 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({ onNavigateTab, onOpenCre
                   )}
                 </select>
 
-                {/* Helpful empty state card when links are empty */}
                 {links.length === 0 && (
-                  <div className="mt-2.5 p-3 rounded-xl bg-muted/40 border border-border/60 flex flex-col gap-2.5">
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground leading-snug">
-                      <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>
-                        No short links have been created yet. Create your first link or switch to Custom URL mode.
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-                      {onOpenCreateModal && (
-                        <button
-                          type="button"
-                          onClick={onOpenCreateModal}
-                          className="px-2.5 py-1 text-xs font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition flex items-center gap-1 cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Create Link
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setSourceMode('custom')}
-                        className="px-2.5 py-1 text-xs font-semibold bg-background border border-border/60 text-foreground rounded-lg hover:bg-muted transition cursor-pointer"
-                      >
-                        Enter Custom URL
-                      </button>
-                    </div>
-                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed">
+                    No short links created yet in this workspace. Switch to the <strong>Custom URL</strong> tab above to generate a QR code instantly.
+                  </p>
                 )}
               </div>
             ) : (
@@ -252,83 +230,60 @@ export const QrCodeView: React.FC<QrCodeViewProps> = ({ onNavigateTab, onOpenCre
 
         {/* Live Preview Panel */}
         <Card className="lg:col-span-2 shadow-sm p-8 flex flex-col items-center justify-center text-center space-y-5">
-          {activeQrValue ? (
-            <>
-              <div
-                className="p-5 rounded-2xl shadow-md border border-border/60 transition-all inline-block"
-                style={{ backgroundColor: bgColor }}
-              >
-                <QRCodeSVG
-                  id="qr-code-svg"
-                  value={activeQrValue}
-                  size={size}
-                  fgColor={fgColor}
-                  bgColor={bgColor}
-                  level="H"
-                  includeMargin={true}
-                />
-              </div>
+          <div
+            className="p-5 rounded-2xl shadow-md border border-border/60 transition-all inline-block"
+            style={{ backgroundColor: bgColor }}
+          >
+            <QRCodeSVG
+              id="qr-code-svg"
+              value={activeQrValue}
+              size={size}
+              fgColor={fgColor}
+              bgColor={bgColor}
+              level="H"
+              includeMargin={true}
+            />
+          </div>
 
-              <div className="space-y-1.5 max-w-sm">
-                <div className="flex items-center justify-center gap-2">
-                  <Badge variant="outline" className="text-[10px] font-mono uppercase">
-                    {sourceMode === 'link' ? 'Short Link' : 'Custom Target'}
-                  </Badge>
-                  {sourceMode === 'link' && selectedLink?.title && (
-                    <h4 className="text-sm font-semibold text-foreground truncate max-w-[200px]">
-                      {selectedLink.title}
-                    </h4>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-mono text-xs text-primary font-bold truncate max-w-[240px]">
-                    {activeQrValue}
-                  </span>
-                  <button
-                    onClick={handleCopy}
-                    className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
-                    title="Copy Target URL"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleDownloadSvg}
-                size="lg"
-                className="text-xs font-bold"
-              >
-                <Download className="w-4 h-4 mr-2" /> Download SVG Vector
-              </Button>
-            </>
-          ) : (
-            <div className="p-8 flex flex-col items-center justify-center text-center max-w-md">
-              <div className="w-16 h-16 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground mb-4">
-                <QrCode className="w-8 h-8 opacity-40" />
-              </div>
-              <h3 className="text-base font-bold text-foreground">No QR Code Target Selected</h3>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                No short links are available in this workspace yet. Create a short link or switch to Custom URL mode to generate your QR code.
-              </p>
-              <div className="flex items-center gap-3 mt-4">
-                {onOpenCreateModal && (
-                  <Button onClick={onOpenCreateModal} size="sm" className="text-xs font-semibold">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Create Short Link
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSourceMode('custom')}
-                  className="text-xs font-semibold"
-                >
-                  Use Custom URL
-                </Button>
-              </div>
+          <div className="space-y-1.5 max-w-sm">
+            <div className="flex items-center justify-center gap-2">
+              <Badge variant="outline" className="text-[10px] font-mono uppercase">
+                {sourceMode === 'link' ? (links.length > 0 ? 'Short Link' : 'Canonical Preview') : 'Custom Target'}
+              </Badge>
+              {sourceMode === 'link' && selectedLink?.title && (
+                <h4 className="text-sm font-semibold text-foreground truncate max-w-[200px]">
+                  {selectedLink.title}
+                </h4>
+              )}
             </div>
-          )}
+
+            <div className="flex items-center justify-center gap-2">
+              <span className="font-mono text-xs text-primary font-bold truncate max-w-[240px]">
+                {activeQrValue}
+              </span>
+              <button
+                onClick={handleCopy}
+                className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition cursor-pointer"
+                title="Copy Target URL"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            
+            {sourceMode === 'link' && links.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Showing workspace canonical URL. Create a link to bind real-time analytics.
+              </p>
+            )}
+          </div>
+
+          <Button
+            onClick={handleDownloadSvg}
+            size="lg"
+            className="text-xs font-bold"
+          >
+            <Download className="w-4 h-4 mr-2" /> Download SVG Vector
+          </Button>
         </Card>
 
       </div>

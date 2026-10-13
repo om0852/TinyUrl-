@@ -119,7 +119,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         </div>
 
         {/* Scrollable Results */}
-        <div className="overflow-y-auto p-3 space-y-3">
+        <div className="overflow-y-auto p-3 space-y-3 custom-scrollbar">
           
           {/* Quick Actions */}
           <div>

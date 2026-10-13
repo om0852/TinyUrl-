@@ -75,22 +75,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         onClick={onClose} 
       />
 
-      <div className="bg-[#0c121e] border border-white/15 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-white relative z-10">
+      <div className="bg-[#0c121e] border border-white/15 w-full max-w-md rounded-2xl p-5 shadow-2xl space-y-4 text-white relative z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
+          className="absolute top-3.5 right-3.5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
         <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-2xl mb-2 border border-indigo-500/30">
-            <Lock className="w-6 h-6" />
+          <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-500/20 text-indigo-400 rounded-xl mb-1 border border-indigo-500/30">
+            <Lock className="w-5 h-5" />
           </div>
-          <h2 className="text-xl font-extrabold tracking-tight text-white">
+          <h2 className="text-lg font-bold tracking-tight text-white">
             {mode === 'login' ? 'Welcome Back to Snip' : 'Create Your Snip Account'}
           </h2>
           <p className="text-xs text-slate-400">

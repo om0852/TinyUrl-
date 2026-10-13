@@ -573,18 +573,18 @@ export const CampaignsView: React.FC = () => {
             if (e.target === e.currentTarget) setCreateModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setCreateModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
+              className="absolute top-3.5 right-3.5 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            <h4 className="text-base font-bold text-on-surface mb-1">Create New Campaign</h4>
-            <p className="text-xs text-on-surface-variant mb-4">
+            <h4 className="text-sm font-bold text-on-surface mb-0.5">Create New Campaign</h4>
+            <p className="text-[11px] text-on-surface-variant mb-3">
               Launch a new creator campaign, sponsor track, or partner deliverable.
             </p>
 

@@ -330,14 +330,6 @@ export const LinksView: React.FC<LinksViewProps> = ({
               <FileDown className="w-4 h-4 text-outline" />
               <span>Export CSV</span>
             </button>
-            <button
-              type="button"
-              onClick={onOpenCreateModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-container hover:bg-primary text-on-primary transition-all rounded-xl text-xs font-bold shadow-md shadow-primary-container/20 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create link</span>
-            </button>
           </div>
         </div>
 
@@ -805,28 +797,28 @@ export const LinksView: React.FC<LinksViewProps> = ({
             if (e.target === e.currentTarget) setSelectedQrLink(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
             
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setSelectedQrLink(null)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
+              className="absolute top-3.5 right-3.5 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            <h4 className="text-base font-bold text-on-surface mb-1">Dynamic QR Code</h4>
-            <p className="text-xs text-on-surface-variant mb-4">
+            <h4 className="text-sm font-bold text-on-surface mb-0.5">Dynamic QR Code</h4>
+            <p className="text-[11px] text-on-surface-variant mb-3">
               Vector QR for <span className="font-mono text-primary-container font-semibold">{selectedQrLink.fullUrl}</span>
             </p>
 
             {/* QR Graphic */}
-            <div className="w-48 h-48 mx-auto p-4 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center mb-5">
+            <div className="w-36 h-36 mx-auto p-2 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center mb-3.5">
               <QRCodeSVG
                 id="table-qr-svg"
                 value={selectedQrLink.fullUrl}
-                size={160}
+                size={124}
                 level="H"
                 fgColor="#141b2b"
                 bgColor="#ffffff"
