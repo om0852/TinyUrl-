@@ -676,6 +676,20 @@ export const LinksView: React.FC<LinksViewProps> = ({
                               <span className="truncate">{link.destination_url}</span>
                               <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
                             </a>
+
+                            {/* Smart Routing Rules attached to this link */}
+                            {Array.isArray(link.rules) && link.rules.length > 0 && (
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                {link.rules.map(r => (
+                                  <span 
+                                    key={r.id} 
+                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant/30"
+                                  >
+                                    <span>{r.condition === 'android' ? '🤖 Android' : r.condition === 'ios' ? '🍏 iOS' : `${r.rule_type}: ${r.condition}`}</span>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </td>
 
