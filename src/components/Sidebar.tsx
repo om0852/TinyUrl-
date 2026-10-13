@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-on-surface truncate leading-tight">
-                  {currentWorkspace.name || "Creator Studio"}
+                  {currentWorkspace?.name || "Workspace"}
                 </p>
               </div>
             </div>
@@ -209,17 +209,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="px-4 shrink-0 pt-2">
         <div className="p-3 rounded-xl bg-surface-container-low flex items-center justify-between gap-3 border border-outline-variant/30 shadow-xs">
           <div className="flex items-center gap-3 min-w-0">
-            <img
-              alt="Profile"
-              className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-outline-variant/40"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_A7G9u5WJPA8v686YLQsUyQnZVrbqp0w75ybNsaz7o8Ck4XwmBXaqobir8NxybWjb1YRvLSxwYEascmlOCLf1HEYKZKzCjvJjhVNBMrlB3GGAks-rigHC8EHW-H_Dg3DT0vkY7GmGUQIh_JUz2tRiGgL7I-mT4nXTdtdId57iVKQREXS4eNtzBQnWEy-xfzcv95bBdGPXyo_nhZ7FSGlF_JvuLaVDRnUmQMbxUCumh7cRJDESYXF0gA"
-            />
+            <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/40 shadow-xs">
+              {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
+            </div>
             <div className="flex flex-col min-w-0 flex-1">
               <span className="text-xs font-semibold text-on-surface truncate">
-                {currentUser?.name || "Creator Studio"}
+                {currentUser?.name || "My Account"}
               </span>
               <span className="text-[11px] text-on-surface-variant truncate">
-                Pro Plan
+                {currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'Pro Plan'}
               </span>
             </div>
           </div>

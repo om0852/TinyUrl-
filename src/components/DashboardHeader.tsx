@@ -93,27 +93,23 @@ export function DashboardHeader({
             className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary-container/30 transition cursor-pointer"
             aria-label="User account menu"
           >
-            <img
-              alt={currentUser?.name || "Profile"}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-primary-container/20"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_A7G9u5WJPA8v686YLQsUyQnZVrbqp0w75ybNsaz7o8Ck4XwmBXaqobir8NxybWjb1YRvLSxwYEascmlOCLf1HEYKZKzCjvJjhVNBMrlB3GGAks-rigHC8EHW-H_Dg3DT0vkY7GmGUQIh_JUz2tRiGgL7I-mT4nXTdtdId57iVKQREXS4eNtzBQnWEy-xfzcv95bBdGPXyo_nhZ7FSGlF_JvuLaVDRnUmQMbxUCumh7cRJDESYXF0gA"
-            />
+            <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs ring-2 ring-primary-container/20 shadow-xs">
+              {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
+            </div>
           </button>
 
           {userMenuOpen && (
             <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-2 z-50 animate-fade-in text-xs">
               <div className="p-3 bg-surface-container-low rounded-xl mb-1.5 flex items-center gap-3">
-                <img
-                  alt="Avatar"
-                  className="w-9 h-9 rounded-full object-cover ring-1 ring-outline-variant/40 shrink-0"
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_A7G9u5WJPA8v686YLQsUyQnZVrbqp0w75ybNsaz7o8Ck4XwmBXaqobir8NxybWjb1YRvLSxwYEascmlOCLf1HEYKZKzCjvJjhVNBMrlB3GGAks-rigHC8EHW-H_Dg3DT0vkY7GmGUQIh_JUz2tRiGgL7I-mT4nXTdtdId57iVKQREXS4eNtzBQnWEy-xfzcv95bBdGPXyo_nhZ7FSGlF_JvuLaVDRnUmQMbxUCumh7cRJDESYXF0gA"
-                />
+                <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs ring-1 ring-outline-variant/40 shrink-0">
+                  {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
+                </div>
                 <div className="min-w-0 flex-1">
                   <span className="font-bold text-on-surface truncate block">
-                    {currentUser?.name || "Creator Studio"}
+                    {currentUser?.name || "My Account"}
                   </span>
                   <span className="text-[11px] text-on-surface-variant truncate block">
-                    {currentUser?.email || "creator@loomlink.io"}
+                    {currentUser?.email || "No email"}
                   </span>
                 </div>
               </div>

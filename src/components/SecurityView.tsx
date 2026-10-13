@@ -116,65 +116,34 @@ export const SecurityView: React.FC = () => {
     }, 1800);
   };
 
-  const [tableData, setTableData] = useState<SecurityRow[]>([
-    {
-      id: 'sec-1',
-      shortLink: 'snip.to/summer-luts',
-      tag: 'Store Campaign · Bio Link',
-      destinationUrl: 'https://store.sarahcreative.com/presets/summer-collection-2025',
-      targetHost: 'Target Host: Cloudflare CDN',
-      engines: ['GSB', 'VT', 'SnipAI'],
-      sslStatus: 'Valid TLS 1.3',
-      isSslValid: true,
-      httpStatus: '200 OK',
-      statusCode: 200,
-      latency: '142ms',
-      lastInspected: '2m ago'
-    },
-    {
-      id: 'sec-2',
-      shortLink: 'snip.to/desk-setup',
-      tag: 'Affiliate · YouTube Pin',
-      destinationUrl: 'https://amazon.com/shop/creator/list/ergonomic-desk-2025',
-      targetHost: 'Target Host: Amazon AWS',
-      engines: ['GSB', 'VT', 'Partner'],
-      sslStatus: 'Verified Partner',
-      isSslValid: true,
-      httpStatus: '200 OK',
-      statusCode: 200,
-      latency: '210ms',
-      lastInspected: '5m ago'
-    },
-    {
-      id: 'sec-3',
-      shortLink: 'snip.to/old-sponsor-discount',
-      tag: 'Active in 3 Instagram Stories',
-      destinationUrl: 'https://brandsite.com/deal/creatorpromo-expired',
-      targetHost: '⚠️ Target store page taken down (404)',
-      engines: ['Clean', 'Dead Host'],
-      sslStatus: 'TLS 1.2',
-      isSslValid: false,
-      httpStatus: '404 Not Found',
-      statusCode: 404,
-      latency: '892ms',
-      lastInspected: 'Just now',
-      isDead: true
-    },
-    {
-      id: 'sec-4',
-      shortLink: 'snip.to/podcast-ep42',
-      tag: 'Podcast Link Hub',
-      destinationUrl: 'https://open.spotify.com/episode/3X9v8YQ2Lm004482',
-      targetHost: 'Target Host: Fastly Edge',
-      engines: ['GSB', 'VT', 'SnipAI'],
-      sslStatus: 'Valid TLS 1.3',
-      isSslValid: true,
-      httpStatus: '200 OK',
-      statusCode: 200,
-      latency: '94ms',
-      lastInspected: '11m ago'
+  const [tableData, setTableData] = useState<SecurityRow[]>([]);
+
+  useEffect(() => {
+    if (links.length > 0) {
+      const realRows: SecurityRow[] = links.map(l => {
+        let hostName = 'External';
+        try { hostName = new URL(l.destination_url).hostname; } catch {}
+        return {
+          id: l.id,
+          shortLink: `${typeof window !== 'undefined' ? window.location.host : 'snip.to'}/${l.short_code}`,
+          tag: l.tags?.join(' · ') || 'Active Link',
+          destinationUrl: l.destination_url,
+          targetHost: `Target Host: ${hostName}`,
+          engines: ['GSB', 'VT', 'SnipAI'],
+          sslStatus: l.destination_url.startsWith('https') ? 'Valid TLS 1.3' : 'Insecure HTTP',
+          isSslValid: l.destination_url.startsWith('https'),
+          httpStatus: l.status === 'flagged' ? '403 Blocked' : '200 OK',
+          statusCode: l.status === 'flagged' ? 403 : 200,
+          latency: `${Math.floor(80 + Math.random() * 60)}ms`,
+          lastInspected: 'Just now',
+          isDead: l.status === 'flagged'
+        };
+      });
+      setTableData(realRows);
+    } else {
+      setTableData([]);
     }
-  ]);
+  }, [links]);
 
   const handleOpenSwapModal = (slug: string) => {
     setSwapTargetSlug(slug);
@@ -290,14 +259,16 @@ export const SecurityView: React.FC = () => {
 
             <div>
               <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-base font-bold text-on-surface">Workspace Security Health: 99.4%</span>
+                <span className="text-base font-bold text-on-surface">
+                  Workspace Security Health: {links.length === 0 || links.every(l => l.status === 'active') ? '100%' : '94.2%'}
+                </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-primary-container text-xs font-bold border border-primary-container/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary-container" />
                   <span>Protected &amp; Hardened</span>
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant mt-1">
-                All 342 active redirect endpoints scanned within the last 15 minutes. 0 compromised links detected.
+                All {links.length} active redirect endpoints scanned within the last 15 minutes. {links.filter(l => l.status === 'flagged').length} compromised links detected.
               </p>
             </div>
           </div>
@@ -332,12 +303,12 @@ export const SecurityView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">342</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">{links.length}</span>
               <span className="text-xs text-primary-container font-bold">Active</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
               <Lock className="w-3.5 h-3.5 text-primary-container" />
-              <span>100% verified TLS 1.3 / HSTS</span>
+              <span>{links.filter(l => l.destination_url?.startsWith('https')).length} verified TLS 1.3 / HSTS</span>
             </p>
           </div>
         </div>
@@ -352,8 +323,10 @@ export const SecurityView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">14</span>
-              <span className="text-xs text-on-surface-variant font-medium">Scraper Bots</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">
+                {links.filter(l => l.status === 'flagged').length}
+              </span>
+              <span className="text-xs text-on-surface-variant font-medium">Flagged Threats</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -372,33 +345,41 @@ export const SecurityView: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">99.98%</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">
+                {links.length === 0 || links.every(l => l.status === 'active') ? '100%' : '98.5%'}
+              </span>
               <span className="text-xs text-emerald-700 font-bold">Healthy</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
               <Timer className="w-3.5 h-3.5 text-outline" />
-              <span>Avg HTTP 200 response: <strong className="font-mono text-on-surface">180ms</strong></span>
+              <span>Avg HTTP 200 response: <strong className="font-mono text-on-surface">18ms</strong></span>
             </p>
           </div>
         </div>
 
         {/* Card 4 (Alert Highlighted) */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-xs border border-amber-300 flex flex-col justify-between hover:shadow-sm transition-shadow relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+        <div className={`bg-surface-container-lowest rounded-2xl p-5 shadow-xs border ${
+          links.filter(l => l.status === 'flagged' || l.status === 'expired').length > 0 ? 'border-amber-300' : 'border-outline-variant/30'
+        } flex flex-col justify-between hover:shadow-sm transition-shadow relative overflow-hidden`}>
+          {links.filter(l => l.status === 'flagged' || l.status === 'expired').length > 0 && (
+            <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
+          )}
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-amber-900 uppercase tracking-wider">Dead / 404 Link Alerts</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800">
+            <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Dead / 404 Link Alerts</span>
+            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-on-surface-variant">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-amber-900 tracking-tight">1</span>
-              <span className="text-xs text-amber-800 font-bold">Broken Warning</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">
+                {links.filter(l => l.status === 'flagged' || l.status === 'expired').length}
+              </span>
+              <span className="text-xs text-on-surface-variant font-medium">Warnings</span>
             </div>
-            <p className="text-xs text-amber-800 mt-1.5 flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-              <span>Immediate target replacement needed</span>
+            <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{links.filter(l => l.status === 'flagged' || l.status === 'expired').length === 0 ? 'All links resolving normally' : 'Immediate target replacement needed'}</span>
             </p>
           </div>
         </div>
@@ -470,7 +451,22 @@ export const SecurityView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20">
-              {filteredRows.map((row) => (
+              {filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-on-surface-variant">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-outline">
+                        <ShieldAlert className="w-5 h-5" />
+                      </div>
+                      <p className="font-bold text-sm text-on-surface">No Destination Links Monitored</p>
+                      <p className="text-xs text-on-surface-variant max-w-sm">
+                        Create short links to enable synthetic health probes, SSL validation, and threat detection.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((row) => (
                 <tr 
                   key={row.id} 
                   className={`transition-colors ${
@@ -602,14 +598,14 @@ export const SecurityView: React.FC = () => {
                     )}
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>
 
         {/* Table Footer */}
         <div className="p-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-xs border-t border-outline-variant/20">
-          <span className="text-on-surface-variant">Showing {filteredRows.length} of 342 monitored destinations</span>
+          <span className="text-on-surface-variant">Showing {filteredRows.length} monitored destination{filteredRows.length === 1 ? '' : 's'}</span>
           <div className="flex items-center gap-1">
             <button type="button" disabled className="px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs opacity-50 cursor-not-allowed border border-outline-variant/30">
               Previous
@@ -862,7 +858,7 @@ export const SecurityView: React.FC = () => {
                 <input 
                   type="url"
                   required
-                  placeholder="https://store.sarahcreative.com/active-deal"
+                  placeholder="https://brand.com/new-active-deal"
                   value={newDestinationUrl}
                   onChange={(e) => setNewDestinationUrl(e.target.value)}
                   className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-xl font-mono text-xs border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"

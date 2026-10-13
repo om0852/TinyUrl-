@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { 
   Camera, 
@@ -38,13 +38,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
   // Profile Form state
   const [displayName, setDisplayName] = useState(
-    currentWorkspace?.name || 'Sarah Creative Studio'
+    currentWorkspace?.name || currentUser?.name || 'My Workspace'
   );
-  const [vanityHandle, setVanityHandle] = useState('sarah');
+  const [vanityHandle, setVanityHandle] = useState(
+    currentUser?.name ? currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'workspace'
+  );
   const [contactEmail, setContactEmail] = useState(
-    currentUser?.email || 'sarah@sarahcreative.com'
+    currentUser?.email || ''
   );
   const [languageRegion, setLanguageRegion] = useState('en-US');
+
+  // Keep state updated when currentUser or currentWorkspace changes
+  useEffect(() => {
+    if (currentUser) {
+      setDisplayName(currentWorkspace?.name || `${currentUser.name}'s Workspace`);
+      setVanityHandle(currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, '') || 'workspace');
+      setContactEmail(currentUser.email);
+    } else {
+      setDisplayName(currentWorkspace?.name || 'My Workspace');
+      setVanityHandle('myworkspace');
+      setContactEmail('');
+    }
+  }, [currentUser, currentWorkspace]);
 
   // Social Integrations Toggles
   const [socialIntegrations, setSocialIntegrations] = useState({
@@ -208,15 +223,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           {/* Avatar Uploader & Info */}
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30">
             <div className="relative group cursor-pointer shrink-0">
-              <div className="w-20 h-20 rounded-full overflow-hidden shadow-sm bg-surface-container-highest border-2 border-surface-container-lowest">
-                <img
-                  alt="Creator Avatar"
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-                  className="w-full h-full object-cover group-hover:opacity-85 transition-opacity"
-                />
-              </div>
-              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="w-5 h-5 text-white" />
+              <div className="w-20 h-20 rounded-full overflow-hidden shadow-sm bg-primary-container text-on-primary flex items-center justify-center text-2xl font-bold border-2 border-surface-container-lowest">
+                {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
               </div>
               <span className="absolute -bottom-1 -right-1 bg-surface-container-lowest p-1 rounded-full shadow-xs text-primary-container border border-outline-variant/30">
                 <CheckCircle2 className="w-4 h-4 text-primary-container" />
@@ -226,10 +234,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             <div className="flex-1 flex flex-col gap-1 text-center sm:text-left">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <span className="text-base font-bold text-on-surface">
-                  {currentUser?.name || 'Sarah Connor'}
+                  {currentUser?.name || currentWorkspace?.name || 'Workspace Owner'}
                 </span>
                 <span className="px-2.5 py-0.5 bg-surface-container-high rounded-full text-xs text-primary-container font-semibold w-fit mx-auto sm:mx-0">
-                  Tech &amp; Lifestyle
+                  {currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'Pro Active'}
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant">Recommended size: 400&times;400px. JPG, PNG or WebP under 2MB.</p>
@@ -366,7 +374,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-xs font-bold text-on-surface">
-                    {domains[0]?.hostname || 'links.sarahcreative.com'}
+                    {domains[0]?.hostname || originDomain}
                   </span>
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-lowest text-on-surface text-[11px] font-semibold border border-outline-variant/30">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -431,7 +439,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-on-surface">YouTube</span>
-                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@SarahTech</span>
+                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@{vanityHandle || 'creator'}</span>
                   </div>
                   <span className="text-[11px] text-on-surface-variant truncate">Auto-sync video descriptions &amp; cards</span>
                 </div>
@@ -456,7 +464,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-on-surface">Instagram</span>
-                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@sarah_creative</span>
+                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@{vanityHandle || 'creator'}</span>
                   </div>
                   <span className="text-[11px] text-on-surface-variant truncate">Bio link auto-updater active</span>
                 </div>
@@ -481,7 +489,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-on-surface">TikTok</span>
-                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@sarahcreates</span>
+                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@{vanityHandle || 'creator'}</span>
                   </div>
                   <span className="text-[11px] text-on-surface-variant truncate">Profile link click telemetry enabled</span>
                 </div>
@@ -506,7 +514,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <div className="min-w-0 flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-on-surface">X / Twitter</span>
-                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@sarah_connor</span>
+                    <span className="font-mono text-[11px] text-on-surface-variant truncate">@{vanityHandle || 'creator'}</span>
                   </div>
                   <span className="text-[11px] text-on-surface-variant truncate">Pinned tweet auto-syncing</span>
                 </div>
@@ -676,8 +684,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           <button
             type="button"
             onClick={() => {
-              setDisplayName('Sarah Creative Studio');
-              setVanityHandle('sarah');
+              setDisplayName(currentWorkspace?.name || currentUser?.name || 'My Workspace');
+              setVanityHandle(currentUser?.name ? currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'workspace');
             }}
             className="px-4 py-2 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-all cursor-pointer"
           >

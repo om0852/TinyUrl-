@@ -443,47 +443,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         )}
       </div>
 
-      {/* 6. Live Activity Timeline */}
-      <div className="pt-6 border-t border-outline-variant/40">
-        <h3 className="text-base font-bold text-on-surface mb-4">
-          Live Operational & Telemetry Timeline
-        </h3>
-
-        <div className="space-y-4 relative border-l border-outline-variant/60 ml-3.5 pl-6">
-          <div className="relative">
-            <span className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-primary ring-4 ring-surface" />
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-on-surface">Global SSL & Edge Health Verified</span>
-              <span className="text-on-surface-variant font-mono text-[11px]">2 mins ago</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              Automated Zero-Phish scan completed across 100% of custom slugs with zero threat indicators.
-            </p>
-          </div>
-
-          <div className="relative">
-            <span className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-surface" />
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-on-surface">OpeninApp Deep Routing Triggered</span>
-              <span className="text-on-surface-variant font-mono text-[11px]">8 mins ago</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              Client request on iOS redirected straight into YouTube native client bypassing in-app webview.
-            </p>
-          </div>
-
-          <div className="relative">
-            <span className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-blue-500 ring-4 ring-surface" />
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-on-surface">Workspace Synchronization Active</span>
-              <span className="text-on-surface-variant font-mono text-[11px]">15 mins ago</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              Workspace links, QR codes, and routing rules synced across all devices.
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* QR Code Modal Dialog */}
       {selectedQr && (

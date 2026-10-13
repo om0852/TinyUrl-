@@ -19,6 +19,20 @@ export async function initializeDatabase() {
     return { success: false, error: 'DATABASE_URL environment variable is not configured.' };
   }
   try {
+    // 0. Users & Auth
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        salt VARCHAR(64) NOT NULL,
+        role VARCHAR(32) DEFAULT 'owner',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+    `);
+
     // 1. Workspaces
     await sql.query(`
       CREATE TABLE IF NOT EXISTS workspaces (

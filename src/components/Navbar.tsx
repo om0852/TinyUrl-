@@ -126,16 +126,21 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
                 )}
               </div>
             ) : (
-              <div 
-                onClick={() => handleOpenAuth('login')}
-                className="relative cursor-pointer"
-              >
-                <img 
-                  alt="User Profile Avatar" 
-                  className="w-8 h-8 rounded-full ring-2 ring-outline-variant/50 object-cover" 
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuCm_t4ui7362BEh_JbNV_NLc2cAk0zUHpEN1ApJ6KXTcDhcbBh9h7BR0oJkKfw6u4rvNWC55HomJmOGKQ39DVfF9rcCfd9JS2r1sJkDwyZvpMPmSxcUWiqZCQCHFgI-JSzzQuTkrw2VTyt54bpp5NtES5DSZCQEicJbDgJ8J-BHA1wJtEhl_UIhRK9REzc7NEfHvo1lov-Qd7u2QB77BDSHm6ku47kqXo_Lz6OrwSM32RnMIcoLm6PL9yyCACAFIoa_zFLFQIt06UU" 
-                />
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-surface-container-lowest"></span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleOpenAuth('login')}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+                >
+                  Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAuth('signup')}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary-container text-on-primary hover:bg-primary transition-all shadow-xs cursor-pointer"
+                >
+                  Sign Up
+                </button>
               </div>
             )}
           </div>

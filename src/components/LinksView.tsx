@@ -182,6 +182,61 @@ export const LinksView: React.FC<LinksViewProps> = ({
     return [...links].sort((a, b) => (b.clicks_count || 0) - (a.clicks_count || 0))[0];
   }, [links]);
 
+  const channelDistribution = useMemo(() => {
+    if (links.length === 0) return [];
+
+    let yt = 0;
+    let ig = 0;
+    let tt = 0;
+    let other = 0;
+
+    links.forEach(l => {
+      const dest = l.destination_url.toLowerCase();
+      const tags = (l.tags || []).map(t => t.toLowerCase());
+      const clicks = l.clicks_count || 0;
+
+      if (dest.includes('youtube.com') || dest.includes('youtu.be') || tags.includes('youtube')) {
+        yt += clicks;
+      } else if (dest.includes('instagram.com') || tags.includes('instagram')) {
+        ig += clicks;
+      } else if (dest.includes('tiktok.com') || tags.includes('tiktok')) {
+        tt += clicks;
+      } else {
+        other += clicks;
+      }
+    });
+
+    const total = yt + ig + tt + other;
+    if (total === 0) {
+      let ytLinks = 0, igLinks = 0, ttLinks = 0, otherLinks = 0;
+      links.forEach(l => {
+        const dest = l.destination_url.toLowerCase();
+        const tags = (l.tags || []).map(t => t.toLowerCase());
+        if (dest.includes('youtube.com') || dest.includes('youtu.be') || tags.includes('youtube')) ytLinks++;
+        else if (dest.includes('instagram.com') || tags.includes('instagram')) igLinks++;
+        else if (dest.includes('tiktok.com') || tags.includes('tiktok')) ttLinks++;
+        else otherLinks++;
+      });
+      const linkTotal = ytLinks + igLinks + ttLinks + otherLinks;
+      if (linkTotal === 0) return [];
+      return [
+        { name: 'YouTube', count: ytLinks, pct: Math.round((ytLinks / linkTotal) * 100), color: 'bg-red-600', dot: 'bg-red-600', isLinkCount: true },
+        { name: 'Instagram', count: igLinks, pct: Math.round((igLinks / linkTotal) * 100), color: 'bg-primary-container', dot: 'bg-primary-container', isLinkCount: true },
+        { name: 'TikTok', count: ttLinks, pct: Math.round((ttLinks / linkTotal) * 100), color: 'bg-inverse-surface', dot: 'bg-inverse-surface', isLinkCount: true },
+        { name: 'Direct & Others', count: otherLinks, pct: Math.round((otherLinks / linkTotal) * 100), color: 'bg-outline', dot: 'bg-outline', isLinkCount: true },
+      ].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
+    }
+
+    return [
+      { name: 'YouTube', count: yt, pct: Math.round((yt / total) * 100), color: 'bg-red-600', dot: 'bg-red-600', isLinkCount: false },
+      { name: 'Instagram', count: ig, pct: Math.round((ig / total) * 100), color: 'bg-primary-container', dot: 'bg-primary-container', isLinkCount: false },
+      { name: 'TikTok', count: tt, pct: Math.round((tt / total) * 100), color: 'bg-inverse-surface', dot: 'bg-inverse-surface', isLinkCount: false },
+      { name: 'Direct & Others', count: other, pct: Math.round((other / total) * 100), color: 'bg-outline', dot: 'bg-outline', isLinkCount: false },
+    ].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
+  }, [links]);
+
+  const topChannel = channelDistribution.length > 0 ? channelDistribution[0] : null;
+
   // CSV Export
   const handleExportCsv = () => {
     const headers = ['ID', 'Title', 'Short Slug', 'Destination URL', 'Clicks', 'Platform Tag', 'Status', 'Created At'];
@@ -375,11 +430,15 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold font-mono text-on-surface tracking-tight">
-              {totalClicksCount > 0 ? totalClicksCount.toLocaleString() : '142,850'}
+              {totalClicksCount.toLocaleString()}
             </span>
-            <span className="inline-flex items-center text-xs font-semibold text-emerald-600">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> 12.4%
-            </span>
+            {totalClicksCount > 0 ? (
+              <span className="inline-flex items-center text-xs font-semibold text-emerald-600">
+                <TrendingUp className="w-3 h-3 mr-0.5" /> Live
+              </span>
+            ) : (
+              <span className="text-xs text-on-surface-variant font-medium">0%</span>
+            )}
           </div>
           <div className="mt-3 flex items-center gap-1 text-[11px] text-on-surface-variant">
             <span>vs previous 30 days period</span>
@@ -394,10 +453,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
           <div className="flex flex-col mt-1 min-w-0">
             <span className="font-mono text-xs font-bold text-primary-container truncate">
-              {topPerformingLink ? `${originDomain}/${topPerformingLink.custom_slug || topPerformingLink.short_code}` : 'snip.to/spring-preset'}
+              {topPerformingLink ? `${originDomain}/${topPerformingLink.custom_slug || topPerformingLink.short_code}` : 'No links yet'}
             </span>
             <span className="text-base font-bold text-on-surface mt-0.5">
-              {(topPerformingLink?.clicks_count || 42180).toLocaleString()} clicks
+              {(topPerformingLink?.clicks_count || 0).toLocaleString()} clicks
             </span>
           </div>
           <div className="mt-3 flex items-center gap-1 text-[11px] text-on-surface-variant">
@@ -409,17 +468,25 @@ export const LinksView: React.FC<LinksViewProps> = ({
         <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Top Channel</span>
-            <Video className="w-4 h-4 text-red-600" />
+            <Video className="w-4 h-4 text-primary-container" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-on-surface">YouTube</span>
-            <span className="text-xs font-bold text-primary-container">58.4%</span>
+            <span className="text-2xl font-bold text-on-surface">
+              {topChannel ? topChannel.name : 'No traffic yet'}
+            </span>
+            {topChannel && (
+              <span className="text-xs font-bold text-primary-container">{topChannel.pct}%</span>
+            )}
           </div>
           <div className="mt-3">
             <div className="w-full bg-surface-container-high rounded-full h-1.5 flex overflow-hidden">
-              <div className="bg-red-600 h-full" style={{ width: '58.4%' }} />
-              <div className="bg-primary-container h-full" style={{ width: '26.2%' }} />
-              <div className="bg-surface-dim h-full" style={{ width: '15.4%' }} />
+              {channelDistribution.length > 0 ? (
+                channelDistribution.map((ch, idx) => (
+                  <div key={idx} className={`${ch.color} h-full`} style={{ width: `${ch.pct}%` }} />
+                ))
+              ) : (
+                <div className="bg-surface-container h-full w-full" />
+              )}
             </div>
           </div>
         </div>
@@ -675,67 +742,31 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
             {/* Channel Visual Progress Bars */}
             <div className="flex flex-col gap-4">
-              
-              {/* Channel 1: YouTube */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 font-medium text-on-surface">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-600" /> YouTube
-                  </span>
-                  <span className="font-mono text-xs font-bold text-on-surface">
-                    54% <span className="text-on-surface-variant font-normal">(77.1k)</span>
-                  </span>
+              {channelDistribution.length > 0 ? (
+                channelDistribution.map((ch, idx) => (
+                  <div key={idx} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 font-medium text-on-surface">
+                        <span className={`w-2.5 h-2.5 rounded-full ${ch.dot}`} /> {ch.name}
+                      </span>
+                      <span className="font-mono text-xs font-bold text-on-surface">
+                        {ch.pct}% <span className="text-on-surface-variant font-normal">({ch.count.toLocaleString()} {ch.isLinkCount ? 'links' : 'clicks'})</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
+                      <div className={`${ch.color} h-full rounded-full`} style={{ width: `${ch.pct}%` }} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-6 px-3 text-center flex flex-col items-center justify-center">
+                  <BarChart2 className="w-7 h-7 text-outline/50 mb-2" />
+                  <span className="text-xs font-bold text-on-surface">No Referrers Yet</span>
+                  <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed max-w-xs">
+                    Traffic sources across YouTube, Instagram, and TikTok will appear here in real time as your links are clicked.
+                  </p>
                 </div>
-                <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
-                  <div className="bg-red-600 h-full rounded-full" style={{ width: '54%' }} />
-                </div>
-              </div>
-
-              {/* Channel 2: Instagram */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 font-medium text-on-surface">
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary-container" /> Instagram
-                  </span>
-                  <span className="font-mono text-xs font-bold text-on-surface">
-                    26% <span className="text-on-surface-variant font-normal">(37.1k)</span>
-                  </span>
-                </div>
-                <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
-                  <div className="bg-primary-container h-full rounded-full" style={{ width: '26%' }} />
-                </div>
-              </div>
-
-              {/* Channel 3: TikTok */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 font-medium text-on-surface">
-                    <span className="w-2.5 h-2.5 rounded-full bg-inverse-surface" /> TikTok
-                  </span>
-                  <span className="font-mono text-xs font-bold text-on-surface">
-                    14% <span className="text-on-surface-variant font-normal">(20.0k)</span>
-                  </span>
-                </div>
-                <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
-                  <div className="bg-inverse-surface h-full rounded-full" style={{ width: '14%' }} />
-                </div>
-              </div>
-
-              {/* Channel 4: Direct & Others */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 font-medium text-on-surface">
-                    <span className="w-2.5 h-2.5 rounded-full bg-outline" /> Direct &amp; Others
-                  </span>
-                  <span className="font-mono text-xs font-bold text-on-surface">
-                    6% <span className="text-on-surface-variant font-normal">(8.5k)</span>
-                  </span>
-                </div>
-                <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
-                  <div className="bg-outline h-full rounded-full" style={{ width: '6%' }} />
-                </div>
-              </div>
-
+              )}
             </div>
 
             <div className="mt-5 pt-4 border-t border-outline-variant/30 flex items-center justify-between text-xs">

@@ -37,8 +37,8 @@ import { detectAppDeepLink } from './deepLink';
 interface StoreContextType {
   currentUser: User | null;
   authLoaded: boolean;
-  login: (email: string, pass: string) => void;
-  signup: (name: string, email: string, pass: string) => void;
+  login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (name: string, email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 
   workspaces: Workspace[];
@@ -100,6 +100,13 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | null>(null);
 
+// Helper to isolate localStorage items per user account
+export const getUserStorageKey = (base: string, email?: string | null): string => {
+  if (!email || !email.trim()) return `${base}_guest`;
+  const safe = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+  return `${base}_${safe}`;
+};
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoaded, setAuthLoaded] = useState<boolean>(false);
@@ -142,147 +149,157 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let user: User | null = null;
       const savedUser = localStorage.getItem('url_shortener_user');
       if (savedUser) {
-        user = JSON.parse(savedUser);
-        setCurrentUser(user);
+        try {
+          user = JSON.parse(savedUser);
+          setCurrentUser(user);
+        } catch {
+          user = null;
+          setCurrentUser(null);
+        }
       } else {
         setCurrentUser(null);
       }
 
-      // Load workspaces & purge demo workspaces (Acme Growth Platform, Personal Projects, ws_1, ws_2)
-      const savedWs = localStorage.getItem('url_shortener_workspaces');
-      let loadedWs: Workspace[] = [];
-      if (savedWs) {
-        try {
-          const parsedWs = JSON.parse(savedWs);
-          if (Array.isArray(parsedWs)) {
-            loadedWs = parsedWs.filter(
-              (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && 
-                                w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
-            );
-          }
-        } catch {}
-      }
+      if (user && user.email) {
+        // 1. Account-scoped workspaces
+        const wsKey = getUserStorageKey('url_shortener_workspaces', user.email);
+        const savedWs = localStorage.getItem(wsKey);
+        let loadedWs: Workspace[] = [];
+        if (savedWs) {
+          try {
+            const parsedWs = JSON.parse(savedWs);
+            if (Array.isArray(parsedWs)) {
+              loadedWs = parsedWs.filter(
+                (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && 
+                                  w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
+              );
+            }
+          } catch {}
+        }
+        if (loadedWs.length === 0) {
+          const userWs: Workspace = {
+            id: `ws_${Date.now()}`,
+            name: `${user.name}'s Workspace`,
+            slug: user.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+            role: 'owner',
+            plan: 'pro',
+            created_at: new Date().toISOString()
+          };
+          loadedWs = [userWs];
+          localStorage.setItem(wsKey, JSON.stringify(loadedWs));
+        }
+        setWorkspaces(loadedWs);
+        setCurrentWorkspace(loadedWs[0]);
+        localStorage.setItem('url_shortener_workspaces', JSON.stringify(loadedWs));
 
-      if (loadedWs.length === 0) {
-        const wsName = user ? `${user.name}'s Workspace` : 'My Workspace';
-        const userWs: Workspace = {
-          id: `ws_${Date.now()}`,
-          name: wsName,
-          slug: (user ? user.name : 'my').toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        // 2. Account-scoped links
+        const linksKey = getUserStorageKey('url_shortener_links', user.email);
+        const savedLinks = localStorage.getItem(linksKey);
+        let loadedLinks: Link[] = [];
+        if (savedLinks) {
+          try {
+            const parsed = JSON.parse(savedLinks);
+            if (Array.isArray(parsed)) {
+              loadedLinks = parsed.filter(
+                (l: Link) => l.workspace_id !== 'ws_1' && 
+                             l.id !== 'link_1' && l.id !== 'link_2' && l.id !== 'link_3' && l.id !== 'link_4' && l.id !== 'link_5' &&
+                             l.short_code !== 'sale26' && l.short_code !== 'v2launch' && l.short_code !== 'audit26' && l.short_code !== 'dl-app' && l.short_code !== 'suspicious-link'
+              );
+            }
+          } catch {}
+        }
+        setLinks(loadedLinks);
+        localStorage.setItem('url_shortener_links', JSON.stringify(loadedLinks));
+
+        // 3. Account-scoped clicks
+        const clicksKey = getUserStorageKey('url_shortener_clicks', user.email);
+        const savedClicks = localStorage.getItem(clicksKey);
+        let loadedClicks: ClickEvent[] = [];
+        if (savedClicks) {
+          try {
+            const parsed = JSON.parse(savedClicks);
+            if (Array.isArray(parsed)) {
+              const userLinkIds = new Set(loadedLinks.map(l => l.id.toLowerCase()));
+              const userShortCodes = new Set(loadedLinks.map(l => l.short_code.toLowerCase()));
+              loadedClicks = parsed.filter(
+                (c: ClickEvent) => (c.link_id && userLinkIds.has(c.link_id.toLowerCase())) ||
+                                   (c.short_code && userShortCodes.has(c.short_code.toLowerCase()))
+              );
+            }
+          } catch {}
+        }
+        setClicks(loadedClicks);
+        localStorage.setItem('url_shortener_clicks', JSON.stringify(loadedClicks));
+
+        // 4. Account-scoped campaigns (Zero static mock campaigns)
+        const campKey = getUserStorageKey('url_shortener_campaigns', user.email);
+        const savedCamp = localStorage.getItem(campKey);
+        let loadedCamp: Campaign[] = [];
+        if (savedCamp) {
+          try {
+            const parsedCamp = JSON.parse(savedCamp);
+            if (Array.isArray(parsedCamp)) loadedCamp = parsedCamp;
+          } catch {}
+        }
+        setCampaigns(loadedCamp);
+        localStorage.setItem('url_shortener_campaigns', JSON.stringify(loadedCamp));
+
+        // 5. Account-scoped Team Members
+        const tmKey = getUserStorageKey('url_shortener_team_members', user.email);
+        const savedTm = localStorage.getItem(tmKey);
+        let loadedTm: TeamMember[] = [];
+        if (savedTm) {
+          try {
+            const parsedTm = JSON.parse(savedTm);
+            if (Array.isArray(parsedTm)) loadedTm = parsedTm;
+          } catch {}
+        }
+        setTeamMembers(loadedTm);
+
+        // 6. Account-scoped API Keys
+        const keysKey = getUserStorageKey('url_shortener_api_keys', user.email);
+        const savedKeys = localStorage.getItem(keysKey);
+        if (savedKeys) {
+          try {
+            const parsedKeys = JSON.parse(savedKeys);
+            if (Array.isArray(parsedKeys)) setApiKeys(parsedKeys);
+          } catch {}
+        }
+
+        // 7. Account-scoped Webhooks
+        const whKey = getUserStorageKey('url_shortener_webhooks', user.email);
+        const savedWh = localStorage.getItem(whKey);
+        if (savedWh) {
+          try {
+            const parsedWh = JSON.parse(savedWh);
+            if (Array.isArray(parsedWh)) setWebhooks(parsedWh);
+          } catch {}
+        }
+      } else {
+        // Guest mode initialization
+        const guestWs: Workspace = {
+          id: 'ws_guest',
+          name: 'My Workspace',
+          slug: 'my-workspace',
           role: 'owner',
           plan: 'pro',
           created_at: new Date().toISOString()
         };
-        loadedWs = [userWs];
+        setWorkspaces([guestWs]);
+        setCurrentWorkspace(guestWs);
+        setLinks([]);
+        setClicks([]);
+        setCampaigns([]);
+        setTeamMembers([]);
+        setApiKeys([]);
+        setWebhooks([]);
       }
 
-      setWorkspaces(loadedWs);
-      setCurrentWorkspace(loadedWs[0]);
-      localStorage.setItem('url_shortener_workspaces', JSON.stringify(loadedWs));
-
-      // Load links & purge static demo links
-      const savedLinks = localStorage.getItem('url_shortener_links');
-      let loadedLinks: Link[] = [];
-      if (savedLinks) {
-        try {
-          const parsed = JSON.parse(savedLinks);
-          if (Array.isArray(parsed)) {
-            loadedLinks = parsed.filter(
-              (l: Link) => l.workspace_id !== 'ws_1' && 
-                           l.id !== 'link_1' && l.id !== 'link_2' && l.id !== 'link_3' && l.id !== 'link_4' && l.id !== 'link_5' &&
-                           l.short_code !== 'sale26' && l.short_code !== 'v2launch' && l.short_code !== 'audit26' && l.short_code !== 'dl-app' && l.short_code !== 'suspicious-link'
-            );
-          }
-        } catch {}
-      }
-      setLinks(loadedLinks);
-      localStorage.setItem('url_shortener_links', JSON.stringify(loadedLinks));
-
-      // Load clicks & purge fake generated mock clicks
-      const savedClicks = localStorage.getItem('url_shortener_clicks');
-      let loadedClicks: ClickEvent[] = [];
-      if (savedClicks) {
-        try {
-          const parsed = JSON.parse(savedClicks);
-          if (Array.isArray(parsed)) {
-            const userLinkIds = new Set(loadedLinks.map(l => l.id.toLowerCase()));
-            const userShortCodes = new Set(loadedLinks.map(l => l.short_code.toLowerCase()));
-            loadedClicks = parsed.filter(
-              (c: ClickEvent) => (c.link_id && userLinkIds.has(c.link_id.toLowerCase())) ||
-                                 (c.short_code && userShortCodes.has(c.short_code.toLowerCase()))
-            );
-          }
-        } catch {}
-      }
-      setClicks(loadedClicks);
-      localStorage.setItem('url_shortener_clicks', JSON.stringify(loadedClicks));
-
-      // Load campaigns with default templates if empty
-      const savedCampaigns = localStorage.getItem('url_shortener_campaigns');
-      let loadedCampaigns: Campaign[] = [];
-      if (savedCampaigns) {
-        try {
-          const parsedCamp = JSON.parse(savedCampaigns);
-          if (Array.isArray(parsedCamp)) loadedCampaigns = parsedCamp;
-        } catch {}
-      }
-      if (loadedCampaigns.length === 0) {
-        loadedCampaigns = [
-          {
-            id: 'cmp_sony_fx3',
-            workspace_id: loadedWs[0]?.id || 'ws_default',
-            name: 'Sony FX3 Cinema Rig Showcase',
-            description: 'Sony Alpha Creators Sponsorship',
-            tags: ['youtube', 'affiliate', 'hardware'],
-            target_clicks: 75000,
-            created_at: new Date(Date.now() - 86400000 * 5).toISOString()
-          },
-          {
-            id: 'cmp_gymshark',
-            workspace_id: loadedWs[0]?.id || 'ws_default',
-            name: 'Gymshark Fall Onyx Drop',
-            description: 'Fitness Athlete Promotion',
-            tags: ['instagram', 'discount-code'],
-            target_clicks: 50000,
-            created_at: new Date(Date.now() - 86400000 * 12).toISOString()
-          },
-          {
-            id: 'cmp_audible',
-            workspace_id: loadedWs[0]?.id || 'ws_default',
-            name: 'Audible Creator Sponsorship Q4',
-            description: 'Podcast Mid-Roll Bundle',
-            tags: ['podcast', 'audio'],
-            target_clicks: 30000,
-            created_at: new Date(Date.now() - 86400000 * 20).toISOString()
-          }
-        ];
-      }
-      setCampaigns(loadedCampaigns);
-      localStorage.setItem('url_shortener_campaigns', JSON.stringify(loadedCampaigns));
-
-      // Load API keys
-      const savedKeys = localStorage.getItem('url_shortener_api_keys');
-      if (savedKeys) {
-        try {
-          const parsedKeys = JSON.parse(savedKeys);
-          if (Array.isArray(parsedKeys)) setApiKeys(parsedKeys);
-        } catch {}
-      }
-
-      // Load Webhooks
-      const savedWh = localStorage.getItem('url_shortener_webhooks');
-      if (savedWh) {
-        try {
-          const parsedWh = JSON.parse(savedWh);
-          if (Array.isArray(parsedWh)) setWebhooks(parsedWh);
-        } catch {}
-      }
-
-      // Synchronize with PostgreSQL database backend
+      // Synchronize with backend API if available
       fetch('/api/v1/links')
         .then(res => res.json())
         .then(data => {
-          if (data && data.success && Array.isArray(data.links) && data.links.length > 0) {
+          if (data && data.success && Array.isArray(data.links) && data.links.length > 0 && user) {
             setLinks(currentActive => {
               const codeMap = new Map(currentActive.map(l => [l.short_code.toLowerCase(), l]));
               let addedCount = 0;
@@ -292,7 +309,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   codeMap.set(codeKey, {
                     id: remote.id || `lnk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
                     domain_id: 'dom_primary',
-                    workspace_id: loadedWs[0]?.id || 'ws_default',
+                    workspace_id: currentWorkspace?.id || 'ws_default',
                     short_code: remote.short_code,
                     custom_slug: remote.custom_slug || remote.short_code,
                     destination_url: remote.destination_url,
@@ -300,7 +317,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     status: remote.status || 'active',
                     is_flagged: false,
                     risk_score: 0,
-                    created_by: 'user',
+                    created_by: user?.name || 'Owner',
                     clicks_count: Number(remote.clicks_count) || 0,
                     tags: Array.isArray(remote.tags) ? remote.tags : [],
                     rules: [],
@@ -312,6 +329,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if (addedCount > 0) {
                 const combined = Array.from(codeMap.values());
                 try {
+                  const linksKey = getUserStorageKey('url_shortener_links', user?.email);
+                  localStorage.setItem(linksKey, JSON.stringify(combined));
                   localStorage.setItem('url_shortener_links', JSON.stringify(combined));
                 } catch {}
                 return combined;
@@ -331,7 +350,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Cross-tab and active-window real-time synchronization
     const handleSyncFromStorage = () => {
       try {
-        const rawLinks = localStorage.getItem('url_shortener_links');
+        const rawUser = localStorage.getItem('url_shortener_user');
+        const activeUser: User | null = rawUser ? JSON.parse(rawUser) : null;
+        const activeEmail = activeUser?.email;
+
+        const linksKey = getUserStorageKey('url_shortener_links', activeEmail);
+        const rawLinks = localStorage.getItem(linksKey) || localStorage.getItem('url_shortener_links');
         if (rawLinks) {
           const parsed = JSON.parse(rawLinks);
           if (Array.isArray(parsed)) {
@@ -343,23 +367,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setLinks(filteredLinks);
           }
         }
-        const rawClicks = localStorage.getItem('url_shortener_clicks');
+        const clicksKey = getUserStorageKey('url_shortener_clicks', activeEmail);
+        const rawClicks = localStorage.getItem(clicksKey) || localStorage.getItem('url_shortener_clicks');
         if (rawClicks) {
           const parsedClicks = JSON.parse(rawClicks);
           if (Array.isArray(parsedClicks)) {
-            const currentLinksRaw = localStorage.getItem('url_shortener_links');
-            const validCodes = currentLinksRaw ? new Set(JSON.parse(currentLinksRaw).map((l: any) => l.short_code?.toLowerCase())) : new Set();
-            setClicks(parsedClicks.filter((c: any) => validCodes.has(c.short_code?.toLowerCase())));
+            setClicks(parsedClicks);
           }
         }
-        const rawWs = localStorage.getItem('url_shortener_workspaces');
+        const wsKey = getUserStorageKey('url_shortener_workspaces', activeEmail);
+        const rawWs = localStorage.getItem(wsKey) || localStorage.getItem('url_shortener_workspaces');
         if (rawWs) {
           const parsedWs = JSON.parse(rawWs);
-          if (Array.isArray(parsedWs)) {
+          if (Array.isArray(parsedWs) && parsedWs.length > 0) {
             const cleanWs = parsedWs.filter(
               (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
             );
-            setWorkspaces(cleanWs);
+            if (cleanWs.length > 0) {
+              setWorkspaces(cleanWs);
+            }
           }
         }
       } catch {}
@@ -376,10 +402,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Sync state changes to localStorage
+  // Sync state changes to localStorage scoped per user
   const saveLinksState = (newLinks: Link[]) => {
     setLinks(newLinks);
     try {
+      const userKey = getUserStorageKey('url_shortener_links', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newLinks));
       localStorage.setItem('url_shortener_links', JSON.stringify(newLinks));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
@@ -390,6 +418,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveClicksState = (newClicks: ClickEvent[]) => {
     setClicks(newClicks);
     try {
+      const userKey = getUserStorageKey('url_shortener_clicks', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newClicks));
       localStorage.setItem('url_shortener_clicks', JSON.stringify(newClicks));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
@@ -400,7 +430,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveCampaignsState = (newCampaigns: Campaign[]) => {
     setCampaigns(newCampaigns);
     try {
+      const userKey = getUserStorageKey('url_shortener_campaigns', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newCampaigns));
       localStorage.setItem('url_shortener_campaigns', JSON.stringify(newCampaigns));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
+    } catch {}
+  };
+
+  const saveWorkspacesState = (newWs: Workspace[]) => {
+    setWorkspaces(newWs);
+    try {
+      const userKey = getUserStorageKey('url_shortener_workspaces', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newWs));
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(newWs));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
+    } catch {}
+  };
+
+  const saveTeamMembersState = (newMembers: TeamMember[]) => {
+    setTeamMembers(newMembers);
+    try {
+      const userKey = getUserStorageKey('url_shortener_team_members', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newMembers));
+      localStorage.setItem('url_shortener_team_members', JSON.stringify(newMembers));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
       }
@@ -410,6 +466,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveApiKeysState = (newKeys: ApiKey[]) => {
     setApiKeys(newKeys);
     try {
+      const userKey = getUserStorageKey('url_shortener_api_keys', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newKeys));
       localStorage.setItem('url_shortener_api_keys', JSON.stringify(newKeys));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
@@ -420,6 +478,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveWebhooksState = (newHooks: Webhook[]) => {
     setWebhooks(newHooks);
     try {
+      const userKey = getUserStorageKey('url_shortener_webhooks', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newHooks));
       localStorage.setItem('url_shortener_webhooks', JSON.stringify(newHooks));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
@@ -524,7 +584,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       is_flagged: secReport.is_blacklisted,
       risk_score: secReport.virustotal_risk,
       risk_reasons: secReport.threat_categories.length > 0 ? secReport.threat_categories : undefined,
-      created_by: 'Alex Morgan',
+      created_by: currentUser?.name || 'Owner',
       created_at: new Date().toISOString(),
       clicks_count: 0,
       utm_source: data.utm_source,
@@ -800,53 +860,321 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     document.body.removeChild(link);
   };
 
-  // Auth functions
-  const login = (email: string, pass: string) => {
-    const namePart = email.split('@')[0] || 'User';
-    const initials = namePart.substring(0, 2).toUpperCase();
-    const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-    const newUser: User = {
-      id: `usr_${Date.now()}`,
-      name: displayName,
-      email: email,
-      avatar: initials,
-      role: 'owner'
-    };
-    setCurrentUser(newUser);
+  // Password hashing helper for client-side cryptographic verification
+  const hashPassword = async (password: string, salt: string): Promise<string> => {
+    try {
+      const enc = new TextEncoder();
+      const data = enc.encode(salt + ':' + password);
+      const hashBuf = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(hashBuf))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    } catch {
+      // Fallback simple hash for older environments
+      let hash = 0;
+      const str = salt + ':' + password;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return 'fb_' + Math.abs(hash).toString(16);
+    }
+  };
 
-    // Filter out any lingering mock/demo workspaces
-    let userWorkspaces = workspaces.filter(
-      w => w.id !== 'ws_1' && w.id !== 'ws_2' && w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
-    );
+  const finishLogin = (user: User, cleanEmail: string) => {
+    setCurrentUser(user);
+
+    // Load account-isolated workspaces
+    const wsKey = getUserStorageKey('url_shortener_workspaces', cleanEmail);
+    const savedWs = localStorage.getItem(wsKey);
+    let userWorkspaces: Workspace[] = [];
+    if (savedWs) {
+      try {
+        const parsedWs = JSON.parse(savedWs);
+        if (Array.isArray(parsedWs)) {
+          userWorkspaces = parsedWs.filter(
+            (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && 
+                              w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
+          );
+        }
+      } catch {}
+    }
+
     if (userWorkspaces.length === 0) {
       const defaultWs: Workspace = {
         id: `ws_${Date.now()}`,
-        name: `${displayName}'s Workspace`,
-        slug: displayName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        name: `${user.name}'s Workspace`,
+        slug: user.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         role: 'owner',
         plan: 'pro',
         created_at: new Date().toISOString()
       };
       userWorkspaces = [defaultWs];
+      try {
+        localStorage.setItem(wsKey, JSON.stringify(userWorkspaces));
+      } catch {}
     }
 
     setWorkspaces(userWorkspaces);
     setCurrentWorkspace(userWorkspaces[0]);
 
+    // Load account-isolated links
+    const linksKey = getUserStorageKey('url_shortener_links', cleanEmail);
+    const savedLinks = localStorage.getItem(linksKey);
+    let userLinks: Link[] = [];
+    if (savedLinks) {
+      try {
+        const parsed = JSON.parse(savedLinks);
+        if (Array.isArray(parsed)) userLinks = parsed;
+      } catch {}
+    }
+    setLinks(userLinks);
+
+    // Load account-isolated clicks
+    const clicksKey = getUserStorageKey('url_shortener_clicks', cleanEmail);
+    const savedClicks = localStorage.getItem(clicksKey);
+    let userClicks: ClickEvent[] = [];
+    if (savedClicks) {
+      try {
+        const parsed = JSON.parse(savedClicks);
+        if (Array.isArray(parsed)) userClicks = parsed;
+      } catch {}
+    }
+    setClicks(userClicks);
+
+    // Load account-isolated campaigns (no fake/mock defaults)
+    const campKey = getUserStorageKey('url_shortener_campaigns', cleanEmail);
+    const savedCamp = localStorage.getItem(campKey);
+    let userCamp: Campaign[] = [];
+    if (savedCamp) {
+      try {
+        const parsed = JSON.parse(savedCamp);
+        if (Array.isArray(parsed)) userCamp = parsed;
+      } catch {}
+    }
+    setCampaigns(userCamp);
+
+    // Load account-isolated team members
+    const tmKey = getUserStorageKey('url_shortener_team_members', cleanEmail);
+    const savedTm = localStorage.getItem(tmKey);
+    let userTm: TeamMember[] = [];
+    if (savedTm) {
+      try {
+        const parsed = JSON.parse(savedTm);
+        if (Array.isArray(parsed)) userTm = parsed;
+      } catch {}
+    }
+    setTeamMembers(userTm);
+
+    // Load account-isolated API keys
+    const keysKey = getUserStorageKey('url_shortener_api_keys', cleanEmail);
+    const savedKeys = localStorage.getItem(keysKey);
+    let userKeys: ApiKey[] = [];
+    if (savedKeys) {
+      try {
+        const parsed = JSON.parse(savedKeys);
+        if (Array.isArray(parsed)) userKeys = parsed;
+      } catch {}
+    }
+    setApiKeys(userKeys);
+
+    // Load account-isolated webhooks
+    const whKey = getUserStorageKey('url_shortener_webhooks', cleanEmail);
+    const savedWh = localStorage.getItem(whKey);
+    let userWh: Webhook[] = [];
+    if (savedWh) {
+      try {
+        const parsed = JSON.parse(savedWh);
+        if (Array.isArray(parsed)) userWh = parsed;
+      } catch {}
+    }
+    setWebhooks(userWh);
+
     try {
-      localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
+      localStorage.setItem('url_shortener_user', JSON.stringify(user));
       localStorage.setItem('url_shortener_workspaces', JSON.stringify(userWorkspaces));
       localStorage.setItem('url_shortener_current_workspace_id', userWorkspaces[0].id);
+      localStorage.setItem('url_shortener_links', JSON.stringify(userLinks));
+      localStorage.setItem('url_shortener_clicks', JSON.stringify(userClicks));
+      localStorage.setItem('url_shortener_campaigns', JSON.stringify(userCamp));
+      localStorage.setItem('url_shortener_team_members', JSON.stringify(userTm));
+      localStorage.setItem('url_shortener_api_keys', JSON.stringify(userKeys));
+      localStorage.setItem('url_shortener_webhooks', JSON.stringify(userWh));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
     } catch {}
   };
 
-  const signup = (name: string, email: string, pass: string) => {
+  // Auth functions with true credential verification
+  const login = async (email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = pass;
+
+    if (!cleanEmail || !cleanPass) {
+      return { success: false, error: 'Please enter both your email address and password.' };
+    }
+
+    try {
+      // 1. Authenticate with secure backend endpoint
+      const res = await fetch('/api/v1/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', email: cleanEmail, password: cleanPass })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.user) {
+        const serverUser = data.user;
+        const displayName = serverUser.name || cleanEmail.split('@')[0];
+        const initials = displayName
+          .split(' ')
+          .map((n: string) => n[0])
+          .join('')
+          .substring(0, 2)
+          .toUpperCase() || 'U';
+
+        const authenticatedUser: User = {
+          id: serverUser.id || `usr_${Date.now()}`,
+          name: displayName,
+          email: cleanEmail,
+          avatar: initials,
+          role: serverUser.role || 'owner'
+        };
+
+        finishLogin(authenticatedUser, cleanEmail);
+        return { success: true };
+      }
+
+      // If backend explicitly rejected due to invalid password for existing DB user, reject immediately!
+      if (res.status === 401 && data.error && !data.allowLocalFallback) {
+        return { success: false, error: data.error };
+      }
+
+      // Also check client-stored secure account registry (for offline or local accounts)
+      const accountsRaw = localStorage.getItem('url_shortener_accounts');
+      let accounts: Array<{ email: string; salt: string; hash: string; name: string }> = [];
+      if (accountsRaw) {
+        try { accounts = JSON.parse(accountsRaw); } catch {}
+      }
+      const localAcc = accounts.find(a => a.email.toLowerCase() === cleanEmail);
+
+      if (localAcc) {
+        const testHash = await hashPassword(cleanPass, localAcc.salt);
+        if (testHash === localAcc.hash) {
+          const displayName = localAcc.name || cleanEmail.split('@')[0];
+          const initials = displayName
+            .split(' ')
+            .map((n: string) => n[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase() || 'U';
+
+          const localUser: User = {
+            id: `usr_${Date.now()}`,
+            name: displayName,
+            email: cleanEmail,
+            avatar: initials,
+            role: 'owner'
+          };
+          finishLogin(localUser, cleanEmail);
+          return { success: true };
+        } else {
+          return { success: false, error: 'Incorrect password. Please verify your credentials.' };
+        }
+      }
+
+      return {
+        success: false,
+        error: data.error || 'No account found with this email. Please sign up first.'
+      };
+    } catch {
+      // Offline fallback: check client registry
+      const accountsRaw = localStorage.getItem('url_shortener_accounts');
+      let accounts: Array<{ email: string; salt: string; hash: string; name: string }> = [];
+      if (accountsRaw) {
+        try { accounts = JSON.parse(accountsRaw); } catch {}
+      }
+      const localAcc = accounts.find(a => a.email.toLowerCase() === cleanEmail);
+
+      if (localAcc) {
+        const testHash = await hashPassword(cleanPass, localAcc.salt);
+        if (testHash === localAcc.hash) {
+          const displayName = localAcc.name || cleanEmail.split('@')[0];
+          const initials = displayName
+            .split(' ')
+            .map((n: string) => n[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase() || 'U';
+
+          const localUser: User = {
+            id: `usr_${Date.now()}`,
+            name: displayName,
+            email: cleanEmail,
+            avatar: initials,
+            role: 'owner'
+          };
+          finishLogin(localUser, cleanEmail);
+          return { success: true };
+        } else {
+          return { success: false, error: 'Incorrect password. Please verify your credentials.' };
+        }
+      }
+
+      return { success: false, error: 'Authentication failed. Please verify your credentials.' };
+    }
+  };
+
+  const signup = async (name: string, email: string, pass: string): Promise<{ success: boolean; error?: string }> => {
     const trimmedName = name.trim() || 'New User';
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = pass;
+
+    if (!cleanEmail) {
+      return { success: false, error: 'Email address is required.' };
+    }
+    if (!cleanPass || cleanPass.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long.' };
+    }
+
+    try {
+      // 1. Register with backend API
+      const res = await fetch('/api/v1/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'signup', name: trimmedName, email: cleanEmail, password: cleanPass })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Failed to create account.' };
+      }
+    } catch {
+      // Network offline: continue with local registry
+    }
+
+    // Save hashed credentials locally for verified offline & fast re-entry
+    try {
+      const salt = Math.random().toString(36).substring(2, 12) + Date.now().toString(36);
+      const hash = await hashPassword(cleanPass, salt);
+      const accountsRaw = localStorage.getItem('url_shortener_accounts');
+      let accounts: Array<{ email: string; salt: string; hash: string; name: string }> = [];
+      if (accountsRaw) {
+        try { accounts = JSON.parse(accountsRaw); } catch {}
+      }
+      accounts = accounts.filter(a => a.email.toLowerCase() !== cleanEmail);
+      accounts.push({ email: cleanEmail, salt, hash, name: trimmedName });
+      localStorage.setItem('url_shortener_accounts', JSON.stringify(accounts));
+    } catch {}
+
     const initials = trimmedName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
     const newUser: User = {
       id: `usr_${Date.now()}`,
       name: trimmedName,
-      email: email.trim(),
+      email: cleanEmail,
       avatar: initials,
       role: 'owner'
     };
@@ -862,7 +1190,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       created_at: new Date().toISOString()
     };
     
-    // Fresh user starts strictly with their own workspace and clean 0 data
     const userWorkspaces = [newWs];
     setWorkspaces(userWorkspaces);
     setCurrentWorkspace(newWs);
@@ -870,23 +1197,68 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setLinks([]);
     setClicks([]);
     setCampaigns([]);
+    setTeamMembers([]);
+    setApiKeys([]);
+    setWebhooks([]);
 
     try {
       localStorage.setItem('url_shortener_user', JSON.stringify(newUser));
+      localStorage.setItem(getUserStorageKey('url_shortener_workspaces', cleanEmail), JSON.stringify(userWorkspaces));
       localStorage.setItem('url_shortener_workspaces', JSON.stringify(userWorkspaces));
       localStorage.setItem('url_shortener_current_workspace_id', newWs.id);
+      localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', cleanEmail), newWs.id);
+      localStorage.setItem(getUserStorageKey('url_shortener_links', cleanEmail), JSON.stringify([]));
       localStorage.setItem('url_shortener_links', JSON.stringify([]));
+      localStorage.setItem(getUserStorageKey('url_shortener_clicks', cleanEmail), JSON.stringify([]));
       localStorage.setItem('url_shortener_clicks', JSON.stringify([]));
+      localStorage.setItem(getUserStorageKey('url_shortener_campaigns', cleanEmail), JSON.stringify([]));
       localStorage.setItem('url_shortener_campaigns', JSON.stringify([]));
+      localStorage.setItem(getUserStorageKey('url_shortener_team_members', cleanEmail), JSON.stringify([]));
+      localStorage.setItem('url_shortener_team_members', JSON.stringify([]));
+      localStorage.setItem(getUserStorageKey('url_shortener_api_keys', cleanEmail), JSON.stringify([]));
+      localStorage.setItem('url_shortener_api_keys', JSON.stringify([]));
+      localStorage.setItem(getUserStorageKey('url_shortener_webhooks', cleanEmail), JSON.stringify([]));
+      localStorage.setItem('url_shortener_webhooks', JSON.stringify([]));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
     } catch {}
+
+    return { success: true };
   };
+
 
   const logout = () => {
     setCurrentUser(null);
+    const guestWs: Workspace = {
+      id: `ws_guest_${Date.now()}`,
+      name: 'My Workspace',
+      slug: 'my-workspace',
+      role: 'owner',
+      plan: 'pro',
+      created_at: new Date().toISOString()
+    };
+    setWorkspaces([guestWs]);
+    setCurrentWorkspace(guestWs);
+    setLinks([]);
+    setClicks([]);
+    setCampaigns([]);
+    setTeamMembers([]);
+    setApiKeys([]);
+    setWebhooks([]);
+
     try {
       localStorage.removeItem('url_shortener_user');
       localStorage.removeItem('token');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('url_shortener_workspaces');
+      localStorage.removeItem('url_shortener_current_workspace_id');
+      localStorage.removeItem('url_shortener_links');
+      localStorage.removeItem('url_shortener_clicks');
+      localStorage.removeItem('url_shortener_campaigns');
+      localStorage.removeItem('url_shortener_team_members');
+      localStorage.removeItem('url_shortener_api_keys');
+      localStorage.removeItem('url_shortener_webhooks');
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
         window.dispatchEvent(new Event('storage'));
@@ -909,10 +1281,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       w => w.id !== 'ws_1' && w.id !== 'ws_2' && w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
     );
     const updated = [newWs, ...validWorkspaces];
-    setWorkspaces(updated);
+    saveWorkspacesState(updated);
     setCurrentWorkspace(newWs);
     try {
-      localStorage.setItem('url_shortener_workspaces', JSON.stringify(updated));
+      const userKey = getUserStorageKey('url_shortener_current_workspace_id', currentUser?.email);
+      localStorage.setItem(userKey, newWs.id);
       localStorage.setItem('url_shortener_current_workspace_id', newWs.id);
     } catch {}
     return newWs;
@@ -930,11 +1303,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       status: 'active',
       avatar: initials
     };
-    setTeamMembers([...teamMembers, newMember]);
+    saveTeamMembersState([...teamMembers, newMember]);
   };
 
   const removeTeamMember = (id: string) => {
-    setTeamMembers(teamMembers.filter(m => m.id !== id));
+    saveTeamMembersState(teamMembers.filter(m => m.id !== id));
   };
 
   const importLinksCsv = (csvContent: string): number => {

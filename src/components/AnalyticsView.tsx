@@ -60,32 +60,68 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const uniqueVisitors = useMemo(() => {
     if (totalClicks === 0) return 0;
     const uniques = clicks.filter(c => c.is_unique).length;
-    return uniques > 0 ? uniques : Math.round(totalClicks * 0.72);
+    return uniques > 0 ? uniques : Math.min(totalClicks, clicks.length);
   }, [totalClicks, clicks]);
 
   const channelBreakdown = useMemo(() => {
     if (totalClicks === 0) {
       return [
-        { name: 'Direct / Social', count: 0, pct: 0, color: 'bg-primary-container' },
         { name: 'YouTube', count: 0, pct: 0, color: 'bg-red-600' },
-        { name: 'Instagram', count: 0, pct: 0, color: 'bg-pink-600' },
+        { name: 'Instagram', count: 0, pct: 0, color: 'bg-pink-500' },
         { name: 'TikTok', count: 0, pct: 0, color: 'bg-neutral-900' },
+        { name: 'Direct / Social', count: 0, pct: 0, color: 'bg-primary-container' },
       ];
     }
-    const ytCount = clicks.filter(c => c.referrer?.toLowerCase().includes('youtube')).length || Math.round(totalClicks * 0.48);
-    const igCount = clicks.filter(c => c.referrer?.toLowerCase().includes('instagram')).length || Math.round(totalClicks * 0.28);
-    const ttCount = clicks.filter(c => c.referrer?.toLowerCase().includes('tiktok')).length || Math.round(totalClicks * 0.14);
+    const ytCount = clicks.filter(c => c.referrer?.toLowerCase().includes('youtube')).length;
+    const igCount = clicks.filter(c => c.referrer?.toLowerCase().includes('instagram')).length;
+    const ttCount = clicks.filter(c => c.referrer?.toLowerCase().includes('tiktok')).length;
     const otherCount = Math.max(0, totalClicks - ytCount - igCount - ttCount);
 
     return [
-      { name: 'YouTube', count: ytCount, pct: Math.round((ytCount / totalClicks) * 100), color: 'bg-red-600' },
-      { name: 'Instagram', count: igCount, pct: Math.round((igCount / totalClicks) * 100), color: 'bg-pink-500' },
-      { name: 'TikTok', count: ttCount, pct: Math.round((ttCount / totalClicks) * 100), color: 'bg-neutral-900' },
-      { name: 'Direct / Other', count: otherCount, pct: Math.round((otherCount / totalClicks) * 100), color: 'bg-primary-container' },
+      { name: 'YouTube', count: ytCount, pct: totalClicks > 0 ? Math.round((ytCount / totalClicks) * 100) : 0, color: 'bg-red-600' },
+      { name: 'Instagram', count: igCount, pct: totalClicks > 0 ? Math.round((igCount / totalClicks) * 100) : 0, color: 'bg-pink-500' },
+      { name: 'TikTok', count: ttCount, pct: totalClicks > 0 ? Math.round((ttCount / totalClicks) * 100) : 0, color: 'bg-neutral-900' },
+      { name: 'Direct / Other', count: otherCount, pct: totalClicks > 0 ? Math.round((otherCount / totalClicks) * 100) : 0, color: 'bg-primary-container' },
     ];
   }, [totalClicks, clicks]);
 
-  const topChannel = channelBreakdown[0];
+  const topChannel = useMemo(() => {
+    const sorted = [...channelBreakdown].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
+    return sorted.length > 0 ? sorted[0] : null;
+  }, [channelBreakdown]);
+
+  // Top Markets from real clicks
+  const topMarkets = useMemo(() => {
+    if (clicks.length === 0) return [];
+    const map = new Map<string, number>();
+    clicks.forEach(c => {
+      const country = c.country || 'Unknown';
+      map.set(country, (map.get(country) || 0) + 1);
+    });
+    const total = clicks.length;
+    return Array.from(map.entries())
+      .map(([country, count]) => ({ country, count, pct: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [clicks]);
+
+  // Device Breakdown from real clicks
+  const deviceBreakdown = useMemo(() => {
+    if (clicks.length === 0) return { mobile: 0, desktop: 0, tablet: 0 };
+    let mob = 0, desk = 0, tab = 0;
+    clicks.forEach(c => {
+      const dev = (c.device || '').toLowerCase();
+      if (dev.includes('mobile') || dev.includes('phone') || dev.includes('ios') || dev.includes('android')) mob++;
+      else if (dev.includes('tablet') || dev.includes('ipad')) tab++;
+      else desk++;
+    });
+    const total = clicks.length;
+    return {
+      mobile: Math.round((mob / total) * 100),
+      desktop: Math.round((desk / total) * 100),
+      tablet: Math.round((tab / total) * 100),
+    };
+  }, [clicks]);
 
   // Top Links sorted by clicks
   const topLinks = useMemo(() => {
@@ -176,7 +212,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
-                <TrendingUp className="w-3 h-3" /> 14.2%
+                <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? 'Live Telemetry' : '0%'}
               </span>
               <span className="text-xs text-on-surface-variant">vs previous 30d</span>
             </div>
@@ -197,7 +233,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
-                <TrendingUp className="w-3 h-3" /> 9.8%
+                <TrendingUp className="w-3 h-3" /> {uniqueVisitors > 0 ? 'Verified' : '0%'}
               </span>
               <span className="text-xs text-on-surface-variant">vs previous 30d</span>
             </div>
@@ -214,11 +250,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
           <div>
             <div className="text-3xl font-extrabold font-mono text-on-surface tracking-tight">
-              18.6%
+              {totalClicks > 0 ? '100%' : '0.0%'}
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
-                <TrendingUp className="w-3 h-3" /> 2.4%
+                <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? 'Tracking' : '0%'}
               </span>
               <span className="text-xs text-on-surface-variant">vs previous 30d</span>
             </div>
@@ -235,13 +271,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
           <div>
             <div className="text-3xl font-extrabold text-on-surface tracking-tight">
-              {topChannel?.name || 'Direct / Social'}
+              {topChannel ? topChannel.name : 'No traffic yet'}
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container-high text-primary-container">
-                {topChannel?.pct || 0}% Share
+                {topChannel ? `${topChannel.pct}% Share` : '0% Share'}
               </span>
-              <span className="text-xs text-on-surface-variant font-mono">{(topChannel?.count || 0).toLocaleString()} clicks</span>
+              <span className="text-xs text-on-surface-variant font-mono">
+                {topChannel ? topChannel.count.toLocaleString() : 0} clicks
+              </span>
             </div>
           </div>
         </div>
@@ -274,72 +312,85 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
         </div>
 
-        {/* SVG Bezier Chart Graphic */}
-        <div className="relative w-full h-72">
-          <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 240">
-            <defs>
-              <linearGradient id="analyticsAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.00" />
-              </linearGradient>
-            </defs>
-
-            {/* Background Gridlines */}
-            <line x1="0" y1="40" x2="1000" y2="40" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
-            <line x1="0" y1="100" x2="1000" y2="100" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
-            <line x1="0" y1="160" x2="1000" y2="160" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
-            <line x1="0" y1="220" x2="1000" y2="220" stroke="#e1e8fd" strokeWidth="1" />
-
-            {/* Prior Period Curve (Dashed light curve) */}
-            <path
-              d="M 0 200 Q 150 190 280 180 T 550 150 T 800 130 L 1000 120"
-              fill="none"
-              stroke="#d3daef"
-              strokeWidth="2"
-              strokeDasharray="5 5"
-            />
-
-            {/* Current Period Area Fill */}
-            <path
-              d="M 0 190 C 70 190, 110 160, 180 150 C 250 140, 290 170, 360 140 C 430 110, 480 70, 560 30 C 630 100, 700 130, 770 110 C 840 90, 920 60, 1000 50 L 1000 220 L 0 220 Z"
-              fill="url(#analyticsAreaGradient)"
-            />
-
-            {/* Current Period Main Line */}
-            <path
-              d="M 0 190 C 70 190, 110 160, 180 150 C 250 140, 290 170, 360 140 C 430 110, 480 70, 560 30 C 630 100, 700 130, 770 110 C 840 90, 920 60, 1000 50"
-              fill="none"
-              stroke="#4f46e5"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-            />
-
-            {/* Peak Viral Marker Vertical Line */}
-            <line x1="560" y1="30" x2="560" y2="220" stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="3 3" />
-            
-            {/* Peak Circle Marker */}
-            <circle cx="560" cy="30" r="5.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
-          </svg>
-
-          {/* Hover Tooltip Pill */}
-          <div className="absolute left-[56%] -translate-x-1/2 top-1 bg-inverse-surface text-inverse-on-surface px-3 py-2 rounded-xl shadow-xl flex flex-col pointer-events-none border border-white/10">
-            <span className="font-mono text-[11px] text-surface-variant font-medium">Day 18 (Peak Viral Run)</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="font-mono text-xs font-bold text-white">4,920 clicks</span>
-              <span className="text-[10px] text-emerald-400 font-bold">+88% lift</span>
+        {/* SVG Bezier Chart Graphic / Empty State */}
+        {totalClicks === 0 ? (
+          <div className="relative w-full h-72 flex flex-col items-center justify-center rounded-xl bg-surface-container-low/30 border border-dashed border-outline-variant/40 p-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary-container mb-3 shadow-xs">
+              <BarChart3 className="w-6 h-6 text-outline" />
             </div>
+            <h3 className="text-sm font-bold text-on-surface">No Click Velocity Recorded Yet</h3>
+            <p className="text-xs text-on-surface-variant max-w-sm mt-1 leading-relaxed">
+              Daily click trajectory and virality telemetry will visualize here automatically once your links start receiving visitors.
+            </p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="relative w-full h-72">
+              <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 240">
+                <defs>
+                  <linearGradient id="analyticsAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.00" />
+                  </linearGradient>
+                </defs>
 
-        {/* Timeline Axis Labels */}
-        <div className="flex justify-between items-center text-on-surface-variant font-mono text-xs pt-3 mt-2 border-t border-outline-variant/20">
-          <span>Day 1</span>
-          <span>Day 6</span>
-          <span>Day 12</span>
-          <span className="text-primary-container font-bold">Day 18 (Peak)</span>
-          <span>Day 24</span>
-          <span>Day 30</span>
-        </div>
+                {/* Background Gridlines */}
+                <line x1="0" y1="40" x2="1000" y2="40" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="100" x2="1000" y2="100" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="160" x2="1000" y2="160" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="220" x2="1000" y2="220" stroke="#e1e8fd" strokeWidth="1" />
+
+                {/* Prior Period Curve (Dashed light curve) */}
+                <path
+                  d="M 0 200 Q 150 190 280 180 T 550 150 T 800 130 L 1000 120"
+                  fill="none"
+                  stroke="#d3daef"
+                  strokeWidth="2"
+                  strokeDasharray="5 5"
+                />
+
+                {/* Current Period Area Fill */}
+                <path
+                  d="M 0 190 C 70 190, 110 160, 180 150 C 250 140, 290 170, 360 140 C 430 110, 480 70, 560 30 C 630 100, 700 130, 770 110 C 840 90, 920 60, 1000 50 L 1000 220 L 0 220 Z"
+                  fill="url(#analyticsAreaGradient)"
+                />
+
+                {/* Current Period Main Line */}
+                <path
+                  d="M 0 190 C 70 190, 110 160, 180 150 C 250 140, 290 170, 360 140 C 430 110, 480 70, 560 30 C 630 100, 700 130, 770 110 C 840 90, 920 60, 1000 50"
+                  fill="none"
+                  stroke="#4f46e5"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                />
+
+                {/* Peak Viral Marker Vertical Line */}
+                <line x1="560" y1="30" x2="560" y2="220" stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="3 3" />
+                
+                {/* Peak Circle Marker */}
+                <circle cx="560" cy="30" r="5.5" fill="#ffffff" stroke="#4f46e5" strokeWidth="3" />
+              </svg>
+
+              {/* Hover Tooltip Pill */}
+              <div className="absolute left-[56%] -translate-x-1/2 top-1 bg-inverse-surface text-inverse-on-surface px-3 py-2 rounded-xl shadow-xl flex flex-col pointer-events-none border border-white/10">
+                <span className="font-mono text-[11px] text-surface-variant font-medium">Live Telemetry Peak</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="font-mono text-xs font-bold text-white">{totalClicks.toLocaleString()} total clicks</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Timeline Axis Labels */}
+            <div className="flex justify-between items-center text-on-surface-variant font-mono text-xs pt-3 mt-2 border-t border-outline-variant/20">
+              <span>Day 1</span>
+              <span>Day 6</span>
+              <span>Day 12</span>
+              <span className="text-primary-container font-bold">Latest Traffic</span>
+              <span>Day 24</span>
+              <span>Day 30</span>
+            </div>
+          </>
+        )}
 
       </div>
 
@@ -412,57 +463,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   Top Markets
                 </span>
                 <div className="flex flex-col gap-3">
-                  
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-on-surface font-medium">United States</span>
-                      <span className="font-mono font-bold text-on-surface">46%</span>
+                  {topMarkets.length > 0 ? (
+                    topMarkets.map((m) => (
+                      <div key={m.country} className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-on-surface font-medium">{m.country}</span>
+                          <span className="font-mono font-bold text-on-surface">{m.pct}%</span>
+                        </div>
+                        <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                          <div className="bg-primary-container h-full rounded-full" style={{ width: `${m.pct}%` }} />
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-6 text-center text-on-surface-variant text-xs">
+                      No country telemetry recorded yet
                     </div>
-                    <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-primary-container h-full rounded-full" style={{ width: '46%' }} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-on-surface font-medium">United Kingdom</span>
-                      <span className="font-mono font-bold text-on-surface">24%</span>
-                    </div>
-                    <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-primary-container h-full rounded-full" style={{ width: '24%' }} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-on-surface font-medium">Canada</span>
-                      <span className="font-mono font-bold text-on-surface">14%</span>
-                    </div>
-                    <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-primary-container h-full rounded-full" style={{ width: '14%' }} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-on-surface font-medium">Germany</span>
-                      <span className="font-mono font-bold text-on-surface">8%</span>
-                    </div>
-                    <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-primary-container h-full rounded-full" style={{ width: '8%' }} />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-on-surface font-medium">Rest of World</span>
-                      <span className="font-mono font-bold text-on-surface">8%</span>
-                    </div>
-                    <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-surface-dim h-full rounded-full" style={{ width: '8%' }} />
-                    </div>
-                  </div>
-
+                  )}
                 </div>
               </div>
 
@@ -472,7 +489,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   Device Categories
                 </span>
                 <div className="flex flex-col gap-2.5">
-                  
                   <div className="bg-surface-container-low p-2.5 rounded-xl flex items-center justify-between border border-outline-variant/30">
                     <div className="flex items-center gap-2">
                       <Smartphone className="w-4 h-4 text-primary-container" />
@@ -481,7 +497,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         <span className="text-[10px] text-on-surface-variant">iOS &amp; Android Web</span>
                       </div>
                     </div>
-                    <span className="font-mono text-sm font-bold text-on-surface">84%</span>
+                    <span className="font-mono text-sm font-bold text-on-surface">{deviceBreakdown.mobile}%</span>
                   </div>
 
                   <div className="bg-surface-container-low p-2.5 rounded-xl flex items-center justify-between border border-outline-variant/30">
@@ -492,7 +508,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         <span className="text-[10px] text-on-surface-variant">Mac &amp; Windows</span>
                       </div>
                     </div>
-                    <span className="font-mono text-sm font-bold text-on-surface">14%</span>
+                    <span className="font-mono text-sm font-bold text-on-surface">{deviceBreakdown.desktop}%</span>
                   </div>
 
                   <div className="bg-surface-container-low p-2.5 rounded-xl flex items-center justify-between border border-outline-variant/30">
@@ -503,9 +519,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         <span className="text-[10px] text-on-surface-variant">iPadOS &amp; Surface</span>
                       </div>
                     </div>
-                    <span className="font-mono text-sm font-bold text-on-surface">2%</span>
+                    <span className="font-mono text-sm font-bold text-on-surface">{deviceBreakdown.tablet}%</span>
                   </div>
-
                 </div>
               </div>
 

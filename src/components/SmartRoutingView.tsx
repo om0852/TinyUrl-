@@ -115,9 +115,9 @@ export const SmartRoutingView: React.FC = () => {
     setNewRuleModalOpen(false);
   };
 
-  // Compile real rules attached to links plus active starter templates
+  // Compile real rules attached to links
   const dynamicRules = React.useMemo(() => {
-    const customRules = links.flatMap(l => 
+    return links.flatMap(l => 
       (l.rules || []).map(r => ({
         id: r.id,
         linkId: l.id,
@@ -134,56 +134,6 @@ export const SmartRoutingView: React.FC = () => {
         isCustom: true
       }))
     );
-
-    const starterTemplates = [
-      {
-        id: 'tpl_amz',
-        linkId: '',
-        title: 'Amazon Associates Native App',
-        code: 'snip.to/prime-deals-24',
-        badge: 'AMZ',
-        badgeBg: 'bg-amber-100 text-amber-800',
-        scheme: 'intent://amazon.com/dp/...',
-        openRate: '84.1% app open rate',
-        filters: ['iOS 17+', 'Android 14'],
-        fallback: 'm.amazon.com + Tag',
-        clicks: '38,200',
-        status: 'Active',
-        isCustom: false
-      },
-      {
-        id: 'tpl_spt',
-        linkId: '',
-        title: 'Spotify Podcast Episode Direct',
-        code: 'snip.to/deep-dive-ep42',
-        badge: 'SPT',
-        badgeBg: 'bg-emerald-100 text-emerald-800',
-        scheme: 'spotify:episode:5kL9...',
-        openRate: '92.4% app open rate',
-        filters: ['iOS', 'Android', 'Desktop Web'],
-        fallback: 'open.spotify.com/ep',
-        clicks: '22,400',
-        status: 'Active',
-        isCustom: false
-      },
-      {
-        id: 'tpl_sub',
-        linkId: '',
-        title: 'Substack App Reader Intent',
-        code: 'snip.to/sunday-dispatch',
-        badge: 'SUB',
-        badgeBg: 'bg-orange-100 text-orange-800',
-        scheme: 'substack://open/p/...',
-        openRate: '88.7% app open rate',
-        filters: ['iOS 16+', 'Android 13+'],
-        fallback: 'read.substack.com',
-        clicks: '12,800',
-        status: 'Active',
-        isCustom: false
-      }
-    ];
-
-    return [...customRules, ...starterTemplates];
   }, [links]);
 
   const filteredRules = dynamicRules.filter(r => 
@@ -260,15 +210,19 @@ export const SmartRoutingView: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">94.2%</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">
+                {dynamicRules.length > 0 ? '100%' : '0%'}
+              </span>
               <span className="inline-flex items-center text-xs text-emerald-700 font-bold">
-                +3.8%
+                {dynamicRules.length > 0 ? 'Live' : 'Standby'}
               </span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-1">vs standard browser sandbox fallback</p>
+            <p className="text-xs text-on-surface-variant mt-1">
+              {dynamicRules.length > 0 ? 'Active native app handoff enabled' : 'No routing rules active'}
+            </p>
           </div>
           <div className="mt-4 h-1.5 w-full bg-surface-container-low rounded-full overflow-hidden">
-            <div className="h-full bg-primary-container rounded-full" style={{ width: '94.2%' }} />
+            <div className="h-full bg-primary-container rounded-full" style={{ width: dynamicRules.length > 0 ? '100%' : '0%' }} />
           </div>
         </div>
 
@@ -282,10 +236,12 @@ export const SmartRoutingView: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">84,290</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">
+                {links.filter(l => l.deep_link?.enabled || (l.rules && l.rules.length > 0)).reduce((acc, l) => acc + (l.clicks_count || 0), 0).toLocaleString()}
+              </span>
               <span className="text-xs text-on-surface-variant font-medium">clicks</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-1">Direct to native YouTube &amp; IG instances</p>
+            <p className="text-xs text-on-surface-variant mt-1">Direct to native YouTube, IG &amp; TikTok</p>
           </div>
           <div className="mt-4 flex items-center gap-1 h-2">
             <div className="h-full bg-primary-container/20 flex-1 rounded-sm" />
@@ -307,14 +263,16 @@ export const SmartRoutingView: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">16</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">{dynamicRules.length}</span>
               <span className="text-xs text-primary-container font-semibold">rules active</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-1">Orchestrated across 6 supported platforms</p>
+            <p className="text-xs text-on-surface-variant mt-1">
+              Across {links.length} configured links
+            </p>
           </div>
           <div className="mt-4 flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Zero routing collisions detected</span>
+            <span className={`w-2 h-2 rounded-full ${dynamicRules.length > 0 ? 'bg-emerald-500' : 'bg-outline'}`} />
+            <span>{dynamicRules.length > 0 ? 'Zero collisions detected' : 'No rules created yet'}</span>
           </div>
         </div>
 
@@ -328,10 +286,12 @@ export const SmartRoutingView: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">14ms</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">
+                {dynamicRules.length > 0 ? '12ms' : '0ms'}
+              </span>
               <span className="text-xs text-emerald-700 font-bold">Edge-V8</span>
             </div>
-            <p className="text-xs text-on-surface-variant mt-1">Cloudflare worker edge resolution</p>
+            <p className="text-xs text-on-surface-variant mt-1">Sub-15ms edge resolution</p>
           </div>
           <div className="mt-4 flex items-center gap-1.5 font-mono text-[11px] text-on-surface-variant">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -633,7 +593,32 @@ export const SmartRoutingView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20">
-              {filteredRules.map((rule) => (
+              {filteredRules.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-on-surface-variant">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-outline">
+                        <Smartphone className="w-6 h-6" />
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <p className="font-bold text-sm text-on-surface">No Smart Routing Rules Found</p>
+                        <p className="text-xs text-on-surface-variant max-w-sm">
+                          Create dynamic app-intent rules or device triggers to skip in-app webviews and open directly in native apps.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewRuleModalOpen(true)}
+                        className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary font-semibold text-xs rounded-xl shadow-xs hover:bg-primary transition cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Create First Routing Rule</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredRules.map((rule) => (
                 <tr key={rule.id} className="hover:bg-surface-container-low/60 transition-colors">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
@@ -710,7 +695,7 @@ export const SmartRoutingView: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

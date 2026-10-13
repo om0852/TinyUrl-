@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 export const CampaignsView: React.FC = () => {
-  const { campaigns, addCampaign, deleteCampaign, currentWorkspace, teamMembers, links } = useStore();
+  const { currentUser, campaigns, addCampaign, deleteCampaign, currentWorkspace, teamMembers, links } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -477,17 +477,19 @@ export const CampaignsView: React.FC = () => {
 
             <div className="flex flex-col gap-2.5">
               
-              {/* Member 1: Sarah */}
+              {/* Workspace Owner */}
               <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <img 
-                    className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-outline-variant/30" 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfu5mXYg2ApdUDSJDeJY2MbRGhWr8LnfqYBdBxecanf-qa92Ql71DPmHrv8iyuDH5D69d9TprqLe9EC-I74ndCS0L6f7v8pPsfXAWMa6zGOWNXNs2LuocoxqJhY5KYEeCql1iFZNjWwluvj14-Shd63s_IgM3wBiT48VjRXYQleEIEORABtwc5lJmiP4A667sBL1cI4CuTWzVBLbJuBqYo_D0gGxPj1GWHCd8bWyLbVpEdhLwPNnjUOA" 
-                    alt="Sarah Connor"
-                  />
+                  <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30 shadow-xs">
+                    {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
+                  </div>
                   <div className="min-w-0">
-                    <span className="text-xs font-bold text-on-surface block truncate">Sarah Connor</span>
-                    <span className="text-[11px] text-on-surface-variant truncate block">Owner &bull; Primary Lead</span>
+                    <span className="text-xs font-bold text-on-surface block truncate">
+                      {currentUser?.name || "Workspace Owner"}
+                    </span>
+                    <span className="text-[11px] text-on-surface-variant truncate block">
+                      {currentUser?.email || "Primary Lead · Owner"}
+                    </span>
                   </div>
                 </div>
                 <span className="px-2 py-0.5 rounded text-primary-container text-[11px] font-bold bg-primary-fixed shrink-0">
@@ -495,64 +497,12 @@ export const CampaignsView: React.FC = () => {
                 </span>
               </div>
 
-              {/* Member 2: Alex */}
-              <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <img 
-                    className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-outline-variant/30" 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuA69JhmwBJo0gAVrIfJ0EfuARdFcz0x_TLgnhb7hqlzvv1JBjGc1COK1DETLcJm9ZXzigJ_Zn2npNv8GoTRGUKUh8kyAncWTXIppNAj8644JIckNEMLrx7NuCwBua3aA-AtXiRWUB36e_gPmxRj3wwPktr1ndneiWfvmOC6htDd5Rp775k-aZT5dUyX7cwbc6AGyN84Hsv4jTnmyXxYMzFJI4sUCNORSk3IL1D5M9kKb4G7fWeaxUJMJg" 
-                    alt="Alex Rivera"
-                  />
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-on-surface block truncate">Alex Rivera</span>
-                    <span className="text-[11px] text-on-surface-variant truncate block">Campaign Manager</span>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded text-on-surface text-[11px] font-semibold bg-surface-container-high shrink-0">
-                  Full Edit
-                </span>
-              </div>
-
-              {/* Member 3: Liam */}
-              <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <img 
-                    className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-outline-variant/30" 
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqix1mDYHknScjcaRCDNNfXEKTMySxDvZS0LfAM9Y7aL2QMNFzhXhp56BeHmNV8N7aKgADuWH4wc4cserMU_o0Sn4s8W2maU4-lC5roh2mI7eaXQ308drO-XoBOp8qyarolm1MPQmO-Sk8APZ-w-DH5im0um06H1rFubYFzbD6Y8WPmEkpIpu-LQFCWYPJVbVTuUWDswYaymkBJc0DYuCnapuoxdsac186L5wNV0MdF99WgPg1THtKaQ" 
-                    alt="Liam Vance"
-                  />
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-on-surface block truncate">Liam Vance</span>
-                    <span className="text-[11px] text-on-surface-variant truncate block">Video Editor</span>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded text-on-surface text-[11px] font-semibold bg-surface-container-high shrink-0">
-                  Generator
-                </span>
-              </div>
-
-              {/* Member 4: Emma */}
-              <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-surface-container-high flex items-center justify-center text-primary-container font-bold text-xs shrink-0 ring-1 ring-outline-variant/30">
-                    EW
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-on-surface block truncate">Emma Watson</span>
-                    <span className="text-[11px] text-on-surface-variant truncate block">Brand Rep (External)</span>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 rounded text-on-surface-variant text-[11px] font-medium bg-surface-container shrink-0">
-                  Read-Only
-                </span>
-              </div>
-
-              {/* Custom Workspace Team Members */}
+              {/* Dynamic Workspace Team Members */}
               {teamMembers.map((m) => (
                 <div key={m.id} className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-primary-fixed text-primary-container flex items-center justify-center font-bold text-xs shrink-0">
-                      {m.name.slice(0, 2).toUpperCase()}
+                    <div className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30">
+                      {m.avatar || m.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-on-surface block truncate">{m.name}</span>
@@ -564,6 +514,14 @@ export const CampaignsView: React.FC = () => {
                   </span>
                 </div>
               ))}
+
+              {teamMembers.length === 0 && (
+                <div className="p-3 rounded-xl bg-surface-container-low/50 border border-outline-variant/20 text-center">
+                  <p className="text-[11px] text-on-surface-variant">
+                    No additional team members invited yet. Use the Invite button above to delegate campaign links.
+                  </p>
+                </div>
+              )}
 
             </div>
 
