@@ -6,10 +6,11 @@
 
 export interface DeepLinkDetection {
   isSupported: boolean;
-  app: 'youtube' | 'instagram' | 'spotify' | 'amazon' | 'twitter' | 'linkedin' | 'telegram' | 'whatsapp' | 'generic';
+  app: 'youtube' | 'instagram' | 'spotify' | 'amazon' | 'twitter' | 'linkedin' | 'telegram' | 'whatsapp' | 'discord' | 'reddit' | 'zoom' | 'generic';
   appName: string;
   color: string;
   icon: string;
+  desktopUri: string;
   iosUri: string;
   androidIntent: string;
   fallbackUrl: string;
@@ -24,21 +25,47 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
     const pathname = parsed.pathname;
     const search = parsed.search;
 
-    // 1. YouTube (Videos, Shorts, Channels)
+    // 1. YouTube (Videos, Shorts, Channels, Desktop & Mobile App)
     if (host.includes('youtube.com') || host.includes('youtu.be')) {
       let videoId = '';
+      let isShorts = false;
+      const timeParam = parsed.searchParams.get('t') || '';
+
       if (host.includes('youtu.be')) {
-        videoId = pathname.replace('/', '').split('?')[0];
+        videoId = pathname.replace(/^\/+/, '').split('/')[0]?.split('?')[0] || '';
       } else if (pathname.includes('/watch')) {
         videoId = parsed.searchParams.get('v') || '';
       } else if (pathname.includes('/shorts/')) {
-        videoId = pathname.split('/shorts/')[1]?.split('?')[0] || '';
+        videoId = pathname.split('/shorts/')[1]?.split('?')[0]?.split('/')[0] || '';
+        isShorts = true;
+      } else if (pathname.includes('/embed/')) {
+        videoId = pathname.split('/embed/')[1]?.split('?')[0]?.split('/')[0] || '';
+      } else if (pathname.includes('/live/')) {
+        videoId = pathname.split('/live/')[1]?.split('?')[0]?.split('/')[0] || '';
       }
 
-      const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
-      const encodedTarget = encodeURIComponent(parsed.href);
-      const androidIntent = `intent://${cleanTarget}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
-      const iosUri = videoId ? `vnd.youtube://${videoId}` : `youtube://${cleanTarget}`;
+      const timeQuery = timeParam ? `&t=${timeParam}` : '';
+      const timeQueryIos = timeParam ? `?t=${timeParam}` : '';
+      const fallbackUrl = parsed.href;
+      const encodedTarget = encodeURIComponent(fallbackUrl);
+
+      // Canonical target path normalized to www.youtube.com for Android Intent-filter matching
+      let canonicalTarget = '';
+      if (videoId) {
+        canonicalTarget = isShorts 
+          ? `www.youtube.com/shorts/${videoId}` 
+          : `www.youtube.com/watch?v=${videoId}${timeQuery}`;
+      } else {
+        canonicalTarget = `www.youtube.com${pathname}${search}`;
+      }
+
+      // Android Chrome Intent with fallback
+      const androidIntent = `intent://${canonicalTarget}#Intent;package=com.google.android.youtube;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
+      
+      // iOS Native URI scheme (vnd.youtube:// for videos or youtube:// for channels)
+      const iosUri = isShorts
+        ? `youtube://shorts/${videoId}`
+        : (videoId ? `vnd.youtube://${videoId}${timeQueryIos}` : `youtube://${canonicalTarget}`);
 
       return {
         isSupported: true,
@@ -46,9 +73,10 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'YouTube',
         color: '#FF0000',
         icon: 'youtube',
+        desktopUri: fallbackUrl,
         iosUri,
         androidIntent,
-        fallbackUrl: parsed.href
+        fallbackUrl
       };
     }
 
@@ -71,6 +99,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Instagram',
         color: '#E1306C',
         icon: 'instagram',
+        desktopUri: iosUri,
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -99,6 +128,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Spotify',
         color: '#1DB954',
         icon: 'music',
+        desktopUri: spotifyUri,
         iosUri: spotifyUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -118,6 +148,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Amazon',
         color: '#FF9900',
         icon: 'shopping-cart',
+        desktopUri: iosUri,
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -142,6 +173,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'X / Twitter',
         color: '#000000',
         icon: 'twitter',
+        desktopUri: iosUri,
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -161,6 +193,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'LinkedIn',
         color: '#0A66C2',
         icon: 'linkedin',
+        desktopUri: iosUri,
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -180,6 +213,7 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'Telegram',
         color: '#24A1DE',
         icon: 'send',
+        desktopUri: iosUri,
         iosUri,
         androidIntent,
         fallbackUrl: parsed.href
@@ -199,7 +233,68 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
         appName: 'WhatsApp',
         color: '#25D366',
         icon: 'message-circle',
+        desktopUri: iosUri,
         iosUri,
+        androidIntent,
+        fallbackUrl: parsed.href
+      };
+    }
+
+    // 9. Discord
+    if (host.includes('discord.com') || host.includes('discord.gg')) {
+      const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const discordUri = `discord://${cleanTarget}`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.discord;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+
+      return {
+        isSupported: true,
+        app: 'discord',
+        appName: 'Discord',
+        color: '#5865F2',
+        icon: 'message-square',
+        desktopUri: discordUri,
+        iosUri: discordUri,
+        androidIntent,
+        fallbackUrl: parsed.href
+      };
+    }
+
+    // 10. Reddit
+    if (host.includes('reddit.com')) {
+      const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const redditUri = `reddit://${cleanTarget}`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=com.reddit.frontpage;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+
+      return {
+        isSupported: true,
+        app: 'reddit',
+        appName: 'Reddit',
+        color: '#FF4500',
+        icon: 'message-circle',
+        desktopUri: redditUri,
+        iosUri: redditUri,
+        androidIntent,
+        fallbackUrl: parsed.href
+      };
+    }
+
+    // 11. Zoom
+    if (host.includes('zoom.us')) {
+      const cleanTarget = parsed.href.replace(/^https?:\/\//, '');
+      const encodedTarget = encodeURIComponent(parsed.href);
+      const zoomUri = `zoommtg://${cleanTarget}`;
+      const androidIntent = `intent://${cleanTarget}#Intent;package=us.zoom.videomeetings;scheme=https;S.browser_fallback_url=${encodedTarget};end`;
+
+      return {
+        isSupported: true,
+        app: 'zoom',
+        appName: 'Zoom',
+        color: '#2D8CFF',
+        icon: 'video',
+        desktopUri: zoomUri,
+        iosUri: zoomUri,
         androidIntent,
         fallbackUrl: parsed.href
       };
