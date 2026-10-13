@@ -18,7 +18,9 @@ import {
   Music,
   Radio,
   HardDrive,
-  Globe
+  Globe,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 
@@ -40,6 +42,11 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [utmMedium, setUtmMedium] = useState('web');
   const [utmCampaign, setUtmCampaign] = useState('summer_launch');
   const [neverExpires, setNeverExpires] = useState(true);
+
+  // Smart Device Routing (iOS / Android)
+  const [showDeviceRouting, setShowDeviceRouting] = useState(false);
+  const [iosTargetUrl, setIosTargetUrl] = useState('');
+  const [androidTargetUrl, setAndroidTargetUrl] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -122,6 +129,32 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     try {
       const tags = [placementTag === 'drive' ? 'google_drive' : placementTag];
 
+      const linkRules = [];
+      if (iosTargetUrl.trim()) {
+        linkRules.push({
+          id: `rule_${Date.now()}_ios`,
+          link_id: '',
+          rule_type: 'device' as const,
+          condition: 'ios',
+          target_url: iosTargetUrl.trim().startsWith('http') || iosTargetUrl.trim().includes('://') 
+            ? iosTargetUrl.trim() 
+            : `https://${iosTargetUrl.trim()}`,
+          weight: 100
+        });
+      }
+      if (androidTargetUrl.trim()) {
+        linkRules.push({
+          id: `rule_${Date.now()}_android`,
+          link_id: '',
+          rule_type: 'device' as const,
+          condition: 'android',
+          target_url: androidTargetUrl.trim().startsWith('http') || androidTargetUrl.trim().includes('://') 
+            ? androidTargetUrl.trim() 
+            : `https://${androidTargetUrl.trim()}`,
+          weight: 100
+        });
+      }
+
       const res = createShortLink({
         destination_url: destinationUrl.trim(),
         title: title.trim() || undefined,
@@ -130,6 +163,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         utm_source: utmSource,
         utm_medium: utmMedium,
         utm_campaign: utmCampaign,
+        rules: linkRules.length > 0 ? linkRules : undefined,
         deep_link: detectedApp ? {
           enabled: true,
           app: detectedApp.app,
@@ -178,6 +212,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setDestinationUrl('');
     setTitle('');
     setCustomSlug('');
+    setIosTargetUrl('');
+    setAndroidTargetUrl('');
+    setShowDeviceRouting(false);
     setErrorMsg('');
     setCreatedResult(null);
     onClose();
@@ -539,6 +576,60 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   </span>
                 </div>
 
+              </div>
+
+              {/* Smart Device Routing Accordion (iOS vs Android) */}
+              <div className="bg-surface-container-low rounded-xl border border-outline-variant/30 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowDeviceRouting(!showDeviceRouting)}
+                  className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-surface-container transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-3.5 h-3.5 text-primary-container" />
+                    <span className="font-semibold text-xs text-on-surface">Smart Device Routing (iOS &amp; Android)</span>
+                    {(iosTargetUrl.trim() || androidTargetUrl.trim()) && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  {showDeviceRouting ? <ChevronUp className="w-3.5 h-3.5 text-outline" /> : <ChevronDown className="w-3.5 h-3.5 text-outline" />}
+                </button>
+
+                {showDeviceRouting && (
+                  <div className="p-3 pt-1 border-t border-outline-variant/20 space-y-2.5 text-xs">
+                    <p className="text-[11px] text-on-surface-variant">
+                      Redirect visitors automatically based on their device. Desktop &amp; web visitors will open the default destination URL above.
+                    </p>
+
+                    <div>
+                      <label className="font-semibold text-on-surface text-[11px] block mb-1">
+                        🍎 iOS Destination (iPhone &amp; iPad)
+                      </label>
+                      <input
+                        type="url"
+                        value={iosTargetUrl}
+                        onChange={(e) => setIosTargetUrl(e.target.value)}
+                        placeholder="e.g. https://apps.apple.com/app/id123456 or custom iOS link"
+                        className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-semibold text-on-surface text-[11px] block mb-1">
+                        🤖 Android Destination (Google Play)
+                      </label>
+                      <input
+                        type="url"
+                        value={androidTargetUrl}
+                        onChange={(e) => setAndroidTargetUrl(e.target.value)}
+                        placeholder="e.g. https://play.google.com/store/apps/details?id=com.app"
+                        className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

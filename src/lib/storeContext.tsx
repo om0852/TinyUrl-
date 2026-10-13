@@ -66,6 +66,7 @@ interface StoreContextType {
     utm_term?: string;
     utm_content?: string;
     deep_link?: DeepLinkConfig;
+    rules?: LinkRule[];
   }) => { link: Link | null; error?: string };
 
 
@@ -828,7 +829,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utm_term: data.utm_term,
       utm_content: data.utm_content,
       deep_link: deepLinkConfig,
-      rules: []
+      rules: data.rules || []
     };
 
     saveLinksState([newLink, ...links]);
@@ -856,6 +857,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateLink = (id: string, updates: Partial<Link>) => {
     const updated = links.map(l => l.id === id ? { ...l, ...updates } : l);
     saveLinksState(updated);
+
+    if (typeof window !== 'undefined') {
+      const target = updated.find(l => l.id === id);
+      if (target) {
+        fetch('/api/v1/links', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: target.id,
+            rules: target.rules,
+            status: target.status,
+            title: target.title
+          })
+        }).catch(() => {});
+      }
+    }
   };
 
   const deleteLink = (id: string) => {

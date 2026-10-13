@@ -74,3 +74,34 @@ export async function GET(request: Request) {
     links: []
   });
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, rules, status, title } = body;
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json({ success: false, error: 'Link ID is required.' }, { status: 400 });
+    }
+
+    const rows = await sql.query(
+      `UPDATE links 
+       SET rules = COALESCE($1, rules),
+           status = COALESCE($2, status),
+           title = COALESCE($3, title),
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING *`,
+      [rules ? JSON.stringify(rules) : null, status || null, title || null, id.trim()]
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: 'Link updated successfully.',
+      link: rows && rows.length > 0 ? rows[0] : null
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Database update error';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}
+
