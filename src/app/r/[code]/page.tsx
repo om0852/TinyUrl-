@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, Suspense, useMemo, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/storeContext';
 import { Link } from '@/lib/types';
 import { Link2, ArrowRight, Shield, AlertTriangle, ExternalLink, Lock, Globe, Zap } from 'lucide-react';
@@ -289,19 +289,49 @@ function RedirectInner() {
       });
   }, [code, links]);
 
-  const link = resolvedLink;
+  const searchParams = useSearchParams();
+  const edgeTarget = useMemo(() => {
+    const fromParams = searchParams?.get('target');
+    if (fromParams) return fromParams;
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('target') || '';
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  }, [searchParams]);
+
+  // Synchronous resolution fallback if edge middleware provided target URL
+  const link: Link | null = useMemo(() => {
+    if (resolvedLink) return resolvedLink;
+    if (edgeTarget) {
+      const clean = (code || '').toLowerCase().trim();
+      return {
+        id: `link_${clean}`,
+        workspace_id: 'ws_default',
+        short_code: code || clean,
+        custom_slug: code || clean,
+        domain_id: 'dom_primary',
+        destination_url: edgeTarget,
+        title: `Short Link /${code || clean}`,
+        tags: [],
+        clicks_count: 0,
+        status: 'active',
+        is_flagged: false,
+        risk_score: 0,
+        created_by: 'Owner',
+        created_at: new Date().toISOString(),
+        rules: []
+      };
+    }
+    return null;
+  }, [resolvedLink, edgeTarget, code]);
+
   const hasLoggedRef = useRef(false);
   const hasRedirectedRef = useRef(false);
-
-  const edgeTarget = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    try {
-      const url = new URL(window.location.href);
-      return url.searchParams.get('target') || '';
-    } catch {
-      return '';
-    }
-  }, []);
 
   // Compute smart destination URL
   const resolvedTarget = useMemo(() => {
