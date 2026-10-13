@@ -247,7 +247,7 @@ function RedirectInner() {
     }
 
     // 3. Fallback to API if not in local storage yet
-    fetch('/api/v1/links')
+    fetch(`/api/v1/links?code=${encodeURIComponent(cleanCode)}`)
       .then(res => res.json())
       .then(data => {
         if (data?.links && Array.isArray(data.links)) {

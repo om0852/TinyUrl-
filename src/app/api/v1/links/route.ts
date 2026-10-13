@@ -4,17 +4,26 @@ import { sql } from '@/lib/postgres';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const workspaceId = searchParams.get('workspace_id') || request.headers.get('x-workspace-id');
+  const code = searchParams.get('code');
 
   try {
     let rows: any[] = [];
-    if (workspaceId) {
+    if (code) {
+      rows = await sql.query(`
+        SELECT * FROM links WHERE LOWER(short_code) = LOWER($1) LIMIT 1
+      `, [code.trim()]);
+    } else if (workspaceId && workspaceId.trim()) {
       rows = await sql.query(`
         SELECT * FROM links WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 100
-      `, [workspaceId]);
+      `, [workspaceId.trim()]);
     } else {
-      rows = await sql.query(`
-        SELECT * FROM links ORDER BY created_at DESC LIMIT 100
-      `);
+      // Strict multi-tenant isolation: Never expose links without a workspace filter
+      return NextResponse.json({
+        success: true,
+        source: 'scoped_workspace',
+        total: 0,
+        links: []
+      });
     }
 
     if (Array.isArray(rows)) {
@@ -40,7 +49,7 @@ export async function GET(request: Request) {
     console.warn('Neon DB read error, links empty fallback:', err);
   }
 
-  // When scoped to a workspace or when DB is initialized clean, return empty list (never inject static fake links)
+  // When scoped to a workspace or when DB is initialized clean, return empty list
   return NextResponse.json({
     success: true,
     source: 'empty_workspace',

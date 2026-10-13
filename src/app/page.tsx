@@ -35,8 +35,18 @@ const TAB_TITLES: Record<TabType, string> = {
 };
 
 export default function Home() {
-  const { currentUser, authLoaded } = useStore();
-  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
+  const { currentUser } = useStore();
+  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('url_shortener_user');
+        return saved ? 'dashboard' : 'landing';
+      } catch {
+        return 'landing';
+      }
+    }
+    return 'landing';
+  });
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
 
@@ -45,7 +55,7 @@ export default function Home() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // When user logs in, automatically switch to dashboard unless they explicitly clicked to stay on landing
+  // When user logs in or out, sync viewMode
   useEffect(() => {
     if (currentUser) {
       setViewMode('dashboard');
@@ -71,17 +81,6 @@ export default function Home() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  if (!authLoaded) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center text-foreground antialiased">
-        <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-card border border-border/60 shadow-lg">
-          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-semibold tracking-tight">Initializing Snip Platform...</span>
-        </div>
-      </div>
-    );
-  }
 
   // If not logged in or explicitly toggled to view landing page
   if (!currentUser || viewMode === 'landing') {
