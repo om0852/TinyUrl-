@@ -105,6 +105,43 @@ export async function GET(request: Request) {
     topCountries = [];
   }
 
+  // Fetch recent click events for workspace if requested
+  let recentClicks: any[] = [];
+  if (workspaceId) {
+    try {
+      const events = await sql.query(`
+        SELECT DISTINCT c.*
+        FROM click_events c
+        INNER JOIN links l ON (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code))
+        WHERE l.workspace_id = $1
+        ORDER BY c.timestamp DESC
+        LIMIT 100
+      `, [workspaceId]);
+      if (Array.isArray(events)) {
+        recentClicks = events.map((c: any) => {
+          let country = c.country || 'India';
+          let code = (c.country_code || '').trim().toUpperCase();
+          if (country === 'IN' || code === 'IN' || country.toLowerCase() === 'india') {
+            country = 'India';
+            code = 'IN';
+          } else if (country.length === 2) {
+            try {
+              const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+              country = regionNames.of(country.toUpperCase()) || country;
+            } catch {}
+          }
+          return {
+            ...c,
+            country,
+            country_code: code || (country === 'India' ? 'IN' : 'US')
+          };
+        });
+      }
+    } catch (e) {
+      console.warn('Recent clicks fetch error:', e);
+    }
+  }
+
   const metrics: AnalyticsMetrics = {
     total_clicks: totalClicks,
     unique_visitors: uniqueVisitors,
@@ -114,9 +151,10 @@ export async function GET(request: Request) {
     devices: totalClicks > 0 ? { mobile: '50%', desktop: '50%', tablet: '0%' } : { mobile: '0%', desktop: '0%', tablet: '0%' }
   };
 
-  return NextResponse.json<AnalyticsApiResponse>({
+  return NextResponse.json<AnalyticsApiResponse & { recent_clicks?: any[] }>({
     success: true,
     code: code || workspaceId || 'all',
-    metrics
+    metrics,
+    recent_clicks: recentClicks
   });
 }

@@ -309,9 +309,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex flex-col">
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold text-on-surface tracking-tight">Links</h1>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-surface-container-high text-primary font-semibold">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-2xl font-bold text-on-surface tracking-tight whitespace-nowrap">Links</h1>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-surface-container-high text-primary font-semibold whitespace-nowrap shrink-0">
                 {links.length} active links
               </span>
             </div>
@@ -321,11 +321,11 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-xl text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-xl text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer whitespace-nowrap shrink-0"
             >
               <FileDown className="w-4 h-4 text-outline" />
               <span>Export CSV</span>
@@ -541,14 +541,14 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
           {/* Links Data Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[680px]">
               <thead>
                 <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/30">
-                  <th className="py-3 px-5" scope="col">Link &amp; Destination</th>
-                  <th className="py-3 px-4" scope="col">Placement Tag</th>
-                  <th className="py-3 px-4" scope="col">Clicks (30d)</th>
-                  <th className="py-3 px-4" scope="col">Created</th>
-                  <th className="py-3 px-5 text-right" scope="col">Actions</th>
+                  <th className="py-3 px-5 whitespace-nowrap" scope="col">Link &amp; Destination</th>
+                  <th className="py-3 px-4 whitespace-nowrap" scope="col">Placement Tag</th>
+                  <th className="py-3 px-4 whitespace-nowrap" scope="col">Clicks (30d)</th>
+                  <th className="py-3 px-4 whitespace-nowrap" scope="col">Created</th>
+                  <th className="py-3 px-5 text-right whitespace-nowrap" scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody className="text-xs divide-y divide-outline-variant/20">

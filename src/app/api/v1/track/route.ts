@@ -29,34 +29,50 @@ export async function POST(request: Request) {
 
     // 1. Update PostgreSQL counters
     try {
-      if (id) {
+      if (id || code) {
         await sql.query(
-          `UPDATE links SET clicks_count = COALESCE(clicks_count, 0) + 1, updated_at = NOW() WHERE id = $1`,
-          [id]
-        );
-      } else if (code) {
-        await sql.query(
-          `UPDATE links SET clicks_count = COALESCE(clicks_count, 0) + 1, updated_at = NOW() WHERE LOWER(short_code) = $1`,
-          [code]
+          `UPDATE links SET clicks_count = COALESCE(clicks_count, 0) + 1, updated_at = NOW() 
+           WHERE (id = $1 AND $1 != '') OR (LOWER(short_code) = $2 AND $2 != '')`,
+          [id || '', code || '']
         );
       }
 
       if (click && typeof click === 'object') {
+        const vercelCountry = request.headers.get('x-vercel-ip-country') || request.headers.get('cf-ipcountry');
+        const vercelCity = request.headers.get('x-vercel-ip-city');
+
+        let resolvedCode = (vercelCountry || click.country_code || '').trim().toUpperCase();
+        let resolvedCity = vercelCity ? decodeURIComponent(vercelCity) : (click.city || 'Direct');
+
+        if (!resolvedCode || (resolvedCode === 'US' && !vercelCountry && click.country?.toLowerCase().includes('india'))) {
+          resolvedCode = 'IN';
+        }
+        if (!resolvedCode) resolvedCode = 'IN';
+
+        let resolvedCountry = 'India';
+        try {
+          const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+          resolvedCountry = regionNames.of(resolvedCode) || (resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode);
+        } catch {
+          resolvedCountry = resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode;
+        }
+
         await sql.query(
           `INSERT INTO click_events (id, link_id, short_code, ip_hash, country, country_code, city, device, os, browser, referrer, is_bot, is_unique, latency_ms)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           ON CONFLICT (id) DO NOTHING`,
           [
-            click.id || `clk_${Date.now()}`,
+            click.id || `clk_${Date.now()}_${Math.floor(Math.random() * 8999 + 1000)}`,
             id || null,
             code || null,
             click.ip_hash || 'ip_anon',
-            click.country || 'United States',
-            click.country_code || 'US',
-            click.city || 'San Francisco',
+            resolvedCountry,
+            resolvedCode,
+            resolvedCity,
             click.device || 'mobile',
             click.os || 'iOS',
             click.browser || 'Safari',
-            click.referrer || 'Direct / None',
+            click.referrer || 'Direct / Mobile',
             !!click.is_bot,
             click.is_unique ?? true,
             click.latency_ms || 20

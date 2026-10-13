@@ -107,9 +107,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* 1. Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-on-surface">Workspace Overview</h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-primary-container text-on-primary font-bold shadow-xs">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-2xl font-bold tracking-tight text-on-surface whitespace-nowrap">Workspace Overview</h1>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-primary-container text-on-primary font-bold shadow-xs whitespace-nowrap shrink-0">
               {links.length} Links Active
             </span>
           </div>
@@ -118,11 +118,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button 
             type="button"
             onClick={onOpenCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary-container hover:bg-primary text-on-primary transition-all rounded-xl text-xs font-bold shadow-md shadow-primary-container/20 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary-container hover:bg-primary text-on-primary transition-all rounded-xl text-xs font-bold shadow-md shadow-primary-container/20 cursor-pointer whitespace-nowrap shrink-0"
           >
             <Plus className="h-4 w-4" />
             <span>Create Short Link</span>
@@ -291,13 +291,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             />
           </div>
 
-          <div className="flex items-center gap-1 bg-surface-container p-1 rounded-xl">
+          <div className="flex items-center gap-1 bg-surface-container p-1 rounded-xl shrink-0">
             {(['all', 'active', 'openinapp'] as const).map((filter) => (
               <button
                 key={filter}
                 type="button"
                 onClick={() => setStatusFilter(filter)}
-                className={`h-7 px-3 rounded-lg text-xs font-semibold capitalize transition cursor-pointer ${
+                className={`h-7 px-3 rounded-lg text-xs font-semibold capitalize transition cursor-pointer whitespace-nowrap shrink-0 ${
                   statusFilter === filter
                     ? 'bg-surface-container-lowest text-primary shadow-xs'
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -308,7 +308,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             ))}
           </div>
 
-          <span className="text-xs text-on-surface-variant font-mono hidden md:inline">
+          <span className="text-xs text-on-surface-variant font-mono hidden md:inline whitespace-nowrap">
             {filteredLinks.length} links listed
           </span>
         </div>
@@ -317,7 +317,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <button
           type="button"
           onClick={onOpenCreateModal}
-          className="px-3.5 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer border border-outline-variant/40"
+          className="px-3.5 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer border border-outline-variant/40 whitespace-nowrap shrink-0"
         >
           <Plus className="w-3.5 h-3.5 text-primary" />
           <span>New Link</span>

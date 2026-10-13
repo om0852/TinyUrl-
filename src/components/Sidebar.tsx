@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { 
+  LayoutDashboard,
   Link2, 
   BarChart3, 
   Smartphone, 
@@ -70,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [activeTab]);
 
   const primaryNavItems: { id: TabType; label: string; icon: React.ComponentType<{ className?: string }>; badge?: string | number }[] = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'links', label: 'Links', icon: Link2, badge: links.length },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'qr', label: 'QR Codes', icon: QrCode },
@@ -90,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         
         {/* Brand Bar matching reference HTML */}
         <div 
-          onClick={() => handleNavClick('links')}
+          onClick={() => handleNavClick('overview')}
           className="h-14 px-6 flex items-center gap-3 cursor-pointer group shrink-0"
         >
           <img 
@@ -190,7 +192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className="truncate">{item.label}</span>
                   </div>
                   {item.badge !== undefined && (
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold ${
+                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold whitespace-nowrap shrink-0 ${
                       isActive
                         ? 'bg-primary-container text-on-primary'
                         : 'bg-surface-container text-on-surface-variant'

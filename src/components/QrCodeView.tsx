@@ -104,27 +104,27 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
               <button
                 type="button"
                 onClick={() => setSourceMode('link')}
-                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   sourceMode === 'link'
                     ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Link2 className="w-3.5 h-3.5" />
-                <span>Short Link ({links.length})</span>
+                <Link2 className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap truncate">Short Link ({links.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setSourceMode('custom')}
-                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`py-1.5 px-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   sourceMode === 'custom'
                     ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Custom URL</span>
+                <Globe className="w-3.5 h-3.5 shrink-0" />
+                <span className="whitespace-nowrap truncate">Custom URL</span>
               </button>
             </div>
           </div>

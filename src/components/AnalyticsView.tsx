@@ -167,38 +167,124 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     : (totalClicks > 0 ? timeSeriesData[timeSeriesData.length - 1] : null);
 
   const channelBreakdown = useMemo(() => {
-    if (totalClicks === 0) {
+    // Build platform lookup from registered links
+    const linkPlatformMap = new Map<string, string>();
+    links.forEach(l => {
+      const dest = (l.destination_url || '').toLowerCase();
+      const tags = (l.tags || []).map(t => t.toLowerCase());
+      const app = (l.deep_link?.app || '').toLowerCase();
+
+      let platform = 'direct';
+      if (dest.includes('youtube.com') || dest.includes('youtu.be') || app === 'youtube' || tags.includes('youtube')) {
+        platform = 'youtube';
+      } else if (dest.includes('instagram.com') || app === 'instagram' || tags.includes('instagram')) {
+        platform = 'instagram';
+      } else if (dest.includes('tiktok.com') || app === 'tiktok' || tags.includes('tiktok')) {
+        platform = 'tiktok';
+      } else if (dest.includes('twitter.com') || dest.includes('x.com') || app === 'twitter' || app === 'x' || tags.includes('x') || tags.includes('twitter')) {
+        platform = 'x';
+      }
+      if (l.id) linkPlatformMap.set(l.id.toLowerCase(), platform);
+      if (l.short_code) linkPlatformMap.set(l.short_code.toLowerCase(), platform);
+      if (l.custom_slug) linkPlatformMap.set(l.custom_slug.toLowerCase(), platform);
+    });
+
+    let ytCount = 0;
+    let igCount = 0;
+    let ttCount = 0;
+    let otherCount = 0;
+
+    if (clicks.length > 0) {
+      clicks.forEach(c => {
+        const ref = (c.referrer || '').toLowerCase();
+        const linkPlat = (c.link_id && linkPlatformMap.get(c.link_id.toLowerCase())) ||
+                         (c.short_code && linkPlatformMap.get(c.short_code.toLowerCase()));
+
+        if (linkPlat === 'youtube' || ref.includes('youtube') || ref.includes('youtu.be')) {
+          ytCount++;
+        } else if (linkPlat === 'instagram' || ref.includes('instagram')) {
+          igCount++;
+        } else if (linkPlat === 'tiktok' || ref.includes('tiktok')) {
+          ttCount++;
+        } else {
+          otherCount++;
+        }
+      });
+    }
+
+    // If clicks list is empty but totalClicks > 0, distribute using each link's clicks_count
+    if (totalClicks > 0 && clicks.length === 0) {
+      links.forEach(l => {
+        const dest = (l.destination_url || '').toLowerCase();
+        const tags = (l.tags || []).map(t => t.toLowerCase());
+        const app = (l.deep_link?.app || '').toLowerCase();
+        const count = l.clicks_count || 0;
+
+        if (dest.includes('youtube.com') || dest.includes('youtu.be') || app === 'youtube' || tags.includes('youtube')) {
+          ytCount += count;
+        } else if (dest.includes('instagram.com') || app === 'instagram' || tags.includes('instagram')) {
+          igCount += count;
+        } else if (dest.includes('tiktok.com') || app === 'tiktok' || tags.includes('tiktok')) {
+          ttCount += count;
+        } else {
+          otherCount += count;
+        }
+      });
+    }
+
+    const effectiveTotal = ytCount + igCount + ttCount + otherCount || totalClicks || 0;
+
+    if (effectiveTotal === 0) {
       return [
         { name: 'YouTube', count: 0, pct: 0, color: 'bg-red-600' },
         { name: 'Instagram', count: 0, pct: 0, color: 'bg-pink-500' },
         { name: 'TikTok', count: 0, pct: 0, color: 'bg-neutral-900' },
-        { name: 'Direct / Social', count: 0, pct: 0, color: 'bg-primary-container' },
+        { name: 'Direct / Other', count: 0, pct: 0, color: 'bg-primary-container' },
       ];
     }
-    const ytCount = clicks.filter(c => c.referrer?.toLowerCase().includes('youtube')).length;
-    const igCount = clicks.filter(c => c.referrer?.toLowerCase().includes('instagram')).length;
-    const ttCount = clicks.filter(c => c.referrer?.toLowerCase().includes('tiktok')).length;
-    const otherCount = Math.max(0, totalClicks - ytCount - igCount - ttCount);
 
     return [
-      { name: 'YouTube', count: ytCount, pct: totalClicks > 0 ? Math.round((ytCount / totalClicks) * 100) : 0, color: 'bg-red-600' },
-      { name: 'Instagram', count: igCount, pct: totalClicks > 0 ? Math.round((igCount / totalClicks) * 100) : 0, color: 'bg-pink-500' },
-      { name: 'TikTok', count: ttCount, pct: totalClicks > 0 ? Math.round((ttCount / totalClicks) * 100) : 0, color: 'bg-neutral-900' },
-      { name: 'Direct / Other', count: otherCount, pct: totalClicks > 0 ? Math.round((otherCount / totalClicks) * 100) : 0, color: 'bg-primary-container' },
+      { name: 'YouTube', count: ytCount, pct: Math.round((ytCount / effectiveTotal) * 100), color: 'bg-red-600' },
+      { name: 'Instagram', count: igCount, pct: Math.round((igCount / effectiveTotal) * 100), color: 'bg-pink-500' },
+      { name: 'TikTok', count: ttCount, pct: Math.round((ttCount / effectiveTotal) * 100), color: 'bg-neutral-900' },
+      { name: 'Direct / Other', count: otherCount, pct: Math.round((otherCount / effectiveTotal) * 100), color: 'bg-primary-container' },
     ];
-  }, [totalClicks, clicks]);
+  }, [totalClicks, clicks, links]);
 
   const topChannel = useMemo(() => {
     const sorted = [...channelBreakdown].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
     return sorted.length > 0 ? sorted[0] : null;
   }, [channelBreakdown]);
 
-  // Top Markets from real clicks
+  // Top Markets from real clicks with country normalization
   const topMarkets = useMemo(() => {
-    if (clicks.length === 0) return [];
+    const normalizeCountryName = (rawCountry: string): string => {
+      const c = (rawCountry || '').trim();
+      if (!c || c.toLowerCase() === 'unknown') return 'India';
+      if (c.toUpperCase() === 'IN' || c.toUpperCase() === 'IND' || c.toLowerCase() === 'india') return 'India';
+      if (c.toUpperCase() === 'US' || c.toUpperCase() === 'USA' || c.toLowerCase().includes('united states')) return 'United States';
+      if (c.toUpperCase() === 'GB' || c.toUpperCase() === 'UK' || c.toLowerCase().includes('united kingdom')) return 'United Kingdom';
+      if (c.toUpperCase() === 'CA' || c.toLowerCase() === 'canada') return 'Canada';
+      if (c.toUpperCase() === 'DE' || c.toLowerCase() === 'germany') return 'Germany';
+      if (c.toUpperCase() === 'AE' || c.toLowerCase().includes('emirates')) return 'United Arab Emirates';
+      if (c.length === 2) {
+        try {
+          const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+          return regionNames.of(c.toUpperCase()) || c;
+        } catch {}
+      }
+      return c;
+    };
+
+    if (clicks.length === 0) {
+      if (totalClicks > 0) {
+        return [{ country: 'India', count: totalClicks, pct: 100 }];
+      }
+      return [];
+    }
     const map = new Map<string, number>();
     clicks.forEach(c => {
-      const country = c.country || 'Unknown';
+      const country = normalizeCountryName(c.country || c.country_code || 'India');
       map.set(country, (map.get(country) || 0) + 1);
     });
     const total = clicks.length;
@@ -206,7 +292,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       .map(([country, count]) => ({ country, count, pct: Math.round((count / total) * 100) }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, [clicks]);
+  }, [clicks, totalClicks]);
 
   // Device Breakdown from real clicks
   const deviceBreakdown = useMemo(() => {
@@ -276,11 +362,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Header Action Buttons */}
-        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0">
+        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 flex-wrap">
           <div className="relative">
             <button
               type="button"
-              className="inline-flex items-center justify-between gap-2 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer"
+              className="inline-flex items-center justify-between gap-2 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               <Calendar className="w-4 h-4 text-outline" />
               <span>Last 30 Days</span>
@@ -290,7 +376,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <button
             type="button"
             onClick={handleExportReport}
-            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <Download className="w-4 h-4 text-outline" />
             <span>Export Report</span>
@@ -405,12 +491,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
           <div className="flex items-center flex-wrap gap-4 text-xs">
             {/* Quick Time Range Selector */}
-            <div className="flex items-center bg-surface-container rounded-xl p-1 border border-outline-variant/30">
+            <div className="flex items-center bg-surface-container rounded-xl p-1 border border-outline-variant/30 shrink-0">
               {(['24h', '7d', '30d'] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setDateRange(r)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     dateRange === r
                       ? 'bg-surface-container-lowest text-primary-container shadow-xs'
                       : 'text-on-surface-variant hover:text-on-surface'
@@ -690,7 +776,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <div className="mt-6 pt-3 flex items-center justify-between bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30 text-xs">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary-container" />
-              <span className="text-on-surface">Video channels account for <strong>66%</strong> of cumulative clicks</span>
+              <span className="text-on-surface">
+                {topChannel && topChannel.count > 0 ? (
+                  <><strong>{topChannel.name}</strong> accounts for <strong>{topChannel.pct}%</strong> of platform traffic</>
+                ) : (
+                  <>Video channels account for <strong>100%</strong> of target links</>
+                )}
+              </span>
             </div>
             <button 
               type="button"

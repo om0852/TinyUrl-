@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { TabType } from './Sidebar';
 import { 
+  LayoutDashboard,
   Search, 
   Link2, 
   BarChart3, 
@@ -61,8 +62,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   if (!isOpen) return null;
 
   const navigationItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
+    { id: 'overview', label: 'Workspace Overview (Dashboard)', icon: <LayoutDashboard className="w-4 h-4 text-primary" /> },
     { id: 'links', label: 'All Short Links (Directory)', icon: <Link2 className="w-4 h-4 text-primary" /> },
-    { id: 'overview', label: 'Links & Overview', icon: <Layers className="w-4 h-4 text-primary" /> },
     { id: 'analytics', label: 'Usage & Analytics Engine', icon: <BarChart3 className="w-4 h-4 text-blue-500" /> },
     { id: 'routing', label: 'OpeninApp & Dynamic Routing', icon: <Smartphone className="w-4 h-4 text-emerald-500" /> },
     { id: 'qr', label: 'Dynamic QR Code Studio', icon: <QrCode className="w-4 h-4 text-primary" /> },

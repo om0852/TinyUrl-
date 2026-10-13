@@ -21,7 +21,7 @@ import { CreateLinkModal } from '@/components/CreateLinkModal';
 import { CommandPaletteModal } from '@/components/CommandPaletteModal';
 
 const TAB_TITLES: Record<TabType, string> = {
-  overview: 'Links & Overview',
+  overview: 'Workspace Overview',
   links: 'All Short Links',
   analytics: 'Usage & Analytics',
   routing: 'OpeninApp & Dynamic Routing',
@@ -36,24 +36,36 @@ const TAB_TITLES: Record<TabType, string> = {
 
 export default function Home() {
   const { currentUser } = useStore();
-  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('url_shortener_user');
-        return saved ? 'dashboard' : 'landing';
-      } catch {
-        return 'landing';
-      }
-    }
-    return 'landing';
-  });
+  const [mounted, setMounted] = useState(false);
+  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
 
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTabState] = useState<TabType>('overview');
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const setActiveTab = (tab: TabType) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('snip_active_tab', tab);
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTab = localStorage.getItem('snip_active_tab') as TabType;
+        if (savedTab && TAB_TITLES[savedTab]) {
+          setActiveTabState(savedTab);
+        }
+      } catch {}
+    }
+  }, []);
 
   // When user logs in or out, sync viewMode
   useEffect(() => {
@@ -82,8 +94,8 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // If not logged in or explicitly toggled to view landing page
-  if (!currentUser || viewMode === 'landing') {
+  // If not mounted yet (SSR / initial hydration), not logged in, or explicitly toggled to view landing page
+  if (!mounted || !currentUser || viewMode === 'landing') {
     return (
       <>
         <LandingPageView
@@ -140,7 +152,7 @@ export default function Home() {
       )}
 
       {/* 2. Main Workspace (Offset by sidebar width) */}
-      <div className="lg:pl-64 flex flex-col min-h-screen bg-surface">
+      <div className="lg:pl-64 flex flex-col min-h-screen bg-surface min-w-0">
         
         {/* Sticky Top Header Bar */}
         <DashboardHeader 
@@ -152,7 +164,7 @@ export default function Home() {
         />
 
         {/* Dynamic Main Canvas */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6 sm:space-y-8 animate-fade-in">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6 sm:space-y-8 animate-fade-in min-w-0">
           {activeTab === 'overview' && (
             <OverviewView 
               onOpenCreateModal={() => setCreateModalOpen(true)} 

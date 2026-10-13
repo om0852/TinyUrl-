@@ -32,11 +32,11 @@ export function DashboardHeader({
     <header className="h-16 sticky top-0 z-40 px-4 sm:px-6 lg:px-8 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/30 flex items-center justify-between transition-colors">
       
       {/* Left: Mobile Toggle + Search Bar */}
-      <div className="flex items-center gap-3 flex-1 max-w-xl">
+      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 mr-2 sm:mr-4">
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
-            className="lg:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low transition cursor-pointer"
+            className="lg:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low transition cursor-pointer shrink-0"
             aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
@@ -44,8 +44,8 @@ export function DashboardHeader({
         )}
 
         {/* Reference Search Bar */}
-        <div className="relative w-72 sm:w-96 flex items-center">
-          <Search className="w-4 h-4 absolute left-3 text-outline pointer-events-none" />
+        <div className="relative w-full max-w-[190px] sm:max-w-xs md:max-w-md flex items-center min-w-0">
+          <Search className="w-4 h-4 absolute left-3 text-outline pointer-events-none shrink-0" />
           <input
             type="text"
             onClick={onOpenCommandPalette}
@@ -53,22 +53,22 @@ export function DashboardHeader({
               if (e.key === 'Enter') onOpenCommandPalette();
             }}
             placeholder="Search links, tags, campaigns..."
-            className="w-full pl-9 pr-12 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"
+            className="w-full pl-9 pr-8 sm:pr-12 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer truncate"
             readOnly
           />
-          <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-on-surface-variant/80 bg-surface-container-lowest border border-outline-variant/40 rounded shadow-2xs pointer-events-none">
+          <kbd className="absolute right-2 px-1.5 py-0.5 text-[10px] font-mono text-on-surface-variant/80 bg-surface-container-lowest border border-outline-variant/40 rounded shadow-2xs pointer-events-none hidden sm:inline-block">
             ⌘K
           </kbd>
         </div>
       </div>
 
       {/* Right Actions: Public Page, Create link CTA, User Avatar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {onViewLandingPage && (
           <button
             onClick={onViewLandingPage}
             title="View Public Landing Page"
-            className="h-9 px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium flex items-center gap-1.5 transition cursor-pointer border border-outline-variant/20"
+            className="h-9 px-2.5 sm:px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium flex items-center gap-1.5 transition cursor-pointer border border-outline-variant/20 whitespace-nowrap shrink-0"
           >
             <Globe className="w-3.5 h-3.5 text-primary-container" />
             <span className="hidden sm:inline">Landing Page</span>
@@ -79,7 +79,7 @@ export function DashboardHeader({
         <button
           onClick={onOpenCreateModal}
           type="button"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-3.5 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-3 sm:px-3.5 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Create link</span>

@@ -154,10 +154,10 @@ export const SmartRoutingView: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight whitespace-nowrap">
               OpeninApp &amp; Smart Routing Console
             </h1>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low text-primary-container text-xs font-semibold border border-outline-variant/30">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low text-primary-container text-xs font-semibold border border-outline-variant/30 whitespace-nowrap shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Engine: 99.98% Native App Bounce</span>
             </div>
@@ -169,7 +169,7 @@ export const SmartRoutingView: React.FC = () => {
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <button 
             type="button"
             onClick={() => {
@@ -179,7 +179,7 @@ export const SmartRoutingView: React.FC = () => {
                 input.select();
               }
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all text-xs font-semibold shadow-xs border border-outline-variant/30 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all text-xs font-semibold shadow-xs border border-outline-variant/30 cursor-pointer whitespace-nowrap shrink-0"
           >
             <Play className="w-3.5 h-3.5 text-primary-container fill-primary-container" />
             <span>Test Intent URL</span>
@@ -189,7 +189,7 @@ export const SmartRoutingView: React.FC = () => {
             type="button"
             id="new-routing-rule-btn"
             onClick={() => setNewRuleModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-all text-xs font-bold shadow-sm cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-all text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>New Routing Rule</span>

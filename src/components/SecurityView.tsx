@@ -202,12 +202,12 @@ export const SecurityView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0">
+        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 flex-wrap">
           <button 
             type="button"
             id="btn-webhook"
             onClick={() => setWebhookModalOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors shadow-xs border border-outline-variant/30 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors shadow-xs border border-outline-variant/30 cursor-pointer whitespace-nowrap shrink-0"
           >
             <Webhook className="w-3.5 h-3.5 text-on-surface-variant" />
             <span>Configure Webhook Alert</span>
@@ -218,7 +218,7 @@ export const SecurityView: React.FC = () => {
             id="btn-audit"
             disabled={isAuditing}
             onClick={triggerAudit}
-            className="inline-flex items-center gap-1.5 text-xs font-bold bg-primary-container text-on-primary px-4 py-2 rounded-xl hover:bg-primary transition-all shadow-sm cursor-pointer disabled:opacity-75"
+            className="inline-flex items-center gap-1.5 text-xs font-bold bg-primary-container text-on-primary px-4 py-2 rounded-xl hover:bg-primary transition-all shadow-sm cursor-pointer disabled:opacity-75 whitespace-nowrap shrink-0"
           >
             <ShieldCheck className={`w-4 h-4 ${isAuditing ? 'animate-spin' : ''}`} />
             <span>{auditText}</span>
@@ -437,17 +437,17 @@ export const SecurityView: React.FC = () => {
 
         {/* Data Table */}
         <div className="w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs min-w-[760px]">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/20">
-                <th className="py-3 px-6">Short Link</th>
-                <th className="py-3 px-4">Destination URL</th>
-                <th className="py-3 px-4">Scan Engines</th>
-                <th className="py-3 px-4">SSL Security</th>
-                <th className="py-3 px-4">Destination Status</th>
-                <th className="py-3 px-4">Latency</th>
-                <th className="py-3 px-4">Last Inspected</th>
-                <th className="py-3 px-6 text-right">Actions</th>
+                <th className="py-3 px-6 whitespace-nowrap">Short Link</th>
+                <th className="py-3 px-4 whitespace-nowrap">Destination URL</th>
+                <th className="py-3 px-4 whitespace-nowrap">Scan Engines</th>
+                <th className="py-3 px-4 whitespace-nowrap">SSL Security</th>
+                <th className="py-3 px-4 whitespace-nowrap">Destination Status</th>
+                <th className="py-3 px-4 whitespace-nowrap">Latency</th>
+                <th className="py-3 px-4 whitespace-nowrap">Last Inspected</th>
+                <th className="py-3 px-6 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20">

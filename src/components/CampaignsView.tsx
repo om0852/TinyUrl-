@@ -80,13 +80,13 @@ export const CampaignsView: React.FC = () => {
         </div>
 
         {/* Quick Action Controls */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <button 
             type="button"
             onClick={() => {
               window.print();
             }}
-            className="inline-flex items-center gap-2 text-xs font-semibold bg-surface-container-lowest text-on-surface shadow-xs rounded-xl px-4 py-2 hover:bg-surface-container-low transition-all border border-outline-variant/30 cursor-pointer"
+            className="inline-flex items-center gap-2 text-xs font-semibold bg-surface-container-lowest text-on-surface shadow-xs rounded-xl px-4 py-2 hover:bg-surface-container-low transition-all border border-outline-variant/30 cursor-pointer whitespace-nowrap shrink-0"
           >
             <FileText className="w-4 h-4 text-outline" />
             <span>Export Sponsor Report (PDF)</span>
@@ -96,7 +96,7 @@ export const CampaignsView: React.FC = () => {
             type="button"
             id="new-campaign-btn"
             onClick={() => setCreateModalOpen(true)}
-            className="inline-flex items-center gap-2 text-xs font-bold bg-primary-container text-on-primary rounded-xl px-4 py-2 hover:bg-primary shadow-sm transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 text-xs font-bold bg-primary-container text-on-primary rounded-xl px-4 py-2 hover:bg-primary shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>New Campaign</span>
@@ -212,19 +212,19 @@ export const CampaignsView: React.FC = () => {
         <div className="lg:col-span-8 flex flex-col gap-6">
           
           {/* Section Header with Filter Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold text-on-surface">Active Brand Deals &amp; Campaigns</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary-container text-xs font-bold">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 flex-wrap">
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              <h2 className="text-lg font-bold text-on-surface whitespace-nowrap">Active Brand Deals &amp; Campaigns</h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary-container text-xs font-bold whitespace-nowrap shrink-0 inline-flex items-center">
                 {campaigns.length} Active
               </span>
             </div>
 
-            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30">
+            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30 shrink-0 overflow-x-auto max-w-full">
               <button 
                 type="button"
                 onClick={() => setFilterTab('all')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   filterTab === 'all'
                     ? 'bg-surface-container-lowest text-on-surface shadow-xs'
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -235,7 +235,7 @@ export const CampaignsView: React.FC = () => {
               <button 
                 type="button"
                 onClick={() => setFilterTab('live')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   filterTab === 'live'
                     ? 'bg-surface-container-lowest text-on-surface shadow-xs'
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -246,7 +246,7 @@ export const CampaignsView: React.FC = () => {
               <button 
                 type="button"
                 onClick={() => setFilterTab('completed')}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   filterTab === 'completed'
                     ? 'bg-surface-container-lowest text-on-surface shadow-xs'
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -336,8 +336,8 @@ export const CampaignsView: React.FC = () => {
 
                   {/* Progress and Metrics Split */}
                   <div className="mt-5 pt-4 bg-surface-container-low/60 p-4 rounded-xl border border-outline-variant/20">
-                    <div className="flex items-center justify-between text-xs mb-2 font-medium">
-                      <span className="text-on-surface">Deliverable Clicks Performance</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-2 font-medium gap-1">
+                      <span className="text-on-surface font-semibold">Deliverable Clicks Performance</span>
                       <span className="font-mono text-on-surface">
                         <strong className="text-primary-container font-bold">{campClicks.toLocaleString()}</strong> / {target.toLocaleString()} Target ({pct}%)
                       </span>
@@ -345,7 +345,7 @@ export const CampaignsView: React.FC = () => {
                     <div className="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden">
                       <div className="bg-primary-container h-2.5 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
                     </div>
-                    <div className="flex items-center justify-between text-xs text-on-surface-variant mt-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-on-surface-variant mt-3 gap-1">
                       <span>Attached deliverables: <code className="font-mono text-primary-container font-semibold">{campLinks.length} links</code></span>
                       <span className="text-emerald-700 font-bold">{pct}% goal reached</span>
                     </div>

@@ -395,7 +395,9 @@ function RedirectInner() {
 
     // Standard direct redirect for plain web links (no app deep link detected)
     if (!appDeepLink || activeNativeUri === resolvedTarget) {
-      window.location.replace(resolvedTarget);
+      setTimeout(() => {
+        window.location.replace(resolvedTarget);
+      }, 30);
       return;
     }
 

@@ -128,18 +128,92 @@ export const sanitizeUserLinks = (raw: any[], workspaceId?: string): Link[] => {
   });
 };
 
-export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedUser = localStorage.getItem('url_shortener_user');
-        return savedUser ? JSON.parse(savedUser) : null;
-      } catch {
-        return null;
+export const detectClientGeo = (): { country: string; country_code: string; city: string } => {
+  if (typeof window === 'undefined') {
+    return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+  }
+  try {
+    const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
+    const lang = (navigator.language || '').toLowerCase();
+
+    // India detection
+    if (tz.includes('kolkata') || tz.includes('calcutta') || tz.includes('india') || lang.endsWith('-in') || lang === 'hi') {
+      return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+    }
+    // UK
+    if (tz.includes('london') || lang.endsWith('-gb')) {
+      return { country: 'United Kingdom', country_code: 'GB', city: 'London' };
+    }
+    // UAE / Middle East
+    if (tz.includes('dubai')) {
+      return { country: 'United Arab Emirates', country_code: 'AE', city: 'Dubai' };
+    }
+    // Singapore
+    if (tz.includes('singapore')) {
+      return { country: 'Singapore', country_code: 'SG', city: 'Singapore' };
+    }
+    // US
+    if (tz.includes('new_york') || tz.includes('chicago') || tz.includes('denver') || tz.includes('los_angeles')) {
+      return { country: 'United States', country_code: 'US', city: tz.includes('new_york') ? 'New York' : 'Los Angeles' };
+    }
+
+    if (navigator.language && navigator.language.includes('-')) {
+      const parts = navigator.language.split('-');
+      const regionCode = parts[parts.length - 1].toUpperCase();
+      if (regionCode.length === 2) {
+        try {
+          const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+          const name = regionNames.of(regionCode);
+          if (name) {
+            return { country: name, country_code: regionCode, city: tz.split('/')[1]?.replace(/_/g, ' ') || 'Local Network' };
+          }
+        } catch {}
       }
     }
-    return null;
-  });
+  } catch {}
+
+  // Fallback to India if user timezone offset is IST (-330 minutes)
+  try {
+    const offset = new Date().getTimezoneOffset();
+    if (offset === -330) {
+      return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+    }
+  } catch {}
+
+  return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+};
+
+export const normalizeCountryName = (country?: string, code?: string): { country: string; country_code: string } => {
+  let c = (country || '').trim();
+  let cd = (code || '').trim().toUpperCase();
+
+  if (!c || c.toLowerCase() === 'unknown') {
+    c = cd === 'US' ? 'United States' : 'India';
+  }
+
+  if (c.toUpperCase() === 'IN' || cd === 'IN' || c.toLowerCase() === 'india') {
+    return { country: 'India', country_code: 'IN' };
+  }
+  if (c.toUpperCase() === 'US' || cd === 'US' || c.toLowerCase().includes('united states')) {
+    return { country: 'United States', country_code: 'US' };
+  }
+  if (c.toUpperCase() === 'GB' || cd === 'GB' || c.toLowerCase().includes('united kingdom')) {
+    return { country: 'United Kingdom', country_code: 'GB' };
+  }
+
+  if (c.length === 2) {
+    try {
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      const name = regionNames.of(c.toUpperCase());
+      if (name) return { country: name, country_code: c.toUpperCase() };
+    } catch {}
+  }
+
+  return { country: c, country_code: cd || 'IN' };
+};
+
+export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoaded, setAuthLoaded] = useState<boolean>(true);
 
   const defaultWs: Workspace = {
@@ -258,6 +332,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           } catch {}
         }
+        const localGeo = detectClientGeo();
+        if (localGeo.country === 'India') {
+          loadedClicks = loadedClicks.map(c => {
+            if (c.country === 'United States' && (c.city === 'San Francisco' || c.country_code === 'US')) {
+              return { ...c, country: 'India', country_code: 'IN', city: 'Mumbai' };
+            }
+            return c;
+          });
+        }
         setClicks(loadedClicks);
         localStorage.setItem(clicksKey, JSON.stringify(loadedClicks));
         try {
@@ -319,22 +402,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const remoteValid = sanitizeUserLinks(data.links, activeWsId);
                 if (remoteValid.length > 0) {
                   setLinks(currentActive => {
-                    const codeMap = new Map(currentActive.map(l => [l.short_code.toLowerCase(), l]));
-                    let addedCount = 0;
-                    remoteValid.forEach((remote: Link) => {
-                      const codeKey = (remote.short_code || '').toLowerCase();
-                      if (!codeMap.has(codeKey)) {
-                        codeMap.set(codeKey, remote);
-                        addedCount++;
+                    const remoteMap = new Map(remoteValid.map(r => [r.short_code.toLowerCase(), r]));
+                    let hasChanges = false;
+                    const updated = currentActive.map(local => {
+                      const remote = remoteMap.get(local.short_code.toLowerCase());
+                      if (remote && (remote.clicks_count || 0) > (local.clicks_count || 0)) {
+                        hasChanges = true;
+                        return {
+                          ...local,
+                          clicks_count: remote.clicks_count
+                        };
+                      }
+                      return local;
+                    });
+                    const localKeys = new Set(currentActive.map(l => l.short_code.toLowerCase()));
+                    remoteValid.forEach(r => {
+                      if (!localKeys.has(r.short_code.toLowerCase())) {
+                        updated.push(r);
+                        hasChanges = true;
                       }
                     });
-                    if (addedCount > 0) {
-                      const combined = Array.from(codeMap.values());
+                    if (hasChanges) {
                       try {
                         const linksKey = getUserStorageKey('url_shortener_links', user.email);
-                        localStorage.setItem(linksKey, JSON.stringify(combined));
+                        localStorage.setItem(linksKey, JSON.stringify(updated));
                       } catch {}
-                      return combined;
+                      return updated;
                     }
                     return currentActive;
                   });
@@ -408,14 +501,127 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch {}
     };
 
+    // Live Server Telemetry Synchronizer (Polls PostgreSQL for clicks from mobile phones & external devices)
+    const syncFromBackend = async () => {
+      try {
+        const rawUser = localStorage.getItem('url_shortener_user');
+        const activeUser: User | null = rawUser ? JSON.parse(rawUser) : null;
+        if (!activeUser?.email) return;
+
+        const wsKey = getUserStorageKey('url_shortener_workspaces', activeUser.email);
+        const rawWs = localStorage.getItem(wsKey);
+        const parsedWs: Workspace[] = rawWs ? JSON.parse(rawWs) : [];
+        const activeWs = parsedWs[0];
+        if (!activeWs?.id) return;
+
+        // 1. Fetch newest link counters from PostgreSQL
+        const linksRes = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWs.id)}`);
+        const linksData = await linksRes.json();
+        if (linksData?.success && Array.isArray(linksData.links)) {
+          const remoteValid = sanitizeUserLinks(linksData.links, activeWs.id);
+          if (remoteValid.length > 0) {
+            setLinks(currentActive => {
+              const remoteMap = new Map(remoteValid.map(r => [r.short_code.toLowerCase(), r]));
+              let hasChanges = false;
+              const updated = currentActive.map(local => {
+                const remote = remoteMap.get(local.short_code.toLowerCase());
+                if (remote && (remote.clicks_count || 0) > (local.clicks_count || 0)) {
+                  hasChanges = true;
+                  return {
+                    ...local,
+                    clicks_count: remote.clicks_count
+                  };
+                }
+                return local;
+              });
+              const localKeys = new Set(currentActive.map(l => l.short_code.toLowerCase()));
+              remoteValid.forEach(r => {
+                if (!localKeys.has(r.short_code.toLowerCase())) {
+                  updated.push(r);
+                  hasChanges = true;
+                }
+              });
+              if (hasChanges) {
+                try {
+                  const linksKey = getUserStorageKey('url_shortener_links', activeUser.email);
+                  localStorage.setItem(linksKey, JSON.stringify(updated));
+                } catch {}
+                return updated;
+              }
+              return currentActive;
+            });
+          }
+        }
+
+        // 2. Fetch newest click events from PostgreSQL
+        const analyticsRes = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWs.id)}`);
+        const analyticsData = await analyticsRes.json();
+        if (analyticsData?.success && Array.isArray(analyticsData.recent_clicks) && analyticsData.recent_clicks.length > 0) {
+          setClicks(currentClicks => {
+            const clickMap = new Map(currentClicks.map(c => [c.id, c]));
+            let hasNewClicks = false;
+            analyticsData.recent_clicks.forEach((rc: any) => {
+              if (!clickMap.has(rc.id)) {
+                hasNewClicks = true;
+                const norm = normalizeCountryName(rc.country, rc.country_code);
+                clickMap.set(rc.id, {
+                  id: rc.id,
+                  link_id: rc.link_id || '',
+                  short_code: rc.short_code || '',
+                  timestamp: rc.timestamp || new Date().toISOString(),
+                  ip_hash: rc.ip_hash || 'ip_anon',
+                  country: norm.country,
+                  country_code: norm.country_code,
+                  city: rc.city || 'Direct',
+                  device: rc.device || 'mobile',
+                  os: rc.os || 'iOS',
+                  browser: rc.browser || 'Safari',
+                  referrer: rc.referrer || 'Direct / Mobile',
+                  is_bot: !!rc.is_bot,
+                  is_unique: rc.is_unique ?? true,
+                  latency_ms: rc.latency_ms || 20
+                });
+              }
+            });
+            if (hasNewClicks) {
+              const sorted = Array.from(clickMap.values()).sort(
+                (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              );
+              try {
+                const clicksKey = getUserStorageKey('url_shortener_clicks', activeUser.email);
+                localStorage.setItem(clicksKey, JSON.stringify(sorted));
+              } catch {}
+              return sorted;
+            }
+            return currentClicks;
+          });
+        }
+      } catch {}
+    };
+
     window.addEventListener('storage', handleSyncFromStorage);
     window.addEventListener('focus', handleSyncFromStorage);
+    window.addEventListener('focus', syncFromBackend);
     window.addEventListener('url_shortener_sync', handleSyncFromStorage);
+
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && !document.hidden) syncFromBackend();
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+
+    const pollTimer = setInterval(syncFromBackend, 4000);
 
     return () => {
       window.removeEventListener('storage', handleSyncFromStorage);
       window.removeEventListener('focus', handleSyncFromStorage);
+      window.removeEventListener('focus', syncFromBackend);
       window.removeEventListener('url_shortener_sync', handleSyncFromStorage);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibility);
+      }
+      clearInterval(pollTimer);
     };
   }, []);
 
@@ -702,19 +908,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const targetShortCode = targetLink ? targetLink.short_code : (clientInfo?.short_code || linkId);
     const targetRealId = targetLink ? targetLink.id : linkId;
 
+    const geo = detectClientGeo();
+    const resolvedCountry = clientInfo?.country 
+      ? normalizeCountryName(clientInfo.country, clientInfo.country_code) 
+      : geo;
+
     const newClick: ClickEvent = {
       id: `clk_${Date.now()}_${Math.floor(Math.random() * 8999 + 1000)}`,
       link_id: targetRealId,
       short_code: targetShortCode,
       timestamp: new Date().toISOString(),
       ip_hash: clientInfo?.ip_hash || `ip_${Math.floor(Math.random() * 90000 + 10000)}`,
-      country: clientInfo?.country || 'United States',
-      country_code: clientInfo?.country_code || 'US',
-      city: clientInfo?.city || 'San Francisco',
+      country: resolvedCountry.country,
+      country_code: resolvedCountry.country_code,
+      city: clientInfo?.city || geo.city,
       device: clientInfo?.device || (typeof navigator !== 'undefined' && /iPad|Tablet/i.test(navigator.userAgent) ? 'tablet' : typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop'),
       os: clientInfo?.os || (typeof navigator !== 'undefined' && /iPhone|iPad/i.test(navigator.userAgent) ? 'iOS' : typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent) ? 'Android' : typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? 'macOS' : 'Windows'),
       browser: clientInfo?.browser || (typeof navigator !== 'undefined' && /Chrome/i.test(navigator.userAgent) ? 'Chrome' : typeof navigator !== 'undefined' && /Safari/i.test(navigator.userAgent) ? 'Safari' : typeof navigator !== 'undefined' && /Firefox/i.test(navigator.userAgent) ? 'Firefox' : 'Edge'),
-      referrer: clientInfo?.referrer || (typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'),
+      referrer: clientInfo?.referrer || (typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / Mobile'),
       is_bot: clientInfo?.is_bot || false,
       is_unique: clientInfo?.is_unique ?? true,
       latency_ms: clientInfo?.latency_ms || Math.floor(15 + Math.random() * 20)
@@ -743,17 +954,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveClicksState(updatedClicks);
     saveLinksState(updatedLinks);
 
-    // 5. Notify server in background
+    // 5. Notify server in background with sendBeacon and keepalive for mobile browsers
     if (typeof window !== 'undefined') {
-      fetch('/api/v1/track', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          link_id: targetRealId,
-          short_code: targetShortCode,
-          click: newClick
-        })
-      }).catch(() => {});
+      const payload = JSON.stringify({
+        link_id: targetRealId,
+        short_code: targetShortCode,
+        click: newClick
+      });
+
+      if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+        const blob = new Blob([payload], { type: 'application/json' });
+        navigator.sendBeacon('/api/v1/track', blob);
+      } else {
+        fetch('/api/v1/track', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true
+        }).catch(() => {});
+      }
     }
 
     return newClick;
