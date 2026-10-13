@@ -64,12 +64,13 @@ export async function POST(request: Request) {
       }, { status: 422 });
     }
 
-    // Ensure database tables exist once per process lifecycle (not on every request)
+    // Non-blocking background database initialization (avoids lock contention on login/signup)
     if (!isDbInitialized) {
-      try {
-        await initializeDatabase();
-        isDbInitialized = true;
-      } catch {}
+      isDbInitialized = true;
+      initializeDatabase().catch((initErr) => {
+        isDbInitialized = false;
+        console.warn('Background database initialization warning:', initErr);
+      });
     }
 
     if (action === 'signup') {

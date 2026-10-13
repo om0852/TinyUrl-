@@ -205,10 +205,32 @@ function RedirectInner() {
   const [abRoll, setAbRoll] = useState(50);
   const [countdown, setCountdown] = useState(4);
 
-  // Initialize random seed for A/B testing safely inside effect
+  // Sticky A/B testing: read existing assignment from cookie or localStorage, or persist new assignment
   useEffect(() => {
-    setAbRoll(Math.floor(Math.random() * 100));
-  }, []);
+    if (!code) return;
+    try {
+      const cleanCode = code.toLowerCase().trim();
+      const storageKey = `ab_variant_${cleanCode}`;
+      const savedRoll = localStorage.getItem(storageKey);
+      if (savedRoll !== null && !isNaN(Number(savedRoll))) {
+        setAbRoll(Number(savedRoll));
+        return;
+      }
+      const match = document.cookie.match(new RegExp(`(?:^|; )ab_${cleanCode}=([^;]*)`));
+      if (match && match[1]) {
+        const roll = match[1] === 'B' ? 10 : 90;
+        setAbRoll(roll);
+        localStorage.setItem(storageKey, String(roll));
+        return;
+      }
+      const newRoll = Math.floor(Math.random() * 100);
+      setAbRoll(newRoll);
+      localStorage.setItem(storageKey, String(newRoll));
+      document.cookie = `ab_${cleanCode}=${newRoll < 50 ? 'B' : 'A'}; path=/; max-age=2592000; SameSite=Lax`;
+    } catch {
+      setAbRoll(Math.floor(Math.random() * 100));
+    }
+  }, [code]);
 
   // Dynamic link resolution across store, localStorage, and API
   useEffect(() => {

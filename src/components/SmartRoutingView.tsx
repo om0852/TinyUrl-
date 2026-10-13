@@ -560,7 +560,7 @@ export const SmartRoutingView: React.FC = () => {
             <button 
               type="button" 
               onClick={() => {
-                const csv = "Rule,Scheme,Platform,Clicks\n" + filteredRules.map((r: any) => `"${r.title}","${r.scheme}","${(r.filters || []).join(',')}","${r.clicks}"`).join("\n");
+                const csv = "Rule,Scheme,Platform,Clicks\n" + filteredRules.map(r => `"${r.title}","${r.scheme}","${(r.filters || []).join(',')}","${r.clicks}"`).join("\n");
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');

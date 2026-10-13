@@ -1,7 +1,31 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
-import { LinksApiResponse, Link } from '@/lib/types';
+import { LinksApiResponse, Link, LinkRule } from '@/lib/types';
+
+interface RawLinkRow {
+  id: string;
+  workspace_id?: string | null;
+  short_code: string;
+  custom_slug?: string | null;
+  domain_id?: string | null;
+  destination_url: string;
+  title?: string | null;
+  tags?: string[] | string | null;
+  clicks_count?: number | string | null;
+  status?: string | null;
+  is_flagged?: boolean | null;
+  risk_score?: number | string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  rules?: LinkRule[] | string | null;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  expires_at?: string | null;
+  max_clicks?: number | string | null;
+  password_hash?: string | null;
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,15 +33,15 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
 
   try {
-    let rows: any[] = [];
+    let rows: RawLinkRow[] = [];
     if (code && typeof code === 'string' && code.trim()) {
-      rows = await sql.query(`
+      rows = (await sql.query(`
         SELECT * FROM links WHERE LOWER(short_code) = $1 LIMIT 1
-      `, [code.trim().toLowerCase()]);
+      `, [code.trim().toLowerCase()])) as unknown as RawLinkRow[];
     } else if (workspaceId && typeof workspaceId === 'string' && workspaceId.trim()) {
-      rows = await sql.query(`
+      rows = (await sql.query(`
         SELECT * FROM links WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 100
-      `, [workspaceId.trim()]);
+      `, [workspaceId.trim()])) as unknown as RawLinkRow[];
     } else {
       // Strict multi-tenant isolation: Never expose links without workspace or code filter
       return NextResponse.json<LinksApiResponse>({
@@ -30,7 +54,7 @@ export async function GET(request: Request) {
 
     if (Array.isArray(rows)) {
       const isPublicCodeQuery = !!code;
-      const formattedLinks: Link[] = rows.map((l: any) => {
+      const formattedLinks: Link[] = rows.map((l: RawLinkRow) => {
         const isPasswordLocked = isPublicCodeQuery && !!l.password_hash;
         return {
           id: l.id,
@@ -42,7 +66,7 @@ export async function GET(request: Request) {
           title: l.title || `Short Link /${l.short_code}`,
           tags: typeof l.tags === 'string' ? JSON.parse(l.tags) : (Array.isArray(l.tags) ? l.tags : []),
           clicks_count: Number(l.clicks_count) || 0,
-          status: l.status || 'active',
+          status: (l.status as 'active' | 'disabled' | 'expired' | 'flagged') || 'active',
           is_flagged: !!l.is_flagged,
           risk_score: Number(l.risk_score) || 0,
           created_by: l.created_by || 'Owner',

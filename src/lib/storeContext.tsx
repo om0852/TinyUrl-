@@ -19,6 +19,7 @@ import {
 import {
   initialDomains,
   generateBase62Code,
+  generateId,
   normalizeUrl,
   buildUtmUrl,
   RESERVED_SLUGS
@@ -101,7 +102,7 @@ export const getUserStorageKey = (base: string, email?: string | null): string =
 };
 
 // Sanitizer to strictly remove any rogue, unassigned, or legacy mock links
-export const sanitizeUserLinks = (raw: any[], workspaceId?: string): Link[] => {
+export const sanitizeUserLinks = (raw: unknown[], workspaceId?: string): Link[] => {
   if (!Array.isArray(raw)) return [];
   const orphanCodes = new Set([
     'stripe-letter', 'spring-launch', 'mnrxia', 'mytest1', 'get-localhost', 
@@ -110,15 +111,15 @@ export const sanitizeUserLinks = (raw: any[], workspaceId?: string): Link[] => {
     'sale26', 'v2launch', 'audit26', 'dl-app', 'suspicious-link'
   ]);
 
-  return raw.filter((l: any) => {
+  return (raw as Partial<Link>[]).filter((l): l is Link => {
     if (!l || typeof l !== 'object') return false;
     const code = (l.short_code || '').toLowerCase();
     if (orphanCodes.has(code)) return false;
     if (l.workspace_id === 'ws_1' || l.workspace_id === 'ws_2') return false;
     if (l.id === 'link_1' || l.id === 'link_2' || l.id === 'link_3' || l.id === 'link_4' || l.id === 'link_5') return false;
     if (workspaceId && l.workspace_id && l.workspace_id !== workspaceId && l.workspace_id !== 'ws_default') return false;
-    return true;
-  }).map((l: any) => {
+    return !!(l.id && l.short_code && l.destination_url);
+  }).map((l) => {
     // Auto-correct any legacy misassigned platform tags
     const dest = (l.destination_url || '').toLowerCase();
     if (dest.includes('drive.google.com') || dest.includes('docs.google.com')) {
@@ -296,7 +297,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         if (loadedWs.length === 0) {
           const userWs: Workspace = {
-            id: `ws_${Date.now()}`,
+            id: generateId('ws'),
             name: `${user.name}'s Workspace`,
             slug: user.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
             role: 'owner',
@@ -573,7 +574,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setClicks(currentClicks => {
             const clickMap = new Map(currentClicks.map(c => [c.id, c]));
             let hasNewClicks = false;
-            analyticsData.recent_clicks.forEach((rc: any) => {
+            analyticsData.recent_clicks.forEach((rc: ClickEvent) => {
               if (!clickMap.has(rc.id)) {
                 hasNewClicks = true;
                 const norm = normalizeCountryName(rc.country, rc.country_code);
@@ -804,7 +805,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } : undefined);
 
     const newLink: Link = {
-      id: `link_${Date.now()}`,
+      id: generateId('link'),
       short_code: code,
       custom_slug: data.custom_slug ? code : undefined,
       domain_id: data.domain_id || defaultDomain.id,
@@ -885,7 +886,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!targetLink) return;
 
     const newRule: LinkRule = {
-      id: `rule_${Date.now()}`,
+      id: generateId('rule'),
       link_id: targetLink.id,
       rule_type: rule.rule_type,
       condition: rule.condition.toLowerCase(),
@@ -947,7 +948,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       : geo;
 
     const newClick: ClickEvent = {
-      id: `clk_${Date.now()}_${Math.floor(Math.random() * 8999 + 1000)}`,
+      id: generateId('clk'),
       link_id: targetRealId,
       short_code: targetShortCode,
       timestamp: new Date().toISOString(),
@@ -1014,7 +1015,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addCampaign = (name: string, description: string, tags: string[], target_clicks = 10000) => {
     const newCamp: Campaign = {
-      id: `cmp_${Date.now()}`,
+      id: generateId('cmp'),
       workspace_id: currentWorkspace?.id || 'ws_default',
       name,
       description,
@@ -1035,7 +1036,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const prefix = `ak_live_${Math.random().toString(36).substring(2, 6)}`;
     const fullKey = `${prefix}_${Math.random().toString(36).substring(2, 18)}${Math.random().toString(36).substring(2, 18)}`;
     const newKey: ApiKey = {
-      id: `key_${Date.now()}`,
+      id: generateId('key'),
       workspace_id: currentWorkspace?.id || 'ws_default',
       name,
       key_prefix: prefix,
@@ -1054,7 +1055,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addWebhook = (url: string, events: string[]) => {
     const newWh: Webhook = {
-      id: `wh_${Date.now()}`,
+      id: generateId('wh'),
       workspace_id: currentWorkspace?.id || 'ws_default',
       url,
       events,
@@ -1174,7 +1175,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (userWorkspaces.length === 0) {
       const defaultWs: Workspace = {
-        id: `ws_${Date.now()}`,
+        id: generateId('ws'),
         name: `${user.name}'s Workspace`,
         slug: user.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
         role: 'owner',
@@ -1325,7 +1326,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .toUpperCase() || 'U';
 
         const authenticatedUser: User = {
-          id: serverUser.id || `usr_${Date.now()}`,
+          id: serverUser.id || generateId('usr'),
           name: displayName,
           email: cleanEmail,
           avatar: initials,
@@ -1361,7 +1362,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             .toUpperCase() || 'U';
 
           const localUser: User = {
-            id: `usr_${Date.now()}`,
+            id: generateId('usr'),
             name: displayName,
             email: cleanEmail,
             avatar: initials,
@@ -1399,7 +1400,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             .toUpperCase() || 'U';
 
           const localUser: User = {
-            id: `usr_${Date.now()}`,
+            id: generateId('usr'),
             name: displayName,
             email: cleanEmail,
             avatar: initials,
@@ -1461,7 +1462,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const initials = trimmedName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
     const newUser: User = {
-      id: `usr_${Date.now()}`,
+      id: generateId('usr'),
       name: trimmedName,
       email: cleanEmail,
       avatar: initials,
@@ -1471,7 +1472,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Auto-create personalized workspace for new signup
     const wsName = `${trimmedName}'s Workspace`;
     const newWs: Workspace = {
-      id: `ws_${Date.now()}`,
+      id: generateId('ws'),
       name: wsName,
       slug: trimmedName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
       role: 'owner',
@@ -1520,7 +1521,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const logout = () => {
     setCurrentUser(null);
     const guestWs: Workspace = {
-      id: `ws_guest_${Date.now()}`,
+      id: generateId('ws_guest'),
       name: 'My Workspace',
       slug: 'my-workspace',
       role: 'owner',
@@ -1559,7 +1560,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const createWorkspace = (name: string, plan: 'free' | 'pro' | 'enterprise' = 'pro') => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const newWs: Workspace = {
-      id: `ws_${Date.now()}`,
+      id: generateId('ws'),
       name,
       slug,
       role: 'owner',
@@ -1584,7 +1585,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const inviteTeamMember = (name: string, email: string, role: WorkspaceRole) => {
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
     const newMember: TeamMember = {
-      id: `tm_${Date.now()}`,
+      id: generateId('tm'),
       workspace_id: currentWorkspace.id,
       name,
       email,

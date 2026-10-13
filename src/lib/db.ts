@@ -27,6 +27,13 @@ export function generateBase62Code(length = 6): string {
   return code;
 }
 
+export function generateId(prefix = 'id'): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
 export function normalizeUrl(rawUrl: string): string {
   let url = rawUrl.trim();
   if (!url.startsWith('http://') && !url.startsWith('https://') && !url.includes('://')) {

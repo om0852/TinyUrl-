@@ -23,6 +23,7 @@ import {
   ChevronUp
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
+import { generateId } from '@/lib/db';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -132,7 +133,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       const linkRules = [];
       if (iosTargetUrl.trim()) {
         linkRules.push({
-          id: `rule_${Date.now()}_ios`,
+          id: generateId('rule_ios'),
           link_id: '',
           rule_type: 'device' as const,
           condition: 'ios',
@@ -144,7 +145,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       }
       if (androidTargetUrl.trim()) {
         linkRules.push({
-          id: `rule_${Date.now()}_android`,
+          id: generateId('rule_android'),
           link_id: '',
           rule_type: 'device' as const,
           condition: 'android',
@@ -194,8 +195,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           destinationUrl: res.link.destination_url
         });
       }
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to create link');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create link';
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }

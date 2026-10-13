@@ -9,7 +9,14 @@ const fallbackClient = Object.assign(
   }
 );
 
-export const sql = connectionString ? neon(connectionString) : (fallbackClient as any);
+export type PostgresClient = Omit<ReturnType<typeof neon>, 'query'> & {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: <T = Record<string, any>>(queryText: string, params?: unknown[]) => Promise<T[]>;
+};
+
+export const sql: PostgresClient = connectionString 
+  ? (neon(connectionString) as unknown as PostgresClient)
+  : (fallbackClient as unknown as PostgresClient);
 
 /**
  * Auto-initializes PostgreSQL tables in Neon if they do not exist yet.

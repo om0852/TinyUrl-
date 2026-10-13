@@ -177,8 +177,9 @@ export async function GET(request: NextRequest) {
         height: 630,
       }
     );
-  } catch (e: any) {
-    return new Response(`Failed to generate the image: ${e.message}`, {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : 'Unknown error';
+    return new Response(`Failed to generate the image: ${msg}`, {
       status: 500,
     });
   }

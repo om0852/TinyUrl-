@@ -246,16 +246,16 @@ print(response.json())`;
 
               {/* Endpoint Selector Tabs */}
               <div className="flex items-center gap-1.5 p-1 bg-surface-container rounded-xl">
-                {[
+                {([
                   { id: 'shorten', label: 'POST /shorten' },
                   { id: 'links', label: 'GET /links' },
                   { id: 'analytics', label: 'GET /track' }
-                ].map((ep) => (
+                ] as const).map((ep) => (
                   <button
                     key={ep.id}
                     type="button"
                     onClick={() => {
-                      setApiEndpoint(ep.id as any);
+                      setApiEndpoint(ep.id);
                       setApiResponse(null);
                       setResponseStatus(null);
                     }}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
-import { TrackApiRequest, TrackApiResponse } from '@/lib/types';
+import { TrackApiRequest, TrackApiResponse, Link } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 
     // 2. Update Edge cache
     if (code) {
-      const cached = linkCache.get(`link_${code}`) as any;
+      const cached = linkCache.get<Link>(`link_${code}`);
       if (cached && typeof cached === 'object') {
         cached.clicks_count = (cached.clicks_count || 0) + 1;
         linkCache.set(`link_${code}`, cached, 180);

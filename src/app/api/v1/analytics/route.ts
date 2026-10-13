@@ -1,6 +1,38 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
-import { AnalyticsApiResponse, AnalyticsMetrics } from '@/lib/types';
+import { AnalyticsApiResponse, AnalyticsMetrics, ClickEvent } from '@/lib/types';
+
+interface CountryStatRow {
+  country?: string | null;
+  code?: string | null;
+  country_code?: string | null;
+  clicks?: number | string | null;
+}
+
+interface ClickStatRow {
+  total_clicks?: number | string | null;
+  unique_visitors?: number | string | null;
+  bot_clicks?: number | string | null;
+}
+
+interface RawClickRow {
+  id: string;
+  link_id: string;
+  short_code: string;
+  timestamp: string;
+  ip_hash: string;
+  country?: string | null;
+  country_code?: string | null;
+  region?: string | null;
+  city?: string | null;
+  device?: string | null;
+  os?: string | null;
+  browser?: string | null;
+  referrer?: string | null;
+  is_bot?: boolean | null;
+  is_unique?: boolean | null;
+  latency_ms?: number | null;
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -30,14 +62,14 @@ export async function GET(request: Request) {
 
   try {
     if (code && code !== 'all') {
-      const stats = await sql.query(`
+      const stats = (await sql.query(`
         SELECT 
           COUNT(*)::int as total_clicks,
           COUNT(DISTINCT ip_hash)::int as unique_visitors,
           COUNT(*) FILTER (WHERE is_bot = true)::int as bot_clicks
         FROM click_events
         WHERE LOWER(short_code) = $1
-      `, [code]);
+      `, [code])) as unknown as ClickStatRow[];
 
       if (stats && stats.length > 0) {
         totalClicks = Number(stats[0].total_clicks) || 0;
@@ -45,25 +77,25 @@ export async function GET(request: Request) {
         botClicks = Number(stats[0].bot_clicks) || 0;
       }
 
-      const countries = await sql.query(`
+      const countries = (await sql.query(`
         SELECT country, country_code as code, COUNT(*)::int as clicks
         FROM click_events
         WHERE LOWER(short_code) = $1
         GROUP BY country, country_code
         ORDER BY clicks DESC
         LIMIT 5
-      `, [code]);
+      `, [code])) as unknown as CountryStatRow[];
 
       if (countries && Array.isArray(countries)) {
-        topCountries = countries.map((c: any) => ({
+        topCountries = countries.map((c) => ({
           country: c.country || 'Unknown',
-          code: c.code || 'US',
+          code: c.code || c.country_code || 'Unknown',
           clicks: Number(c.clicks) || 0
         }));
       }
     } else if (workspaceId) {
       // Scoped workspace aggregation
-      const stats = await sql.query(`
+      const stats = (await sql.query(`
         SELECT 
           COUNT(c.id)::int as total_clicks,
           COUNT(DISTINCT c.ip_hash)::int as unique_visitors,
@@ -71,7 +103,7 @@ export async function GET(request: Request) {
         FROM click_events c
         INNER JOIN links l ON LOWER(c.short_code) = LOWER(l.short_code)
         WHERE l.workspace_id = $1
-      `, [workspaceId]);
+      `, [workspaceId])) as unknown as ClickStatRow[];
 
       if (stats && stats.length > 0) {
         totalClicks = Number(stats[0].total_clicks) || 0;
@@ -79,7 +111,7 @@ export async function GET(request: Request) {
         botClicks = Number(stats[0].bot_clicks) || 0;
       }
 
-      const countries = await sql.query(`
+      const countries = (await sql.query(`
         SELECT c.country, c.country_code as code, COUNT(c.id)::int as clicks
         FROM click_events c
         INNER JOIN links l ON LOWER(c.short_code) = LOWER(l.short_code)
@@ -87,12 +119,12 @@ export async function GET(request: Request) {
         GROUP BY c.country, c.country_code
         ORDER BY clicks DESC
         LIMIT 5
-      `, [workspaceId]);
+      `, [workspaceId])) as unknown as CountryStatRow[];
 
       if (countries && Array.isArray(countries)) {
-        topCountries = countries.map((c: any) => ({
+        topCountries = countries.map((c) => ({
           country: c.country || 'Unknown',
-          code: c.code || 'US',
+          code: c.code || c.country_code || 'Unknown',
           clicks: Number(c.clicks) || 0
         }));
       }
@@ -106,39 +138,58 @@ export async function GET(request: Request) {
   }
 
   // Fetch recent click events for workspace if requested
-  let recentClicks: any[] = [];
+  let recentClicks: ClickEvent[] = [];
   let topRegions: Array<{ region: string; clicks: number }> = [];
   let topCities: Array<{ city: string; region?: string; country?: string; clicks: number }> = [];
 
   if (workspaceId) {
     try {
-      const events = await sql.query(`
+      const events = (await sql.query(`
         SELECT DISTINCT c.*
         FROM click_events c
         INNER JOIN links l ON (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code))
         WHERE l.workspace_id = $1
         ORDER BY c.timestamp DESC
         LIMIT 100
-      `, [workspaceId]);
+      `, [workspaceId])) as unknown as RawClickRow[];
+
       if (Array.isArray(events)) {
-        recentClicks = events.map((c: any) => {
-          let country = c.country || 'India';
+        recentClicks = events.map((c) => {
+          let country = (c.country || '').trim();
           let code = (c.country_code || '').trim().toUpperCase();
-          if (country === 'IN' || code === 'IN' || country.toLowerCase() === 'india') {
-            country = 'India';
-            code = 'IN';
-          } else if (country.length === 2) {
+
+          if (!country || country.toLowerCase() === 'unknown') {
+            country = code ? code : 'Unknown';
+          }
+          if (country.length === 2 && !code) {
+            code = country.toUpperCase();
+          }
+
+          if (code && code.length === 2) {
             try {
               const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-              country = regionNames.of(country.toUpperCase()) || country;
+              const name = regionNames.of(code);
+              if (name) country = name;
             } catch {}
           }
+
           return {
-            ...c,
-            country,
-            country_code: code || (country === 'India' ? 'IN' : 'US'),
+            id: c.id,
+            link_id: c.link_id,
+            short_code: c.short_code,
+            timestamp: c.timestamp,
+            ip_hash: c.ip_hash,
+            country: country || 'Unknown',
+            country_code: code || 'Unknown',
             region: c.region || undefined,
-            city: c.city || 'Direct'
+            city: c.city || 'Direct',
+            device: (c.device as 'mobile' | 'desktop' | 'tablet') || 'desktop',
+            os: (c.os as 'iOS' | 'Android' | 'Windows' | 'macOS' | 'Linux') || 'Windows',
+            browser: (c.browser as 'Chrome' | 'Safari' | 'Firefox' | 'Edge') || 'Chrome',
+            referrer: c.referrer || 'Direct',
+            is_bot: !!c.is_bot,
+            is_unique: c.is_unique !== false,
+            latency_ms: Number(c.latency_ms) || 0
           };
         });
 
@@ -146,11 +197,11 @@ export async function GET(request: Request) {
         const regMap = new Map<string, number>();
         const cityMap = new Map<string, { city: string; region?: string; country?: string; clicks: number }>();
 
-        recentClicks.forEach((c: any) => {
-          if (c.region) {
+        recentClicks.forEach((c) => {
+          if (c.region && c.region !== 'Unknown') {
             regMap.set(c.region, (regMap.get(c.region) || 0) + 1);
           }
-          if (c.city && c.city !== 'Direct') {
+          if (c.city && c.city !== 'Direct' && c.city !== 'Unknown') {
             const key = `${c.city}_${c.region || ''}`;
             const existing = cityMap.get(key) || { city: c.city, region: c.region, country: c.country, clicks: 0 };
             existing.clicks += 1;
@@ -183,7 +234,7 @@ export async function GET(request: Request) {
     devices: totalClicks > 0 ? { mobile: '50%', desktop: '50%', tablet: '0%' } : { mobile: '0%', desktop: '0%', tablet: '0%' }
   };
 
-  return NextResponse.json<AnalyticsApiResponse & { recent_clicks?: any[] }>({
+  return NextResponse.json<AnalyticsApiResponse & { recent_clicks?: ClickEvent[] }>({
     success: true,
     code: code || workspaceId || 'all',
     metrics,

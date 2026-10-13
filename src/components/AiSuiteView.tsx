@@ -228,19 +228,19 @@ export const AiSuiteView: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-on-surface mb-2">Target Tone & Social Persona</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
+                  {([
                     { id: 'viral', label: 'Viral / Hype', icon: Flame },
                     { id: 'minimal', label: 'Clean / Short', icon: Sparkles },
                     { id: 'deal', label: 'Discount / Deal', icon: TrendingUp },
                     { id: 'creator', label: 'Creator Bio', icon: Share2 }
-                  ].map((t) => {
+                  ] as const).map((t) => {
                     const Icon = t.icon;
                     const isSelected = tone === t.id;
                     return (
                       <button
                         key={t.id}
                         type="button"
-                        onClick={() => setTone(t.id as any)}
+                        onClick={() => setTone(t.id)}
                         className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition cursor-pointer ${
                           isSelected
                             ? 'bg-primary/5 border-primary text-primary font-bold shadow-xs'

@@ -9,7 +9,7 @@ interface CacheEntry<T> {
 }
 
 class EdgeMemoryCache {
-  private store = new Map<string, CacheEntry<any>>();
+  private store = new Map<string, CacheEntry<unknown>>();
   private maxItems = 5000;
 
   get<T>(key: string): T | null {

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
+import { Link, LinkRule } from '@/lib/types';
 
 const EXCLUDED_PREFIXES = [
   '/_next',
@@ -37,14 +38,14 @@ export async function middleware(request: NextRequest) {
 
   try {
     // 3. Fast Cache Lookup (Edge LRU Cache)
-    let linkData: any = linkCache.get(`link_${code}`);
+    let linkData = linkCache.get<Link & { rules?: string | LinkRule[] }>(`link_${code}`);
 
     if (!linkData) {
       // Query Neon PostgreSQL
-      const rows = await sql.query(
+      const rows = (await sql.query(
         `SELECT * FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
         [code]
-      );
+      )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
 
       if (rows && rows.length > 0) {
         linkData = rows[0];
@@ -85,7 +86,7 @@ export async function middleware(request: NextRequest) {
 
     // 8. Resolve Smart Edge Routing (Device, Geo & A/B Split Testing)
     let destinationUrl = linkData.destination_url;
-    const rules = typeof linkData.rules === 'string' ? JSON.parse(linkData.rules) : (linkData.rules || []);
+    const rules: LinkRule[] = typeof linkData.rules === 'string' ? JSON.parse(linkData.rules) : (linkData.rules || []);
 
     const userAgent = request.headers.get('user-agent') || '';
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
@@ -94,7 +95,7 @@ export async function middleware(request: NextRequest) {
 
     if (rules.length > 0) {
       // Device rule
-      const deviceRule = rules.find((r: any) => 
+      const deviceRule = rules.find((r: LinkRule) => 
         r.rule_type === 'device' && (
           (r.condition?.toLowerCase() === 'ios' && isIOS) ||
           (r.condition?.toLowerCase() === 'android' && isAndroid) ||
@@ -106,7 +107,7 @@ export async function middleware(request: NextRequest) {
         destinationUrl = deviceRule.target_url;
       } else {
         // Geo rule
-        const geoRule = rules.find((r: any) => 
+        const geoRule = rules.find((r: LinkRule) => 
           r.rule_type === 'geo' && r.condition?.toUpperCase() === country.toUpperCase()
         );
 
@@ -114,7 +115,7 @@ export async function middleware(request: NextRequest) {
           destinationUrl = geoRule.target_url;
         } else {
           // A/B test rule with sticky visitor assignment (cookie-based)
-          const abRule = rules.find((r: any) => r.rule_type === 'ab');
+          const abRule = rules.find((r: LinkRule) => r.rule_type === 'ab');
           if (abRule && abRule.target_url) {
             const weight = abRule.weight || 50;
             const existingVariant = request.cookies.get(`ab_${code}`)?.value;
