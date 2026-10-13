@@ -31,18 +31,14 @@ interface AiSlugResult {
 export const AiSuiteView: React.FC = () => {
   const { links, clicks, aiSuggestSlugs, aiSummarizePerformance, createShortLink } = useStore();
 
-  const [inputUrl, setInputUrl] = useState('https://store.example.com/creator-gear-kit-2026');
-  const [inputTitle, setInputTitle] = useState('Desk Setup & Creator Gear 2026');
+  const [inputUrl, setInputUrl] = useState('');
+  const [inputTitle, setInputTitle] = useState('');
   const [tone, setTone] = useState<'viral' | 'minimal' | 'deal' | 'creator'>('viral');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [appliedSlug, setAppliedSlug] = useState<string | null>(null);
 
-  const [slugResults, setSlugResults] = useState<AiSlugResult[]>([
-    { slug: 'gear26', ctr: '+38% CTR', tag: 'High Memorability', explanation: 'Short 6-char slug optimized for YouTube video descriptions & overlays' },
-    { slug: 'setup-vip', ctr: '+31% CTR', tag: 'Exclusive Intent', explanation: 'Creates exclusivity trigger suitable for Instagram Story link stickers' },
-    { slug: 'save-gear', ctr: '+42% CTR', tag: 'Action Oriented', explanation: 'High-intent discount verb that increases bio link conversion' }
-  ]);
+  const [slugResults, setSlugResults] = useState<AiSlugResult[]>([]);
 
   const [summaryText, setSummaryText] = useState<string>('');
   const [isAuditing, setIsAuditing] = useState(false);
@@ -214,7 +210,7 @@ export const AiSuiteView: React.FC = () => {
                   required
                   value={inputUrl}
                   onChange={(e) => setInputUrl(e.target.value)}
-                  placeholder="https://yourstore.com/special-summer-launch"
+                  placeholder="https://example.com/your-long-url"
                   className="w-full h-11 px-3.5 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-xs font-mono text-on-surface outline-none transition"
                 />
               </div>
@@ -225,7 +221,7 @@ export const AiSuiteView: React.FC = () => {
                   type="text"
                   value={inputTitle}
                   onChange={(e) => setInputTitle(e.target.value)}
-                  placeholder="e.g. YouTube Video Bio Drop 2026"
+                  placeholder="e.g. Product Launch, Newsletter Signup"
                   className="w-full h-11 px-3.5 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-xs text-on-surface outline-none transition"
                 />
               </div>

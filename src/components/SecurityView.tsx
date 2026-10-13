@@ -73,12 +73,12 @@ export const SecurityView: React.FC = () => {
 
   // Swap Modal
   const [swapModalOpen, setSwapModalOpen] = useState(false);
-  const [swapTargetSlug, setSwapTargetSlug] = useState('snip.to/old-sponsor-discount');
+  const [swapTargetSlug, setSwapTargetSlug] = useState('');
   const [newDestinationUrl, setNewDestinationUrl] = useState('');
 
   // Webhook Modal
   const [webhookModalOpen, setWebhookModalOpen] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState('https://hooks.slack.com/services/T00/B00/XXXX');
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookService, setWebhookService] = useState('Slack');
 
   // Feedback Toast
@@ -858,7 +858,7 @@ export const SecurityView: React.FC = () => {
                 <input 
                   type="url"
                   required
-                  placeholder="https://brand.com/new-active-deal"
+                  placeholder="https://example.com/new-destination"
                   value={newDestinationUrl}
                   onChange={(e) => setNewDestinationUrl(e.target.value)}
                   className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-xl font-mono text-xs border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
@@ -943,7 +943,7 @@ export const SecurityView: React.FC = () => {
                 <input 
                   type="url"
                   required
-                  placeholder="https://hooks.slack.com/services/..."
+                  placeholder="https://your-webhook-endpoint.com/..."
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"

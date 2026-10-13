@@ -39,24 +39,18 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   const { currentUser, createShortLink, updateLink, links } = useStore();
 
   // Shortener form state
-  const [urlInput, setUrlInput] = useState(
-    'https://amazon.com/dp/B09XYZ123?tag=creatorhub-20&ref=creator_hub_sp'
-  );
+  const [urlInput, setUrlInput] = useState('');
   const [currentLink, setCurrentLink] = useState<{
     id?: string;
     slug: string;
     fullUrl: string;
     originalUrl: string;
-  } | null>({
-    slug: 'creator-gear',
-    fullUrl: 'snip.to/creator-gear',
-    originalUrl: 'https://amazon.com/dp/B09XYZ123?tag=creatorhub-20&ref=creator_hub_sp',
-  });
+  } | null>(null);
   const [isShortening, setIsShortening] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [aliasDrawerOpen, setAliasDrawerOpen] = useState(false);
-  const [aliasInput, setAliasInput] = useState('creator-gear');
+  const [aliasInput, setAliasInput] = useState('');
 
   // QR Modal State
   const [qrModalOpen, setQrModalOpen] = useState(false);
@@ -288,7 +282,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     required
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
-                    placeholder="Paste your long link (e.g., https://youtube.com/watch?v=...)"
+                    placeholder="Paste a long URL (e.g. https://yourcompany.com/product-launch)"
                     className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest rounded-xl text-sm font-medium text-on-surface placeholder:text-outline border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container shadow-inner transition-all"
                   />
                 </div>

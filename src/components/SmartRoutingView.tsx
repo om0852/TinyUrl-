@@ -43,7 +43,7 @@ export const SmartRoutingView: React.FC = () => {
   });
 
   // Simulator state
-  const [testUrl, setTestUrl] = useState('https://instagram.com/reel/C89xLK_p9');
+  const [testUrl, setTestUrl] = useState('');
   const [isSimulating, setIsSimulating] = useState(false);
   const [simVerified, setSimVerified] = useState(false);
   const [copiedPayload, setCopiedPayload] = useState(false);
@@ -459,7 +459,7 @@ export const SmartRoutingView: React.FC = () => {
                 type="text"
                 value={testUrl}
                 onChange={(e) => setTestUrl(e.target.value)}
-                placeholder="Paste Amazon, YouTube, or Spotify URL..."
+                placeholder="Paste any URL to test deep link detection..."
                 className="w-full bg-transparent px-2 py-1 font-mono text-xs text-on-surface outline-none"
               />
               <button 
@@ -736,7 +736,7 @@ export const SmartRoutingView: React.FC = () => {
                 <input 
                   type="text"
                   required
-                  placeholder="e.g. TikTok Profile Deep Link"
+                  placeholder="e.g. Mobile App Deep Link"
                   value={ruleName}
                   onChange={(e) => setRuleName(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
@@ -772,7 +772,7 @@ export const SmartRoutingView: React.FC = () => {
                 <input 
                   type="text"
                   required
-                  placeholder="e.g. vnd.youtube://... or instagram://media..."
+                  placeholder="e.g. myapp://path or https://app.link/..."
                   value={ruleAppScheme}
                   onChange={(e) => setRuleAppScheme(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
@@ -803,7 +803,7 @@ export const SmartRoutingView: React.FC = () => {
                 <label className="font-semibold text-on-surface block mb-1">Fallback Web URL</label>
                 <input 
                   type="url"
-                  placeholder="https://tiktok.com/@creator"
+                  placeholder="https://example.com/fallback-page"
                   value={ruleFallback}
                   onChange={(e) => setRuleFallback(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
