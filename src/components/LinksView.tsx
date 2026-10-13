@@ -28,6 +28,7 @@ import {
   CheckCircle2,
   Share2
 } from 'lucide-react';
+import { detectAppDeepLink } from '@/lib/deepLink';
 
 interface LinksViewProps {
   onOpenCreateModal: () => void;
@@ -85,10 +86,23 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
   // Helper to detect placement / platform from link
   const getPlacementTag = (link: typeof links[0]) => {
-    const url = link.destination_url.toLowerCase();
+    const url = (link.destination_url || '').toLowerCase();
     const tags = (link.tags || []).map(t => t.toLowerCase());
+    const app = (link.deep_link?.app || '').toLowerCase();
+    const detected = detectAppDeepLink(link.destination_url);
 
-    if (link.deep_link?.app === 'youtube' || url.includes('youtube.com') || url.includes('youtu.be') || tags.includes('youtube')) {
+    // 1. Google Drive / Docs / Cloud Storage
+    if (url.includes('drive.google.com') || url.includes('docs.google.com') || app.includes('drive') || tags.includes('google_drive') || tags.includes('drive')) {
+      return {
+        label: 'Google Drive',
+        platform: 'google_drive',
+        bg: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+        dot: 'bg-blue-600'
+      };
+    }
+
+    // 2. YouTube
+    if (url.includes('youtube.com') || url.includes('youtu.be') || app === 'youtube') {
       return {
         label: tags.includes('desc') ? 'YouTube Desc' : 'YouTube Video',
         platform: 'youtube',
@@ -96,15 +110,19 @@ export const LinksView: React.FC<LinksViewProps> = ({
         dot: 'bg-error'
       };
     }
-    if (link.deep_link?.app === 'instagram' || url.includes('instagram.com') || tags.includes('instagram')) {
+
+    // 3. Instagram
+    if (url.includes('instagram.com') || app === 'instagram') {
       return {
         label: tags.includes('story') ? 'Instagram Story' : 'Instagram Bio',
         platform: 'instagram',
-        bg: 'bg-surface-container-high text-primary',
-        dot: 'bg-primary'
+        bg: 'bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300',
+        dot: 'bg-pink-600'
       };
     }
-    if (link.deep_link?.app === 'tiktok' || url.includes('tiktok.com') || tags.includes('tiktok')) {
+
+    // 4. TikTok
+    if (url.includes('tiktok.com') || app === 'tiktok') {
       return {
         label: 'TikTok Bio',
         platform: 'tiktok',
@@ -112,7 +130,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
         dot: 'bg-inverse-surface'
       };
     }
-    if (link.deep_link?.app === 'twitter' || url.includes('x.com') || url.includes('twitter.com') || tags.includes('twitter') || tags.includes('x')) {
+
+    // 5. X / Twitter
+    if (url.includes('x.com') || url.includes('twitter.com') || app === 'twitter' || app === 'x') {
       return {
         label: 'X / Post',
         platform: 'x',
@@ -120,16 +140,31 @@ export const LinksView: React.FC<LinksViewProps> = ({
         dot: 'bg-outline'
       };
     }
-    if (link.deep_link?.app === 'spotify' || url.includes('spotify.com') || tags.includes('podcast')) {
+
+    // 6. Spotify / Podcast
+    if (url.includes('spotify.com') || app === 'spotify') {
       return {
         label: 'Podcast Stream',
         platform: 'podcast',
-        bg: 'bg-emerald-100 text-emerald-800',
+        bg: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
         dot: 'bg-emerald-600'
       };
     }
+
+    // 7. General platform detected via OpenInApp engine
+    if (detected && detected.appName && detected.appName !== 'Web Destination') {
+      return {
+        label: detected.appName,
+        platform: detected.app,
+        bg: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300',
+        dot: 'bg-indigo-600'
+      };
+    }
+
+    // 8. Custom user tag or generic Direct Link
+    const userTag = tags.find(t => t !== 'youtube' && t !== 'marketing' && t !== 'general');
     return {
-      label: link.tags?.[0] ? `#${link.tags[0]}` : 'Direct Link',
+      label: userTag ? `#${userTag}` : 'Direct Link',
       platform: 'direct',
       bg: 'bg-surface-container-low text-on-surface-variant',
       dot: 'bg-outline'
@@ -185,54 +220,81 @@ export const LinksView: React.FC<LinksViewProps> = ({
   const channelDistribution = useMemo(() => {
     if (links.length === 0) return [];
 
-    let yt = 0;
-    let ig = 0;
-    let tt = 0;
-    let other = 0;
+    const getPlatformInfo = (link: typeof links[0]) => {
+      const dest = (link.destination_url || '').toLowerCase();
+      if (dest.includes('drive.google.com') || dest.includes('docs.google.com')) {
+        return { name: 'Google Drive', color: 'bg-blue-600', dot: 'bg-blue-600' };
+      }
+      if (dest.includes('youtube.com') || dest.includes('youtu.be')) {
+        return { name: 'YouTube', color: 'bg-red-600', dot: 'bg-red-600' };
+      }
+      if (dest.includes('instagram.com')) {
+        return { name: 'Instagram', color: 'bg-pink-600', dot: 'bg-pink-600' };
+      }
+      if (dest.includes('tiktok.com')) {
+        return { name: 'TikTok', color: 'bg-neutral-900', dot: 'bg-neutral-900' };
+      }
+      if (dest.includes('twitter.com') || dest.includes('x.com')) {
+        return { name: 'X / Twitter', color: 'bg-slate-800', dot: 'bg-slate-800' };
+      }
+      if (dest.includes('spotify.com')) {
+        return { name: 'Spotify', color: 'bg-emerald-600', dot: 'bg-emerald-600' };
+      }
+      if (dest.includes('github.com')) {
+        return { name: 'GitHub', color: 'bg-purple-600', dot: 'bg-purple-600' };
+      }
+      const detected = detectAppDeepLink(link.destination_url);
+      if (detected && detected.appName && detected.appName !== 'Web Destination') {
+        return { name: detected.appName, color: 'bg-indigo-600', dot: 'bg-indigo-600' };
+      }
+      return { name: 'Direct & Others', color: 'bg-outline', dot: 'bg-outline' };
+    };
+
+    const platformMap = new Map<string, { name: string; count: number; color: string; dot: string }>();
+    let totalClicks = 0;
 
     links.forEach(l => {
-      const dest = l.destination_url.toLowerCase();
-      const tags = (l.tags || []).map(t => t.toLowerCase());
+      const info = getPlatformInfo(l);
       const clicks = l.clicks_count || 0;
+      totalClicks += clicks;
 
-      if (dest.includes('youtube.com') || dest.includes('youtu.be') || tags.includes('youtube')) {
-        yt += clicks;
-      } else if (dest.includes('instagram.com') || tags.includes('instagram')) {
-        ig += clicks;
-      } else if (dest.includes('tiktok.com') || tags.includes('tiktok')) {
-        tt += clicks;
-      } else {
-        other += clicks;
-      }
+      const existing = platformMap.get(info.name) || { ...info, count: 0 };
+      existing.count += clicks;
+      platformMap.set(info.name, existing);
     });
 
-    const total = yt + ig + tt + other;
-    if (total === 0) {
-      let ytLinks = 0, igLinks = 0, ttLinks = 0, otherLinks = 0;
+    if (totalClicks === 0) {
+      const totalLinks = links.length;
+      const linkCountMap = new Map<string, { name: string; count: number; color: string; dot: string }>();
       links.forEach(l => {
-        const dest = l.destination_url.toLowerCase();
-        const tags = (l.tags || []).map(t => t.toLowerCase());
-        if (dest.includes('youtube.com') || dest.includes('youtu.be') || tags.includes('youtube')) ytLinks++;
-        else if (dest.includes('instagram.com') || tags.includes('instagram')) igLinks++;
-        else if (dest.includes('tiktok.com') || tags.includes('tiktok')) ttLinks++;
-        else otherLinks++;
+        const info = getPlatformInfo(l);
+        const existing = linkCountMap.get(info.name) || { ...info, count: 0 };
+        existing.count += 1;
+        linkCountMap.set(info.name, existing);
       });
-      const linkTotal = ytLinks + igLinks + ttLinks + otherLinks;
-      if (linkTotal === 0) return [];
-      return [
-        { name: 'YouTube', count: ytLinks, pct: Math.round((ytLinks / linkTotal) * 100), color: 'bg-red-600', dot: 'bg-red-600', isLinkCount: true },
-        { name: 'Instagram', count: igLinks, pct: Math.round((igLinks / linkTotal) * 100), color: 'bg-primary-container', dot: 'bg-primary-container', isLinkCount: true },
-        { name: 'TikTok', count: ttLinks, pct: Math.round((ttLinks / linkTotal) * 100), color: 'bg-inverse-surface', dot: 'bg-inverse-surface', isLinkCount: true },
-        { name: 'Direct & Others', count: otherLinks, pct: Math.round((otherLinks / linkTotal) * 100), color: 'bg-outline', dot: 'bg-outline', isLinkCount: true },
-      ].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
+      return Array.from(linkCountMap.values())
+        .map(p => ({
+          name: p.name,
+          count: p.count,
+          pct: Math.round((p.count / totalLinks) * 100),
+          color: p.color,
+          dot: p.dot,
+          isLinkCount: true
+        }))
+        .sort((a, b) => b.count - a.count);
     }
 
-    return [
-      { name: 'YouTube', count: yt, pct: Math.round((yt / total) * 100), color: 'bg-red-600', dot: 'bg-red-600', isLinkCount: false },
-      { name: 'Instagram', count: ig, pct: Math.round((ig / total) * 100), color: 'bg-primary-container', dot: 'bg-primary-container', isLinkCount: false },
-      { name: 'TikTok', count: tt, pct: Math.round((tt / total) * 100), color: 'bg-inverse-surface', dot: 'bg-inverse-surface', isLinkCount: false },
-      { name: 'Direct & Others', count: other, pct: Math.round((other / total) * 100), color: 'bg-outline', dot: 'bg-outline', isLinkCount: false },
-    ].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
+    return Array.from(platformMap.values())
+      .filter(p => p.count > 0)
+      .map(p => ({
+        name: p.name,
+        count: p.count,
+        pct: Math.round((p.count / totalClicks) * 100),
+        color: p.color,
+        dot: p.dot,
+        isLinkCount: false
+      }))
+      .sort((a, b) => b.count - a.count);
   }, [links]);
 
   const topChannel = channelDistribution.length > 0 ? channelDistribution[0] : null;

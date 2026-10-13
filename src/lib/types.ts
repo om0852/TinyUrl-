@@ -103,6 +103,7 @@ export interface ClickEvent {
   ip_hash: string;
   country: string;
   country_code: string;
+  region?: string;
   city: string;
   device: 'mobile' | 'desktop' | 'tablet';
   os: 'iOS' | 'Android' | 'Windows' | 'macOS' | 'Linux';
@@ -225,6 +226,8 @@ export interface AnalyticsMetrics {
   bot_clicks_filtered: number;
   avg_latency_ms: number;
   top_countries: Array<{ country: string; code: string; clicks: number }>;
+  top_regions?: Array<{ region: string; clicks: number }>;
+  top_cities?: Array<{ city: string; region?: string; country?: string; clicks: number }>;
   devices: { mobile: string; desktop: string; tablet: string };
 }
 

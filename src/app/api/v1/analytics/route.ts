@@ -107,6 +107,9 @@ export async function GET(request: Request) {
 
   // Fetch recent click events for workspace if requested
   let recentClicks: any[] = [];
+  let topRegions: Array<{ region: string; clicks: number }> = [];
+  let topCities: Array<{ city: string; region?: string; country?: string; clicks: number }> = [];
+
   if (workspaceId) {
     try {
       const events = await sql.query(`
@@ -133,9 +136,36 @@ export async function GET(request: Request) {
           return {
             ...c,
             country,
-            country_code: code || (country === 'India' ? 'IN' : 'US')
+            country_code: code || (country === 'India' ? 'IN' : 'US'),
+            region: c.region || undefined,
+            city: c.city || 'Direct'
           };
         });
+
+        // Compute top regions & cities from clicks
+        const regMap = new Map<string, number>();
+        const cityMap = new Map<string, { city: string; region?: string; country?: string; clicks: number }>();
+
+        recentClicks.forEach((c: any) => {
+          if (c.region) {
+            regMap.set(c.region, (regMap.get(c.region) || 0) + 1);
+          }
+          if (c.city && c.city !== 'Direct') {
+            const key = `${c.city}_${c.region || ''}`;
+            const existing = cityMap.get(key) || { city: c.city, region: c.region, country: c.country, clicks: 0 };
+            existing.clicks += 1;
+            cityMap.set(key, existing);
+          }
+        });
+
+        topRegions = Array.from(regMap.entries())
+          .map(([region, clicks]) => ({ region, clicks }))
+          .sort((a, b) => b.clicks - a.clicks)
+          .slice(0, 5);
+
+        topCities = Array.from(cityMap.values())
+          .sort((a, b) => b.clicks - a.clicks)
+          .slice(0, 5);
       }
     } catch (e) {
       console.warn('Recent clicks fetch error:', e);
@@ -148,6 +178,8 @@ export async function GET(request: Request) {
     bot_clicks_filtered: botClicks,
     avg_latency_ms: totalClicks > 0 ? 18.2 : 0,
     top_countries: topCountries,
+    top_regions: topRegions,
+    top_cities: topCities,
     devices: totalClicks > 0 ? { mobile: '50%', desktop: '50%', tablet: '0%' } : { mobile: '0%', desktop: '0%', tablet: '0%' }
   };
 

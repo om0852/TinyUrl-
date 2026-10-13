@@ -125,12 +125,23 @@ export const sanitizeUserLinks = (raw: any[], workspaceId?: string): Link[] => {
     if (l.id === 'link_1' || l.id === 'link_2' || l.id === 'link_3' || l.id === 'link_4' || l.id === 'link_5') return false;
     if (workspaceId && l.workspace_id && l.workspace_id !== workspaceId && l.workspace_id !== 'ws_default') return false;
     return true;
+  }).map((l: any) => {
+    // Auto-correct any legacy misassigned platform tags
+    const dest = (l.destination_url || '').toLowerCase();
+    if (dest.includes('drive.google.com') || dest.includes('docs.google.com')) {
+      const cleanTags = (l.tags || []).filter((t: string) => t.toLowerCase() !== 'youtube');
+      return {
+        ...l,
+        tags: cleanTags.length > 0 ? cleanTags : ['google_drive']
+      };
+    }
+    return l;
   });
 };
 
-export const detectClientGeo = (): { country: string; country_code: string; city: string } => {
+export const detectClientGeo = (): { country: string; country_code: string; region: string; city: string } => {
   if (typeof window === 'undefined') {
-    return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+    return { country: 'India', country_code: 'IN', region: 'Maharashtra', city: 'Mumbai' };
   }
   try {
     const tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').toLowerCase();
@@ -138,23 +149,32 @@ export const detectClientGeo = (): { country: string; country_code: string; city
 
     // India detection
     if (tz.includes('kolkata') || tz.includes('calcutta') || tz.includes('india') || lang.endsWith('-in') || lang === 'hi') {
-      return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+      return { country: 'India', country_code: 'IN', region: 'Maharashtra', city: 'Mumbai' };
     }
     // UK
     if (tz.includes('london') || lang.endsWith('-gb')) {
-      return { country: 'United Kingdom', country_code: 'GB', city: 'London' };
+      return { country: 'United Kingdom', country_code: 'GB', region: 'England', city: 'London' };
     }
     // UAE / Middle East
     if (tz.includes('dubai')) {
-      return { country: 'United Arab Emirates', country_code: 'AE', city: 'Dubai' };
+      return { country: 'United Arab Emirates', country_code: 'AE', region: 'Dubai', city: 'Dubai' };
     }
     // Singapore
     if (tz.includes('singapore')) {
-      return { country: 'Singapore', country_code: 'SG', city: 'Singapore' };
+      return { country: 'Singapore', country_code: 'SG', region: 'Singapore', city: 'Singapore' };
     }
     // US
-    if (tz.includes('new_york') || tz.includes('chicago') || tz.includes('denver') || tz.includes('los_angeles')) {
-      return { country: 'United States', country_code: 'US', city: tz.includes('new_york') ? 'New York' : 'Los Angeles' };
+    if (tz.includes('new_york')) {
+      return { country: 'United States', country_code: 'US', region: 'New York', city: 'New York' };
+    }
+    if (tz.includes('chicago')) {
+      return { country: 'United States', country_code: 'US', region: 'Illinois', city: 'Chicago' };
+    }
+    if (tz.includes('los_angeles')) {
+      return { country: 'United States', country_code: 'US', region: 'California', city: 'Los Angeles' };
+    }
+    if (tz.includes('denver')) {
+      return { country: 'United States', country_code: 'US', region: 'Colorado', city: 'Denver' };
     }
 
     if (navigator.language && navigator.language.includes('-')) {
@@ -165,7 +185,7 @@ export const detectClientGeo = (): { country: string; country_code: string; city
           const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
           const name = regionNames.of(regionCode);
           if (name) {
-            return { country: name, country_code: regionCode, city: tz.split('/')[1]?.replace(/_/g, ' ') || 'Local Network' };
+            return { country: name, country_code: regionCode, region: '', city: tz.split('/')[1]?.replace(/_/g, ' ') || 'Local Network' };
           }
         } catch {}
       }
@@ -176,11 +196,11 @@ export const detectClientGeo = (): { country: string; country_code: string; city
   try {
     const offset = new Date().getTimezoneOffset();
     if (offset === -330) {
-      return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+      return { country: 'India', country_code: 'IN', region: 'Maharashtra', city: 'Mumbai' };
     }
   } catch {}
 
-  return { country: 'India', country_code: 'IN', city: 'Mumbai' };
+  return { country: 'India', country_code: 'IN', region: 'Maharashtra', city: 'Mumbai' };
 };
 
 export const normalizeCountryName = (country?: string, code?: string): { country: string; country_code: string } => {
@@ -572,6 +592,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   ip_hash: rc.ip_hash || 'ip_anon',
                   country: norm.country,
                   country_code: norm.country_code,
+                  region: rc.region || undefined,
                   city: rc.city || 'Direct',
                   device: rc.device || 'mobile',
                   os: rc.os || 'iOS',
@@ -921,6 +942,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ip_hash: clientInfo?.ip_hash || `ip_${Math.floor(Math.random() * 90000 + 10000)}`,
       country: resolvedCountry.country,
       country_code: resolvedCountry.country_code,
+      region: clientInfo?.region || geo.region,
       city: clientInfo?.city || geo.city,
       device: clientInfo?.device || (typeof navigator !== 'undefined' && /iPad|Tablet/i.test(navigator.userAgent) ? 'tablet' : typeof navigator !== 'undefined' && /iPhone|Android|Mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop'),
       os: clientInfo?.os || (typeof navigator !== 'undefined' && /iPhone|iPad/i.test(navigator.userAgent) ? 'iOS' : typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent) ? 'Android' : typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent) ? 'macOS' : 'Windows'),

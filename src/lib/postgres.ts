@@ -118,6 +118,7 @@ export async function initializeDatabase() {
         ip_hash VARCHAR(128),
         country VARCHAR(128) DEFAULT 'United States',
         country_code VARCHAR(16) DEFAULT 'US',
+        region VARCHAR(128),
         city VARCHAR(128) DEFAULT 'San Francisco',
         device VARCHAR(64) DEFAULT 'mobile',
         os VARCHAR(64) DEFAULT 'iOS',
@@ -129,6 +130,8 @@ export async function initializeDatabase() {
       );
     `);
 
+    // Migration: ensure region column exists if table was created previously
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS region VARCHAR(128);`).catch(() => {});
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_clicks_short_code ON click_events (short_code);`);
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_clicks_timestamp ON click_events (timestamp);`);
 

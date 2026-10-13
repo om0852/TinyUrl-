@@ -16,7 +16,9 @@ import {
   Video,
   Camera,
   Music,
-  Radio
+  Radio,
+  HardDrive,
+  Globe
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 
@@ -31,11 +33,11 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [destinationUrl, setDestinationUrl] = useState('');
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
-  const [placementTag, setPlacementTag] = useState<'youtube' | 'instagram' | 'tiktok' | 'x' | 'podcast'>('youtube');
+  const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
   
   // UTM params
-  const [utmSource, setUtmSource] = useState('youtube');
-  const [utmMedium, setUtmMedium] = useState('description');
+  const [utmSource, setUtmSource] = useState('direct');
+  const [utmMedium, setUtmMedium] = useState('web');
   const [utmCampaign, setUtmCampaign] = useState('summer_launch');
   const [neverExpires, setNeverExpires] = useState(true);
 
@@ -49,14 +51,37 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Auto-detect placement tag from Destination URL
+  useEffect(() => {
+    if (!destinationUrl.trim()) return;
+    const url = destinationUrl.toLowerCase();
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+      setPlacementTag('drive');
+    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      setPlacementTag('youtube');
+    } else if (url.includes('instagram.com')) {
+      setPlacementTag('instagram');
+    } else if (url.includes('tiktok.com')) {
+      setPlacementTag('tiktok');
+    } else if (url.includes('x.com') || url.includes('twitter.com')) {
+      setPlacementTag('x');
+    } else if (url.includes('spotify.com')) {
+      setPlacementTag('podcast');
+    } else {
+      setPlacementTag('direct');
+    }
+  }, [destinationUrl]);
+
   // Sync UTM Source with placement tag
   useEffect(() => {
-    setUtmSource(placementTag);
+    setUtmSource(placementTag === 'drive' ? 'google_drive' : placementTag);
     if (placementTag === 'youtube') setUtmMedium('description');
+    else if (placementTag === 'drive') setUtmMedium('cloud_share');
     else if (placementTag === 'instagram') setUtmMedium('bio');
     else if (placementTag === 'tiktok') setUtmMedium('profile');
     else if (placementTag === 'x') setUtmMedium('post');
     else if (placementTag === 'podcast') setUtmMedium('show_notes');
+    else setUtmMedium('web');
   }, [placementTag]);
 
   if (!isOpen) return null;
@@ -69,7 +94,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     ? links.some(l => (l.custom_slug || l.short_code).toLowerCase() === customSlug.trim().toLowerCase())
     : false;
 
-  const handlePlacementChange = (p: 'youtube' | 'instagram' | 'tiktok' | 'x' | 'podcast') => {
+  const handlePlacementChange = (p: 'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct') => {
     setPlacementTag(p);
   };
 
@@ -95,7 +120,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setIsSubmitting(true);
 
     try {
-      const tags = [placementTag];
+      const tags = [placementTag === 'drive' ? 'google_drive' : placementTag];
 
       const res = createShortLink({
         destination_url: destinationUrl.trim(),
@@ -349,6 +374,19 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
+                    onClick={() => handlePlacementChange('drive')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'drive'
+                        ? 'bg-blue-100 text-blue-800 shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <HardDrive className="w-3 h-3 text-blue-600" />
+                    <span>Google Drive</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handlePlacementChange('youtube')}
                     className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'youtube'
@@ -410,6 +448,19 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   >
                     <Radio className="w-3 h-3" />
                     <span>Podcast</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handlePlacementChange('direct')}
+                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                      placementTag === 'direct'
+                        ? 'bg-surface-container-high text-primary font-bold shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <Globe className="w-3 h-3" />
+                    <span>Direct / Web</span>
                   </button>
                 </div>
               </div>

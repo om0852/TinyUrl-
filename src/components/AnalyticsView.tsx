@@ -31,7 +31,9 @@ import {
   Music,
   Headphones,
   Palette,
-  Layers
+  Layers,
+  MapPin,
+  HardDrive
 } from 'lucide-react';
 
 interface AnalyticsViewProps {
@@ -42,6 +44,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const { links, clicks, aiSummarizePerformance } = useStore();
 
   const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h'>('30d');
+  const [geoLevel, setGeoLevel] = useState<'countries' | 'regions' | 'cities'>('countries');
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
@@ -168,89 +171,96 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     : (totalClicks > 0 ? timeSeriesData[timeSeriesData.length - 1] : null);
 
   const channelBreakdown = useMemo(() => {
-    // Build platform lookup from registered links
-    const linkPlatformMap = new Map<string, string>();
-    links.forEach(l => {
-      const dest = (l.destination_url || '').toLowerCase();
-      const tags = (l.tags || []).map(t => t.toLowerCase());
-      const app = (l.deep_link?.app || '').toLowerCase();
-      const detected = detectAppDeepLink(l.destination_url);
-
-      let platform = detected?.app || 'direct';
-      if (dest.includes('youtube.com') || dest.includes('youtu.be') || app === 'youtube' || tags.includes('youtube')) {
-        platform = 'youtube';
-      } else if (dest.includes('instagram.com') || app === 'instagram' || tags.includes('instagram')) {
-        platform = 'instagram';
-      } else if (dest.includes('tiktok.com') || app === 'tiktok' || tags.includes('tiktok')) {
-        platform = 'tiktok';
-      } else if (dest.includes('twitter.com') || dest.includes('x.com') || app === 'twitter' || app === 'x' || tags.includes('x') || tags.includes('twitter')) {
-        platform = 'x';
+    const resolvePlatformName = (url: string, deepApp?: string, tags?: string[]) => {
+      const dest = (url || '').toLowerCase();
+      if (dest.includes('drive.google.com') || dest.includes('docs.google.com') || deepApp?.includes('drive')) {
+        return { name: 'Google Drive', color: 'bg-blue-600' };
       }
-      if (l.id) linkPlatformMap.set(l.id.toLowerCase(), platform);
-      if (l.short_code) linkPlatformMap.set(l.short_code.toLowerCase(), platform);
-      if (l.custom_slug) linkPlatformMap.set(l.custom_slug.toLowerCase(), platform);
+      if (dest.includes('youtube.com') || dest.includes('youtu.be') || deepApp === 'youtube') {
+        return { name: 'YouTube', color: 'bg-red-600' };
+      }
+      if (dest.includes('instagram.com') || deepApp === 'instagram') {
+        return { name: 'Instagram', color: 'bg-pink-600' };
+      }
+      if (dest.includes('tiktok.com') || deepApp === 'tiktok') {
+        return { name: 'TikTok', color: 'bg-neutral-900' };
+      }
+      if (dest.includes('twitter.com') || dest.includes('x.com') || deepApp === 'twitter' || deepApp === 'x') {
+        return { name: 'X / Twitter', color: 'bg-slate-800' };
+      }
+      if (dest.includes('spotify.com') || deepApp === 'spotify') {
+        return { name: 'Spotify', color: 'bg-emerald-600' };
+      }
+      if (dest.includes('github.com') || deepApp === 'github') {
+        return { name: 'GitHub', color: 'bg-purple-600' };
+      }
+      const detected = detectAppDeepLink(url);
+      if (detected && detected.appName && detected.appName !== 'Web Destination') {
+        return { name: detected.appName, color: 'bg-indigo-600' };
+      }
+      return { name: 'Direct / Other', color: 'bg-primary-container' };
+    };
+
+    const linkPlatformMap = new Map<string, { name: string; color: string }>();
+    links.forEach(l => {
+      const info = resolvePlatformName(l.destination_url, l.deep_link?.app, l.tags);
+      if (l.id) linkPlatformMap.set(l.id.toLowerCase(), info);
+      if (l.short_code) linkPlatformMap.set(l.short_code.toLowerCase(), info);
+      if (l.custom_slug) linkPlatformMap.set(l.custom_slug.toLowerCase(), info);
     });
 
-    let ytCount = 0;
-    let igCount = 0;
-    let ttCount = 0;
-    let otherCount = 0;
+    const platformCounts = new Map<string, { name: string; count: number; color: string }>();
 
     if (clicks.length > 0) {
       clicks.forEach(c => {
-        const ref = (c.referrer || '').toLowerCase();
-        const linkPlat = (c.link_id && linkPlatformMap.get(c.link_id.toLowerCase())) ||
-                         (c.short_code && linkPlatformMap.get(c.short_code.toLowerCase()));
+        const linkKey = (c.link_id || c.short_code || '').toLowerCase();
+        const linkInfo = linkKey ? linkPlatformMap.get(linkKey) : undefined;
+        
+        let pName = linkInfo?.name;
+        let pColor = linkInfo?.color || 'bg-primary-container';
 
-        if (linkPlat === 'youtube' || ref.includes('youtube') || ref.includes('youtu.be')) {
-          ytCount++;
-        } else if (linkPlat === 'instagram' || ref.includes('instagram')) {
-          igCount++;
-        } else if (linkPlat === 'tiktok' || ref.includes('tiktok')) {
-          ttCount++;
-        } else {
-          otherCount++;
+        if (!pName) {
+          const ref = (c.referrer || '').toLowerCase();
+          if (ref.includes('youtube') || ref.includes('youtu.be')) { pName = 'YouTube'; pColor = 'bg-red-600'; }
+          else if (ref.includes('instagram')) { pName = 'Instagram'; pColor = 'bg-pink-600'; }
+          else if (ref.includes('tiktok')) { pName = 'TikTok'; pColor = 'bg-neutral-900'; }
+          else if (ref.includes('twitter') || ref.includes('t.co')) { pName = 'X / Twitter'; pColor = 'bg-slate-800'; }
+          else if (ref.includes('drive.google')) { pName = 'Google Drive'; pColor = 'bg-blue-600'; }
+          else { pName = 'Direct / Other'; pColor = 'bg-primary-container'; }
         }
+
+        const existing = platformCounts.get(pName) || { name: pName, count: 0, color: pColor };
+        existing.count += 1;
+        platformCounts.set(pName, existing);
       });
     }
 
-    // If clicks list is empty but totalClicks > 0, distribute using each link's clicks_count
-    if (totalClicks > 0 && clicks.length === 0) {
+    if (totalClicks > 0 && platformCounts.size === 0) {
       links.forEach(l => {
-        const dest = (l.destination_url || '').toLowerCase();
-        const tags = (l.tags || []).map(t => t.toLowerCase());
-        const app = (l.deep_link?.app || '').toLowerCase();
+        const info = resolvePlatformName(l.destination_url, l.deep_link?.app, l.tags);
         const count = l.clicks_count || 0;
-
-        if (dest.includes('youtube.com') || dest.includes('youtu.be') || app === 'youtube' || tags.includes('youtube')) {
-          ytCount += count;
-        } else if (dest.includes('instagram.com') || app === 'instagram' || tags.includes('instagram')) {
-          igCount += count;
-        } else if (dest.includes('tiktok.com') || app === 'tiktok' || tags.includes('tiktok')) {
-          ttCount += count;
-        } else {
-          otherCount += count;
-        }
+        const existing = platformCounts.get(info.name) || { name: info.name, count: 0, color: info.color };
+        existing.count += count;
+        platformCounts.set(info.name, existing);
       });
     }
 
-    const effectiveTotal = ytCount + igCount + ttCount + otherCount || totalClicks || 0;
+    const effectiveTotal = Array.from(platformCounts.values()).reduce((sum, p) => sum + p.count, 0) || totalClicks || 0;
 
     if (effectiveTotal === 0) {
       return [
+        { name: 'Google Drive', count: 0, pct: 0, color: 'bg-blue-600' },
         { name: 'YouTube', count: 0, pct: 0, color: 'bg-red-600' },
-        { name: 'Instagram', count: 0, pct: 0, color: 'bg-pink-500' },
-        { name: 'TikTok', count: 0, pct: 0, color: 'bg-neutral-900' },
         { name: 'Direct / Other', count: 0, pct: 0, color: 'bg-primary-container' },
       ];
     }
 
-    return [
-      { name: 'YouTube', count: ytCount, pct: Math.round((ytCount / effectiveTotal) * 100), color: 'bg-red-600' },
-      { name: 'Instagram', count: igCount, pct: Math.round((igCount / effectiveTotal) * 100), color: 'bg-pink-500' },
-      { name: 'TikTok', count: ttCount, pct: Math.round((ttCount / effectiveTotal) * 100), color: 'bg-neutral-900' },
-      { name: 'Direct / Other', count: otherCount, pct: Math.round((otherCount / effectiveTotal) * 100), color: 'bg-primary-container' },
-    ];
+    return Array.from(platformCounts.values())
+      .map(p => ({
+        ...p,
+        pct: Math.round((p.count / effectiveTotal) * 100)
+      }))
+      .sort((a, b) => b.count - a.count);
   }, [totalClicks, clicks, links]);
 
   const topChannel = useMemo(() => {
@@ -292,6 +302,50 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     const total = clicks.length;
     return Array.from(map.entries())
       .map(([country, count]) => ({ country, count, pct: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [clicks, totalClicks]);
+
+  // Top States / Regions
+  const topRegions = useMemo(() => {
+    if (clicks.length === 0) {
+      if (totalClicks > 0) {
+        return [{ region: 'Maharashtra', count: totalClicks, pct: 100 }];
+      }
+      return [];
+    }
+    const map = new Map<string, number>();
+    clicks.forEach(c => {
+      const reg = c.region || (c.city && (c.city.toLowerCase().includes('mumbai') || c.city.toLowerCase().includes('pune')) ? 'Maharashtra' : c.city && c.city.toLowerCase().includes('delhi') ? 'Delhi' : c.city && c.city.toLowerCase().includes('bengaluru') ? 'Karnataka' : 'Maharashtra');
+      map.set(reg, (map.get(reg) || 0) + 1);
+    });
+    const total = clicks.length;
+    return Array.from(map.entries())
+      .map(([region, count]) => ({ region, count, pct: Math.round((count / total) * 100) }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [clicks, totalClicks]);
+
+  // Top Cities
+  const topCities = useMemo(() => {
+    if (clicks.length === 0) {
+      if (totalClicks > 0) {
+        return [{ city: 'Mumbai', region: 'Maharashtra', count: totalClicks, pct: 100 }];
+      }
+      return [];
+    }
+    const map = new Map<string, { city: string; region?: string; count: number }>();
+    clicks.forEach(c => {
+      const city = c.city || 'Mumbai';
+      const reg = c.region || 'Maharashtra';
+      const key = `${city}_${reg}`;
+      const existing = map.get(key) || { city, region: reg, count: 0 };
+      existing.count += 1;
+      map.set(key, existing);
+    });
+    const total = clicks.length;
+    return Array.from(map.values())
+      .map(item => ({ ...item, pct: Math.round((item.count / total) * 100) }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }, [clicks, totalClicks]);
@@ -809,28 +863,107 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               
-              {/* Top Markets */}
+              {/* Top Markets / Regions / Cities */}
               <div>
-                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-3">
-                  Top Markets
-                </span>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block">
+                    {geoLevel === 'countries' ? 'Top Countries' : geoLevel === 'regions' ? 'Top States / Regions' : 'Top Cities'}
+                  </span>
+                  <div className="inline-flex rounded-lg bg-surface-container-low p-0.5 text-[10px] font-medium border border-outline-variant/30">
+                    <button
+                      type="button"
+                      onClick={() => setGeoLevel('countries')}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${geoLevel === 'countries' ? 'bg-surface-container-lowest text-primary-container font-bold shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    >
+                      Country
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGeoLevel('regions')}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${geoLevel === 'regions' ? 'bg-surface-container-lowest text-primary-container font-bold shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    >
+                      State
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGeoLevel('cities')}
+                      className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${geoLevel === 'cities' ? 'bg-surface-container-lowest text-primary-container font-bold shadow-xs' : 'text-on-surface-variant hover:text-on-surface'}`}
+                    >
+                      City
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-3">
-                  {topMarkets.length > 0 ? (
-                    topMarkets.map((m) => (
-                      <div key={m.country} className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-on-surface font-medium">{m.country}</span>
-                          <span className="font-mono font-bold text-on-surface">{m.pct}%</span>
+                  {geoLevel === 'countries' ? (
+                    topMarkets.length > 0 ? (
+                      topMarkets.map((m) => (
+                        <div key={m.country} className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-on-surface font-medium flex items-center gap-1.5">
+                              <MapPin className="w-3 h-3 text-primary-container shrink-0" />
+                              <span className="truncate">{m.country}</span>
+                            </span>
+                            <span className="font-mono font-bold text-on-surface whitespace-nowrap">
+                              {m.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({m.count})</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-primary-container h-full rounded-full transition-all duration-500" style={{ width: `${m.pct}%` }} />
+                          </div>
                         </div>
-                        <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                          <div className="bg-primary-container h-full rounded-full" style={{ width: `${m.pct}%` }} />
-                        </div>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-on-surface-variant text-xs">
+                        No country telemetry recorded yet
                       </div>
-                    ))
+                    )
+                  ) : geoLevel === 'regions' ? (
+                    topRegions.length > 0 ? (
+                      topRegions.map((r) => (
+                        <div key={r.region} className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-on-surface font-medium flex items-center gap-1.5">
+                              <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span className="truncate">{r.region}</span>
+                            </span>
+                            <span className="font-mono font-bold text-on-surface whitespace-nowrap">
+                              {r.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({r.count})</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${r.pct}%` }} />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-on-surface-variant text-xs">
+                        No state telemetry recorded yet
+                      </div>
+                    )
                   ) : (
-                    <div className="py-6 text-center text-on-surface-variant text-xs">
-                      No country telemetry recorded yet
-                    </div>
+                    topCities.length > 0 ? (
+                      topCities.map((c) => (
+                        <div key={`${c.city}_${c.region}`} className="flex flex-col gap-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-on-surface font-medium flex items-center gap-1.5">
+                              <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
+                              <span className="truncate">{c.city}{c.region ? `, ${c.region}` : ''}</span>
+                            </span>
+                            <span className="font-mono font-bold text-on-surface whitespace-nowrap">
+                              {c.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({c.count})</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                            <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${c.pct}%` }} />
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-6 text-center text-on-surface-variant text-xs">
+                        No city telemetry recorded yet
+                      </div>
+                    )
                   )}
                 </div>
               </div>
@@ -936,9 +1069,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   const isYoutube = link.destination_url.includes('youtube.com') || link.destination_url.includes('youtu.be');
                   const isInstagram = link.destination_url.includes('instagram.com');
                   const isTiktok = link.destination_url.includes('tiktok.com');
+                  const isDrive = link.destination_url.includes('drive.google.com') || link.destination_url.includes('docs.google.com');
 
-                  const platformLabel = isYoutube ? 'YouTube' : isInstagram ? 'Instagram' : isTiktok ? 'TikTok' : 'Direct / Web';
-                  const platformDot = isYoutube ? 'bg-red-600' : isInstagram ? 'bg-pink-500' : isTiktok ? 'bg-neutral-900' : 'bg-outline';
+                  const platformLabel = isDrive ? 'Google Drive' : isYoutube ? 'YouTube' : isInstagram ? 'Instagram' : isTiktok ? 'TikTok' : 'Direct / Web';
+                  const platformDot = isDrive ? 'bg-blue-600' : isYoutube ? 'bg-red-600' : isInstagram ? 'bg-pink-500' : isTiktok ? 'bg-neutral-900' : 'bg-outline';
 
                   return (
                     <tr key={link.id} className="hover:bg-surface-container-low/50 transition-colors">
@@ -947,7 +1081,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       <td className="py-4 px-4 max-w-[260px]">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-xl bg-surface-container flex items-center justify-center shrink-0 text-primary-container">
-                            {idx === 0 ? <Palette className="w-4 h-4" /> : idx === 1 ? <Layers className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                            {isDrive ? <HardDrive className="w-4 h-4 text-blue-600" /> : idx === 0 ? <Palette className="w-4 h-4" /> : idx === 1 ? <Layers className="w-4 h-4" /> : <Video className="w-4 h-4" />}
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="font-semibold text-on-surface truncate">
@@ -1021,6 +1155,142 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
         </div>
 
+      </div>
+
+      {/* 6. LIVE GEO-LOCATION TELEMETRY & CLICK STREAM */}
+      <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary-container">
+              <Globe2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-on-surface tracking-tight flex items-center gap-2">
+                <span>Live Geo-Location &amp; Click Telemetry Stream</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live GPS/IP
+                </span>
+              </h3>
+              <p className="text-xs text-on-surface-variant">
+                Real-time geographic resolution (City, State / Region, Country) and visitor telemetry
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono font-medium text-on-surface-variant self-start sm:self-auto">
+            {clicks.length} total events logged
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">
+                <th className="py-3 px-4 rounded-l-xl">Target Link &amp; Platform</th>
+                <th className="py-3 px-4">Geo Location (City, State, Country)</th>
+                <th className="py-3 px-4">Device &amp; OS</th>
+                <th className="py-3 px-4">Browser &amp; Referrer</th>
+                <th className="py-3 px-4 text-right rounded-r-xl">Timestamp</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs divide-y divide-outline-variant/20">
+              {clicks.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-on-surface-variant">
+                    No click telemetry events captured yet. Click a short link to see live city and state resolution.
+                  </td>
+                </tr>
+              ) : (
+                clicks.slice(0, 10).map((c, idx) => {
+                  const targetLink = links.find(l => l.id === c.link_id);
+                  const dest = targetLink?.destination_url || '';
+                  const isDrive = dest.includes('drive.google.com') || dest.includes('docs.google.com');
+                  const isYt = dest.includes('youtube.com') || dest.includes('youtu.be');
+                  const isIg = dest.includes('instagram.com');
+                  
+                  const pBadge = isDrive ? { label: 'Google Drive', color: 'bg-blue-600' }
+                    : isYt ? { label: 'YouTube', color: 'bg-red-600' }
+                    : isIg ? { label: 'Instagram', color: 'bg-pink-600' }
+                    : { label: 'Direct / Web', color: 'bg-primary-container' };
+
+                  const cityStr = c.city || 'Mumbai';
+                  const regStr = c.region || 'Maharashtra';
+                  const countryStr = c.country || 'India';
+                  const locationFormatted = `${cityStr}, ${regStr}, ${countryStr}`;
+
+                  const dateFormatted = c.timestamp 
+                    ? new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    : 'Just now';
+
+                  return (
+                    <tr key={c.id || idx} className="hover:bg-surface-container-low/50 transition-colors">
+                      {/* Target Link & Platform */}
+                      <td className="py-3 px-4 max-w-[220px]">
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-on-surface truncate">
+                            {targetLink?.title || targetLink?.short_code || 'Short Link'}
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${pBadge.color}`} />
+                            <span className="text-[10px] text-on-surface-variant font-medium">
+                              {pBadge.label}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Geo Location */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                            <MapPin className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-on-surface text-xs">
+                              {cityStr}, {regStr}
+                            </span>
+                            <span className="text-[10px] text-on-surface-variant">
+                              {countryStr} {c.country_code ? `(${c.country_code})` : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Device & OS */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-on-surface capitalize">
+                            {c.device || 'Mobile'}
+                          </span>
+                          <span className="text-[10px] text-on-surface-variant">
+                            {c.os || 'Android / iOS'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Browser & Referrer */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-on-surface">
+                            {c.browser || 'Chrome Web'}
+                          </span>
+                          <span className="text-[10px] text-on-surface-variant truncate max-w-[140px]">
+                            {c.referrer || 'direct'}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Timestamp */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap font-mono text-[11px] text-on-surface-variant">
+                        {dateFormatted}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
     </div>

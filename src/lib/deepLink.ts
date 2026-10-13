@@ -82,6 +82,58 @@ export const PLATFORM_REGISTRY: PlatformRule[] = [
     }
   },
   {
+    app: 'google_drive',
+    appName: 'Google Drive',
+    color: '#4285F4',
+    icon: 'hard-drive',
+    domains: ['drive.google.com', 'drive.google.co.in'],
+    androidPackage: 'com.google.android.apps.docs',
+    customResolver: (parsed, cleanTarget, encodedTarget) => ({
+      iosUri: `googledrive://${cleanTarget}`,
+      androidIntent: `intent://${cleanTarget}#Intent;package=com.google.android.apps.docs;scheme=https;S.browser_fallback_url=${encodedTarget};end;`,
+      desktopUri: parsed.href
+    })
+  },
+  {
+    app: 'google_docs',
+    appName: 'Google Docs',
+    color: '#4285F4',
+    icon: 'file-text',
+    domains: ['docs.google.com'],
+    androidPackage: 'com.google.android.apps.docs.editors.docs',
+    customResolver: (parsed, cleanTarget, encodedTarget) => ({
+      iosUri: `googledocs://${cleanTarget}`,
+      androidIntent: `intent://${cleanTarget}#Intent;package=com.google.android.apps.docs.editors.docs;scheme=https;S.browser_fallback_url=${encodedTarget};end;`,
+      desktopUri: parsed.href
+    })
+  },
+  {
+    app: 'google_photos',
+    appName: 'Google Photos',
+    color: '#EA4335',
+    icon: 'image',
+    domains: ['photos.google.com', 'photos.app.goo.gl'],
+    androidPackage: 'com.google.android.apps.photos',
+    customResolver: (parsed, cleanTarget, encodedTarget) => ({
+      iosUri: `googlephotos://${cleanTarget}`,
+      androidIntent: `intent://${cleanTarget}#Intent;package=com.google.android.apps.photos;scheme=https;S.browser_fallback_url=${encodedTarget};end;`,
+      desktopUri: parsed.href
+    })
+  },
+  {
+    app: 'google_maps',
+    appName: 'Google Maps',
+    color: '#34A853',
+    icon: 'map-pin',
+    domains: ['maps.google.com', 'maps.app.goo.gl', 'goo.gl/maps'],
+    androidPackage: 'com.google.android.apps.maps',
+    customResolver: (parsed, cleanTarget, encodedTarget) => ({
+      iosUri: `comgooglemaps://?q=${encodeURIComponent(cleanTarget)}`,
+      androidIntent: `intent://${cleanTarget}#Intent;package=com.google.android.apps.maps;scheme=https;S.browser_fallback_url=${encodedTarget};end;`,
+      desktopUri: parsed.href
+    })
+  },
+  {
     app: 'facebook',
     appName: 'Facebook',
     color: '#1877F2',
