@@ -743,9 +743,9 @@ export const SmartRoutingView: React.FC = () => {
                 />
               </div>
 
-              {links.length > 0 && (
-                <div>
-                  <label className="font-semibold text-on-surface block mb-1">Target Link</label>
+              <div>
+                <label className="font-semibold text-on-surface block mb-1">Target Link</label>
+                {links.length > 0 ? (
                   <select
                     value={targetLinkId || links[0]?.id}
                     onChange={(e) => setTargetLinkId(e.target.value)}
@@ -757,8 +757,15 @@ export const SmartRoutingView: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
+                ) : (
+                  <select
+                    disabled
+                    className="w-full px-3 py-2 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 text-on-surface-variant text-xs cursor-not-allowed opacity-80"
+                  >
+                    <option value="" disabled selected>No links found — create a link first</option>
+                  </select>
+                )}
+              </div>
 
               <div>
                 <label className="font-semibold text-on-surface block mb-1">Target Native App Scheme</label>

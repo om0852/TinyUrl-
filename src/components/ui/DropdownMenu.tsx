@@ -64,43 +64,49 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
             </div>
           )}
 
-          {items.map((item) => {
-            if (item.divider) {
-              return <div key={item.id} className="h-px bg-outline-variant/30 my-1" />;
-            }
+          {items.length === 0 ? (
+            <div className="px-3 py-3 text-center text-xs text-on-surface-variant/80 italic select-none">
+              No options available
+            </div>
+          ) : (
+            items.map((item) => {
+              if (item.divider) {
+                return <div key={item.id} className="h-px bg-outline-variant/30 my-1" />;
+              }
 
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  item.onClick?.();
-                  setIsOpen(false);
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none text-left ${
-                  item.active
-                    ? 'bg-surface-container-high text-primary-container'
-                    : item.destructive
-                    ? 'text-error hover:bg-error-container/20'
-                    : 'text-on-surface hover:bg-surface-container-low hover:text-on-surface'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {item.icon && <span className="shrink-0">{item.icon}</span>}
-                  <span className="truncate">{item.label}</span>
-                </div>
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    item.onClick?.();
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none text-left ${
+                    item.active
+                      ? 'bg-surface-container-high text-primary-container'
+                      : item.destructive
+                      ? 'text-error hover:bg-error-container/20'
+                      : 'text-on-surface hover:bg-surface-container-low hover:text-on-surface'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {item.icon && <span className="shrink-0">{item.icon}</span>}
+                    <span className="truncate">{item.label}</span>
+                  </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {item.shortcut && (
-                    <span className="font-mono text-[10px] text-on-surface-variant opacity-75">
-                      {item.shortcut}
-                    </span>
-                  )}
-                  {item.active && <Check className="w-4 h-4 text-primary-container" />}
-                </div>
-              </button>
-            );
-          })}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {item.shortcut && (
+                      <span className="font-mono text-[10px] text-on-surface-variant opacity-75">
+                        {item.shortcut}
+                      </span>
+                    )}
+                    {item.active && <Check className="w-4 h-4 text-primary-container" />}
+                  </div>
+                </button>
+              );
+            })
+          )}
         </div>
       )}
     </div>

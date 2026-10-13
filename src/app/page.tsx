@@ -172,7 +172,12 @@ export default function Home() {
           {activeTab === 'analytics' && <AnalyticsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
           {activeTab === 'settings' && <SettingsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
           {activeTab === 'routing' && <SmartRoutingView />}
-          {activeTab === 'qr' && <QrCodeView />}
+          {activeTab === 'qr' && (
+            <QrCodeView 
+              onNavigateTab={(tab) => setActiveTab(tab as TabType)} 
+              onOpenCreateModal={() => setCreateModalOpen(true)} 
+            />
+          )}
           {activeTab === 'security' && <SecurityView />}
           {activeTab === 'campaigns' && <CampaignsView />}
           {activeTab === 'ai' && <AiSuiteView />}
