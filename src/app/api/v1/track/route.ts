@@ -27,6 +27,18 @@ export async function POST(request: Request) {
     const code = (short_code || '').trim().toLowerCase();
     const id = (link_id || '').trim();
 
+    // Deduplication guard: ignore repeated beacons with the same click.id within 60 seconds
+    if (click && typeof click === 'object' && click.id) {
+      const dedupKey = `tracked_clk_${click.id}`;
+      if (linkCache.get(dedupKey)) {
+        return NextResponse.json<TrackApiResponse>({ 
+          success: true, 
+          message: 'Click telemetry already recorded.' 
+        }, { status: 200 });
+      }
+      linkCache.set(dedupKey, true, 60);
+    }
+
     // 1. Update PostgreSQL counters
     try {
       if (id || code) {

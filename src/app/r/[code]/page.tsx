@@ -380,16 +380,32 @@ function RedirectInner() {
     // Prevent duplicate redirection triggers
     hasRedirectedRef.current = true;
 
-    // Log click event safely in the background (will not block or cancel navigation)
+    // Log click event safely in the background (guaranteed exact 1 execution per pageview)
     if (!hasLoggedRef.current) {
       hasLoggedRef.current = true;
-      try {
-        logClick(link.id, {
-          short_code: code,
-          referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'
-        });
-      } catch (err) {
-        console.warn('Click logging error:', err);
+      let alreadyLogged = false;
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        try {
+          const sKey = `snip_tracked_${code.toLowerCase().trim()}`;
+          const lastLogged = window.sessionStorage.getItem(sKey);
+          const now = Date.now();
+          if (lastLogged && (now - Number(lastLogged)) < 5000) {
+            alreadyLogged = true;
+          } else {
+            window.sessionStorage.setItem(sKey, String(now));
+          }
+        } catch {}
+      }
+
+      if (!alreadyLogged) {
+        try {
+          logClick(link.id, {
+            short_code: code,
+            referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'
+          });
+        } catch (err) {
+          console.warn('Click logging error:', err);
+        }
       }
     }
 
