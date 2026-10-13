@@ -164,3 +164,86 @@ export interface SecurityReport {
   threat_categories: string[];
   scanned_at: string;
 }
+
+// ─── API Request & Response Contracts ───
+
+export interface ShortenApiRequest {
+  destination_url: string;
+  workspace_id: string;
+  custom_slug?: string;
+  title?: string;
+  tags?: string[];
+  rules?: LinkRule[];
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  password?: string;
+  expires_at?: string;
+  max_clicks?: number;
+}
+
+export interface ShortenApiResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  data?: Link;
+}
+
+export interface LinksQueryRequest {
+  workspace_id?: string;
+  code?: string;
+}
+
+export interface LinksApiResponse {
+  success: boolean;
+  source: string;
+  total: number;
+  links: Link[];
+  error?: string;
+}
+
+export interface AuthApiRequest {
+  action: 'login' | 'signup';
+  email: string;
+  password: string;
+  name?: string;
+}
+
+export interface AuthApiResponse {
+  success: boolean;
+  user?: User;
+  message?: string;
+  error?: string;
+  allowLocalFallback?: boolean;
+}
+
+export interface AnalyticsMetrics {
+  total_clicks: number;
+  unique_visitors: number;
+  bot_clicks_filtered: number;
+  avg_latency_ms: number;
+  top_countries: Array<{ country: string; code: string; clicks: number }>;
+  devices: { mobile: string; desktop: string; tablet: string };
+}
+
+export interface AnalyticsApiResponse {
+  success: boolean;
+  code: string;
+  metrics: AnalyticsMetrics;
+  error?: string;
+}
+
+export interface TrackApiRequest {
+  link_id?: string;
+  short_code?: string;
+  click: Partial<ClickEvent>;
+}
+
+export interface TrackApiResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+

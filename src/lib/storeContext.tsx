@@ -677,12 +677,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (typeof window !== 'undefined') {
       try {
-        const rawLinks = localStorage.getItem('url_shortener_links');
+        const linksKey = getUserStorageKey('url_shortener_links', currentUser?.email);
+        const rawLinks = localStorage.getItem(linksKey);
         if (rawLinks) {
           const parsed = JSON.parse(rawLinks);
-          if (Array.isArray(parsed)) currentLinks = parsed;
+          if (Array.isArray(parsed)) currentLinks = sanitizeUserLinks(parsed);
         }
-        const rawClicks = localStorage.getItem('url_shortener_clicks');
+        const clicksKey = getUserStorageKey('url_shortener_clicks', currentUser?.email);
+        const rawClicks = localStorage.getItem(clicksKey);
         if (rawClicks) {
           const parsed = JSON.parse(rawClicks);
           if (Array.isArray(parsed)) currentClicks = parsed;

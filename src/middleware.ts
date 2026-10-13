@@ -8,6 +8,8 @@ const EXCLUDED_PREFIXES = [
   '/favicon.ico',
   '/terms',
   '/privacy',
+  '/login',
+  '/signup',
   '/stitch-screenshot',
   '/stitch-screen'
 ];

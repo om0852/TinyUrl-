@@ -1,20 +1,33 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
+import { TrackApiRequest, TrackApiResponse } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    let body: Partial<TrackApiRequest>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json<TrackApiResponse>({ 
+        success: false, 
+        error: 'Malformed JSON payload in request body.' 
+      }, { status: 400 });
+    }
+
     const { link_id, short_code, click } = body;
 
     if (!link_id && !short_code) {
-      return NextResponse.json({ error: 'Missing link identifier' }, { status: 400 });
+      return NextResponse.json<TrackApiResponse>({ 
+        success: false, 
+        error: 'Either "link_id" or "short_code" identifier is required.' 
+      }, { status: 400 });
     }
 
-    const code = (short_code || '').toLowerCase();
-    const id = link_id || '';
+    const code = (short_code || '').trim().toLowerCase();
+    const id = (link_id || '').trim();
 
-    // 1. Update Neon PostgreSQL if available
+    // 1. Update PostgreSQL counters
     try {
       if (id) {
         await sql.query(
@@ -28,14 +41,14 @@ export async function POST(request: Request) {
         );
       }
 
-      if (click) {
+      if (click && typeof click === 'object') {
         await sql.query(
           `INSERT INTO click_events (id, link_id, short_code, ip_hash, country, country_code, city, device, os, browser, referrer, is_bot, is_unique, latency_ms)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             click.id || `clk_${Date.now()}`,
-            id,
-            code,
+            id || null,
+            code || null,
             click.ip_hash || 'ip_anon',
             click.country || 'United States',
             click.country_code || 'US',
@@ -51,40 +64,55 @@ export async function POST(request: Request) {
         );
       }
     } catch (dbErr) {
-      // Non-blocking in case DB is offline or table is initializing
       console.warn('DB tracking warning:', dbErr);
     }
 
-    // 2. Update edge cache
+    // 2. Update Edge cache
     if (code) {
       const cached = linkCache.get(`link_${code}`) as any;
-      if (cached) {
+      if (cached && typeof cached === 'object') {
         cached.clicks_count = (cached.clicks_count || 0) + 1;
         linkCache.set(`link_${code}`, cached, 180);
       }
     }
 
-    return NextResponse.json({ success: true, message: 'Click tracked' });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Tracking error' }, { status: 500 });
+    return NextResponse.json<TrackApiResponse>({ 
+      success: true, 
+      message: 'Click telemetry recorded successfully.' 
+    }, { status: 200 });
+
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Tracking error.';
+    return NextResponse.json<TrackApiResponse>({ 
+      success: false, 
+      error: msg 
+    }, { status: 500 });
   }
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const code = (searchParams.get('code') || '').toLowerCase();
+  const code = (searchParams.get('code') || '').trim().toLowerCase();
 
-  if (code) {
-    try {
-      const rows = await sql.query(
-        `SELECT clicks_count FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
-        [code]
-      );
-      if (rows && rows.length > 0) {
-        return NextResponse.json({ success: true, clicks_count: rows[0].clicks_count });
-      }
-    } catch {}
+  if (!code) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Query parameter "code" is required.' 
+    }, { status: 400 });
   }
+
+  try {
+    const rows = await sql.query(
+      `SELECT clicks_count FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+      [code]
+    );
+    if (rows && rows.length > 0) {
+      return NextResponse.json({ 
+        success: true, 
+        clicks_count: Number(rows[0].clicks_count) || 0 
+      });
+    }
+  } catch {}
 
   return NextResponse.json({ success: true, clicks_count: 0 });
 }
