@@ -41,6 +41,7 @@ interface StoreContextType {
   workspaces: Workspace[];
   currentWorkspace: Workspace;
   currentUserRole: WorkspaceRole;
+  checkPermissionOrToast: (perm: Permission, actionDescription: string) => boolean;
   setCurrentWorkspace: (ws: Workspace) => void;
   createWorkspace: (name: string, plan?: 'free' | 'pro' | 'enterprise') => Workspace;
   updateWorkspace: (workspaceId: string, name: string, slug?: string) => Promise<boolean>;
@@ -308,6 +309,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     return true;
   }, [currentUserRole, showToast]);
+
+  const apiFetch = useCallback((url: string, init?: RequestInit): Promise<Response> => {
+    const headers = new Headers(init?.headers || {});
+    if (currentUser?.email && !headers.has('x-user-email')) {
+      headers.set('x-user-email', currentUser.email);
+    }
+    if (currentWorkspace?.id && !headers.has('x-workspace-id')) {
+      headers.set('x-workspace-id', currentWorkspace.id);
+    }
+    return fetch(url, { ...init, headers });
+  }, [currentUser?.email, currentWorkspace?.id]);
 
   useEffect(() => {
     if (currentWorkspace && currentUserRole && currentWorkspace.role !== currentUserRole) {
@@ -1156,7 +1168,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Asynchronously sync with Neon PostgreSQL
     if (typeof window !== 'undefined') {
-      fetch('/api/v1/shorten', {
+      apiFetch('/api/v1/shorten', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1200,7 +1212,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         (l.custom_slug && l.custom_slug.toLowerCase() === id.toLowerCase())
       );
       if (target) {
-        fetch('/api/v1/links', {
+        apiFetch('/api/v1/links', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1229,14 +1241,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveLinksState(updated);
 
     if (typeof window !== 'undefined') {
-      fetch(`/api/v1/links?id=${encodeURIComponent(id)}`, {
+      apiFetch(`/api/v1/links?id=${encodeURIComponent(id)}`, {
         method: 'DELETE'
       }).catch(err => {
         console.warn('Failed to delete link on server:', err);
       });
 
       if (target?.short_code && target.short_code.toLowerCase() !== id.toLowerCase()) {
-        fetch(`/api/v1/links?code=${encodeURIComponent(target.short_code)}`, {
+        apiFetch(`/api/v1/links?code=${encodeURIComponent(target.short_code)}`, {
           method: 'DELETE'
         }).catch(() => {});
       }
@@ -1428,7 +1440,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveCampaignsState(updated);
 
     if (typeof window !== 'undefined') {
-      fetch('/api/v1/campaigns', {
+      apiFetch('/api/v1/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1455,7 +1467,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (typeof window !== 'undefined') {
       const target = updated.find(c => c.id === id);
       if (target) {
-        fetch('/api/v1/campaigns', {
+        apiFetch('/api/v1/campaigns', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1479,7 +1491,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = campaigns.filter(c => c.id !== id);
     saveCampaignsState(updated);
     if (typeof window !== 'undefined') {
-      fetch(`/api/v1/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      apiFetch(`/api/v1/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
     }
   };
 
@@ -1502,7 +1514,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (typeof window !== 'undefined') {
       try {
-        const res = await fetch('/api/v1/domains', {
+        const res = await apiFetch('/api/v1/domains', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1532,7 +1544,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setDomains(prev => prev.map(d => (d.id === idOrHostname || d.hostname === idOrHostname) ? { ...d, verified: true, ssl_status: 'active' } : d));
     if (typeof window !== 'undefined') {
       try {
-        const res = await fetch('/api/v1/domains', {
+        const res = await apiFetch('/api/v1/domains', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: idOrHostname, verified: true, ssl_status: 'active' })
@@ -1554,7 +1566,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setDomains(prev => prev.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname));
     if (typeof window !== 'undefined') {
       try {
-        const res = await fetch(`/api/v1/domains?id=${encodeURIComponent(idOrHostname)}`, { method: 'DELETE' });
+        const res = await apiFetch(`/api/v1/domains?id=${encodeURIComponent(idOrHostname)}`, { method: 'DELETE' });
         const data = await res.json();
         return !!data?.success;
       } catch {
@@ -1583,7 +1595,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveApiKeysState([newKey, ...apiKeys]);
 
     if (typeof window !== 'undefined') {
-      fetch('/api/v1/api-keys', {
+      apiFetch('/api/v1/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1612,7 +1624,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = apiKeys.filter(k => k.id !== id);
     saveApiKeysState(updated);
     if (typeof window !== 'undefined') {
-      fetch(`/api/v1/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      apiFetch(`/api/v1/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
     }
   };
 
@@ -1633,7 +1645,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveWebhooksState([newWh, ...webhooks]);
 
     if (typeof window !== 'undefined') {
-      fetch('/api/v1/webhooks', {
+      apiFetch('/api/v1/webhooks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1662,7 +1674,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = webhooks.filter(w => w.id !== id);
     saveWebhooksState(updated);
     if (typeof window !== 'undefined') {
-      fetch(`/api/v1/webhooks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      apiFetch(`/api/v1/webhooks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
     }
   };
 
@@ -2268,7 +2280,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (typeof window !== 'undefined') {
       try {
-        const res = await fetch('/api/v1/workspaces/members', {
+        const res = await apiFetch('/api/v1/workspaces/members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2311,7 +2323,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const param = targetEmail 
         ? `email=${encodeURIComponent(targetEmail)}&workspace_id=${encodeURIComponent(currentWorkspace.id)}` 
         : `id=${encodeURIComponent(id)}`;
-      fetch(`/api/v1/workspaces/members?${param}`, { method: 'DELETE' }).catch(() => {});
+      apiFetch(`/api/v1/workspaces/members?${param}`, { method: 'DELETE' }).catch(() => {});
     }
   };
 
@@ -2323,7 +2335,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTeamMembers(prev => prev.map(m => (m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase()) ? { ...m, role } : m));
     if (typeof window !== 'undefined') {
       try {
-        const res = await fetch('/api/v1/workspaces/members', {
+        const res = await apiFetch('/api/v1/workspaces/members', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -2352,7 +2364,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, name: name.trim(), slug: cleanSlug } : w));
     if (typeof window !== 'undefined') {
       try {
-        const res = await fetch('/api/v1/workspaces', {
+        const res = await apiFetch('/api/v1/workspaces', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: workspaceId, name: name.trim(), slug: cleanSlug })
@@ -2382,7 +2394,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('url_shortener_workspaces', JSON.stringify(remaining));
     } catch {}
     if (typeof window !== 'undefined') {
-      fetch(`/api/v1/workspaces?id=${encodeURIComponent(workspaceId)}`, { method: 'DELETE' }).catch(() => {});
+      apiFetch(`/api/v1/workspaces?id=${encodeURIComponent(workspaceId)}`, { method: 'DELETE' }).catch(() => {});
     }
     return true;
   };
@@ -2478,6 +2490,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       workspaces,
       currentWorkspace,
       currentUserRole,
+      checkPermissionOrToast,
       setCurrentWorkspace,
       createWorkspace,
       updateWorkspace,

@@ -144,6 +144,8 @@ export async function GET(request: Request) {
   }
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -154,6 +156,15 @@ export async function POST(request: Request) {
         success: false, 
         error: 'Fields "workspace_id", "name", and "email" are required.' 
       }, { status: 400 });
+    }
+
+    // RBAC: Requires members:invite permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'members:invite', {
+      workspaceId: workspace_id.trim(),
+      userEmail: inviter_email
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -309,6 +320,16 @@ export async function DELETE(request: Request) {
       const targetEmail = member?.[0]?.email || inv?.[0]?.email;
       const targetWs = member?.[0]?.workspace_id || inv?.[0]?.workspace_id;
 
+      // RBAC: Requires members:remove permission (owner, admin only)
+      if (targetWs) {
+        const authResult = await verifyWorkspacePermission(request, 'members:remove', {
+          workspaceId: targetWs
+        });
+        if (!authResult.success) {
+          return authResult.response;
+        }
+      }
+
       await sql.query(`DELETE FROM workspace_members WHERE id = $1`, [id.trim()]).catch(() => {});
       await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE id = $1`, [id.trim()]).catch(() => {});
       await sql.query(`DELETE FROM workspace_invitations WHERE id = $1`, [id.trim()]).catch(() => {});
@@ -318,6 +339,14 @@ export async function DELETE(request: Request) {
         await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE LOWER(email) = LOWER($1) AND workspace_id = $2`, [targetEmail, targetWs]).catch(() => {});
       }
     } else if (email && workspaceId) {
+      // RBAC: Requires members:remove permission (owner, admin only)
+      const authResult = await verifyWorkspacePermission(request, 'members:remove', {
+        workspaceId: workspaceId.trim()
+      });
+      if (!authResult.success) {
+        return authResult.response;
+      }
+
       await sql.query(`
         DELETE FROM workspace_members 
         WHERE LOWER(email) = LOWER($1) AND workspace_id = $2
@@ -346,6 +375,14 @@ export async function PATCH(request: Request) {
 
     if (!workspace_id || !member_id || !role) {
       return NextResponse.json({ success: false, error: 'Fields workspace_id, member_id, and role are required.' }, { status: 400 });
+    }
+
+    // RBAC: Requires members:invite permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'members:invite', {
+      workspaceId: workspace_id.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     const cleanRole: WorkspaceRole = ['admin', 'editor', 'viewer'].includes(role) ? role : 'editor';
@@ -380,3 +417,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+

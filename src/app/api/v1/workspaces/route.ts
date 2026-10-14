@@ -126,6 +126,8 @@ export async function POST(request: Request) {
   }
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -135,9 +137,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Workspace ID is required.' }, { status: 400 });
     }
 
+    const cleanId = id.trim();
+
+    // RBAC: Requires settings:manage permission (owner only)
+    const authResult = await verifyWorkspacePermission(request, 'settings:manage', {
+      workspaceId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = (await sql.query(
       `DELETE FROM workspaces WHERE id = $1 RETURNING *`,
-      [id.trim()]
+      [cleanId]
     )) as unknown as RawWorkspaceRow[];
 
     return NextResponse.json({
@@ -160,6 +172,16 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Workspace ID and Name are required.' }, { status: 400 });
     }
 
+    const cleanId = id.trim();
+
+    // RBAC: Requires settings:manage permission (owner only)
+    const authResult = await verifyWorkspacePermission(request, 'settings:manage', {
+      workspaceId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const cleanSlug = slug 
       ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-')
       : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -169,7 +191,7 @@ export async function PATCH(request: Request) {
        SET name = $1, slug = $2, plan = COALESCE($3, plan)
        WHERE id = $4 
        RETURNING *`,
-      [name.trim(), cleanSlug, plan || null, id.trim()]
+      [name.trim(), cleanSlug, plan || null, cleanId]
     )) as unknown as RawWorkspaceRow[];
 
     return NextResponse.json({
@@ -182,3 +204,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+

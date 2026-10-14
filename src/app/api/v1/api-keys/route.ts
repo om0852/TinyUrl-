@@ -60,6 +60,8 @@ export async function GET(request: Request) {
   }
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -69,12 +71,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Key name is required.' }, { status: 400 });
     }
 
+    const wsId = workspace_id || 'ws_default';
+
+    // RBAC: Requires api_keys:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      workspaceId: wsId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const secretRandom = crypto.randomBytes(24).toString('hex');
     const fullKey = `sk_live_${secretRandom}`;
     const keyPrefix = fullKey.substring(0, 15);
     const keyHash = crypto.createHash('sha256').update(fullKey).digest('hex');
     const keyId = `key_${crypto.randomUUID()}`;
-    const wsId = workspace_id || 'ws_default';
     const perms = Array.isArray(permissions) ? permissions : ['links:read', 'links:write', 'analytics:read'];
 
     await sql.query(
@@ -114,9 +125,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Key ID is required.' }, { status: 400 });
     }
 
+    const cleanId = id.trim();
+
+    // RBAC: Requires api_keys:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      apiKeyId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = (await sql.query(
       `DELETE FROM api_keys WHERE id = $1 RETURNING *`,
-      [id.trim()]
+      [cleanId]
     )) as unknown as RawApiKeyRow[];
 
     return NextResponse.json({
@@ -129,3 +150,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+

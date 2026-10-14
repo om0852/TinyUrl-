@@ -129,6 +129,8 @@ export async function GET(request: Request) {
   });
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -136,6 +138,12 @@ export async function PATCH(request: Request) {
     const lookupId = (id || short_code || custom_slug || '').trim();
     if (!lookupId) {
       return NextResponse.json({ success: false, error: 'Link identifier is required.' }, { status: 400 });
+    }
+
+    // RBAC: Requires links:edit permission
+    const authResult = await verifyWorkspacePermission(request, 'links:edit', { linkId: lookupId });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     const rulesJson = Array.isArray(rules) ? JSON.stringify(rules) : null;
@@ -219,6 +227,13 @@ export async function DELETE(request: Request) {
     }
 
     const cleanId = id.trim();
+
+    // RBAC: Requires links:delete permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'links:delete', { linkId: cleanId });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = (await sql.query(
       `DELETE FROM links WHERE id = $1 OR LOWER(short_code) = LOWER($1) RETURNING *`,
       [cleanId]
@@ -251,7 +266,7 @@ export async function OPTIONS() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
     }
   });
 }

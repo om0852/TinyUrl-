@@ -27,10 +27,23 @@ export interface SecurityAuditResult {
   threat_flags: string[];
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const { workspace_id, link_ids } = body;
+
+    const targetWs = (workspace_id || request.headers.get('x-workspace-id') || '').trim();
+    if (targetWs) {
+      // RBAC: Requires links:edit permission (owner, admin, editor)
+      const authResult = await verifyWorkspacePermission(request, 'links:edit', {
+        workspaceId: targetWs
+      });
+      if (!authResult.success) {
+        return authResult.response;
+      }
+    }
 
     let links: AuditLinkRow[] = [];
     if (Array.isArray(link_ids) && link_ids.length > 0) {
@@ -184,3 +197,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+

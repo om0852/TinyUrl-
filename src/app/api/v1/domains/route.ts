@@ -49,6 +49,8 @@ export async function GET(request: Request) {
   }
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -58,9 +60,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Hostname is required.' }, { status: 400 });
     }
 
+    const cleanWsId = workspace_id || 'ws_default';
+
+    // RBAC: Requires domains:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'domains:manage', {
+      workspaceId: cleanWsId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const cleanHost = hostname.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const cleanId = (id && typeof id === 'string') ? id.trim() : `dom_${Date.now()}`;
-    const cleanWsId = workspace_id || 'ws_default';
 
     const rows = (await sql.query(
       `INSERT INTO domains (id, workspace_id, hostname, verified, ssl_status, is_primary, created_at)
@@ -92,6 +103,14 @@ export async function PATCH(request: Request) {
     const target = id || hostname;
     if (!target || typeof target !== 'string') {
       return NextResponse.json({ success: false, error: 'Domain ID or hostname is required.' }, { status: 400 });
+    }
+
+    // RBAC: Requires domains:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'domains:manage', {
+      domainId: target.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     const cleanHost = (hostname || target).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
@@ -169,9 +188,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Domain ID or hostname is required.' }, { status: 400 });
     }
 
+    const cleanId = id.trim();
+
+    // RBAC: Requires domains:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'domains:manage', {
+      domainId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = (await sql.query(
       `DELETE FROM domains WHERE id = $1 OR LOWER(hostname) = LOWER($1) RETURNING *`,
-      [id.trim()]
+      [cleanId]
     )) as unknown as RawDomainRow[];
 
     return NextResponse.json({
@@ -184,3 +213,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+

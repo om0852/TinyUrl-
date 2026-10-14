@@ -6,6 +6,8 @@ import { linkCache } from '@/lib/cache';
 import { ShortenApiRequest, ShortenApiResponse, Link } from '@/lib/types';
 import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     let body: Partial<ShortenApiRequest>;
@@ -56,6 +58,14 @@ export async function POST(request: Request) {
         success: false, 
         error: 'Field "workspace_id" is required for multi-tenant link attribution.' 
       }, { status: 400 });
+    }
+
+    // 2.5 RBAC Permission Verification
+    const authResult = await verifyWorkspacePermission(request, 'links:create', {
+      workspaceId: workspace_id.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     // 3. Custom Slug Validation & Collision Protection
@@ -213,4 +223,15 @@ export async function POST(request: Request) {
       error: msg 
     }, { status: 500 });
   }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
 }

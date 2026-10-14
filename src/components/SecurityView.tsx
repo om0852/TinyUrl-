@@ -45,7 +45,7 @@ interface SecurityRow {
 }
 
 export const SecurityView: React.FC = () => {
-  const { links, updateLink, currentWorkspace, addWebhook } = useStore();
+  const { links, updateLink, currentWorkspace, addWebhook, currentUser, checkPermissionOrToast } = useStore();
   const [mounted, setMounted] = useState(false);
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
 
@@ -98,12 +98,20 @@ export const SecurityView: React.FC = () => {
   };
 
   const triggerAudit = async () => {
+    if (!checkPermissionOrToast('links:edit', 'run workspace security audits')) {
+      return;
+    }
+
     setIsAuditing(true);
     setAuditText('Scanning link destinations...');
     try {
       const res = await fetch('/api/v1/security/audit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+          'x-workspace-id': currentWorkspace?.id || ''
+        },
         body: JSON.stringify({
           workspace_id: currentWorkspace?.id,
           link_ids: links.map(l => l.id)

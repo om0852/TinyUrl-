@@ -53,6 +53,8 @@ export async function GET(request: Request) {
   }
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -62,8 +64,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Valid webhook URL (HTTP/HTTPS) is required.' }, { status: 400 });
     }
 
-    const webhookId = `wh_${crypto.randomUUID()}`;
     const wsId = workspace_id || 'ws_default';
+
+    // RBAC: Requires api_keys:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      workspaceId: wsId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    const webhookId = `wh_${crypto.randomUUID()}`;
     const evList = Array.isArray(events) ? events : ['link.created', 'link.clicked'];
     const secret = `whsec_${crypto.randomBytes(16).toString('hex')}`;
 
@@ -105,11 +116,21 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Webhook ID is required.' }, { status: 400 });
     }
 
+    const cleanId = id.trim();
+
+    // RBAC: Requires api_keys:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      webhookId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const active = is_active !== undefined ? !!is_active : true;
 
     const rows = (await sql.query(
       `UPDATE webhooks SET is_active = $1 WHERE id = $2 RETURNING *`,
-      [active, id.trim()]
+      [active, cleanId]
     )) as unknown as RawWebhookRow[];
 
     return NextResponse.json({
@@ -132,9 +153,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Webhook ID is required.' }, { status: 400 });
     }
 
+    const cleanId = id.trim();
+
+    // RBAC: Requires api_keys:manage permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      webhookId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = (await sql.query(
       `DELETE FROM webhooks WHERE id = $1 RETURNING *`,
-      [id.trim()]
+      [cleanId]
     )) as unknown as RawWebhookRow[];
 
     return NextResponse.json({
@@ -147,3 +178,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+

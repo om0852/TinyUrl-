@@ -61,6 +61,8 @@ export async function GET(request: Request) {
   }
 }
 
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -72,6 +74,14 @@ export async function POST(request: Request) {
 
     if (!workspace_id || typeof workspace_id !== 'string') {
       return NextResponse.json({ success: false, error: 'Workspace ID is required.' }, { status: 400 });
+    }
+
+    // RBAC: Requires campaigns:create permission (owner, admin, editor)
+    const authResult = await verifyWorkspacePermission(request, 'campaigns:create', {
+      workspaceId: workspace_id.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     const campaignId = id || `cmp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -133,7 +143,17 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'Campaign ID is required.' }, { status: 400 });
     }
 
-    await sql.query(`DELETE FROM campaigns WHERE id = $1`, [id.trim()]);
+    const cleanId = id.trim();
+
+    // RBAC: Requires campaigns:delete permission (owner, admin only)
+    const authResult = await verifyWorkspacePermission(request, 'campaigns:delete', {
+      campaignId: cleanId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    await sql.query(`DELETE FROM campaigns WHERE id = $1`, [cleanId]);
 
     return NextResponse.json({
       success: true,
@@ -144,3 +164,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
+    }
+  });
+}
+
