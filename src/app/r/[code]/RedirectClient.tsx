@@ -6,6 +6,7 @@ import { useStore } from '@/lib/storeContext';
 import { Link } from '@/lib/types';
 import { Link2, ArrowRight, Shield, AlertTriangle, ExternalLink, Lock, Globe, Zap } from 'lucide-react';
 import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
+import { resolveSmartTargetUrl } from '@/lib/geo';
 
 /* ─── Animated Progress Bar ─── */
 function AnimatedProgressBar({
@@ -347,46 +348,27 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
   // Compute smart destination URL
   const resolvedTarget = useMemo(() => {
-    let finalUrl = (link && link.destination_url) || edgeTarget || '';
-
-    if (link?.rules && link.rules.length > 0) {
-      // If edgeTarget was matched by Edge/Server Location routing (City > State > Country), prioritize it
-      const isGeoEdgeTarget = edgeTarget && link.rules.some(r => 
-        (r.rule_type === 'geo' || r.rule_type === 'smart' || r.city || r.state || r.country) && r.target_url === edgeTarget
-      );
-
-      if (isGeoEdgeTarget) {
-        finalUrl = edgeTarget;
-      } else {
-        const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-        const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-        const isAndroid = /Android/i.test(userAgent);
-
-        const deviceRule = link.rules.find(r => 
-          (r.rule_type === 'device' || r.device) && (
-            ((r.device === 'android' || r.condition?.toLowerCase() === 'android') && isAndroid) ||
-            ((r.device === 'ios' || r.condition?.toLowerCase() === 'ios') && isIOS) ||
-            ((r.device === 'all' || r.condition?.toLowerCase() === 'all') && (isIOS || isAndroid))
-          )
-        );
-
-        if (deviceRule && deviceRule.target_url) {
-          finalUrl = deviceRule.target_url;
-        } else {
-          const abRule = link.rules.find(r => r.rule_type === 'ab');
-          if (abRule && abRule.target_url) {
-            const weight = abRule.weight || 50;
-            if (abRoll < weight) {
-              finalUrl = abRule.target_url;
-            }
-          } else if (edgeTarget) {
-            finalUrl = edgeTarget;
-          }
-        }
+    // 1. If edge/server middleware already computed the resolved destination URL, use it directly
+    if (edgeTarget) {
+      let finalUrl = edgeTarget;
+      if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.includes('://')) {
+        finalUrl = 'https://' + finalUrl;
       }
-    } else if (edgeTarget) {
-      finalUrl = edgeTarget;
+      return finalUrl;
     }
+
+    // 2. Otherwise calculate using resolveSmartTargetUrl
+    let finalUrl = (link && link.destination_url) || '';
+    if (link?.rules && link.rules.length > 0) {
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+      finalUrl = resolveSmartTargetUrl({
+        rules: link.rules,
+        defaultUrl: link.destination_url,
+        userAgent,
+        abVariant: abRoll < 50 ? 'B' : 'A'
+      });
+    }
+
     if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.includes('://')) {
       finalUrl = 'https://' + finalUrl;
     }

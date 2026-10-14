@@ -167,16 +167,24 @@ export async function GET(request: Request) {
   let topRegions: Array<{ region: string; clicks: number }> = [];
   let topCities: Array<{ city: string; region?: string; country?: string; clicks: number }> = [];
 
-  if (workspaceId) {
+  if (code || workspaceId) {
     try {
-      const events = (await sql.query(`
-        SELECT DISTINCT c.*
-        FROM click_events c
-        INNER JOIN links l ON (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code))
-        WHERE l.workspace_id = $1
-        ORDER BY c.timestamp DESC
-        LIMIT 100
-      `, [workspaceId])) as unknown as RawClickRow[];
+      const events = (code && code !== 'all')
+        ? ((await sql.query(`
+            SELECT c.*
+            FROM click_events c
+            WHERE LOWER(c.short_code) = $1
+            ORDER BY c.timestamp DESC
+            LIMIT 100
+          `, [code])) as unknown as RawClickRow[])
+        : ((await sql.query(`
+            SELECT DISTINCT c.*
+            FROM click_events c
+            INNER JOIN links l ON (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code))
+            WHERE l.workspace_id = $1
+            ORDER BY c.timestamp DESC
+            LIMIT 100
+          `, [workspaceId])) as unknown as RawClickRow[]);
 
       if (Array.isArray(events)) {
         recentClicks = events.map((c) => {

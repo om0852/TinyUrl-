@@ -98,6 +98,16 @@ export interface Link {
   deep_link?: DeepLinkConfig;
   rules?: LinkRule[];
   scheduled_activation?: string;
+
+  // Smart routing runtime resolution
+  resolved_destination_url?: string;
+  visitor_geo?: {
+    countryCode?: string;
+    countryName?: string;
+    regionCode?: string;
+    regionName?: string;
+    city?: string;
+  };
 }
 
 export interface ClickEvent {

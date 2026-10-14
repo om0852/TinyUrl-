@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { TrackApiRequest, TrackApiResponse, Link } from '@/lib/types';
+import { extractGeoFromHeaders } from '@/lib/geo';
 
 export async function POST(request: Request) {
   try {
@@ -51,78 +52,12 @@ export async function POST(request: Request) {
       }
 
       if (click && typeof click === 'object') {
-        const vercelCountry = request.headers.get('x-vercel-ip-country') || request.headers.get('cf-ipcountry');
-        const vercelRegion = request.headers.get('x-vercel-ip-country-region') || request.headers.get('cf-region');
-        const vercelCity = request.headers.get('x-vercel-ip-city') || request.headers.get('cf-ipcity');
+        const headerGeo = extractGeoFromHeaders(name => request.headers.get(name));
 
-        let resolvedCode = (vercelCountry || click.country_code || '').trim().toUpperCase();
-        const resolvedCity = vercelCity ? decodeURIComponent(vercelCity) : (click.city || 'Direct');
-
-        // Only override if client explicitly indicated India, otherwise respect headers or mark Unknown
-        if (!resolvedCode) {
-          if (click.country?.toLowerCase().includes('india')) {
-            resolvedCode = 'IN';
-          } else {
-            resolvedCode = 'Unknown';
-          }
-        }
-
-        let resolvedCountry = 'Unknown';
-        if (resolvedCode !== 'Unknown') {
-          try {
-            const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-            resolvedCountry = regionNames.of(resolvedCode) || (resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode);
-          } catch {
-            resolvedCountry = resolvedCode === 'IN' ? 'India' : resolvedCode === 'US' ? 'United States' : resolvedCode;
-          }
-        }
-
-        const INDIAN_STATES: Record<string, string> = {
-          'MH': 'Maharashtra', 'DL': 'Delhi', 'KA': 'Karnataka', 'TN': 'Tamil Nadu',
-          'GJ': 'Gujarat', 'UP': 'Uttar Pradesh', 'WB': 'West Bengal', 'TS': 'Telangana',
-          'TG': 'Telangana', 'AP': 'Andhra Pradesh', 'KL': 'Kerala', 'RJ': 'Rajasthan',
-          'MP': 'Madhya Pradesh', 'HR': 'Haryana', 'PB': 'Punjab', 'BR': 'Bihar',
-          'OR': 'Odisha', 'OD': 'Odisha', 'AS': 'Assam', 'JH': 'Jharkhand',
-          'CT': 'Chhattisgarh', 'UT': 'Uttarakhand', 'HP': 'Himachal Pradesh',
-          'GA': 'Goa', 'JK': 'Jammu & Kashmir', 'CH': 'Chandigarh'
-        };
-
-        const US_STATES: Record<string, string> = {
-          'CA': 'California', 'NY': 'New York', 'TX': 'Texas', 'FL': 'Florida',
-          'IL': 'Illinois', 'WA': 'Washington', 'PA': 'Pennsylvania', 'OH': 'Ohio',
-          'GA': 'Georgia', 'NC': 'North Carolina', 'MI': 'Michigan', 'NJ': 'New Jersey',
-          'VA': 'Virginia', 'CO': 'Colorado', 'MA': 'Massachusetts', 'AZ': 'Arizona'
-        };
-
-        let resolvedRegion = (click.region || '').trim();
-        if (vercelRegion) {
-          const vReg = vercelRegion.trim().toUpperCase();
-          if (resolvedCode === 'IN' && INDIAN_STATES[vReg]) {
-            resolvedRegion = INDIAN_STATES[vReg];
-          } else if (resolvedCode === 'US' && US_STATES[vReg]) {
-            resolvedRegion = US_STATES[vReg];
-          } else {
-            resolvedRegion = vercelRegion;
-          }
-        }
-        if (!resolvedRegion && resolvedCity) {
-          const cLow = resolvedCity.toLowerCase();
-          if (cLow.includes('mumbai') || cLow.includes('pune') || cLow.includes('nagpur') || cLow.includes('nashik') || cLow.includes('thane')) {
-            resolvedRegion = 'Maharashtra';
-          } else if (cLow.includes('delhi')) {
-            resolvedRegion = 'Delhi';
-          } else if (cLow.includes('bengaluru') || cLow.includes('bangalore') || cLow.includes('mysore')) {
-            resolvedRegion = 'Karnataka';
-          } else if (cLow.includes('hyderabad')) {
-            resolvedRegion = 'Telangana';
-          } else if (cLow.includes('chennai')) {
-            resolvedRegion = 'Tamil Nadu';
-          } else if (cLow.includes('kolkata')) {
-            resolvedRegion = 'West Bengal';
-          } else if (cLow.includes('ahmedabad') || cLow.includes('surat')) {
-            resolvedRegion = 'Gujarat';
-          }
-        }
+        const resolvedCode = (headerGeo.countryCode || click.country_code || '').trim().toUpperCase() || 'Unknown';
+        const resolvedCountry = (headerGeo.countryName || click.country || (resolvedCode !== 'Unknown' ? resolvedCode : 'Unknown')).trim();
+        const resolvedRegion = (headerGeo.regionName || click.region || '').trim() || null;
+        const resolvedCity = (headerGeo.city || click.city || 'Direct').trim();
 
         const clickId = click.id || `clk_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 

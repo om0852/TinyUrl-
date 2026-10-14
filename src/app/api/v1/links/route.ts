@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { LinksApiResponse, Link, LinkRule } from '@/lib/types';
+import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 
 interface RawLinkRow {
   id: string;
@@ -54,8 +55,26 @@ export async function GET(request: Request) {
 
     if (Array.isArray(rows)) {
       const isPublicCodeQuery = !!code;
+      const geo = extractGeoFromHeaders(name => request.headers.get(name));
+      const userAgent = request.headers.get('user-agent') || '';
+
       const formattedLinks: Link[] = rows.map((l: RawLinkRow) => {
         const isPasswordLocked = isPublicCodeQuery && !!l.password_hash;
+        const parsedRules: LinkRule[] = isPasswordLocked 
+          ? [] 
+          : (typeof l.rules === 'string' ? JSON.parse(l.rules) : (Array.isArray(l.rules) ? l.rules : []));
+
+        // Evaluate smart routing destination for visitor device & geo
+        let resolvedDestination = isPasswordLocked ? '' : l.destination_url;
+        if (!isPasswordLocked && parsedRules.length > 0) {
+          resolvedDestination = resolveSmartTargetUrl({
+            rules: parsedRules,
+            defaultUrl: l.destination_url,
+            userAgent,
+            geo
+          });
+        }
+
         return {
           id: l.id,
           workspace_id: l.workspace_id || '',
@@ -63,6 +82,8 @@ export async function GET(request: Request) {
           custom_slug: l.custom_slug || l.short_code,
           domain_id: l.domain_id || 'dom_primary',
           destination_url: isPasswordLocked ? '' : l.destination_url,
+          resolved_destination_url: resolvedDestination,
+          visitor_geo: geo,
           title: l.title || `Short Link /${l.short_code}`,
           tags: typeof l.tags === 'string' ? JSON.parse(l.tags) : (Array.isArray(l.tags) ? l.tags : []),
           clicks_count: Number(l.clicks_count) || 0,
@@ -71,7 +92,7 @@ export async function GET(request: Request) {
           risk_score: Number(l.risk_score) || 0,
           created_by: l.created_by || 'Owner',
           created_at: l.created_at || new Date().toISOString(),
-          rules: isPasswordLocked ? [] : (typeof l.rules === 'string' ? JSON.parse(l.rules) : (Array.isArray(l.rules) ? l.rules : [])),
+          rules: parsedRules,
           utm_source: l.utm_source || undefined,
           utm_medium: l.utm_medium || undefined,
           utm_campaign: l.utm_campaign || undefined,
