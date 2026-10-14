@@ -4,6 +4,7 @@ import dns from 'dns';
 import { sql } from '@/lib/postgres';
 import { Domain } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { addDomainToVercel, verifyDomainOnVercel, removeDomainFromVercel, isVercelConfigured } from '@/lib/vercel';
 
 interface RawDomainRow {
   id: string;
@@ -167,6 +168,26 @@ export async function POST(request: Request) {
 
     const saved = rows && rows.length > 0 ? rows[0] : null;
 
+    // Automatically register domain with Vercel Edge API if credentials configured
+    if (isVercelConfigured()) {
+      try {
+        const vRes = await addDomainToVercel(cleanHost);
+        if (vRes.verified) {
+          await sql.query(
+            `UPDATE domains SET verified = true, ssl_status = 'active', routing_verified = true WHERE id = $1`,
+            [cleanId]
+          ).catch(() => {});
+          if (saved) {
+            saved.verified = true;
+            saved.ssl_status = 'active';
+            saved.routing_verified = true;
+          }
+        }
+      } catch (err) {
+        console.warn('Vercel domain auto-registration notice:', err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Custom domain registered. Please configure the DNS verification records to verify ownership.',
@@ -303,6 +324,17 @@ export async function PATCH(request: Request) {
       routingVerified = true;
     }
 
+    // Check with Vercel Edge verification if configured
+    if (isVercelConfigured()) {
+      try {
+        const vVerify = await verifyDomainOnVercel(cleanHost);
+        if (vVerify.verified) {
+          routingVerified = true;
+          ownershipVerified = true;
+        }
+      } catch {}
+    }
+
     // C. Developer Demo / Localhost / DuckDNS bypass
     const isDuckDns = cleanHost.endsWith('.duckdns.org') && (resolvedIps.length > 0 || isIpMatched);
     const isLocalOrTest = cleanHost.includes('localhost') || 
@@ -411,6 +443,10 @@ export async function DELETE(request: Request) {
       `DELETE FROM domains WHERE id = $1 OR LOWER(hostname) = LOWER($1) RETURNING *`,
       [cleanId]
     )) as unknown as RawDomainRow[];
+
+    if (rows && rows.length > 0 && rows[0].hostname && isVercelConfigured()) {
+      removeDomainFromVercel(rows[0].hostname).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,
