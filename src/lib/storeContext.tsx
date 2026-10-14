@@ -13,6 +13,7 @@ import {
   SecurityReport,
   User,
   TeamMember,
+  WorkspaceInvitation,
   WorkspaceRole,
   DeepLinkConfig
 } from './types';
@@ -40,7 +41,7 @@ interface StoreContextType {
   createWorkspace: (name: string, plan?: 'free' | 'pro' | 'enterprise') => Workspace;
 
   teamMembers: TeamMember[];
-  inviteTeamMember: (name: string, email: string, role: WorkspaceRole) => void;
+  inviteTeamMember: (name: string, email: string, role: WorkspaceRole) => Promise<WorkspaceInvitation | null>;
   removeTeamMember: (id: string) => void;
 
   domains: Domain[];
@@ -652,6 +653,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setWebhooks(d.webhooks);
             }
           }).catch(() => {});
+
+        // 6. Fetch Campaigns from PostgreSQL
+        fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(activeWs.id)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.success && Array.isArray(d.campaigns)) {
+              setCampaigns(d.campaigns);
+            }
+          }).catch(() => {});
+
+        // 7. Fetch Team Members and Invitations from PostgreSQL
+        fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWs.id)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.success && Array.isArray(d.members)) {
+              const combined: TeamMember[] = [
+                ...d.members,
+                ...(Array.isArray(d.invitations) ? d.invitations.map((inv: WorkspaceInvitation) => ({
+                  id: inv.id,
+                  workspace_id: inv.workspace_id,
+                  name: inv.name,
+                  email: inv.email,
+                  role: inv.role,
+                  status: 'invited' as const,
+                  token: inv.token,
+                  invite_url: inv.invite_url,
+                  avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
+                  created_at: inv.created_at
+                })) : [])
+              ];
+              setTeamMembers(combined);
+            }
+          }).catch(() => {});
       } catch {}
     };
 
@@ -1133,13 +1167,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       target_clicks,
       created_at: new Date().toISOString()
     };
-    saveCampaignsState([newCamp, ...campaigns]);
+    const updated = [newCamp, ...campaigns];
+    saveCampaignsState(updated);
+
+    if (typeof window !== 'undefined') {
+      fetch('/api/v1/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newCamp.id,
+          workspace_id: newCamp.workspace_id,
+          name,
+          description,
+          tags,
+          target_clicks
+        })
+      }).catch(err => console.warn('Failed to save campaign on server:', err));
+    }
+
     return newCamp;
   };
 
   const deleteCampaign = (id: string) => {
     const updated = campaigns.filter(c => c.id !== id);
     saveCampaignsState(updated);
+    if (typeof window !== 'undefined') {
+      fetch(`/api/v1/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   const addDomain = async (hostname: string, is_default?: boolean): Promise<Domain | null> => {
@@ -1819,22 +1873,59 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Team Member management
-  const inviteTeamMember = (name: string, email: string, role: WorkspaceRole) => {
+  const inviteTeamMember = async (name: string, email: string, role: WorkspaceRole): Promise<WorkspaceInvitation | null> => {
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
+    const tempId = generateId('tm');
     const newMember: TeamMember = {
-      id: generateId('tm'),
+      id: tempId,
       workspace_id: currentWorkspace.id,
       name,
       email,
       role,
-      status: 'active',
+      status: 'invited',
       avatar: initials
     };
     saveTeamMembersState([...teamMembers, newMember]);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/v1/workspaces/members', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workspace_id: currentWorkspace.id,
+            name,
+            email,
+            role,
+            inviter_email: currentUser?.email || 'Admin'
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.invitation) {
+          setTeamMembers(prev => prev.map(m => m.id === tempId ? {
+            ...m,
+            id: data.invitation.id,
+            token: data.invitation.token,
+            invite_url: data.invitation.invite_url
+          } : m));
+          return data.invitation;
+        }
+      } catch (err) {
+        console.warn('Failed to register invitation on server:', err);
+      }
+    }
+    return null;
   };
 
   const removeTeamMember = (id: string) => {
+    const target = teamMembers.find(m => m.id === id);
     saveTeamMembersState(teamMembers.filter(m => m.id !== id));
+    if (typeof window !== 'undefined') {
+      const param = target 
+        ? `email=${encodeURIComponent(target.email)}&workspace_id=${encodeURIComponent(currentWorkspace.id)}` 
+        : `id=${encodeURIComponent(id)}`;
+      fetch(`/api/v1/workspaces/members?${param}`, { method: 'DELETE' }).catch(() => {});
+    }
   };
 
   const importLinksCsv = (csvContent: string): number => {

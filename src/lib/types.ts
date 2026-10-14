@@ -11,11 +11,30 @@ export interface User {
 export interface TeamMember {
   id: string;
   workspace_id: string;
+  user_id?: string;
   name: string;
   email: string;
   role: WorkspaceRole;
   status: 'active' | 'invited';
   avatar?: string;
+  token?: string;
+  invite_url?: string;
+  created_at?: string;
+}
+
+export interface WorkspaceInvitation {
+  id: string;
+  workspace_id: string;
+  workspace_name?: string;
+  inviter_email?: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  token: string;
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+  expires_at?: string;
+  created_at: string;
+  invite_url?: string;
 }
 
 export interface Workspace {

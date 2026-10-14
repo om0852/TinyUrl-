@@ -21,11 +21,14 @@ import {
   TrendingUp, 
   Link2,
   Activity,
-  X
+  X,
+  Lock,
+  Trash2
 } from 'lucide-react';
+import { hasPermission, ROLE_DESCRIPTIONS, ROLE_PERMISSIONS } from '@/lib/rbac';
 
 export const CampaignsView: React.FC = () => {
-  const { currentUser, campaigns, addCampaign, deleteCampaign, teamMembers, links } = useStore();
+  const { currentUser, campaigns, addCampaign, deleteCampaign, teamMembers, removeTeamMember, links, currentWorkspace } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -35,8 +38,10 @@ export const CampaignsView: React.FC = () => {
   // Modals & form state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [matrixModalOpen, setMatrixModalOpen] = useState(false);
   const [filterTab, setFilterTab] = useState<'all' | 'live' | 'completed'>('all');
   const [copiedPreset, setCopiedPreset] = useState<string | null>(null);
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
   // New campaign modal form
   const [newTitle, setNewTitle] = useState('');
@@ -450,90 +455,137 @@ export const CampaignsView: React.FC = () => {
             </button>
           </div>
 
-          {/* Workspace Team & Roles Panel */}
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-xs border border-outline-variant/30">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
-                  <FolderKanban className="w-4 h-4" />
-                </div>
-                <h3 className="text-sm font-bold text-on-surface">Workspace Team Seats</h3>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setInviteModalOpen(true)}
-                className="inline-flex items-center gap-1 text-primary-container hover:text-primary text-xs font-semibold cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Invite</span>
-              </button>
-            </div>
-
-            <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-              Role-based delegation prevents accidental destination URL changes during live sponsorship read pushes.
-            </p>
-
-            <div className="flex flex-col gap-2.5">
-              
-              {/* Workspace Owner */}
-              <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30 shadow-xs">
-                    {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
+            {/* Workspace Team & Roles Panel */}
+            <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-xs border border-outline-variant/30">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
+                    <FolderKanban className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0">
-                    <span className="text-xs font-bold text-on-surface block truncate">
-                      {currentUser?.name || "Workspace Owner"}
-                    </span>
-                    <span className="text-[11px] text-on-surface-variant truncate block">
-                      {currentUser?.email || "Primary Lead · Owner"}
-                    </span>
-                  </div>
+                  <h3 className="text-sm font-bold text-on-surface">Workspace Team Seats</h3>
                 </div>
-                <span className="px-2 py-0.5 rounded text-primary-container text-[11px] font-bold bg-primary-fixed shrink-0">
-                  Owner
-                </span>
+                {hasPermission(currentUser?.role || currentWorkspace?.role || 'owner', 'members:invite') ? (
+                  <button 
+                    type="button"
+                    onClick={() => setInviteModalOpen(true)}
+                    className="inline-flex items-center gap-1 text-primary-container hover:text-primary text-xs font-semibold cursor-pointer"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Invite</span>
+                  </button>
+                ) : (
+                  <span className="text-[11px] text-on-surface-variant font-medium">Read-Only Seats</span>
+                )}
               </div>
 
-              {/* Dynamic Workspace Team Members */}
-              {teamMembers.map((m) => (
-                <div key={m.id} className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
+              <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
+                Role-based delegation prevents accidental destination URL changes during live sponsorship read pushes.
+              </p>
+
+              <div className="flex flex-col gap-2.5">
+                
+                {/* Workspace Owner */}
+                <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30">
-                      {m.avatar || m.name.slice(0, 2).toUpperCase()}
+                    <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30 shadow-xs">
+                      {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
                     </div>
                     <div className="min-w-0">
-                      <span className="text-xs font-bold text-on-surface block truncate">{m.name}</span>
-                      <span className="text-[11px] text-on-surface-variant truncate block">{m.email}</span>
+                      <span className="text-xs font-bold text-on-surface block truncate">
+                        {currentUser?.name || "Workspace Lead"}
+                      </span>
+                      <span className="text-[11px] text-on-surface-variant truncate block">
+                        {currentUser?.email || "Primary Lead · Active"}
+                      </span>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold bg-surface-container text-on-surface shrink-0 capitalize">
-                    {m.role}
+                  <span className="px-2 py-0.5 rounded text-primary-container text-[11px] font-bold bg-primary-fixed shrink-0">
+                    Owner
                   </span>
                 </div>
-              ))}
 
-              {teamMembers.length === 0 && (
-                <div className="p-3 rounded-xl bg-surface-container-low/50 border border-outline-variant/20 text-center">
-                  <p className="text-[11px] text-on-surface-variant">
-                    No additional team members invited yet. Use the Invite button above to delegate campaign links.
-                  </p>
-                </div>
-              )}
+                {/* Dynamic Workspace Team Members */}
+                {teamMembers.map((m) => {
+                  const isPending = m.status === 'invited';
+                  const roleConfig = ROLE_DESCRIPTIONS[m.role] || ROLE_DESCRIPTIONS.editor;
+                  const inviteLink = m.invite_url || (m.token && typeof window !== 'undefined' ? `${window.location.origin}/invite/${m.token}` : '');
 
+                  return (
+                    <div key={m.id} className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30">
+                          {m.avatar || m.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-on-surface truncate">{m.name}</span>
+                            {isPending && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-on-surface-variant truncate block">{m.email}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isPending && inviteLink && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(inviteLink);
+                              setCopiedInviteId(m.id);
+                              setTimeout(() => setCopiedInviteId(null), 2000);
+                            }}
+                            title="Copy Invitation Link"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-surface-container hover:bg-surface-container-high text-primary-container transition cursor-pointer"
+                          >
+                            {copiedInviteId === m.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            <span>{copiedInviteId === m.id ? 'Copied' : 'Link'}</span>
+                          </button>
+                        )}
+
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold capitalize ${roleConfig.badgeColor}`}>
+                          {m.role}
+                        </span>
+
+                        {hasPermission(currentUser?.role || currentWorkspace?.role || 'owner', 'members:remove') && (
+                          <button
+                            type="button"
+                            onClick={() => removeTeamMember(m.id)}
+                            title="Remove Member"
+                            className="p-1 rounded text-outline hover:text-red-500 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {teamMembers.length === 0 && (
+                  <div className="p-3 rounded-xl bg-surface-container-low/50 border border-outline-variant/20 text-center">
+                    <p className="text-[11px] text-on-surface-variant">
+                      No additional collaborators invited yet. Use the Invite button above to add members with specific roles.
+                    </p>
+                  </div>
+                )}
+
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-xs">
+                <span className="text-on-surface-variant">Active tier: Pro Studio Plan</span>
+                <button 
+                  type="button" 
+                  onClick={() => setMatrixModalOpen(true)}
+                  className="text-primary-container font-semibold hover:underline cursor-pointer"
+                >
+                  View Role Matrix &rarr;
+                </button>
+              </div>
             </div>
-
-            <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-xs">
-              <span className="text-on-surface-variant">Active tier: Pro Studio Plan</span>
-              <button 
-                type="button" 
-                onClick={() => setInviteModalOpen(true)}
-                className="text-primary-container font-semibold hover:underline cursor-pointer"
-              >
-                Manage Matrix &rarr;
-              </button>
-            </div>
-          </div>
 
           {/* Real-Time Deliverable Status Summary */}
           <div className="bg-surface-container-low rounded-2xl p-6 shadow-xs border border-outline-variant/30">
@@ -636,6 +688,118 @@ export const CampaignsView: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Role-Based Access Control Matrix Modal */}
+      {mounted && matrixModalOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => { if (e.target === e.currentTarget) setMatrixModalOpen(false); }}
+        >
+          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-3xl p-6 sm:p-7 w-full max-w-xl shadow-2xl space-y-5 text-on-surface">
+            <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-on-surface">Role-Based Access Control (RBAC)</h3>
+                  <p className="text-xs text-on-surface-variant">Permissions &amp; seat capabilities for workspace collaborators</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setMatrixModalOpen(false)}
+                className="p-1 rounded-xl hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-outline-variant/30 text-on-surface-variant">
+                    <th className="py-2.5 px-3 font-bold">Feature Privilege</th>
+                    <th className="py-2.5 px-2 font-bold text-center">Owner</th>
+                    <th className="py-2.5 px-2 font-bold text-center">Admin</th>
+                    <th className="py-2.5 px-2 font-bold text-center">Editor</th>
+                    <th className="py-2.5 px-2 font-bold text-center">Viewer</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/20 text-[11px]">
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Create &amp; Shorten Links</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Edit Destination &amp; Smart Rules</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Delete Links</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Create &amp; Manage Campaigns</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Invite &amp; Manage Members</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Manage Domains &amp; API Keys</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Export Analytics &amp; Reports</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-semibold text-on-surface">Delete Workspace</td>
+                    <td className="py-2.5 px-2 text-center text-emerald-600 font-bold">✓</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                    <td className="py-2.5 px-2 text-center text-outline">✕</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setMatrixModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl bg-primary-container text-on-primary font-bold text-xs hover:bg-primary transition cursor-pointer"
+              >
+                Close Matrix
+              </button>
+            </div>
           </div>
         </div>,
         document.body

@@ -173,7 +173,42 @@ export async function initializeDatabase() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-    await sql.query(`CREATE INDEX IF NOT EXISTS idx_webhooks_workspace ON webhooks (workspace_id)`);
+    // 8. Workspace Members
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS workspace_members (
+        id VARCHAR(64) PRIMARY KEY,
+        workspace_id VARCHAR(64) NOT NULL,
+        user_id VARCHAR(64),
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        role VARCHAR(32) NOT NULL DEFAULT 'editor',
+        status VARCHAR(32) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(workspace_id, email)
+      )
+    `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_workspace_members_ws ON workspace_members (workspace_id)`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_workspace_members_email ON workspace_members (email)`);
+
+    // 9. Workspace Invitations
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS workspace_invitations (
+        id VARCHAR(64) PRIMARY KEY,
+        workspace_id VARCHAR(64) NOT NULL,
+        inviter_email VARCHAR(255),
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        role VARCHAR(32) NOT NULL DEFAULT 'editor',
+        token VARCHAR(128) UNIQUE NOT NULL,
+        status VARCHAR(32) NOT NULL DEFAULT 'pending',
+        expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '7 days'),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        accepted_at TIMESTAMPTZ
+      )
+    `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_invitations_token ON workspace_invitations (token)`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_invitations_ws ON workspace_invitations (workspace_id)`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_campaigns_workspace ON campaigns (workspace_id)`);
 
     return { success: true };
   } catch (error) {
