@@ -21,7 +21,8 @@ import {
   AlertCircle,
   MapPin,
   Globe,
-  Building2
+  Building2,
+  Laptop
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 
@@ -58,11 +59,11 @@ export const SmartRoutingView: React.FC = () => {
   const [newRuleModalOpen, setNewRuleModalOpen] = useState(false);
   const [ruleName, setRuleName] = useState('');
   const [targetLinkId, setTargetLinkId] = useState(links[0]?.id || '');
-  const [ruleType, setRuleType] = useState<'device' | 'geo'>('device');
-  const [selectedDevice, setSelectedDevice] = useState<'ios' | 'android' | 'all'>('all');
-  const [geoLevel, setGeoLevel] = useState<'country' | 'state' | 'city'>('country');
-  const [locationValue, setLocationValue] = useState('');
-  const [ruleAppScheme, setRuleAppScheme] = useState('');
+  const [selectedDevice, setSelectedDevice] = useState<'all' | 'android' | 'ios' | 'desktop'>('all');
+  const [targetCountry, setTargetCountry] = useState('');
+  const [targetState, setTargetState] = useState('');
+  const [targetCity, setTargetCity] = useState('');
+  const [ruleDestinationUrl, setRuleDestinationUrl] = useState('');
   const [ruleFallback, setRuleFallback] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
 
@@ -114,8 +115,7 @@ export const SmartRoutingView: React.FC = () => {
 
   const handleCreateRule = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ruleName || !ruleAppScheme) return;
-    if (ruleType === 'geo' && !locationValue.trim()) return;
+    if (!ruleName.trim() || !ruleDestinationUrl.trim()) return;
 
     let linkIdToUse = targetLinkId || links[0]?.id;
     if (!linkIdToUse) {
@@ -129,28 +129,24 @@ export const SmartRoutingView: React.FC = () => {
     }
 
     if (linkIdToUse) {
-      if (ruleType === 'device') {
-        addRuleToLink(linkIdToUse, {
-          rule_type: 'device',
-          condition: selectedDevice,
-          target_url: ruleAppScheme,
-          weight: 100
-        });
-      } else {
-        addRuleToLink(linkIdToUse, {
-          rule_type: 'geo',
-          geo_type: geoLevel,
-          condition: locationValue.trim(),
-          target_url: ruleAppScheme,
-          weight: 100
-        });
-      }
+      addRuleToLink(linkIdToUse, {
+        rule_type: 'smart',
+        device: selectedDevice,
+        country: targetCountry.trim() || undefined,
+        state: targetState.trim() || undefined,
+        city: targetCity.trim() || undefined,
+        target_url: ruleDestinationUrl,
+        weight: 100
+      });
     }
 
     setRuleName('');
-    setRuleAppScheme('');
+    setTargetCountry('');
+    setTargetState('');
+    setTargetCity('');
+    setSelectedDevice('all');
+    setRuleDestinationUrl('');
     setRuleFallback('');
-    setLocationValue('');
     setNewRuleModalOpen(false);
   };
 
@@ -158,36 +154,51 @@ export const SmartRoutingView: React.FC = () => {
   const dynamicRules = React.useMemo(() => {
     return links.flatMap(l => 
       (l.rules || []).map(r => {
-        let badge = 'DEV';
-        let badgeBg = 'bg-primary-fixed text-primary';
-        let displayType = 'DEVICE';
+        let badge = 'SMART';
+        let badgeBg = 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300';
 
-        if (r.rule_type === 'geo') {
-          if (r.geo_type === 'city') {
-            badge = 'CITY';
-            badgeBg = 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
-            displayType = 'CITY';
-          } else if (r.geo_type === 'state') {
-            badge = 'STATE';
-            badgeBg = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
-            displayType = 'STATE';
-          } else {
-            badge = 'GEO';
-            badgeBg = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
-            displayType = 'COUNTRY';
-          }
+        const filterTags: string[] = [];
+        if (r.device && r.device !== 'all') {
+          filterTags.push(`Device: ${r.device.toUpperCase()}`);
+        }
+        if (r.city) filterTags.push(`City: ${r.city}`);
+        if (r.state) filterTags.push(`State: ${r.state}`);
+        if (r.country) filterTags.push(`Country: ${r.country}`);
+
+        if (filterTags.length === 0 && r.condition) {
+          filterTags.push(r.condition);
+        }
+
+        if (r.city) {
+          badge = 'CITY';
+          badgeBg = 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300';
+        } else if (r.state) {
+          badge = 'STATE';
+          badgeBg = 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
+        } else if (r.country) {
+          badge = 'GEO';
+          badgeBg = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
+        } else if (r.device && r.device !== 'all') {
+          badge = r.device === 'ios' ? 'iOS' : r.device === 'android' ? 'AND' : 'DEV';
+          badgeBg = 'bg-primary-fixed text-primary';
+        } else if (r.rule_type === 'device') {
+          badge = 'DEV';
+          badgeBg = 'bg-primary-fixed text-primary';
+        } else if (r.rule_type === 'geo') {
+          badge = 'GEO';
+          badgeBg = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300';
         }
 
         return {
           id: r.id,
           linkId: l.id,
-          title: `${l.title || l.short_code} · ${displayType}: ${r.condition}`,
+          title: `${l.title || l.short_code} · ${r.condition || filterTags.join(' · ') || 'Smart Route'}`,
           code: `${l.custom_slug || l.short_code}`,
           badge,
           badgeBg,
           scheme: r.target_url,
-          openRate: r.rule_type === 'geo' ? 'Geo location match' : '96.2% native app rate',
-          filters: [r.condition, r.geo_type ? `geo:${r.geo_type}` : r.rule_type],
+          openRate: r.city || r.state || r.country ? 'Geo & Device Match' : '96.2% native app rate',
+          filters: filterTags,
           fallback: l.destination_url,
           clicks: (l.clicks_count || 0).toLocaleString(),
           status: l.status === 'active' ? 'Active' : 'Paused',
@@ -780,7 +791,7 @@ export const SmartRoutingView: React.FC = () => {
             if (e.target === e.currentTarget) setNewRuleModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[92vh] overflow-y-auto">
             {/* Close Button */}
             <button
               type="button"
@@ -792,234 +803,232 @@ export const SmartRoutingView: React.FC = () => {
 
             <h4 className="text-base font-bold text-on-surface mb-1">Add Smart Routing Rule</h4>
             <p className="text-xs text-on-surface-variant mb-4">
-              Configure deep linking, device triggers, and geo-targeted location redirects (Country, State, City).
+              Full multi-attribute routing: customize device targeting, location targeting (city, state, country), or combine them together.
             </p>
 
-            <form onSubmit={handleCreateRule} className="space-y-3.5 text-xs">
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Rule Name</label>
-                <input 
-                  type="text"
-                  required
-                  placeholder="e.g. Mobile App Deep Link or India Geo Redirect"
-                  value={ruleName}
-                  onChange={(e) => setRuleName(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
-                />
-              </div>
+            <form onSubmit={handleCreateRule} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-on-surface block mb-1">Rule Name</label>
+                  <input 
+                    type="text"
+                    required
+                    placeholder="e.g. India Android Offer or Mumbai Store"
+                    value={ruleName}
+                    onChange={(e) => setRuleName(e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  />
+                </div>
 
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Target Link</label>
-                {links.length > 0 ? (
-                  <select
-                    value={targetLinkId || links[0]?.id}
-                    onChange={(e) => setTargetLinkId(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs cursor-pointer"
-                  >
-                    {links.map(l => (
-                      <option key={l.id} value={l.id}>
-                        {l.title || l.custom_slug || l.short_code} ({l.destination_url.slice(0, 30)}...)
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <select
-                    disabled
-                    className="w-full px-3 py-2 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 text-on-surface-variant text-xs cursor-not-allowed opacity-80"
-                  >
-                    <option value="" disabled selected>No links found — create a link first</option>
-                  </select>
-                )}
-              </div>
-
-              {/* Rule Category Toggle: Device vs Location */}
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Routing Mode</label>
-                <div className="grid grid-cols-2 gap-2 p-1 bg-surface-container-low rounded-xl border border-outline-variant/30">
-                  <button
-                    type="button"
-                    onClick={() => setRuleType('device')}
-                    className={`py-1.5 px-3 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
-                      ruleType === 'device'
-                        ? 'bg-primary-container text-on-primary shadow-xs'
-                        : 'text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                    <span>Device Routing</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRuleType('geo')}
-                    className={`py-1.5 px-3 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 text-xs ${
-                      ruleType === 'geo'
-                        ? 'bg-primary-container text-on-primary shadow-xs'
-                        : 'text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>Location Routing</span>
-                  </button>
+                <div>
+                  <label className="font-semibold text-on-surface block mb-1">Target Link</label>
+                  {links.length > 0 ? (
+                    <select
+                      value={targetLinkId || links[0]?.id}
+                      onChange={(e) => setTargetLinkId(e.target.value)}
+                      className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs cursor-pointer font-medium"
+                    >
+                      {links.map(l => (
+                        <option key={l.id} value={l.id}>
+                          {l.title || l.custom_slug || l.short_code} ({l.destination_url.slice(0, 24)}...)
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select
+                      disabled
+                      className="w-full px-3 py-2 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 text-on-surface-variant text-xs cursor-not-allowed opacity-80"
+                    >
+                      <option value="" disabled selected>No links found — create a link first</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
-              {/* DEVICE TARGETING OPTIONS */}
-              {ruleType === 'device' && (
-                <div>
-                  <label className="font-semibold text-on-surface block mb-1">Device Platform</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['all', 'ios', 'android'] as const).map(dev => (
+              {/* 1. DEVICE TARGETING SECTION */}
+              <div className="p-3.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-on-surface">
+                    <Smartphone className="w-4 h-4 text-primary" />
+                    <span>1. Device Platform Targeting</span>
+                  </div>
+                  <span className="text-[10px] text-on-surface-variant">Filter by device OS</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                  {[
+                    { id: 'all', label: 'All Devices', icon: Globe },
+                    { id: 'android', label: 'Android', icon: Smartphone },
+                    { id: 'ios', label: 'iOS (Apple)', icon: Smartphone },
+                    { id: 'desktop', label: 'Desktop / PC', icon: Laptop },
+                  ].map(dev => {
+                    const Icon = dev.icon;
+                    const isSelected = selectedDevice === dev.id;
+                    return (
                       <button
                         type="button"
-                        key={dev}
-                        onClick={() => setSelectedDevice(dev)}
-                        className={`py-1.5 rounded-xl font-bold uppercase transition-all cursor-pointer border text-xs ${
-                          selectedDevice === dev
+                        key={dev.id}
+                        onClick={() => setSelectedDevice(dev.id as 'all' | 'android' | 'ios' | 'desktop')}
+                        className={`py-2 px-2.5 rounded-xl font-bold transition-all cursor-pointer border text-xs flex items-center justify-center gap-1.5 ${
+                          isSelected
                             ? 'bg-primary-container text-on-primary border-primary-container shadow-xs'
-                            : 'bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-surface-container'
+                            : 'bg-surface-container text-on-surface-variant border-outline-variant/30 hover:bg-surface-container-high'
                         }`}
                       >
-                        {dev === 'all' ? 'All Mobile' : dev}
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{dev.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 2. LOCATION TARGETING SECTION (ALL 3: COUNTRY, STATE, CITY) */}
+              <div className="p-3.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-on-surface">
+                    <MapPin className="w-4 h-4 text-emerald-600" />
+                    <span>2. Geo-Location Targeting (Country, State &amp; City)</span>
+                  </div>
+                  <span className="text-[10px] text-on-surface-variant">Leave blank to match all</span>
+                </div>
+
+                {/* Country Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-on-surface flex items-center gap-1">
+                      <Globe className="w-3.5 h-3.5 text-primary" />
+                      <span>Target Country</span>
+                    </label>
+                    <span className="text-[10px] text-on-surface-variant">Name or 2-letter ISO code</span>
+                  </div>
+                  <input 
+                    type="text"
+                    placeholder="e.g. India or IN, United States or US, UK... (optional)"
+                    value={targetCountry}
+                    onChange={(e) => setTargetCountry(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-surface-container rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick:</span>
+                    {[
+                      { label: 'India (IN)', val: 'India' },
+                      { label: 'United States (US)', val: 'United States' },
+                      { label: 'United Kingdom (GB)', val: 'United Kingdom' },
+                      { label: 'Canada (CA)', val: 'Canada' },
+                      { label: 'Germany (DE)', val: 'Germany' },
+                      { label: 'UAE (AE)', val: 'United Arab Emirates' }
+                    ].map(c => (
+                      <button
+                        type="button"
+                        key={c.val}
+                        onClick={() => setTargetCountry(c.val)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition cursor-pointer ${
+                          targetCountry === c.val
+                            ? 'bg-primary-container text-on-primary'
+                            : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface'
+                        }`}
+                      >
+                        {c.label}
                       </button>
                     ))}
                   </div>
                 </div>
-              )}
 
-              {/* LOCATION TARGETING OPTIONS */}
-              {ruleType === 'geo' && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="font-semibold text-on-surface block mb-1">Location Granularity</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'country', label: 'Country', icon: Globe },
-                        { id: 'state', label: 'State / Region', icon: Building2 },
-                        { id: 'city', label: 'City', icon: MapPin },
-                      ].map(item => {
-                        const Icon = item.icon;
-                        const isSelected = geoLevel === item.id;
-                        return (
-                          <button
-                            type="button"
-                            key={item.id}
-                            onClick={() => {
-                              setGeoLevel(item.id as 'country' | 'state' | 'city');
-                              setLocationValue('');
-                            }}
-                            className={`py-1.5 px-2 rounded-xl font-bold transition-all cursor-pointer border text-xs flex items-center justify-center gap-1 ${
-                              isSelected
-                                ? 'bg-primary-container text-on-primary border-primary-container shadow-xs'
-                                : 'bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-surface-container'
-                            }`}
-                          >
-                            <Icon className="w-3 h-3" />
-                            <span>{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="font-semibold text-on-surface block mb-1">
-                      {geoLevel === 'country' && 'Target Country (Name or ISO-2 code)'}
-                      {geoLevel === 'state' && 'Target State / Region (Name or Code)'}
-                      {geoLevel === 'city' && 'Target City Name'}
+                {/* State / Region Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-on-surface flex items-center gap-1">
+                      <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Target State / Region / Province</span>
                     </label>
-                    <input 
-                      type="text"
-                      required
-                      placeholder={
-                        geoLevel === 'country' 
-                          ? 'e.g. India or IN, United States or US, UK...'
-                          : geoLevel === 'state'
-                          ? 'e.g. Maharashtra or MH, California or CA, Delhi or DL...'
-                          : 'e.g. Mumbai, Pimpri, Pune, San Francisco, Bengaluru...'
-                      }
-                      value={locationValue}
-                      onChange={(e) => setLocationValue(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
-                    />
-
-                    {/* Quick Pick Suggestions */}
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick picks:</span>
-                      {geoLevel === 'country' && (
-                        [
-                          { label: 'India (IN)', val: 'India' },
-                          { label: 'United States (US)', val: 'United States' },
-                          { label: 'United Kingdom (GB)', val: 'United Kingdom' },
-                          { label: 'Canada (CA)', val: 'Canada' },
-                          { label: 'Germany (DE)', val: 'Germany' },
-                          { label: 'UAE (AE)', val: 'United Arab Emirates' }
-                        ].map(c => (
-                          <button
-                            type="button"
-                            key={c.val}
-                            onClick={() => setLocationValue(c.val)}
-                            className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-high text-on-surface text-[10px] font-medium transition cursor-pointer"
-                          >
-                            {c.label}
-                          </button>
-                        ))
-                      )}
-                      {geoLevel === 'state' && (
-                        [
-                          { label: 'Maharashtra (MH)', val: 'Maharashtra' },
-                          { label: 'Delhi (DL)', val: 'Delhi' },
-                          { label: 'Karnataka (KA)', val: 'Karnataka' },
-                          { label: 'California (CA)', val: 'California' },
-                          { label: 'New York (NY)', val: 'New York' },
-                          { label: 'Texas (TX)', val: 'Texas' }
-                        ].map(s => (
-                          <button
-                            type="button"
-                            key={s.val}
-                            onClick={() => setLocationValue(s.val)}
-                            className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-high text-on-surface text-[10px] font-medium transition cursor-pointer"
-                          >
-                            {s.label}
-                          </button>
-                        ))
-                      )}
-                      {geoLevel === 'city' && (
-                        [
-                          'Mumbai', 'Pimpri', 'Pune', 'Bengaluru', 'Delhi', 'San Francisco', 'New York', 'London'
-                        ].map(ct => (
-                          <button
-                            type="button"
-                            key={ct}
-                            onClick={() => setLocationValue(ct)}
-                            className="px-2 py-0.5 rounded-md bg-surface-container hover:bg-surface-container-high text-on-surface text-[10px] font-medium transition cursor-pointer"
-                          >
-                            {ct}
-                          </button>
-                        ))
-                      )}
-                    </div>
+                    <span className="text-[10px] text-on-surface-variant">Name or Region code</span>
+                  </div>
+                  <input 
+                    type="text"
+                    placeholder="e.g. Maharashtra or MH, California or CA, Delhi or DL... (optional)"
+                    value={targetState}
+                    onChange={(e) => setTargetState(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-surface-container rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick:</span>
+                    {[
+                      { label: 'Maharashtra (MH)', val: 'Maharashtra' },
+                      { label: 'Delhi (DL)', val: 'Delhi' },
+                      { label: 'Karnataka (KA)', val: 'Karnataka' },
+                      { label: 'California (CA)', val: 'California' },
+                      { label: 'New York (NY)', val: 'New York' },
+                      { label: 'Texas (TX)', val: 'Texas' }
+                    ].map(s => (
+                      <button
+                        type="button"
+                        key={s.val}
+                        onClick={() => setTargetState(s.val)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition cursor-pointer ${
+                          targetState === s.val
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              )}
 
+                {/* City Field */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-on-surface flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Target City</span>
+                    </label>
+                    <span className="text-[10px] text-on-surface-variant">Specific city name</span>
+                  </div>
+                  <input 
+                    type="text"
+                    placeholder="e.g. Mumbai, Pimpri, Pune, San Francisco, Bengaluru... (optional)"
+                    value={targetCity}
+                    onChange={(e) => setTargetCity(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-surface-container rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick:</span>
+                    {['Mumbai', 'Pimpri', 'Pune', 'Bengaluru', 'Delhi', 'San Francisco', 'New York', 'London'].map(ct => (
+                      <button
+                        type="button"
+                        key={ct}
+                        onClick={() => setTargetCity(ct)}
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition cursor-pointer ${
+                          targetCity === ct
+                            ? 'bg-sky-600 text-white'
+                            : 'bg-surface-container-high hover:bg-surface-container-highest text-on-surface'
+                        }`}
+                      >
+                        {ct}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. DESTINATION REDIRECT URL */}
               <div>
                 <label className="font-semibold text-on-surface block mb-1">
-                  {ruleType === 'device' ? 'Target Native App Scheme / URL' : 'Target Destination URL for this Location'}
+                  Target Destination URL for this Rule
                 </label>
                 <input 
                   type="text"
                   required
-                  placeholder={
-                    ruleType === 'device'
-                      ? 'e.g. myapp://path or https://play.google.com/...'
-                      : 'e.g. https://india.example.com or https://mumbai.store.com'
-                  }
-                  value={ruleAppScheme}
-                  onChange={(e) => setRuleAppScheme(e.target.value)}
+                  placeholder="e.g. https://play.google.com/store/... or https://mumbai.store.com"
+                  value={ruleDestinationUrl}
+                  onChange={(e) => setRuleDestinationUrl(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
                 />
               </div>
 
+              {/* 4. FALLBACK WEB URL */}
               <div>
                 <label className="font-semibold text-on-surface block mb-1">Fallback Web URL (Default)</label>
                 <input 
@@ -1031,6 +1040,7 @@ export const SmartRoutingView: React.FC = () => {
                 />
               </div>
 
+              {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-outline-variant/20 mt-3">
                 <button
                   type="button"
@@ -1041,9 +1051,9 @@ export const SmartRoutingView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
+                  className="px-5 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
-                  Save Rule
+                  Save Smart Rule
                 </button>
               </div>
             </form>

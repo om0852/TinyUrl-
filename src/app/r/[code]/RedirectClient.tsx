@@ -351,7 +351,9 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
     if (link?.rules && link.rules.length > 0) {
       // If edgeTarget was matched by Edge/Server Location routing (City > State > Country), prioritize it
-      const isGeoEdgeTarget = edgeTarget && link.rules.some(r => r.rule_type === 'geo' && r.target_url === edgeTarget);
+      const isGeoEdgeTarget = edgeTarget && link.rules.some(r => 
+        (r.rule_type === 'geo' || r.rule_type === 'smart' || r.city || r.state || r.country) && r.target_url === edgeTarget
+      );
 
       if (isGeoEdgeTarget) {
         finalUrl = edgeTarget;
@@ -361,10 +363,10 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
         const isAndroid = /Android/i.test(userAgent);
 
         const deviceRule = link.rules.find(r => 
-          r.rule_type === 'device' && (
-            (r.condition?.toLowerCase() === 'android' && isAndroid) ||
-            (r.condition?.toLowerCase() === 'ios' && isIOS) ||
-            (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
+          (r.rule_type === 'device' || r.device) && (
+            ((r.device === 'android' || r.condition?.toLowerCase() === 'android') && isAndroid) ||
+            ((r.device === 'ios' || r.condition?.toLowerCase() === 'ios') && isIOS) ||
+            ((r.device === 'all' || r.condition?.toLowerCase() === 'all') && (isIOS || isAndroid))
           )
         );
 

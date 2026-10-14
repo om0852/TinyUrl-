@@ -152,69 +152,123 @@ export function extractGeoFromHeaders(getHeader: (name: string) => string | null
 }
 
 /**
- * Evaluates smart location routing rules against the visitor's detected country, region, and city.
- * Hierarchy: City (Highest specificity) -> State / Region -> Country
+ * Evaluates whether a rule matches the incoming visitor and calculates a specificity score.
+ * Higher specificity means more criteria were matched.
  */
-export function matchGeoRule(rules: LinkRule[], geo: VisitorGeoInfo): LinkRule | null {
-  if (!rules || rules.length === 0) return null;
-  const geoRules = rules.filter(r => r.rule_type === 'geo' && r.target_url && r.condition);
-  if (geoRules.length === 0) return null;
+export function evaluateRuleMatch(
+  rule: LinkRule,
+  geo: VisitorGeoInfo,
+  userAgent: string
+): { isMatch: boolean; score: number } {
+  const ua = userAgent || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isMobile = isIOS || isAndroid;
+  const isDesktop = !isMobile;
 
-  const normalizedCity = (geo.city || '').toLowerCase().trim();
-  const normalizedRegionName = (geo.regionName || '').toLowerCase().trim();
-  const normalizedRegionCode = (geo.regionCode || '').toLowerCase().trim();
-  const normalizedCountryCode = (geo.countryCode || '').toLowerCase().trim();
-  const normalizedCountryName = (geo.countryName || '').toLowerCase().trim();
+  let score = 0;
+  let hasAnyFilter = false;
 
-  // 1. City Level Matching (Highest Specificity)
-  if (normalizedCity) {
-    const cityRule = geoRules.find(r => {
-      if (r.geo_type && r.geo_type !== 'city') return false;
-      const cond = r.condition.toLowerCase().trim();
-      return (
-        cond === normalizedCity ||
-        normalizedCity.includes(cond) ||
-        cond.includes(normalizedCity)
-      );
-    });
-    if (cityRule) return cityRule;
+  // 1. Device match evaluation
+  const targetDevice = (rule.device || (rule.rule_type === 'device' ? rule.condition?.toLowerCase() : 'all')).trim();
+  if (targetDevice && targetDevice !== 'all') {
+    hasAnyFilter = true;
+    if (targetDevice === 'android') {
+      if (!isAndroid) return { isMatch: false, score: 0 };
+      score += 20;
+    } else if (targetDevice === 'ios') {
+      if (!isIOS) return { isMatch: false, score: 0 };
+      score += 20;
+    } else if (targetDevice === 'desktop') {
+      if (!isDesktop) return { isMatch: false, score: 0 };
+      score += 20;
+    }
   }
 
-  // 2. State / Region Level Matching
-  if (normalizedRegionName || normalizedRegionCode) {
-    const stateRule = geoRules.find(r => {
-      if (r.geo_type && r.geo_type !== 'state') return false;
-      const cond = r.condition.toLowerCase().trim();
-      return (
-        (normalizedRegionCode && cond === normalizedRegionCode) ||
-        (normalizedRegionName && (cond === normalizedRegionName || normalizedRegionName.includes(cond) || cond.includes(normalizedRegionName))) ||
-        (INDIAN_STATES[cond.toUpperCase()] && INDIAN_STATES[cond.toUpperCase()].toLowerCase() === normalizedRegionName) ||
-        (US_STATES[cond.toUpperCase()] && US_STATES[cond.toUpperCase()].toLowerCase() === normalizedRegionName)
-      );
-    });
-    if (stateRule) return stateRule;
+  // 2. City match evaluation
+  const targetCity = (rule.city || (rule.rule_type === 'geo' && rule.geo_type === 'city' ? rule.condition : '')).trim().toLowerCase();
+  if (targetCity) {
+    hasAnyFilter = true;
+    const vCity = (geo.city || '').trim().toLowerCase();
+    if (!vCity) return { isMatch: false, score: 0 };
+    const cityMatches = vCity === targetCity || vCity.includes(targetCity) || targetCity.includes(vCity);
+    if (!cityMatches) return { isMatch: false, score: 0 };
+    score += 100;
   }
 
-  // 3. Country Level Matching
-  if (normalizedCountryCode || normalizedCountryName) {
-    const countryRule = geoRules.find(r => {
-      if (r.geo_type && r.geo_type !== 'country') return false;
-      const cond = r.condition.toLowerCase().trim();
-      return (
-        (normalizedCountryCode && cond === normalizedCountryCode) ||
-        (normalizedCountryName && (cond === normalizedCountryName || normalizedCountryName.includes(cond) || cond.includes(normalizedCountryName))) ||
-        (COMMON_COUNTRIES[cond.toUpperCase()] && COMMON_COUNTRIES[cond.toUpperCase()].toLowerCase() === normalizedCountryName)
-      );
-    });
-    if (countryRule) return countryRule;
+  // 3. State / Region match evaluation
+  const targetState = (rule.state || (rule.rule_type === 'geo' && rule.geo_type === 'state' ? rule.condition : '')).trim().toLowerCase();
+  if (targetState) {
+    hasAnyFilter = true;
+    const vRegionName = (geo.regionName || '').trim().toLowerCase();
+    const vRegionCode = (geo.regionCode || '').trim().toLowerCase();
+    const stateMatches =
+      (vRegionCode && targetState === vRegionCode) ||
+      (vRegionName && (targetState === vRegionName || vRegionName.includes(targetState) || targetState.includes(vRegionName))) ||
+      (INDIAN_STATES[targetState.toUpperCase()] && INDIAN_STATES[targetState.toUpperCase()].toLowerCase() === vRegionName) ||
+      (US_STATES[targetState.toUpperCase()] && US_STATES[targetState.toUpperCase()].toLowerCase() === vRegionName);
+    if (!stateMatches) return { isMatch: false, score: 0 };
+    score += 50;
   }
 
-  return null;
+  // 4. Country match evaluation
+  const targetCountry = (rule.country || (rule.rule_type === 'geo' && (!rule.geo_type || rule.geo_type === 'country') ? rule.condition : '')).trim().toLowerCase();
+  if (targetCountry) {
+    hasAnyFilter = true;
+    const vCountryCode = (geo.countryCode || '').trim().toLowerCase();
+    const vCountryName = (geo.countryName || '').trim().toLowerCase();
+    const countryMatches =
+      (vCountryCode && targetCountry === vCountryCode) ||
+      (vCountryName && (targetCountry === vCountryName || vCountryName.includes(targetCountry) || targetCountry.includes(vCountryName))) ||
+      (COMMON_COUNTRIES[targetCountry.toUpperCase()] && COMMON_COUNTRIES[targetCountry.toUpperCase()].toLowerCase() === vCountryName);
+    if (!countryMatches) return { isMatch: false, score: 0 };
+    score += 25;
+  }
+
+  // 5. Fallback for legacy rules without explicit multi-fields
+  if (!hasAnyFilter) {
+    if (rule.rule_type === 'device') {
+      const cond = rule.condition?.toLowerCase();
+      if ((cond === 'android' && isAndroid) || (cond === 'ios' && isIOS) || (cond === 'all' && isMobile)) {
+        return { isMatch: true, score: 10 };
+      }
+      return { isMatch: false, score: 0 };
+    }
+    if (rule.rule_type === 'geo') {
+      const cond = rule.condition?.trim().toLowerCase();
+      const vCity = (geo.city || '').trim().toLowerCase();
+      const vRegion = (geo.regionName || '').trim().toLowerCase();
+      const vCountry = (geo.countryCode || '').trim().toLowerCase();
+      if (vCity && (vCity === cond || vCity.includes(cond))) return { isMatch: true, score: 100 };
+      if (vRegion && (vRegion === cond || vRegion.includes(cond))) return { isMatch: true, score: 50 };
+      if (vCountry && (vCountry === cond || vCountry.includes(cond))) return { isMatch: true, score: 25 };
+      return { isMatch: false, score: 0 };
+    }
+  }
+
+  return { isMatch: score > 0, score };
 }
 
 /**
- * Resolves the ultimate destination URL taking into account Location rules (City > State > Country),
- * Device rules (Android / iOS), and A/B Split Testing.
+ * Evaluates smart location routing rules against the visitor's detected country, region, and city.
+ */
+export function matchGeoRule(rules: LinkRule[], geo: VisitorGeoInfo): LinkRule | null {
+  if (!rules || rules.length === 0) return null;
+  const candidates = rules
+    .filter(r => r.target_url && (r.country || r.state || r.city || r.rule_type === 'geo'))
+    .map(r => {
+      const { isMatch, score } = evaluateRuleMatch(r, geo, '');
+      return { rule: r, isMatch, score };
+    })
+    .filter(c => c.isMatch)
+    .sort((a, b) => b.score - a.score);
+
+  return candidates.length > 0 ? candidates[0].rule : null;
+}
+
+/**
+ * Resolves the ultimate destination URL taking into account combined Location (City > State > Country),
+ * Device rules (Android / iOS / Desktop), and A/B Split Testing.
  */
 export function resolveSmartTargetUrl({
   rules,
@@ -233,32 +287,24 @@ export function resolveSmartTargetUrl({
     return defaultUrl;
   }
 
-  // 1. Check Location / Geo Rules (City > State > Country)
-  if (geo) {
-    const matchedGeo = matchGeoRule(rules, geo);
-    if (matchedGeo && matchedGeo.target_url) {
-      return matchedGeo.target_url;
-    }
+  const visitorGeo = geo || { countryCode: '', countryName: '', regionCode: '', regionName: '', city: '' };
+  const visitorUa = userAgent || '';
+
+  // 1. Evaluate all smart candidate rules and pick highest specificity match
+  const candidateRules = rules
+    .filter(r => r.rule_type !== 'ab' && r.target_url)
+    .map(r => {
+      const { isMatch, score } = evaluateRuleMatch(r, visitorGeo, visitorUa);
+      return { rule: r, isMatch, score };
+    })
+    .filter(c => c.isMatch)
+    .sort((a, b) => b.score - a.score);
+
+  if (candidateRules.length > 0) {
+    return candidateRules[0].rule.target_url;
   }
 
-  // 2. Check Device Rules (Android / iOS)
-  const ua = userAgent || '';
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
-  const isAndroid = /Android/i.test(ua);
-
-  const deviceRule = rules.find(r => 
-    r.rule_type === 'device' && r.target_url && (
-      (r.condition?.toLowerCase() === 'android' && isAndroid) ||
-      (r.condition?.toLowerCase() === 'ios' && isIOS) ||
-      (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
-    )
-  );
-
-  if (deviceRule && deviceRule.target_url) {
-    return deviceRule.target_url;
-  }
-
-  // 3. Check A/B Testing Rule
+  // 2. Check A/B Testing Rule
   const abRule = rules.find(r => r.rule_type === 'ab' && r.target_url);
   if (abRule && abRule.target_url) {
     if (abVariant === 'B') {

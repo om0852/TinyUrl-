@@ -39,11 +39,15 @@ export interface Domain {
 export interface LinkRule {
   id: string;
   link_id: string;
-  rule_type: 'geo' | 'device' | 'ab';
-  condition: string; // e.g. 'iOS', 'Android', 'IN', 'Maharashtra', 'Mumbai'
+  rule_type: 'geo' | 'device' | 'ab' | 'smart';
+  condition: string; // e.g. 'iOS', 'Android', 'IN', 'Maharashtra', 'Mumbai', 'Android · Mumbai, MH, IN'
   target_url: string;
   weight?: number;
   geo_type?: 'country' | 'state' | 'city';
+  device?: 'all' | 'android' | 'ios' | 'desktop';
+  country?: string;
+  state?: string;
+  city?: string;
 }
 
 export interface RetargetingPixel {
