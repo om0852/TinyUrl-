@@ -60,6 +60,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
     title: string;
   } | null>(null);
 
+  // Selection state for multi-link batch actions
+  const [selectedLinkIds, setSelectedLinkIds] = useState<Set<string>>(new Set());
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 6;
@@ -319,6 +322,57 @@ export const LinksView: React.FC<LinksViewProps> = ({
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', `snip_creator_links_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Bulk actions for selected links
+  const isAllOnPageSelected = paginatedLinks.length > 0 && paginatedLinks.every(l => selectedLinkIds.has(l.id));
+
+  const toggleSelectAllPage = () => {
+    setSelectedLinkIds(prev => {
+      const next = new Set(prev);
+      if (isAllOnPageSelected) {
+        paginatedLinks.forEach(l => next.delete(l.id));
+      } else {
+        paginatedLinks.forEach(l => next.add(l.id));
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedLinkIds.size === 0) return;
+    if (!confirm(`Are you sure you want to permanently delete ${selectedLinkIds.size} selected link(s)?`)) return;
+    selectedLinkIds.forEach(id => deleteLink(id));
+    setSelectedLinkIds(new Set());
+  };
+
+  const handleBulkExportSelected = () => {
+    if (selectedLinkIds.size === 0) return;
+    const selectedList = links.filter(l => selectedLinkIds.has(l.id));
+    const headers = ['ID', 'Title', 'Short Slug', 'Destination URL', 'Clicks', 'Platform Tag', 'Status', 'Created At'];
+    const rows = selectedList.map(l => {
+      const placement = getPlacementTag(l);
+      const slug = l.custom_slug || l.short_code;
+      return [
+        l.id,
+        `"${(l.title || '').replace(/"/g, '""')}"`,
+        slug,
+        `"${(l.destination_url || '').replace(/"/g, '""')}"`,
+        l.clicks_count || 0,
+        placement.label,
+        l.status,
+        l.created_at
+      ];
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `selected_links_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -600,10 +654,19 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
           {/* Links Data Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[680px]">
+            <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
                 <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/30">
-                  <th className="py-3 px-5 whitespace-nowrap" scope="col">Link &amp; Destination</th>
+                  <th className="py-3 px-3 w-10 text-center" scope="col">
+                    <input
+                      type="checkbox"
+                      checked={isAllOnPageSelected}
+                      onChange={toggleSelectAllPage}
+                      className="rounded border-outline-variant/60 text-primary-container focus:ring-primary-container cursor-pointer w-4 h-4"
+                      aria-label="Select all links on current page"
+                    />
+                  </th>
+                  <th className="py-3 px-4 whitespace-nowrap" scope="col">Link &amp; Destination</th>
                   <th className="py-3 px-4 whitespace-nowrap" scope="col">Placement Tag</th>
                   <th className="py-3 px-4 whitespace-nowrap" scope="col">Clicks (30d)</th>
                   <th className="py-3 px-4 whitespace-nowrap" scope="col">Created</th>
@@ -613,7 +676,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
               <tbody className="text-xs divide-y divide-outline-variant/20">
                 {paginatedLinks.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-on-surface-variant">
+                    <td colSpan={6} className="py-12 text-center text-on-surface-variant">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <Link2 className="w-8 h-8 text-outline/60" />
                         <span className="font-semibold text-sm text-on-surface">No links found</span>
@@ -636,12 +699,31 @@ export const LinksView: React.FC<LinksViewProps> = ({
                     const shortSlug = link.custom_slug || link.short_code;
                     const fullShortUrl = getFullShortUrl(link.short_code, link.custom_slug);
                     const isCopied = copiedId === link.id;
+                    const isSelected = selectedLinkIds.has(link.id);
 
                     return (
-                      <tr key={link.id} className="hover:bg-surface-container-low transition-colors group">
+                      <tr key={link.id} className={`hover:bg-surface-container-low transition-colors group ${isSelected ? 'bg-primary/5' : ''}`}>
                         
+                        {/* Checkbox */}
+                        <td className={`px-3 text-center ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedLinkIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(link.id)) next.delete(link.id);
+                                else next.add(link.id);
+                                return next;
+                              });
+                            }}
+                            className="rounded border-outline-variant/60 text-primary-container focus:ring-primary-container cursor-pointer w-4 h-4"
+                            aria-label={`Select ${link.title || link.short_code}`}
+                          />
+                        </td>
+
                         {/* Link & Destination */}
-                        <td className={`px-5 max-w-[280px] ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-4 max-w-[280px] ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
                           <div className="flex flex-col min-w-0">
                             <span className="text-sm font-semibold text-on-surface truncate">
                               {link.title || 'Untitled Short Link'}
@@ -918,6 +1000,44 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Floating Batch Selection Bar */}
+      {selectedLinkIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border border-border/80 shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md">
+          <div className="flex items-center gap-2 text-foreground font-bold">
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]">
+              {selectedLinkIds.size}
+            </span>
+            <span>Link{selectedLinkIds.size > 1 ? 's' : ''} Selected</span>
+          </div>
+          <div className="h-4 w-px bg-border/60" />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkExportSelected}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border border-border/60"
+            >
+              <FileDown className="w-3.5 h-3.5 text-primary" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-destructive/15 hover:bg-destructive/25 text-destructive font-semibold cursor-pointer transition shadow-xs border border-destructive/20"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Selected</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedLinkIds(new Set())}
+              className="text-muted-foreground hover:text-foreground px-2 py-1 cursor-pointer transition"
+            >
+              Deselect
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

@@ -4,6 +4,7 @@ import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { TrackApiRequest, TrackApiResponse, Link } from '@/lib/types';
 import { extractGeoFromHeaders } from '@/lib/geo';
+import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 export async function POST(request: Request) {
   try {
@@ -121,6 +122,33 @@ export async function POST(request: Request) {
         linkCache.set(`link_${code}`, cached, 180);
       }
     }
+
+    // 3. Dispatch outbound webhooks asynchronously (non-blocking)
+    (async () => {
+      try {
+        const linkRows = (await sql.query(
+          `SELECT id, workspace_id, short_code, destination_url FROM links 
+           WHERE (id = $1 AND $1 != '') OR (LOWER(short_code) = $2 AND $2 != '') LIMIT 1`,
+          [id || '', code || '']
+        )) as Array<{ id: string; workspace_id?: string | null; short_code: string; destination_url: string }>;
+
+        if (linkRows && linkRows.length > 0) {
+          const l = linkRows[0];
+          await dispatchWorkspaceWebhooks(l.workspace_id, {
+            event: 'link.clicked',
+            timestamp: new Date().toISOString(),
+            data: {
+              link_id: l.id,
+              short_code: l.short_code,
+              destination_url: l.destination_url,
+              click: click || {}
+            }
+          });
+        }
+      } catch (whErr) {
+        console.warn('Webhook dispatch error:', whErr);
+      }
+    })().catch(() => {});
 
     return NextResponse.json<TrackApiResponse>({ 
       success: true, 

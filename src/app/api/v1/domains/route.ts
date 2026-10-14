@@ -82,6 +82,8 @@ export async function POST(request: Request) {
   }
 }
 
+import dns from 'dns';
+
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -92,20 +94,64 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Domain ID or hostname is required.' }, { status: 400 });
     }
 
-    const isVerified = verified !== undefined ? !!verified : true;
-    const ssl = ssl_status || 'active';
+    const cleanHost = (hostname || target).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+
+    // 1. Run live DNS resolution check against target host
+    let resolvedCnames: string[] = [];
+    let resolvedIps: string[] = [];
+    let dnsLookupFailed = false;
+
+    try {
+      resolvedCnames = await dns.promises.resolveCname(cleanHost);
+    } catch {
+      dnsLookupFailed = true;
+    }
+
+    try {
+      resolvedIps = await dns.promises.resolve4(cleanHost);
+      dnsLookupFailed = false;
+    } catch {
+      // IP check failed or no A record
+    }
+
+    // Check if CNAME points to Vercel / TinyURL edge or A record points to Vercel IP (76.76.21.21)
+    const EXPECTED_CNAMES = ['cname.vercel-dns.com', 'tiny-url-self.vercel.app', 'cname.tinyurl.com'];
+    const isCnameMatched = resolvedCnames.some(c => 
+      EXPECTED_CNAMES.some(exp => c.toLowerCase().includes(exp.toLowerCase()))
+    );
+    const isIpMatched = resolvedIps.includes('76.76.21.21');
+
+    // Allow test domains, localhost, or valid DNS matches, or manual override if explicit
+    const isLocalOrTest = cleanHost.includes('localhost') || cleanHost.endsWith('.test') || cleanHost.endsWith('.local');
+    const isValidDns = isCnameMatched || isIpMatched || isLocalOrTest || verified === true;
+
+    const finalVerified = isValidDns;
+    const finalSsl = isValidDns ? (ssl_status || 'active') : 'pending';
+
+    const dnsMessage = isValidDns
+      ? `DNS verified successfully. Resolved: ${resolvedCnames.length > 0 ? `CNAME ${resolvedCnames.join(', ')}` : (resolvedIps.length > 0 ? `A Record ${resolvedIps.join(', ')}` : 'Localhost/Test')}`
+      : `DNS check pending: Add a CNAME pointing to "cname.vercel-dns.com" or A record "76.76.21.21". Current: ${resolvedCnames.join(', ') || 'No records found'}.`;
 
     const rows = (await sql.query(
       `UPDATE domains
        SET verified = $1, ssl_status = $2
        WHERE id = $3 OR LOWER(hostname) = LOWER($3)
        RETURNING *`,
-      [isVerified, ssl, target.trim()]
+      [finalVerified, finalSsl, target.trim()]
     )) as unknown as RawDomainRow[];
 
     return NextResponse.json({
       success: true,
-      message: 'Domain verified successfully.',
+      verified: finalVerified,
+      ssl_status: finalSsl,
+      dns_details: {
+        hostname: cleanHost,
+        cnames: resolvedCnames,
+        ips: resolvedIps,
+        message: dnsMessage,
+        lookup_success: !dnsLookupFailed
+      },
+      message: dnsMessage,
       domain: rows && rows.length > 0 ? rows[0] : null
     });
   } catch (err: unknown) {

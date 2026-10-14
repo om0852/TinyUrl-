@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { WorkspaceRole, WorkspaceInvitation } from '@/lib/types';
-import { X, UserPlus, Check, Copy, Shield, ExternalLink, Sparkles } from 'lucide-react';
+import { X, UserPlus, Check, Copy, Shield, ExternalLink, Sparkles, Mail } from 'lucide-react';
 import { Button } from './ui/button';
 import { ROLE_DESCRIPTIONS } from '@/lib/rbac';
 
@@ -138,13 +138,22 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
               </p>
             </div>
 
-            <Button
-              type="button"
-              onClick={handleClose}
-              className="w-full text-xs font-bold h-10 rounded-xl mt-2"
-            >
-              Done &amp; Return to Dashboard
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+              <a
+                href={`mailto:${encodeURIComponent(createdInvite.email)}?subject=${encodeURIComponent(`Invitation to join ${currentWorkspace.name} on TinyUrl`)}&body=${encodeURIComponent(`Hi ${createdInvite.name},\n\nYou have been invited to collaborate on our TinyUrl workspace "${currentWorkspace.name}" as an ${createdInvite.role}.\n\nAccept your invite here:\n${createdInvite.invite_url}\n\nThis invitation link expires in 7 days.`)}`}
+                className="w-full sm:w-1/2 h-10 px-3 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 transition cursor-pointer"
+              >
+                <Mail className="w-4 h-4 text-primary shrink-0" />
+                <span>Email Collaborator</span>
+              </a>
+              <Button
+                type="button"
+                onClick={handleClose}
+                className="w-full sm:w-1/2 text-xs font-bold h-10 rounded-xl"
+              >
+                Done &amp; Close
+              </Button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">

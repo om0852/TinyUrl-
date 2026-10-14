@@ -162,12 +162,60 @@ export async function POST(request: Request) {
     ]).catch(() => {});
 
     const inviteUrl = `${baseUrl}/invite/${token}`;
-
     const createdInvite = inviteRows && inviteRows.length > 0 ? inviteRows[0] : null;
+
+    let emailSent = false;
+    // Dispatch outbound email via Resend if API key is configured
+    if (process.env.RESEND_API_KEY) {
+      try {
+        const mailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: process.env.EMAIL_FROM || 'TinyUrl <notifications@resend.dev>',
+            to: [cleanEmail],
+            subject: `You've been invited to collaborate on TinyUrl`,
+            html: `
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; background: #0b0f19; color: #f1f5f9; border-radius: 16px; border: 1px solid #1e293b;">
+                <div style="font-size: 20px; font-weight: 700; color: #6366f1; margin-bottom: 24px;">TinyUrl Workspace</div>
+                <h1 style="font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #ffffff;">Team Invitation</h1>
+                <p style="font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
+                  Hello <strong style="color: #f1f5f9;">${cleanName}</strong>, you have been invited to join the workspace as a <span style="background: #312e81; color: #c7d2fe; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 12px;">${cleanRole}</span>.
+                </p>
+                <div style="margin: 32px 0;">
+                  <a href="${inviteUrl}" style="background: #4f46e5; color: #ffffff; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
+                    Accept Invitation &amp; Join Workspace
+                  </a>
+                </div>
+                <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+                  Or open this link directly in your browser:<br/>
+                  <a href="${inviteUrl}" style="color: #818cf8; word-break: break-all;">${inviteUrl}</a>
+                </p>
+                <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #1e293b; font-size: 12px; color: #475569;">
+                  This invitation link is valid for 7 days. If you were not expecting this, you can safely ignore this email.
+                </div>
+              </div>
+            `
+          }),
+          signal: AbortSignal.timeout(5000)
+        });
+        if (mailRes.ok) {
+          emailSent = true;
+        }
+      } catch (mailErr) {
+        console.warn('[Invite] Outbound email dispatch error:', mailErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Invitation generated successfully.',
+      message: emailSent 
+        ? 'Invitation created and email sent successfully.' 
+        : 'Invitation link generated successfully.',
+      email_sent: emailSent,
       invitation: {
         id: createdInvite?.id || inviteId,
         workspace_id,

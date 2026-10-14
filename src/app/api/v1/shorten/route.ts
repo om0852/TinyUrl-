@@ -4,6 +4,7 @@ import { generateBase62Code, normalizeUrl, buildUtmUrl, RESERVED_SLUGS } from '@
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { ShortenApiRequest, ShortenApiResponse, Link } from '@/lib/types';
+import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 export async function POST(request: Request) {
   try {
@@ -177,6 +178,21 @@ export async function POST(request: Request) {
 
     // Cache in Edge cache for instant lookup
     linkCache.set(`link_${code.toLowerCase()}`, newLink, 300);
+
+    // Asynchronously dispatch webhook event
+    dispatchWorkspaceWebhooks(newLink.workspace_id, {
+      event: 'link.created',
+      timestamp: new Date().toISOString(),
+      data: {
+        id: newLink.id,
+        short_code: newLink.short_code,
+        custom_slug: newLink.custom_slug,
+        destination_url: newLink.destination_url,
+        title: newLink.title,
+        workspace_id: newLink.workspace_id,
+        created_at: newLink.created_at
+      }
+    }).catch(whErr => console.warn('Webhook dispatch error:', whErr));
 
     return NextResponse.json<ShortenApiResponse>({
       success: true,

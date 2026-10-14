@@ -35,7 +35,16 @@ interface AnalyticsViewProps {
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) => {
   const { links, clicks } = useStore();
 
-  const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h'>('30d');
+  const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h' | 'custom'>('30d');
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [geoLevel, setGeoLevel] = useState<'countries' | 'regions' | 'cities'>('countries');
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
@@ -63,20 +72,37 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
   // Dynamic Time Series generation with interactive data points
   const timeSeriesData = useMemo(() => {
-    const pointsCount = dateRange === '24h' ? 24 : dateRange === '7d' ? 7 : 14;
     const now = new Date();
-    const data = [];
+    let pointsCount = 14;
+    let msPerBucket = 2 * 24 * 3600 * 1000;
+    let startTime = now.getTime() - 14 * msPerBucket;
 
+    if (dateRange === '24h') {
+      pointsCount = 24;
+      msPerBucket = 3600 * 1000;
+      startTime = now.getTime() - pointsCount * msPerBucket;
+    } else if (dateRange === '7d') {
+      pointsCount = 7;
+      msPerBucket = 24 * 3600 * 1000;
+      startTime = now.getTime() - pointsCount * msPerBucket;
+    } else if (dateRange === '30d') {
+      pointsCount = 15;
+      msPerBucket = 2 * 24 * 3600 * 1000;
+      startTime = now.getTime() - pointsCount * msPerBucket;
+    } else if (dateRange === 'custom') {
+      const s = new Date(`${customStartDate}T00:00:00`).getTime() || (now.getTime() - 14 * 86400000);
+      const e = new Date(`${customEndDate}T23:59:59`).getTime() || now.getTime();
+      const diffDays = Math.max(1, Math.min(60, Math.ceil((e - s) / (24 * 3600 * 1000))));
+      pointsCount = Math.max(3, Math.min(20, diffDays));
+      msPerBucket = Math.max(1000, Math.floor((e - s) / pointsCount));
+      startTime = s;
+    }
+
+    const data = [];
     const hasClicks = totalClicks > 0;
     const clicksByBucket = new Array(pointsCount).fill(0);
 
     if (clicks.length > 0) {
-      const msPerBucket = dateRange === '24h' 
-        ? 3600 * 1000 
-        : dateRange === '7d' 
-        ? 24 * 3600 * 1000 
-        : 2 * 24 * 3600 * 1000;
-      const startTime = now.getTime() - pointsCount * msPerBucket;
       clicks.forEach(c => {
         const t = new Date(c.timestamp || (c as { created_at?: string }).created_at || now).getTime();
         const b = Math.floor((t - startTime) / msPerBucket);
@@ -99,6 +125,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         const d = new Date(now.getTime() - (pointsCount - 1 - i) * 24 * 3600 * 1000);
         label = d.toLocaleDateString('en-US', { weekday: 'short' });
         dateLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      } else if (dateRange === 'custom') {
+        const d = new Date(startTime + i * msPerBucket);
+        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        dateLabel = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
       } else {
         const d = new Date(now.getTime() - (pointsCount - 1 - i) * 2 * 24 * 3600 * 1000);
         label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -135,7 +165,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     }
 
     return data;
-  }, [dateRange, totalClicks, clicks, links]);
+  }, [dateRange, totalClicks, clicks, links, customStartDate, customEndDate]);
 
   // Compute smooth cubic bezier path strings
   const svgPaths = useMemo(() => {
@@ -414,11 +444,72 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <div className="relative">
             <button
               type="button"
+              onClick={() => setDatePickerOpen(!datePickerOpen)}
               className="inline-flex items-center justify-between gap-2 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               <Calendar className="w-4 h-4 text-outline" />
-              <span>Last 30 Days</span>
+              <span>
+                {dateRange === '24h' ? 'Last 24 Hours' : dateRange === '7d' ? 'Last 7 Days' : dateRange === '30d' ? 'Last 30 Days' : `${customStartDate} → ${customEndDate}`}
+              </span>
             </button>
+
+            {datePickerOpen && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border/80 shadow-2xl rounded-2xl p-3 z-30 animate-fade-in text-foreground">
+                <div className="flex flex-col gap-1 text-xs">
+                  {(['24h', '7d', '30d'] as const).map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setDateRange(r);
+                        setDatePickerOpen(false);
+                      }}
+                      className={`text-left px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                        dateRange === r 
+                          ? 'bg-primary text-primary-foreground font-bold' 
+                          : 'hover:bg-muted text-foreground'
+                      }`}
+                    >
+                      {r === '24h' ? 'Last 24 Hours' : r === '7d' ? 'Last 7 Days' : 'Last 30 Days'}
+                    </button>
+                  ))}
+                  
+                  <div className="pt-2 mt-1 border-t border-border/50">
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase px-1">Custom Date Window</span>
+                    <div className="flex flex-col gap-2 mt-2">
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">Start Date</label>
+                        <input
+                          type="date"
+                          value={customStartDate}
+                          onChange={(e) => setCustomStartDate(e.target.value)}
+                          className="w-full bg-background border border-border/70 rounded-lg px-2 py-1 text-xs text-foreground outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-muted-foreground block mb-0.5">End Date</label>
+                        <input
+                          type="date"
+                          value={customEndDate}
+                          onChange={(e) => setCustomEndDate(e.target.value)}
+                          className="w-full bg-background border border-border/70 rounded-lg px-2 py-1 text-xs text-foreground outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDateRange('custom');
+                          setDatePickerOpen(false);
+                        }}
+                        className="w-full py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold transition hover:bg-primary/90 mt-1 cursor-pointer"
+                      >
+                        Apply Custom Range
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <button
