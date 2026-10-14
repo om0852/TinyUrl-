@@ -1307,7 +1307,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             title: target.title,
             destination_url: target.destination_url,
             campaign_id: target.campaign_id !== undefined ? target.campaign_id : null,
-            tags: target.tags
+            tags: target.tags,
+            is_flagged: target.is_flagged,
+            risk_score: target.risk_score
           })
         }).catch(err => console.warn('Failed to update link on server:', err));
       }

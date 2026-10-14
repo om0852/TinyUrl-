@@ -163,7 +163,7 @@ import { verifyWorkspacePermission } from '@/lib/serverAuth';
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, short_code, custom_slug, rules, status, title, destination_url, campaign_id, tags } = body;
+    const { id, short_code, custom_slug, rules, status, title, destination_url, campaign_id, tags, is_flagged, risk_score } = body;
     const lookupId = (id || short_code || custom_slug || '').trim();
     if (!lookupId) {
       return NextResponse.json({ success: false, error: 'Link identifier is required.' }, { status: 400 });
@@ -180,6 +180,8 @@ export async function PATCH(request: Request) {
     const newShortCode = short_code ? String(short_code).trim() : null;
     const newCustomSlug = custom_slug ? String(custom_slug).trim() : null;
     const newCampaignId = campaign_id !== undefined ? (campaign_id === null || campaign_id === '' || campaign_id === '__remove__' ? '__null__' : String(campaign_id).trim()) : null;
+    const flaggedVal = typeof is_flagged === 'boolean' ? is_flagged : null;
+    const riskScoreVal = typeof risk_score === 'number' ? risk_score : null;
 
     const rows = (await sql.query(
       `UPDATE links 
@@ -195,6 +197,8 @@ export async function PATCH(request: Request) {
              ELSE campaign_id 
            END,
            tags = CASE WHEN $10::text IS NOT NULL THEN $10::jsonb ELSE tags END,
+           is_flagged = COALESCE($11, is_flagged),
+           risk_score = COALESCE($12, risk_score),
            updated_at = NOW()
        WHERE id = $7 
           OR LOWER(short_code) = LOWER($7) 
@@ -212,7 +216,9 @@ export async function PATCH(request: Request) {
         lookupId, 
         newShortCode || newCustomSlug || null,
         newCampaignId,
-        tagsJson
+        tagsJson,
+        flaggedVal,
+        riskScoreVal
       ]
     )) as unknown as RawLinkRow[];
 
