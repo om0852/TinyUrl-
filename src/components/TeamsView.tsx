@@ -199,6 +199,38 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
   const totalRosterCount = teamMembers.length + 1;
   const displayRosterCount = filteredMembers.length + 1;
 
+  const renderRoleBadge = (role: WorkspaceRole | string) => {
+    const normRole = (role || 'editor').toLowerCase();
+    if (normRole === 'owner') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25 shadow-2xs">
+          <Key className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+          <span>Owner</span>
+        </span>
+      );
+    }
+    if (normRole === 'admin') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/25 shadow-2xs">
+          <ShieldCheck className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+          <span>Admin</span>
+        </span>
+      );
+    }
+    if (normRole === 'editor') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shadow-2xs">
+          <span>Editor</span>
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/25 shadow-2xs">
+        <span>Viewer</span>
+      </span>
+    );
+  };
+
   if (!mounted) return null;
 
   return (
@@ -276,8 +308,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 <span className="text-xl font-bold text-on-surface truncate max-w-[150px]">
                   {currentWorkspace.name}
                 </span>
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 uppercase">
-                  {currentWorkspace.plan || 'pro'}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
+                  <Sparkles className="w-2.5 h-2.5 text-primary" />
+                  <span>{currentWorkspace.plan || 'pro'}</span>
                 </span>
               </div>
             </div>
@@ -289,8 +322,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             <span className="font-mono text-primary-container font-medium truncate max-w-[140px]">
               /{currentWorkspace.slug}
             </span>
-            <span className="bg-surface-container-low px-2 py-0.5 rounded text-on-surface-variant font-medium uppercase text-[10px]">
-              {userRole}
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase tracking-wider bg-surface-container-high text-on-surface-variant border border-outline-variant/30">
+              <Key className="w-2.5 h-2.5 text-primary" />
+              <span>{userRole}</span>
             </span>
           </div>
         </div>
@@ -401,7 +435,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                       <Building2 className="w-4 h-4 text-primary-container shrink-0" />
                       <span className="truncate">{inv.workspace_name || 'Collaborative Workspace'}</span>
                     </span>
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-primary-fixed text-primary-container shrink-0">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 shrink-0">
                       Role: {inv.role}
                     </span>
                   </div>
@@ -498,8 +532,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 <h2 className="text-lg font-bold text-on-surface truncate">
                   {currentWorkspace.name}
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 uppercase">
-                  {currentWorkspace.plan || 'pro'}
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
+                  <Sparkles className="w-2.5 h-2.5 text-primary" />
+                  <span>{currentWorkspace.plan || 'pro'}</span>
                 </span>
 
                 {isOwnerOrAdmin && (
@@ -639,7 +674,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                           <span className="font-semibold text-on-surface truncate">
                             {currentUser?.name || 'Workspace User'}
                           </span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-fixed text-primary-container uppercase tracking-wider">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 shadow-2xs">
                             You
                           </span>
                         </div>
@@ -651,16 +686,13 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   </td>
 
                   <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface-container-high text-primary-container capitalize">
-                      {userRole === 'owner' && <Key className="w-3 h-3" />}
-                      {userRole}
-                    </span>
+                    {renderRoleBadge(userRole)}
                   </td>
 
                   <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 px-2.5 py-0.5 rounded-full font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                      Active
+                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span>Active</span>
                     </span>
                   </td>
 
@@ -673,8 +705,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
                   <td className="py-3.5 px-5 text-right">
                     <div className="inline-flex items-center justify-end gap-2">
-                      <span className="text-xs text-primary-container font-semibold bg-primary-fixed/60 px-2.5 py-0.5 rounded-full">
-                        {userRole === 'owner' ? 'Workspace Owner' : userRole === 'admin' ? 'Workspace Admin' : 'Collaborator'}
+                      <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant font-medium bg-surface-container-high/80 border border-outline-variant/40 px-2.5 py-1 rounded-md shadow-2xs">
+                        <ShieldCheck className="w-3.5 h-3.5 text-primary-container" />
+                        <span>{userRole === 'owner' ? 'Workspace Owner' : userRole === 'admin' ? 'Workspace Admin' : 'Collaborator'}</span>
                       </span>
                     </div>
                   </td>
@@ -707,38 +740,33 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                         {/* Role Selector or Badge */}
                         <td className="py-3.5 px-4">
                           {isMemberOwner ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary-container text-on-primary">
-                              <Key className="w-3 h-3" />
-                              <span>Owner</span>
-                            </span>
+                            renderRoleBadge('owner')
                           ) : isOwnerOrAdmin && !isPending ? (
                             <select
                               value={m.role}
                               onChange={(e) => updateMemberRole(m.id, e.target.value as WorkspaceRole)}
-                              className="px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border border-outline-variant/40 bg-surface-container-lowest text-on-surface focus:outline-none cursor-pointer"
+                              className="px-2.5 py-1 rounded-md text-xs font-semibold capitalize border border-outline-variant/40 bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container cursor-pointer shadow-2xs"
                             >
                               <option value="admin">Admin</option>
                               <option value="editor">Editor</option>
                               <option value="viewer">Viewer</option>
                             </select>
                           ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-surface-container-high text-primary-container capitalize">
-                              {m.role}
-                            </span>
+                            renderRoleBadge(m.role)
                           )}
                         </td>
 
                         {/* Status */}
                         <td className="py-3.5 px-4">
                           {isPending ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400 px-2.5 py-0.5 rounded-full font-medium">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                              Pending
+                              <span>Pending</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-400 px-2.5 py-0.5 rounded-full font-medium">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                              Active
+                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                              <span>Active</span>
                             </span>
                           )}
                         </td>
@@ -855,14 +883,21 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                       <span className="font-bold text-on-surface block">{log.name}</span>
                       <span className="font-mono text-[11px] text-on-surface-variant">{log.email}</span>
                     </td>
-                    <td className="py-3 px-4 capitalize font-semibold">{log.role}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${
-                        log.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' :
-                        log.status === 'pending' ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' :
-                        'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+                      {renderRoleBadge(log.role)}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize border shadow-2xs ${
+                        log.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' :
+                        log.status === 'pending' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' :
+                        'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
                       }`}>
-                        {log.status}
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          log.status === 'accepted' ? 'bg-emerald-500' :
+                          log.status === 'pending' ? 'bg-amber-500 animate-pulse' :
+                          'bg-rose-500'
+                        }`} />
+                        <span>{log.status}</span>
                       </span>
                     </td>
                     <td className="py-3 px-4 text-on-surface-variant font-mono text-[11px]">{log.inviter_email || 'Admin'}</td>
