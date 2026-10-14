@@ -15,12 +15,31 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const email = searchParams.get('email');
 
     let rows: RawWorkspaceRow[] = [];
     if (id) {
       rows = (await sql.query(
         `SELECT * FROM workspaces WHERE id = $1 LIMIT 1`,
         [id.trim()]
+      )) as unknown as RawWorkspaceRow[];
+    } else if (email) {
+      const cleanEmail = email.trim().toLowerCase();
+      // Workspaces where user is an active member or has an accepted invitation
+      rows = (await sql.query(
+        `SELECT DISTINCT 
+           w.id, 
+           w.name, 
+           w.slug, 
+           w.plan, 
+           COALESCE(wm.role, w.role, 'viewer') as role, 
+           w.created_at
+         FROM workspaces w
+         LEFT JOIN workspace_members wm ON wm.workspace_id = w.id AND LOWER(wm.email) = $1
+         WHERE LOWER(wm.email) = $1 
+            OR w.id IN (SELECT workspace_id FROM workspace_members WHERE LOWER(email) = $1 AND status = 'active')
+         ORDER BY w.created_at DESC`,
+        [cleanEmail]
       )) as unknown as RawWorkspaceRow[];
     } else {
       rows = (await sql.query(

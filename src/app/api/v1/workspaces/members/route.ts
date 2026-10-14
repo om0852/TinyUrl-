@@ -47,10 +47,10 @@ export async function GET(request: Request) {
 
     const baseUrl = getBaseUrl(request);
 
-    // 1. Fetch active members
+    // 1. Fetch active members (filter status = 'active' so pending invitations are never duplicated)
     const memberRows = (await sql.query(`
       SELECT * FROM workspace_members
-      WHERE workspace_id = $1
+      WHERE workspace_id = $1 AND status = 'active'
       ORDER BY created_at ASC
     `, [workspaceId.trim()])) as unknown as RawMemberRow[];
 
@@ -247,18 +247,31 @@ export async function DELETE(request: Request) {
     }
 
     if (id) {
-      await sql.query(`DELETE FROM workspace_members WHERE id = $1`, [id.trim()]);
-      await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE id = $1`, [id.trim()]);
+      // Find email and workspace if it's an invitation or member
+      const member = (await sql.query(`SELECT email, workspace_id FROM workspace_members WHERE id = $1`, [id.trim()]).catch(() => [])) as { email?: string; workspace_id?: string }[];
+      const inv = (await sql.query(`SELECT email, workspace_id FROM workspace_invitations WHERE id = $1`, [id.trim()]).catch(() => [])) as { email?: string; workspace_id?: string }[];
+      
+      const targetEmail = member?.[0]?.email || inv?.[0]?.email;
+      const targetWs = member?.[0]?.workspace_id || inv?.[0]?.workspace_id;
+
+      await sql.query(`DELETE FROM workspace_members WHERE id = $1`, [id.trim()]).catch(() => {});
+      await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE id = $1`, [id.trim()]).catch(() => {});
+      await sql.query(`DELETE FROM workspace_invitations WHERE id = $1`, [id.trim()]).catch(() => {});
+      
+      if (targetEmail && targetWs) {
+        await sql.query(`DELETE FROM workspace_members WHERE LOWER(email) = LOWER($1) AND workspace_id = $2`, [targetEmail, targetWs]).catch(() => {});
+        await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE LOWER(email) = LOWER($1) AND workspace_id = $2`, [targetEmail, targetWs]).catch(() => {});
+      }
     } else if (email && workspaceId) {
       await sql.query(`
         DELETE FROM workspace_members 
         WHERE LOWER(email) = LOWER($1) AND workspace_id = $2
-      `, [email.trim(), workspaceId.trim()]);
+      `, [email.trim(), workspaceId.trim()]).catch(() => {});
       await sql.query(`
         UPDATE workspace_invitations 
         SET status = 'revoked' 
         WHERE LOWER(email) = LOWER($1) AND workspace_id = $2
-      `, [email.trim(), workspaceId.trim()]);
+      `, [email.trim(), workspaceId.trim()]).catch(() => {});
     }
 
     return NextResponse.json({

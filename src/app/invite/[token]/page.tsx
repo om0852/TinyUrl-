@@ -94,9 +94,26 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
 
         // Store active session and workspace
         try {
+          const userEmail = (data.user.email || '').toLowerCase().trim();
           localStorage.setItem('url_shortener_user', JSON.stringify(data.user));
           localStorage.setItem('url_shortener_current_workspace_id', data.workspace.id);
           
+          if (userEmail) {
+            localStorage.setItem(`url_shortener_current_workspace_id_${userEmail}`, data.workspace.id);
+            const userWsKey = `url_shortener_workspaces_${userEmail}`;
+            let userWsList = [data.workspace];
+            const savedUserWs = localStorage.getItem(userWsKey);
+            if (savedUserWs) {
+              try {
+                const parsed = JSON.parse(savedUserWs);
+                if (Array.isArray(parsed)) {
+                  userWsList = [data.workspace, ...parsed.filter((w: { id: string }) => w.id !== data.workspace.id)];
+                }
+              } catch {}
+            }
+            localStorage.setItem(userWsKey, JSON.stringify(userWsList));
+          }
+
           const rawWs = localStorage.getItem('url_shortener_workspaces');
           let wsList = [];
           if (rawWs) {
@@ -104,14 +121,15 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
           }
           if (!wsList.some((w: { id: string }) => w.id === data.workspace.id)) {
             wsList.unshift(data.workspace);
-            localStorage.setItem('url_shortener_workspaces', JSON.stringify(wsList));
           }
+          localStorage.setItem('url_shortener_workspaces', JSON.stringify(wsList));
+          
           window.dispatchEvent(new Event('url_shortener_sync'));
         } catch {}
 
         setTimeout(() => {
-          router.push('/');
-        }, 1500);
+          window.location.href = '/';
+        }, 1200);
       } else {
         setSubmitError(data.error || 'Failed to accept invitation.');
       }

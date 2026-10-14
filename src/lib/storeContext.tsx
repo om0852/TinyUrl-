@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   Link,
   ClickEvent,
@@ -256,7 +256,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([defaultWs]);
-  const [currentWorkspace, setCurrentWorkspace] = useState<Workspace>(defaultWs);
+  const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(defaultWs);
+
+  const setCurrentWorkspace = useCallback((ws: Workspace) => {
+    if (!ws) return;
+    setCurrentWorkspaceState(ws);
+    try {
+      localStorage.setItem('url_shortener_current_workspace_id', ws.id);
+      if (currentUser?.email) {
+        localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', currentUser.email), ws.id);
+      }
+    } catch {}
+
+    if (typeof window !== 'undefined') {
+      // 1. Fetch links for newly selected workspace
+      fetch(`/api/v1/links?workspace_id=${encodeURIComponent(ws.id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success && Array.isArray(d.links)) {
+            setLinks(sanitizeUserLinks(d.links, ws.id));
+          }
+        }).catch(() => {});
+
+      // 2. Fetch campaigns for newly selected workspace
+      fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(ws.id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success && Array.isArray(d.campaigns)) {
+            setCampaigns(d.campaigns);
+          }
+        }).catch(() => {});
+
+      // 3. Fetch team members and pending invitations for newly selected workspace (deduplicated)
+      fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(ws.id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success) {
+            const memberMap = new Map<string, TeamMember>();
+            if (Array.isArray(d.invitations)) {
+              d.invitations.forEach((inv: WorkspaceInvitation) => {
+                const key = inv.email.toLowerCase().trim();
+                memberMap.set(key, {
+                  id: inv.id,
+                  workspace_id: inv.workspace_id,
+                  name: inv.name,
+                  email: inv.email,
+                  role: inv.role,
+                  status: 'invited',
+                  token: inv.token,
+                  invite_url: inv.invite_url,
+                  avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
+                  created_at: inv.created_at
+                });
+              });
+            }
+            if (Array.isArray(d.members)) {
+              d.members.forEach((m: TeamMember) => {
+                const key = m.email.toLowerCase().trim();
+                memberMap.set(key, m);
+              });
+            }
+            setTeamMembers(Array.from(memberMap.values()));
+          }
+        }).catch(() => {});
+    }
+  }, [currentUser?.email]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [domains, setDomains] = useState<Domain[]>(initialDomains);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -311,6 +375,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           } catch {}
         }
+
+        // Check if there are workspaces stored globally or in invite acceptance
+        const targetWsId = localStorage.getItem(`url_shortener_current_workspace_id_${user.email}`) || 
+                           localStorage.getItem('url_shortener_current_workspace_id');
+        const globalWsRaw = localStorage.getItem('url_shortener_workspaces');
+        if (globalWsRaw) {
+          try {
+            const parsedGlobal = JSON.parse(globalWsRaw);
+            if (Array.isArray(parsedGlobal)) {
+              parsedGlobal.forEach((gw: Workspace) => {
+                if (gw && gw.id && !loadedWs.some(w => w.id === gw.id)) {
+                  loadedWs.push(gw);
+                }
+              });
+            }
+          } catch {}
+        }
+
         if (loadedWs.length === 0) {
           const userWs: Workspace = {
             id: generateId('ws'),
@@ -323,9 +405,34 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           loadedWs = [userWs];
           localStorage.setItem(wsKey, JSON.stringify(loadedWs));
         }
+
         setWorkspaces(loadedWs);
-        setCurrentWorkspace(loadedWs[0]);
+        const initialWs = (targetWsId ? loadedWs.find(w => w.id === targetWsId) : null) || loadedWs[0];
+        setCurrentWorkspace(initialWs);
         localStorage.setItem('url_shortener_workspaces', JSON.stringify(loadedWs));
+        localStorage.setItem('url_shortener_current_workspace_id', initialWs.id);
+
+        // Fetch user's workspaces from PostgreSQL (includes accepted invited workspaces)
+        fetch(`/api/v1/workspaces?email=${encodeURIComponent(user.email)}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d?.success && Array.isArray(d.workspaces) && d.workspaces.length > 0) {
+              setWorkspaces(prev => {
+                const map = new Map(prev.map(w => [w.id, w]));
+                d.workspaces.forEach((nw: Workspace) => map.set(nw.id, nw));
+                const merged = Array.from(map.values());
+                try {
+                  localStorage.setItem(wsKey, JSON.stringify(merged));
+                  localStorage.setItem('url_shortener_workspaces', JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
+              if (targetWsId) {
+                const found = d.workspaces.find((w: Workspace) => w.id === targetWsId);
+                if (found) setCurrentWorkspace(found);
+              }
+            }
+          }).catch(() => {});
 
         // 2. Account-scoped links
         const linksKey = getUserStorageKey('url_shortener_links', user.email);
@@ -541,7 +648,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const wsKey = getUserStorageKey('url_shortener_workspaces', activeUser.email);
         const rawWs = localStorage.getItem(wsKey);
         const parsedWs: Workspace[] = rawWs ? JSON.parse(rawWs) : [];
-        const activeWs = parsedWs[0];
+        const savedWsId = localStorage.getItem(`url_shortener_current_workspace_id_${activeUser.email}`) || 
+                          localStorage.getItem('url_shortener_current_workspace_id');
+        const activeWs = (savedWsId ? parsedWs.find(w => w.id === savedWsId) : null) || parsedWs[0];
         if (!activeWs?.id) return;
 
         // 1. Fetch newest link counters from PostgreSQL
@@ -664,27 +773,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           }).catch(() => {});
 
-        // 7. Fetch Team Members and Invitations from PostgreSQL
+        // 7. Fetch Team Members and Invitations from PostgreSQL (deduplicated by email)
         fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWs.id)}`)
           .then(r => r.json())
           .then(d => {
-            if (d?.success && Array.isArray(d.members)) {
-              const combined: TeamMember[] = [
-                ...d.members,
-                ...(Array.isArray(d.invitations) ? d.invitations.map((inv: WorkspaceInvitation) => ({
-                  id: inv.id,
-                  workspace_id: inv.workspace_id,
-                  name: inv.name,
-                  email: inv.email,
-                  role: inv.role,
-                  status: 'invited' as const,
-                  token: inv.token,
-                  invite_url: inv.invite_url,
-                  avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
-                  created_at: inv.created_at
-                })) : [])
-              ];
-              setTeamMembers(combined);
+            if (d?.success) {
+              const memberMap = new Map<string, TeamMember>();
+              if (Array.isArray(d.invitations)) {
+                d.invitations.forEach((inv: WorkspaceInvitation) => {
+                  const key = inv.email.toLowerCase().trim();
+                  memberMap.set(key, {
+                    id: inv.id,
+                    workspace_id: inv.workspace_id,
+                    name: inv.name,
+                    email: inv.email,
+                    role: inv.role,
+                    status: 'invited' as const,
+                    token: inv.token,
+                    invite_url: inv.invite_url,
+                    avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
+                    created_at: inv.created_at
+                  });
+                });
+              }
+              if (Array.isArray(d.members)) {
+                d.members.forEach((m: TeamMember) => {
+                  const key = m.email.toLowerCase().trim();
+                  memberMap.set(key, m);
+                });
+              }
+              setTeamMembers(Array.from(memberMap.values()));
             }
           }).catch(() => {});
       } catch {}
@@ -1477,6 +1595,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch {}
     }
 
+    const targetWsId = localStorage.getItem(`url_shortener_current_workspace_id_${cleanEmail}`) || 
+                       localStorage.getItem('url_shortener_current_workspace_id');
+    const globalWsRaw = localStorage.getItem('url_shortener_workspaces');
+    if (globalWsRaw) {
+      try {
+        const parsedGlobal = JSON.parse(globalWsRaw);
+        if (Array.isArray(parsedGlobal)) {
+          parsedGlobal.forEach((gw: Workspace) => {
+            if (gw && gw.id && !userWorkspaces.some(w => w.id === gw.id)) {
+              userWorkspaces.push(gw);
+            }
+          });
+        }
+      } catch {}
+    }
+
     if (userWorkspaces.length === 0) {
       const defaultWs: Workspace = {
         id: generateId('ws'),
@@ -1492,8 +1626,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch {}
     }
 
+    const activeWs = (targetWsId ? userWorkspaces.find(w => w.id === targetWsId) : null) || userWorkspaces[0];
     setWorkspaces(userWorkspaces);
-    setCurrentWorkspace(userWorkspaces[0]);
+    setCurrentWorkspace(activeWs);
+
+    // Fetch user's workspaces from PostgreSQL (includes accepted invited workspaces)
+    fetch(`/api/v1/workspaces?email=${encodeURIComponent(cleanEmail)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.success && Array.isArray(d.workspaces) && d.workspaces.length > 0) {
+          setWorkspaces(prev => {
+            const map = new Map(prev.map(w => [w.id, w]));
+            d.workspaces.forEach((nw: Workspace) => map.set(nw.id, nw));
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem(wsKey, JSON.stringify(merged));
+              localStorage.setItem('url_shortener_workspaces', JSON.stringify(merged));
+            } catch {}
+            return merged;
+          });
+          if (targetWsId) {
+            const found = d.workspaces.find((w: Workspace) => w.id === targetWsId);
+            if (found) setCurrentWorkspace(found);
+          }
+        }
+      }).catch(() => {});
 
     // Load account-isolated links
     const linksKey = getUserStorageKey('url_shortener_links', cleanEmail);
@@ -1899,18 +2056,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Team Member management
   const inviteTeamMember = async (name: string, email: string, role: WorkspaceRole): Promise<WorkspaceInvitation | null> => {
+    const cleanEmail = email.trim().toLowerCase();
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
     const tempId = generateId('tm');
+    
+    // Deduplicate: replace any existing entry for this email
+    const filtered = teamMembers.filter(m => m.email.toLowerCase().trim() !== cleanEmail);
     const newMember: TeamMember = {
       id: tempId,
       workspace_id: currentWorkspace.id,
-      name,
-      email,
+      name: name.trim(),
+      email: cleanEmail,
       role,
       status: 'invited',
       avatar: initials
     };
-    saveTeamMembersState([...teamMembers, newMember]);
+    saveTeamMembersState([...filtered, newMember]);
 
     if (typeof window !== 'undefined') {
       try {
@@ -1919,20 +2080,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             workspace_id: currentWorkspace.id,
-            name,
-            email,
+            name: name.trim(),
+            email: cleanEmail,
             role,
             inviter_email: currentUser?.email || 'Admin'
           })
         });
         const data = await res.json();
         if (data.success && data.invitation) {
-          setTeamMembers(prev => prev.map(m => m.id === tempId ? {
-            ...m,
-            id: data.invitation.id,
-            token: data.invitation.token,
-            invite_url: data.invitation.invite_url
-          } : m));
+          setTeamMembers(prev => {
+            const next = prev.filter(m => m.id !== tempId && m.email.toLowerCase().trim() !== cleanEmail);
+            return [...next, {
+              ...newMember,
+              id: data.invitation.id,
+              token: data.invitation.token,
+              invite_url: data.invitation.invite_url
+            }];
+          });
           return data.invitation;
         }
       } catch (err) {
@@ -1944,10 +2108,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const removeTeamMember = (id: string) => {
     const target = teamMembers.find(m => m.id === id);
-    saveTeamMembersState(teamMembers.filter(m => m.id !== id));
+    const targetEmail = target?.email?.toLowerCase().trim();
+    saveTeamMembersState(teamMembers.filter(m => m.id !== id && (!targetEmail || m.email.toLowerCase().trim() !== targetEmail)));
     if (typeof window !== 'undefined') {
-      const param = target 
-        ? `email=${encodeURIComponent(target.email)}&workspace_id=${encodeURIComponent(currentWorkspace.id)}` 
+      const param = targetEmail 
+        ? `email=${encodeURIComponent(targetEmail)}&workspace_id=${encodeURIComponent(currentWorkspace.id)}` 
         : `id=${encodeURIComponent(id)}`;
       fetch(`/api/v1/workspaces/members?${param}`, { method: 'DELETE' }).catch(() => {});
     }

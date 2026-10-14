@@ -981,28 +981,37 @@ export const CampaignsView: React.FC = () => {
 
             <div className="flex flex-col gap-2.5">
               
-              {/* Workspace Owner */}
+              {/* Current Active User in this Workspace */}
               <div className="flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/30 shadow-xs">
                     {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs font-bold text-on-surface block truncate">
-                      {currentUser?.name || "Workspace Lead"}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-on-surface block truncate">
+                        {currentUser?.name || "Workspace Lead"}
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-medium">You</span>
+                    </div>
                     <span className="text-[11px] text-on-surface-variant truncate block">
-                      {currentUser?.email || "Primary Lead · Active"}
+                      {currentUser?.email || "Active User"}
                     </span>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded text-primary-container text-[11px] font-bold bg-primary-fixed shrink-0">
-                  Owner
+                <span className={`px-2 py-0.5 rounded text-[11px] font-bold capitalize ${
+                  userRole === 'owner' 
+                    ? 'text-primary-container bg-primary-fixed' 
+                    : (ROLE_DESCRIPTIONS[userRole]?.badgeColor || 'bg-surface-container text-on-surface')
+                }`}>
+                  {userRole}
                 </span>
               </div>
 
-              {/* Dynamic Workspace Team Members */}
-              {teamMembers.map((m) => {
+              {/* Dynamic Workspace Collaborators (deduplicated against current user) */}
+              {teamMembers
+                .filter(m => !currentUser?.email || m.email.toLowerCase().trim() !== currentUser.email.toLowerCase().trim())
+                .map((m) => {
                 const isPending = m.status === 'invited';
                 const roleConfig = ROLE_DESCRIPTIONS[m.role] || ROLE_DESCRIPTIONS.editor;
                 const inviteLink = m.invite_url || (m.token && typeof window !== 'undefined' ? `${originUrl}/invite/${m.token}` : '');
@@ -1058,7 +1067,7 @@ export const CampaignsView: React.FC = () => {
                 );
               })}
 
-              {teamMembers.length === 0 && (
+              {teamMembers.filter(m => !currentUser?.email || m.email.toLowerCase().trim() !== currentUser.email.toLowerCase().trim()).length === 0 && (
                 <div className="p-3 rounded-xl bg-surface-container-low/50 border border-outline-variant/20 text-center">
                   <p className="text-[11px] text-on-surface-variant">
                     No additional collaborators invited yet. Use the Invite button above to add members with specific roles.
