@@ -19,7 +19,8 @@ import {
   Check, 
   ArrowRight,
   ShieldCheck,
-  Settings
+  Settings,
+  Users
 } from 'lucide-react';
 
 interface CommandPaletteModalProps {
@@ -67,6 +68,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     { id: 'routing', label: 'OpeninApp & Dynamic Routing', icon: <Smartphone className="w-4 h-4 text-emerald-500" /> },
     { id: 'qr', label: 'Dynamic QR Code Studio', icon: <QrCode className="w-4 h-4 text-primary" /> },
     { id: 'campaigns', label: 'Campaigns & UTM Tagging', icon: <FolderKanban className="w-4 h-4 text-amber-500" /> },
+    { id: 'teams', label: 'Teams & Workspaces Collaboration', icon: <Users className="w-4 h-4 text-emerald-500" /> },
     { id: 'ai', label: 'AI Slug & Traffic Insights', icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
     { id: 'security', label: 'Security & Zero-Phish Scanner', icon: <ShieldCheck className="w-4 h-4 text-emerald-500" /> },
     { id: 'settings', label: 'Workspace Settings & Profile', icon: <Settings className="w-4 h-4 text-indigo-500" /> },

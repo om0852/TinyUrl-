@@ -128,3 +128,35 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, name, slug, plan } = body;
+
+    if (!id || !name) {
+      return NextResponse.json({ success: false, error: 'Workspace ID and Name are required.' }, { status: 400 });
+    }
+
+    const cleanSlug = slug 
+      ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-')
+      : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    const rows = (await sql.query(
+      `UPDATE workspaces 
+       SET name = $1, slug = $2, plan = COALESCE($3, plan)
+       WHERE id = $4 
+       RETURNING *`,
+      [name.trim(), cleanSlug, plan || null, id.trim()]
+    )) as unknown as RawWorkspaceRow[];
+
+    return NextResponse.json({
+      success: true,
+      message: 'Workspace updated successfully.',
+      workspace: rows && rows.length > 0 ? rows[0] : null
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Database error';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}

@@ -11,9 +11,73 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const token = searchParams.get('token');
+    const email = searchParams.get('email');
+    const workspaceId = searchParams.get('workspace_id');
+    const history = searchParams.get('history') === 'true';
 
+    // 1. Fetch History for workspace or user
+    if (history) {
+      const rows = await sql.query(`
+        SELECT 
+          i.id,
+          i.workspace_id,
+          w.name as workspace_name,
+          w.slug as workspace_slug,
+          i.inviter_email,
+          i.name,
+          i.email,
+          i.role,
+          i.status,
+          i.expires_at,
+          i.created_at,
+          i.accepted_at
+        FROM workspace_invitations i
+        LEFT JOIN workspaces w ON w.id = i.workspace_id
+        WHERE ($1::text IS NOT NULL AND i.workspace_id = $1)
+           OR ($2::text IS NOT NULL AND LOWER(i.email) = LOWER($2))
+        ORDER BY i.created_at DESC
+        LIMIT 50
+      `, [workspaceId || null, email ? email.trim() : null]);
+
+      return NextResponse.json({
+        success: true,
+        history: rows || []
+      });
+    }
+
+    // 2. Fetch Incoming Invitations for a logged-in user
+    if (email && !token) {
+      const cleanEmail = email.trim().toLowerCase();
+      const rows = await sql.query(`
+        SELECT 
+          i.id,
+          i.workspace_id,
+          w.name as workspace_name,
+          w.slug as workspace_slug,
+          w.plan as workspace_plan,
+          i.inviter_email,
+          i.name,
+          i.email,
+          i.role,
+          i.token,
+          i.status,
+          i.expires_at,
+          i.created_at
+        FROM workspace_invitations i
+        LEFT JOIN workspaces w ON w.id = i.workspace_id
+        WHERE LOWER(i.email) = $1 AND i.status = 'pending' AND i.expires_at > NOW()
+        ORDER BY i.created_at DESC
+      `, [cleanEmail]);
+
+      return NextResponse.json({
+        success: true,
+        incoming: rows || []
+      });
+    }
+
+    // 3. Verify single token (for /invite/[token] page)
     if (!token || typeof token !== 'string' || !token.trim()) {
-      return NextResponse.json({ success: false, error: 'Invitation token is required.' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'Invitation token or email is required.' }, { status: 400 });
     }
 
     const rows = await sql.query(`
@@ -91,7 +155,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { token, name, password } = body;
+    const { token, name, password, action, user_id } = body;
 
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ success: false, error: 'Invitation token is required.' }, { status: 400 });
@@ -116,6 +180,19 @@ export async function POST(request: Request) {
 
     const invite = inviteRows[0];
 
+    const cleanEmail = invite.email.trim().toLowerCase();
+    const cleanName = (name && typeof name === 'string' ? name.trim() : '') || invite.name || cleanEmail.split('@')[0];
+
+    // Handle Decline Action
+    if (action === 'decline') {
+      await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE token = $1`, [token.trim()]);
+      await sql.query(`
+        DELETE FROM workspace_members 
+        WHERE workspace_id = $1 AND LOWER(email) = $2 AND status = 'invited'
+      `, [invite.workspace_id, cleanEmail]).catch(() => {});
+      return NextResponse.json({ success: true, message: 'Invitation declined successfully.' });
+    }
+
     if (invite.status === 'accepted') {
       return NextResponse.json({ success: false, error: 'This invitation was already accepted.' }, { status: 409 });
     }
@@ -128,9 +205,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'This invitation has expired.' }, { status: 410 });
     }
 
-    const cleanEmail = invite.email.trim().toLowerCase();
-    const cleanName = (name && typeof name === 'string' ? name.trim() : '') || invite.name || cleanEmail.split('@')[0];
-
     // 2. Check if user already exists
     let userRow: { id: string; name: string; email: string; role: string } | null = null;
     const existingUsers = await sql.query(`
@@ -142,8 +216,8 @@ export async function POST(request: Request) {
 
     if (existingUsers && existingUsers.length > 0) {
       const existing = existingUsers[0];
-      // If password provided, verify it
-      if (password && typeof password === 'string' && password.trim()) {
+      // If user is not already logged in, verify password
+      if (!user_id && password && typeof password === 'string' && password.trim()) {
         const computedHash = hashPassword(password.trim(), existing.salt);
         const isMatch = crypto.timingSafeEqual(
           Buffer.from(computedHash, 'utf8'),

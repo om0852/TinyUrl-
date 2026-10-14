@@ -13,6 +13,7 @@ import { SmartRoutingView } from '@/components/SmartRoutingView';
 import { QrCodeView } from '@/components/QrCodeView';
 import { SecurityView } from '@/components/SecurityView';
 import { CampaignsView } from '@/components/CampaignsView';
+import { TeamsView } from '@/components/TeamsView';
 import { AiSuiteView } from '@/components/AiSuiteView';
 import { ApiDocsView } from '@/components/ApiDocsView';
 import { BulkToolsView } from '@/components/BulkToolsView';
@@ -28,6 +29,7 @@ const TAB_TITLES: Record<TabType, string> = {
   qr: 'QR Code Studio',
   security: 'Security Scanner & Zero-Trust',
   campaigns: 'Campaigns & UTM Tagging',
+  teams: 'Teams & Workspaces',
   ai: 'AI Slug & Traffic Insights',
   api: 'API & Developer Keys',
   bulk: 'Bulk Link Generation',
@@ -190,7 +192,8 @@ export default function Home() {
             />
           )}
           {activeTab === 'security' && <SecurityView />}
-          {activeTab === 'campaigns' && <CampaignsView />}
+          {activeTab === 'campaigns' && <CampaignsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
+          {activeTab === 'teams' && <TeamsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
           {activeTab === 'ai' && <AiSuiteView />}
           {activeTab === 'api' && <ApiDocsView />}
           {activeTab === 'bulk' && <BulkToolsView />}

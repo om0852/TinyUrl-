@@ -39,10 +39,18 @@ interface StoreContextType {
   currentWorkspace: Workspace;
   setCurrentWorkspace: (ws: Workspace) => void;
   createWorkspace: (name: string, plan?: 'free' | 'pro' | 'enterprise') => Workspace;
+  updateWorkspace: (workspaceId: string, name: string, slug?: string) => Promise<boolean>;
+  deleteWorkspace: (workspaceId: string) => Promise<boolean>;
 
   teamMembers: TeamMember[];
   inviteTeamMember: (name: string, email: string, role: WorkspaceRole) => Promise<WorkspaceInvitation | null>;
   removeTeamMember: (id: string) => void;
+  updateMemberRole: (memberId: string, role: WorkspaceRole) => Promise<boolean>;
+
+  incomingInvitations: WorkspaceInvitation[];
+  refreshIncomingInvitations: () => Promise<void>;
+  acceptInvitationDirect: (token: string) => Promise<{ success: boolean; error?: string }>;
+  declineInvitationDirect: (token: string) => Promise<{ success: boolean; error?: string }>;
 
   domains: Domain[];
   campaigns: Campaign[];
@@ -322,6 +330,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [currentUser?.email]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
+
+  const refreshIncomingInvitations = useCallback(async () => {
+    if (!currentUser?.email) {
+      setIncomingInvitations([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/invitations?email=${encodeURIComponent(currentUser.email)}`);
+      const data = await res.json();
+      if (data?.success && Array.isArray(data.incoming)) {
+        setIncomingInvitations(data.incoming);
+      }
+    } catch {}
+  }, [currentUser?.email]);
+
+  useEffect(() => {
+    refreshIncomingInvitations();
+  }, [refreshIncomingInvitations]);
   const [domains, setDomains] = useState<Domain[]>(initialDomains);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
@@ -2118,6 +2145,123 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateMemberRole = async (memberId: string, role: WorkspaceRole): Promise<boolean> => {
+    setTeamMembers(prev => prev.map(m => (m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase()) ? { ...m, role } : m));
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/v1/workspaces/members', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workspace_id: currentWorkspace.id,
+            member_id: memberId,
+            role
+          })
+        });
+        const data = await res.json();
+        return !!data?.success;
+      } catch {}
+    }
+    return true;
+  };
+
+  const updateWorkspace = async (workspaceId: string, name: string, slug?: string): Promise<boolean> => {
+    const cleanSlug = slug ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-') : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const updatedWs: Workspace = { ...currentWorkspace, name: name.trim(), slug: cleanSlug };
+    if (currentWorkspace.id === workspaceId) {
+      setCurrentWorkspace(updatedWs);
+    }
+    setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, name: name.trim(), slug: cleanSlug } : w));
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/v1/workspaces', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: workspaceId, name: name.trim(), slug: cleanSlug })
+        });
+        return res.ok;
+      } catch {}
+    }
+    return true;
+  };
+
+  const deleteWorkspace = async (workspaceId: string): Promise<boolean> => {
+    if (workspaces.length <= 1) return false;
+    const remaining = workspaces.filter(w => w.id !== workspaceId);
+    setWorkspaces(remaining);
+    if (currentWorkspace.id === workspaceId) {
+      setCurrentWorkspace(remaining[0]);
+    }
+    try {
+      if (currentUser?.email) {
+        const wsKey = getUserStorageKey('url_shortener_workspaces', currentUser.email);
+        localStorage.setItem(wsKey, JSON.stringify(remaining));
+      }
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(remaining));
+    } catch {}
+    if (typeof window !== 'undefined') {
+      fetch(`/api/v1/workspaces?id=${encodeURIComponent(workspaceId)}`, { method: 'DELETE' }).catch(() => {});
+    }
+    return true;
+  };
+
+  const acceptInvitationDirect = async (token: string): Promise<{ success: boolean; error?: string }> => {
+    if (!token || !currentUser) return { success: false, error: 'Unauthorized or missing token.' };
+    try {
+      const res = await fetch('/api/v1/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          user_id: currentUser.id,
+          name: currentUser.name,
+          action: 'accept'
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.workspace) {
+        // 1. Add workspace to workspaces list
+        setWorkspaces(prev => {
+          const filtered = prev.filter(w => w.id !== data.workspace.id);
+          const updated = [data.workspace, ...filtered];
+          try {
+            const wsKey = getUserStorageKey('url_shortener_workspaces', currentUser.email);
+            localStorage.setItem(wsKey, JSON.stringify(updated));
+            localStorage.setItem('url_shortener_workspaces', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+        // 2. Switch to this accepted workspace
+        setCurrentWorkspace(data.workspace);
+        // 3. Remove from incoming invitations
+        setIncomingInvitations(prev => prev.filter(inv => inv.token !== token));
+        return { success: true };
+      }
+      return { success: false, error: data.error || 'Failed to accept invitation.' };
+    } catch {
+      return { success: false, error: 'Network error while accepting invitation.' };
+    }
+  };
+
+  const declineInvitationDirect = async (token: string): Promise<{ success: boolean; error?: string }> => {
+    if (!token) return { success: false, error: 'Missing token.' };
+    try {
+      const res = await fetch('/api/v1/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, action: 'decline' })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIncomingInvitations(prev => prev.filter(inv => inv.token !== token));
+        return { success: true };
+      }
+      return { success: false, error: data.error || 'Failed to decline invitation.' };
+    } catch {
+      return { success: false, error: 'Network error while declining invitation.' };
+    }
+  };
+
   const importLinksCsv = (csvContent: string): number => {
     const lines = csvContent.split('\n').filter(Boolean);
     if (lines.length <= 1) return 0;
@@ -2148,9 +2292,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentWorkspace,
       setCurrentWorkspace,
       createWorkspace,
+      updateWorkspace,
+      deleteWorkspace,
       teamMembers,
       inviteTeamMember,
       removeTeamMember,
+      updateMemberRole,
+      incomingInvitations,
+      refreshIncomingInvitations,
+      acceptInvitationDirect,
+      declineInvitationDirect,
       domains,
       addDomain,
       verifyDomain,

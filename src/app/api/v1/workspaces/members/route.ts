@@ -283,3 +283,36 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { workspace_id, member_id, role } = body;
+
+    if (!workspace_id || !member_id || !role) {
+      return NextResponse.json({ success: false, error: 'Fields workspace_id, member_id, and role are required.' }, { status: 400 });
+    }
+
+    const cleanRole: WorkspaceRole = ['admin', 'editor', 'viewer'].includes(role) ? role : 'editor';
+
+    await sql.query(`
+      UPDATE workspace_members
+      SET role = $1
+      WHERE (id = $2 OR LOWER(email) = LOWER($2)) AND workspace_id = $3
+    `, [cleanRole, member_id.trim(), workspace_id.trim()]);
+
+    await sql.query(`
+      UPDATE workspace_invitations
+      SET role = $1
+      WHERE (id = $2 OR LOWER(email) = LOWER($2)) AND workspace_id = $3 AND status = 'pending'
+    `, [cleanRole, member_id.trim(), workspace_id.trim()]).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      message: 'Role updated successfully.'
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Database error';
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
+}
