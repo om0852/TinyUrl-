@@ -23,7 +23,8 @@ import {
   ChevronUp, 
   ShieldCheck,
   TrendingUp,
-  LayoutDashboard
+  LayoutDashboard,
+  Lock
 } from 'lucide-react';
 
 interface LandingPageViewProps {
@@ -51,6 +52,13 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   const [aliasDrawerOpen, setAliasDrawerOpen] = useState(false);
   const [aliasInput, setAliasInput] = useState('');
 
+  // Clear unauthenticated results on logout
+  React.useEffect(() => {
+    if (!currentUser) {
+      setCurrentLink(null);
+    }
+  }, [currentUser]);
+
   // QR Modal State
   const [qrModalOpen, setQrModalOpen] = useState(false);
 
@@ -62,6 +70,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
   const handleShorten = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      onOpenAuth('login');
+      return;
+    }
     if (!urlInput.trim()) return;
 
     setIsShortening(true);
@@ -105,6 +117,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   };
 
   const handleCopy = () => {
+    if (!currentUser) {
+      onOpenAuth('login');
+      return;
+    }
     if (!currentLink) return;
     navigator.clipboard.writeText(currentLink.fullUrl).catch(() => {});
     setCopied(true);
@@ -114,6 +130,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   };
 
   const handleSaveAlias = () => {
+    if (!currentUser) {
+      onOpenAuth('login');
+      return;
+    }
     if (!aliasInput.trim() || !currentLink) return;
     const cleanSlug = aliasInput.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
     
@@ -134,6 +154,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   };
 
   const downloadQr = (format: 'svg' | 'png') => {
+    if (!currentUser) {
+      onOpenAuth('login');
+      return;
+    }
     const svgEl = document.getElementById('landing-qr-code') as SVGSVGElement | null;
     if (!svgEl) return;
 
@@ -280,13 +304,30 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     type="url"
                     required
                     value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    placeholder="Paste a long URL (e.g. https://yourcompany.com/product-launch)"
+                    onChange={(e) => {
+                      if (!currentUser) {
+                        onOpenAuth('login');
+                        return;
+                      }
+                      setUrlInput(e.target.value);
+                    }}
+                    onClick={() => {
+                      if (!currentUser) {
+                        onOpenAuth('login');
+                      }
+                    }}
+                    placeholder={currentUser ? "Paste a long URL (e.g. https://yourcompany.com/product-launch)" : "Sign in to shorten & brand links (Click to sign in)"}
                     className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest rounded-xl text-sm font-medium text-on-surface placeholder:text-outline border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container shadow-inner transition-all"
                   />
                 </div>
                 <button
                   type="submit"
+                  onClick={(e) => {
+                    if (!currentUser) {
+                      e.preventDefault();
+                      onOpenAuth('login');
+                    }
+                  }}
                   disabled={isShortening}
                   className="inline-flex items-center justify-center px-6 py-3 bg-primary-container hover:bg-primary text-on-primary text-sm font-semibold rounded-xl transition-all shadow-sm whitespace-nowrap cursor-pointer active:scale-95 disabled:opacity-50"
                 >
@@ -294,6 +335,21 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <span>{isShortening ? 'Shortening...' : 'Shorten Link'}</span>
                 </button>
               </form>
+
+              {/* Login Required Notice for unauthenticated users */}
+              {!currentUser && (
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
+                  <Lock className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                  <span>Account required to generate short links, track analytics, and customize slugs.</span>
+                  <button 
+                    type="button" 
+                    onClick={() => onOpenAuth('login')} 
+                    className="text-primary-container font-semibold hover:underline cursor-pointer ml-1 inline-flex items-center gap-0.5"
+                  >
+                    Log in <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
 
               {/* Instant Output Result Card */}
               {currentLink && (

@@ -101,28 +101,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
     }
   };
 
-  const handleQuickDemo = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const demoEmail = 'alex.morgan@company.com';
-      const demoPass = 'demo12345';
-      const res = await login(demoEmail, demoPass);
-      if (res.success) {
-        if (onSuccess) onSuccess();
-        else router.push('/');
-      } else {
-        await signup('Alex Morgan', demoEmail, demoPass);
-        if (onSuccess) onSuccess();
-        else router.push('/');
-      }
-    } catch {
-      setError('Unable to initialize demo workspace. Please sign in manually.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const benefits = [
     {
       title: 'Ultra-low Latency Redirection',
@@ -398,28 +376,6 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   )}
                 </Button>
               </form>
-
-              {/* Fast Demo Access */}
-              <div className="pt-2">
-                <div className="relative my-3">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-[#e1e8fd]" />
-                  </div>
-                  <div className="relative flex justify-center text-[11px] uppercase">
-                    <span className="bg-white px-2 text-[#464555] font-medium tracking-wider">demo account</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleQuickDemo}
-                  disabled={isLoading}
-                  className="w-full py-2.5 px-3 border border-[#e1e8fd] bg-[#f9f9ff] hover:bg-[#f1f3ff] text-[#141b2b] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4 text-[#4f46e5]" />
-                  <span>Explore Demo Workspace (1-Click)</span>
-                </button>
-              </div>
 
               {/* Trust Footer */}
               <div className="pt-3 border-t border-[#e1e8fd] flex items-center justify-between text-[11px] text-[#464555]">
