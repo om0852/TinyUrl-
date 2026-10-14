@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Link,
   ClickEvent,
@@ -26,6 +26,9 @@ import {
   RESERVED_SLUGS
 } from './db';
 import { detectAppDeepLink } from './deepLink';
+import { hasPermission, ROLE_DESCRIPTIONS, Permission } from './rbac';
+import { useToast } from '@/components/ui/ToastHub';
+
 
 
 interface StoreContextType {
@@ -37,6 +40,7 @@ interface StoreContextType {
 
   workspaces: Workspace[];
   currentWorkspace: Workspace;
+  currentUserRole: WorkspaceRole;
   setCurrentWorkspace: (ws: Workspace) => void;
   createWorkspace: (name: string, plan?: 'free' | 'pro' | 'enterprise') => Workspace;
   updateWorkspace: (workspaceId: string, name: string, slug?: string) => Promise<boolean>;
@@ -266,6 +270,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([defaultWs]);
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(defaultWs);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
+  const { showToast } = useToast();
+
+  const currentUserRole: WorkspaceRole = useMemo(() => {
+    // 1. If current user is in teamMembers for this workspace, use their explicit member role
+    if (currentUser?.email && teamMembers.length > 0) {
+      const myMember = teamMembers.find(m => m.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim());
+      if (myMember?.role) {
+        return myMember.role;
+      }
+    }
+    // 2. Check current workspace role
+    if (currentWorkspace?.role) {
+      return currentWorkspace.role;
+    }
+    // 3. Fallback to matching workspace in state
+    if (currentWorkspace?.id && workspaces.length > 0) {
+      const match = workspaces.find(w => w.id === currentWorkspace.id);
+      if (match?.role) return match.role;
+    }
+    return 'owner';
+  }, [currentUser?.email, teamMembers, currentWorkspace?.id, currentWorkspace?.role, workspaces]);
+
+  const checkPermissionOrToast = useCallback((perm: Permission, actionDescription: string): boolean => {
+    const role: WorkspaceRole = currentUserRole;
+    const allowed = hasPermission(role, perm);
+    if (!allowed) {
+      const roleName = ROLE_DESCRIPTIONS[role]?.title || role;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to ${actionDescription}.`
+      );
+      return false;
+    }
+    return true;
+  }, [currentUserRole, showToast]);
+
+  useEffect(() => {
+    if (currentWorkspace && currentUserRole && currentWorkspace.role !== currentUserRole) {
+      setCurrentWorkspaceState(prev => ({ ...prev, role: currentUserRole }));
+    }
+  }, [currentUserRole, currentWorkspace?.id]);
+
 
   const setCurrentWorkspace = useCallback((ws: Workspace) => {
     if (!ws) return;
@@ -330,8 +379,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }).catch(() => {});
     }
   }, [currentUser?.email]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
 
   const refreshTeamMembers = useCallback(async () => {
     if (!currentWorkspace?.id || typeof window === 'undefined') return;
@@ -500,9 +547,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 } catch {}
                 return merged;
               });
-              if (targetWsId) {
-                const found = d.workspaces.find((w: Workspace) => w.id === targetWsId);
-                if (found) setCurrentWorkspace(found);
+              const activeWs = (targetWsId ? d.workspaces.find((w: Workspace) => w.id === targetWsId) : null) || d.workspaces[0];
+              if (activeWs) {
+                setCurrentWorkspace(activeWs);
               }
             }
           }).catch(() => {});
@@ -1021,6 +1068,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Create Short Link
   const createShortLink: StoreContextType['createShortLink'] = (data) => {
+    if (!checkPermissionOrToast('links:create', 'create short links')) {
+      return { link: null, error: 'Permission denied: Read-only access.' };
+    }
+
     const normUrl = normalizeUrl(data.destination_url);
     if (!normUrl || normUrl.length < 5) {
       return { link: null, error: 'Please enter a valid target URL' };
@@ -1131,6 +1182,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateLink = (id: string, updates: Partial<Link>) => {
+    if (!checkPermissionOrToast('links:edit', 'edit short links')) {
+      return;
+    }
+
     const updated = links.map(l => (
       l.id === id || 
       l.short_code?.toLowerCase() === id.toLowerCase() || 
@@ -1165,6 +1220,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteLink = (id: string) => {
+    if (!checkPermissionOrToast('links:delete', 'delete links')) {
+      return;
+    }
+
     const target = links.find(l => l.id === id || l.short_code?.toLowerCase() === id.toLowerCase());
     const updated = links.filter(l => l.id !== id && l.short_code?.toLowerCase() !== id.toLowerCase());
     saveLinksState(updated);
@@ -1352,6 +1411,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addCampaign = (name: string, description: string, tags: string[], target_clicks = 10000) => {
+    if (!checkPermissionOrToast('campaigns:create', 'create marketing campaigns')) {
+      return null as unknown as Campaign;
+    }
+
     const newCamp: Campaign = {
       id: generateId('cmp'),
       workspace_id: currentWorkspace?.id || 'ws_default',
@@ -1383,6 +1446,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateCampaign = (id: string, updates: Partial<Campaign>) => {
+    if (!checkPermissionOrToast('campaigns:create', 'update campaigns')) {
+      return;
+    }
+
     const updated = campaigns.map(c => c.id === id ? { ...c, ...updates } : c);
     saveCampaignsState(updated);
     if (typeof window !== 'undefined') {
@@ -1405,6 +1472,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteCampaign = (id: string) => {
+    if (!checkPermissionOrToast('campaigns:delete', 'delete campaigns')) {
+      return;
+    }
+
     const updated = campaigns.filter(c => c.id !== id);
     saveCampaignsState(updated);
     if (typeof window !== 'undefined') {
@@ -1413,6 +1484,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addDomain = async (hostname: string, is_default?: boolean): Promise<Domain | null> => {
+    if (!checkPermissionOrToast('domains:manage', 'add custom domains')) {
+      return null;
+    }
+
     const cleanHost = hostname.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
     const newDom: Domain = {
       id: generateId('dom'),
@@ -1450,6 +1525,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const verifyDomain = async (idOrHostname: string): Promise<boolean> => {
+    if (!checkPermissionOrToast('domains:manage', 'verify custom domains')) {
+      return false;
+    }
+
     setDomains(prev => prev.map(d => (d.id === idOrHostname || d.hostname === idOrHostname) ? { ...d, verified: true, ssl_status: 'active' } : d));
     if (typeof window !== 'undefined') {
       try {
@@ -1468,6 +1547,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteDomain = async (idOrHostname: string): Promise<boolean> => {
+    if (!checkPermissionOrToast('domains:manage', 'delete custom domains')) {
+      return false;
+    }
+
     setDomains(prev => prev.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname));
     if (typeof window !== 'undefined') {
       try {
@@ -1482,6 +1565,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addApiKey = (name: string, permissions: string[]) => {
+    if (!checkPermissionOrToast('api_keys:manage', 'generate API keys')) {
+      return {} as ApiKey;
+    }
+
     const prefix = `sk_live_${Math.random().toString(36).substring(2, 6)}`;
     const fullKey = `${prefix}_${Math.random().toString(36).substring(2, 18)}${Math.random().toString(36).substring(2, 18)}`;
     const newKey: ApiKey = {
@@ -1518,6 +1605,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteApiKey = (id: string) => {
+    if (!checkPermissionOrToast('api_keys:manage', 'delete API keys')) {
+      return;
+    }
+
     const updated = apiKeys.filter(k => k.id !== id);
     saveApiKeysState(updated);
     if (typeof window !== 'undefined') {
@@ -1526,6 +1617,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addWebhook = (url: string, events: string[]) => {
+    if (!checkPermissionOrToast('api_keys:manage', 'configure webhooks')) {
+      return {} as Webhook;
+    }
+
     const newWh: Webhook = {
       id: generateId('wh'),
       workspace_id: currentWorkspace?.id || 'ws_default',
@@ -1560,6 +1655,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteWebhook = (id: string) => {
+    if (!checkPermissionOrToast('api_keys:manage', 'delete webhooks')) {
+      return;
+    }
+
     const updated = webhooks.filter(w => w.id !== id);
     saveWebhooksState(updated);
     if (typeof window !== 'undefined') {
@@ -2146,6 +2245,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Team Member management
   const inviteTeamMember = async (name: string, email: string, role: WorkspaceRole): Promise<WorkspaceInvitation | null> => {
+    if (!checkPermissionOrToast('members:invite', 'invite team members')) {
+      return null;
+    }
+
     const cleanEmail = email.trim().toLowerCase();
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
     const tempId = generateId('tm');
@@ -2197,6 +2300,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const removeTeamMember = (id: string) => {
+    if (!checkPermissionOrToast('members:remove', 'remove team members')) {
+      return;
+    }
+
     const target = teamMembers.find(m => m.id === id);
     const targetEmail = target?.email?.toLowerCase().trim();
     saveTeamMembersState(teamMembers.filter(m => m.id !== id && (!targetEmail || m.email.toLowerCase().trim() !== targetEmail)));
@@ -2209,6 +2316,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateMemberRole = async (memberId: string, role: WorkspaceRole): Promise<boolean> => {
+    if (!checkPermissionOrToast('members:remove', 'update collaborator roles')) {
+      return false;
+    }
+
     setTeamMembers(prev => prev.map(m => (m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase()) ? { ...m, role } : m));
     if (typeof window !== 'undefined') {
       try {
@@ -2229,6 +2340,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateWorkspace = async (workspaceId: string, name: string, slug?: string): Promise<boolean> => {
+    if (!checkPermissionOrToast('settings:manage', 'rename workspace')) {
+      return false;
+    }
+
     const cleanSlug = slug ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-') : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
     const updatedWs: Workspace = { ...currentWorkspace, name: name.trim(), slug: cleanSlug };
     if (currentWorkspace.id === workspaceId) {
@@ -2249,6 +2364,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteWorkspace = async (workspaceId: string): Promise<boolean> => {
+    if (!checkPermissionOrToast('settings:manage', 'delete workspace')) {
+      return false;
+    }
+
     if (workspaces.length <= 1) return false;
     const remaining = workspaces.filter(w => w.id !== workspaceId);
     setWorkspaces(remaining);
@@ -2327,6 +2446,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const importLinksCsv = (csvContent: string): number => {
+    if (!checkPermissionOrToast('links:create', 'import links from CSV')) {
+      return 0;
+    }
+
     const lines = csvContent.split('\n').filter(Boolean);
     if (lines.length <= 1) return 0;
 
@@ -2354,6 +2477,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       logout,
       workspaces,
       currentWorkspace,
+      currentUserRole,
       setCurrentWorkspace,
       createWorkspace,
       updateWorkspace,

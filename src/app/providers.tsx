@@ -6,10 +6,10 @@ import { ToastProvider } from '@/components/ui/ToastHub';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <StoreProvider>
-      <ToastProvider>
+    <ToastProvider>
+      <StoreProvider>
         {children}
-      </ToastProvider>
-    </StoreProvider>
+      </StoreProvider>
+    </ToastProvider>
   );
 }

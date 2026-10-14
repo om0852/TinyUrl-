@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { 
   FolderKanban, 
@@ -11,8 +12,8 @@ import {
   Check, 
   Copy, 
   ChevronRight, 
-  ChevronDown,
-  ChevronUp,
+  ChevronDown, 
+  ChevronUp, 
   Video, 
   ShieldCheck, 
   Sparkles, 
@@ -54,8 +55,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     links, 
     updateLink, 
     createShortLink, 
-    currentWorkspace 
+    currentWorkspace,
+    currentUserRole
   } = useStore();
+  const { showToast } = useToast();
 
   const [mounted, setMounted] = useState(false);
 
@@ -63,7 +66,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     setMounted(true);
   }, []);
 
-  const userRole = currentUser?.role || currentWorkspace?.role || 'owner';
+  const userRole = currentUserRole;
   const canCreate = hasPermission(userRole, 'campaigns:create');
   const canDelete = hasPermission(userRole, 'campaigns:delete');
 
@@ -249,6 +252,16 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   // Delete Campaign
   const confirmDelete = () => {
     if (!deleteCampaignModal) return;
+    if (!canDelete) {
+      const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to delete campaigns.`
+      );
+      setDeleteCampaignModal(null);
+      return;
+    }
     deleteCampaign(deleteCampaignModal.id);
     setDeleteCampaignModal(null);
   };
@@ -256,6 +269,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   // Attach existing link to campaign
   const handleAttachExisting = () => {
     if (!attachModalCampaign || !selectedLinkToAttach) return;
+    if (!canCreate) {
+      const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to attach deliverables.`
+      );
+      return;
+    }
     updateLink(selectedLinkToAttach, {
       campaign_id: attachModalCampaign.id
     });
@@ -269,6 +291,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     setAttachError('');
     if (!attachModalCampaign || !newDeliverableUrl.trim()) {
       setAttachError('Destination URL is required.');
+      return;
+    }
+    if (!canCreate) {
+      const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to create deliverables.`
+      );
       return;
     }
 
@@ -297,6 +328,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
   // Detach link from campaign
   const handleDetachLink = (linkId: string) => {
+    if (!canCreate) {
+      const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to detach deliverables.`
+      );
+      return;
+    }
     updateLink(linkId, {
       campaign_id: undefined
     });
@@ -394,19 +434,24 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             id="new-campaign-btn"
             onClick={() => {
               if (!canCreate) {
-                alert('Your workspace role (Viewer) does not permit creating new campaigns.');
+                const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+                showToast(
+                  'error',
+                  'Permission Denied',
+                  `Your role (${roleName}) does not have permission to create campaigns.`
+                );
                 return;
               }
               setCreateModalOpen(true);
             }}
-            disabled={!canCreate}
-            className={`inline-flex items-center gap-2 text-xs font-bold rounded-xl px-4 py-2 shadow-sm transition-all whitespace-nowrap shrink-0 ${
+            title={canCreate ? "New Campaign" : "New Campaign (Requires Editor, Admin, or Owner permissions)"}
+            className={`inline-flex items-center gap-2 text-xs font-bold rounded-xl px-4 py-2 shadow-sm transition-all whitespace-nowrap shrink-0 cursor-pointer ${
               canCreate 
-                ? 'bg-primary-container text-on-primary hover:bg-primary cursor-pointer' 
-                : 'bg-surface-container-low text-on-surface-variant opacity-60 cursor-not-allowed'
+                ? 'bg-primary-container text-on-primary hover:bg-primary' 
+                : 'bg-surface-container-low text-on-surface-variant/60'
             }`}
           >
-            {canCreate ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            {canCreate ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4 text-outline" />}
             <span>New Campaign</span>
           </button>
         </div>
@@ -585,15 +630,28 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   ? 'Create a sponsor deal or affiliate bundle to track multi-channel deliverables, UTM tags, and performance.'
                   : `There are currently no campaigns matching the "${filterTab}" filter.`}
               </p>
-              {canCreate && (
-                <button
-                  type="button"
-                  onClick={() => setCreateModalOpen(true)}
-                  className="mt-4 px-4 py-2 bg-primary-container text-on-primary rounded-xl text-xs font-semibold hover:bg-primary transition-colors cursor-pointer shadow-xs"
-                >
-                  + Create Campaign
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!canCreate) {
+                    const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+                    showToast(
+                      'error',
+                      'Permission Denied',
+                      `Your role (${roleName}) does not have permission to create campaigns.`
+                    );
+                    return;
+                  }
+                  setCreateModalOpen(true);
+                }}
+                className={`mt-4 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-xs ${
+                  canCreate 
+                    ? 'bg-primary-container text-on-primary hover:bg-primary' 
+                    : 'bg-surface-container-low text-on-surface-variant/60'
+                }`}
+              >
+                + Create Campaign
+              </button>
             </div>
           ) : (
             filteredCampaigns.map((camp) => {
@@ -668,28 +726,54 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                       </button>
 
                       {/* Edit Campaign Button */}
-                      {canCreate && (
-                        <button 
-                          type="button"
-                          onClick={() => openEditModal(camp)}
-                          title="Edit Campaign"
-                          className="p-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer border border-outline-variant/30"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          if (!canCreate) {
+                            const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+                            showToast(
+                              'error',
+                              'Permission Denied',
+                              `Your role (${roleName}) does not have permission to edit campaigns.`
+                            );
+                            return;
+                          }
+                          openEditModal(camp);
+                        }}
+                        title={canCreate ? "Edit Campaign" : "Edit Campaign (Requires Editor, Admin, or Owner)"}
+                        className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                          canCreate 
+                            ? 'bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border-outline-variant/30'
+                            : 'bg-surface-container-low text-on-surface-variant/40 border-outline-variant/20'
+                        }`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
 
                       {/* Delete Campaign Button */}
-                      {canDelete && (
-                        <button 
-                          type="button" 
-                          onClick={() => setDeleteCampaignModal(camp)}
-                          title="Delete campaign"
-                          className="p-1.5 rounded-xl text-outline hover:text-error hover:bg-error-container/20 transition-colors cursor-pointer border border-outline-variant/20"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (!canDelete) {
+                            const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+                            showToast(
+                              'error',
+                              'Permission Denied',
+                              `Your role (${roleName}) does not have permission to delete campaigns.`
+                            );
+                            return;
+                          }
+                          setDeleteCampaignModal(camp);
+                        }}
+                        title={canDelete ? "Delete campaign" : "Delete Campaign (Requires Admin or Owner permissions)"}
+                        className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                          canDelete
+                            ? 'text-outline hover:text-error hover:bg-error-container/20 border-outline-variant/20'
+                            : 'text-outline/40 border-outline-variant/10'
+                        }`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
@@ -744,6 +828,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                         <button
                           type="button"
                           onClick={() => {
+                            if (!canCreate) {
+                              const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+                              showToast(
+                                'error',
+                                'Permission Denied',
+                                `Your role (${roleName}) does not have permission to attach deliverables.`
+                              );
+                              return;
+                            }
                             setAttachModalCampaign(camp);
                             setAttachTab('existing');
                           }}
@@ -760,6 +853,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                           <button
                             type="button"
                             onClick={() => {
+                              if (!canCreate) {
+                                const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+                                showToast(
+                                  'error',
+                                  'Permission Denied',
+                                  `Your role (${roleName}) does not have permission to attach deliverables.`
+                                );
+                                return;
+                              }
                               setAttachModalCampaign(camp);
                               setAttachTab('existing');
                             }}

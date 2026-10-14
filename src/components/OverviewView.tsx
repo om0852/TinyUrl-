@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
+import { hasPermission, ROLE_DESCRIPTIONS } from '@/lib/rbac';
 import { 
   Search, 
   Copy, 
@@ -31,7 +33,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenCreateModal, 
   onNavigateTab: _onNavigateTab
 }) => {
-  const { links, clicks, domains, createShortLink, deleteLink } = useStore();
+  const { links, clicks, domains, createShortLink, deleteLink, currentUserRole } = useStore();
+  const { showToast } = useToast();
+
+  const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
+  const canCreateLinks = hasPermission(currentUserRole, 'links:create');
 
   // Quick shorten bar state
   const [quickUrl, setQuickUrl] = useState('');
@@ -57,6 +63,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const handleQuickShorten = (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickUrl) return;
+
+    if (!canCreateLinks) {
+      const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to create links.`
+      );
+      return;
+    }
 
     const res = createShortLink({
       destination_url: quickUrl,
@@ -426,9 +442,26 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     {/* Delete Action */}
                     <button
                       type="button"
-                      onClick={() => deleteLink(link.id)}
-                      className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error-container/20 rounded-lg transition cursor-pointer"
-                      title="Delete Link"
+                      onClick={() => {
+                        if (!canDeleteLinks) {
+                          const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+                          showToast(
+                            'error',
+                            'Permission Denied',
+                            `Your role (${roleName}) does not have permission to delete links.`
+                          );
+                          return;
+                        }
+                        if (confirm(`Delete short link?`)) {
+                          deleteLink(link.id);
+                        }
+                      }}
+                      className={`p-1.5 rounded-lg transition cursor-pointer ${
+                        canDeleteLinks
+                          ? 'text-on-surface-variant hover:text-error hover:bg-error-container/20'
+                          : 'text-outline/40 hover:bg-surface-container'
+                      }`}
+                      title={canDeleteLinks ? "Delete Link" : "Delete Link (Requires Admin or Owner permissions)"}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

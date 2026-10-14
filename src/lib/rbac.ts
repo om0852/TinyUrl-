@@ -9,6 +9,7 @@ export type Permission =
   | 'members:invite'
   | 'members:remove'
   | 'domains:manage'
+  | 'api_keys:manage'
   | 'settings:manage'
   | 'export:data';
 
@@ -22,6 +23,7 @@ export const ROLE_PERMISSIONS: Record<WorkspaceRole, Permission[]> = {
     'members:invite',
     'members:remove',
     'domains:manage',
+    'api_keys:manage',
     'settings:manage',
     'export:data'
   ],
@@ -34,6 +36,7 @@ export const ROLE_PERMISSIONS: Record<WorkspaceRole, Permission[]> = {
     'members:invite',
     'members:remove',
     'domains:manage',
+    'api_keys:manage',
     'export:data'
   ],
   editor: [

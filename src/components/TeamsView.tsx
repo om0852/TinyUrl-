@@ -49,7 +49,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     acceptInvitationDirect,
     declineInvitationDirect,
     updateWorkspace,
-    deleteWorkspace
+    deleteWorkspace,
+    currentUserRole
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -129,7 +130,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
   }, [activeSubTab, currentWorkspace?.id]);
 
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tiny-url-self.vercel.app';
-  const userRole: WorkspaceRole = currentWorkspace?.role || 'owner';
+  const userRole: WorkspaceRole = currentUserRole;
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 
   const handleCopyLink = (url: string, id: string) => {

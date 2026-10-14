@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
+import { hasPermission, ROLE_DESCRIPTIONS } from '@/lib/rbac';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
   Link2, 
@@ -36,8 +38,12 @@ export const LinksView: React.FC<LinksViewProps> = ({
   onOpenCreateModal,
   onNavigateTab 
 }) => {
-  const { links, deleteLink } = useStore();
+  const { links, deleteLink, currentUserRole } = useStore();
+  const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
+
+  const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
+  const canCreateLinks = hasPermission(currentUserRole, 'links:create');
 
   useEffect(() => {
     setMounted(true);
@@ -344,6 +350,15 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
   const handleBulkDelete = () => {
     if (selectedLinkIds.size === 0) return;
+    if (!canDeleteLinks) {
+      const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to delete links.`
+      );
+      return;
+    }
     if (!confirm(`Are you sure you want to permanently delete ${selectedLinkIds.size} selected link(s)?`)) return;
     selectedLinkIds.forEach(id => deleteLink(id));
     setSelectedLinkIds(new Set());
@@ -685,8 +700,19 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         </p>
                         <button
                           type="button"
-                          onClick={onOpenCreateModal}
-                          className="mt-2 px-3.5 py-1.5 bg-primary-container text-on-primary rounded-lg text-xs font-semibold shadow-xs"
+                          onClick={() => {
+                            if (!canCreateLinks) {
+                              const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+                              showToast(
+                                'error',
+                                'Permission Denied',
+                                `Your role (${roleName}) does not have permission to create links.`
+                              );
+                              return;
+                            }
+                            onOpenCreateModal();
+                          }}
+                          className="mt-2 px-3.5 py-1.5 bg-primary-container text-on-primary rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
                         >
                           Create Link
                         </button>
@@ -827,12 +853,25 @@ export const LinksView: React.FC<LinksViewProps> = ({
                             <button
                               type="button"
                               onClick={() => {
+                                if (!canDeleteLinks) {
+                                  const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+                                  showToast(
+                                    'error',
+                                    'Permission Denied',
+                                    `Your role (${roleName}) does not have permission to delete links.`
+                                  );
+                                  return;
+                                }
                                 if (confirm(`Delete short link "${shortSlug}"?`)) {
                                   deleteLink(link.id);
                                 }
                               }}
-                              title="Delete Link"
-                              className="p-1.5 text-outline hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                              title={canDeleteLinks ? "Delete Link" : "Delete Link (Requires Admin or Owner permissions)"}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                canDeleteLinks 
+                                  ? 'text-outline hover:text-destructive hover:bg-destructive/10' 
+                                  : 'text-outline/40 hover:bg-surface-container'
+                              }`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
+import { hasPermission, ROLE_DESCRIPTIONS } from '@/lib/rbac';
 import { LandingPageView } from '@/components/LandingPageView';
 import { AuthModal } from '@/components/AuthModal';
 import { Sidebar, TabType } from '@/components/Sidebar';
@@ -37,11 +39,25 @@ const TAB_TITLES: Record<TabType, string> = {
 };
 
 export default function Home() {
-  const { currentUser } = useStore();
+  const { currentUser, currentUserRole } = useStore();
+  const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
+
+  const handleOpenCreateModal = () => {
+    if (!hasPermission(currentUserRole, 'links:create')) {
+      const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+      showToast(
+        'error',
+        'Permission Denied',
+        `Your role (${roleName}) does not have permission to create links.`
+      );
+      return;
+    }
+    setCreateModalOpen(true);
+  };
 
   const [activeTab, setActiveTabState] = useState<TabType>('overview');
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -89,7 +105,7 @@ export default function Home() {
       // Cmd/Ctrl + N: Open New Link Modal
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        setCreateModalOpen(true);
+        handleOpenCreateModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -125,7 +141,7 @@ export default function Home() {
         <Sidebar 
           activeTab={activeTab} 
           setActiveTab={setActiveTab} 
-          onOpenCreateModal={() => setCreateModalOpen(true)}
+          onOpenCreateModal={handleOpenCreateModal}
           className="w-64"
         />
       </div>
@@ -145,7 +161,7 @@ export default function Home() {
               setActiveTab={setActiveTab} 
               onOpenCreateModal={() => {
                 setMobileMenuOpen(false);
-                setCreateModalOpen(true);
+                handleOpenCreateModal();
               }}
               onCloseMobile={() => setMobileMenuOpen(false)}
             />
@@ -159,7 +175,7 @@ export default function Home() {
         {/* Sticky Top Header Bar */}
         <DashboardHeader 
           activeTabTitle={TAB_TITLES[activeTab] || 'Overview'}
-          onOpenCreateModal={() => setCreateModalOpen(true)}
+          onOpenCreateModal={handleOpenCreateModal}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
           onToggleMobileMenu={() => setMobileMenuOpen(prev => !prev)}
           onViewLandingPage={() => setViewMode('landing')}
@@ -169,7 +185,7 @@ export default function Home() {
         <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6 sm:space-y-8 animate-fade-in min-w-0">
           {activeTab === 'overview' && (
             <OverviewView 
-              onOpenCreateModal={() => setCreateModalOpen(true)} 
+              onOpenCreateModal={handleOpenCreateModal} 
               onNavigateTab={(tab) => setActiveTab(tab as TabType)} 
               onOpenCommandPalette={() => setCommandPaletteOpen(true)}
             />
@@ -177,8 +193,8 @@ export default function Home() {
 
           {activeTab === 'links' && (
             <LinksView 
-              onOpenCreateModal={() => setCreateModalOpen(true)} 
-              onNavigateTab={(tab) => setActiveTab(tab as TabType)}
+              onOpenCreateModal={handleOpenCreateModal} 
+              onNavigateTab={(tab) => setActiveTab(tab as TabType)} 
             />
           )}
 
