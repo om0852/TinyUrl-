@@ -76,8 +76,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
   // Dynamic calculations from links and clicks
   const totalClicks = useMemo(() => {
-    return links.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
-  }, [links]);
+    const fromLinks = links.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+    return Math.max(fromLinks, clicks.length);
+  }, [links, clicks]);
 
   const uniqueVisitors = useMemo(() => {
     if (totalClicks === 0) return 0;

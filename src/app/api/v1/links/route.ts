@@ -38,11 +38,34 @@ export async function GET(request: Request) {
     let rows: RawLinkRow[] = [];
     if (code && typeof code === 'string' && code.trim()) {
       rows = (await sql.query(`
-        SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1
+        SELECT 
+          l.*,
+          COALESCE(
+            GREATEST(
+              COALESCE(l.clicks_count, 0),
+              (SELECT COUNT(*)::int FROM click_events c WHERE (c.link_id = l.id AND l.id != '') OR LOWER(c.short_code) = LOWER(l.short_code))
+            ),
+            0
+          ) as resolved_clicks_count
+        FROM links l
+        WHERE LOWER(l.short_code) = $1 OR LOWER(l.custom_slug) = $1
+        LIMIT 1
       `, [code.trim().toLowerCase()])) as unknown as RawLinkRow[];
     } else if (workspaceId && typeof workspaceId === 'string' && workspaceId.trim()) {
       rows = (await sql.query(`
-        SELECT * FROM links WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 100
+        SELECT 
+          l.*,
+          COALESCE(
+            GREATEST(
+              COALESCE(l.clicks_count, 0),
+              (SELECT COUNT(*)::int FROM click_events c WHERE (c.link_id = l.id AND l.id != '') OR LOWER(c.short_code) = LOWER(l.short_code))
+            ),
+            0
+          ) as resolved_clicks_count
+        FROM links l
+        WHERE l.workspace_id = $1 
+        ORDER BY l.created_at DESC 
+        LIMIT 100
       `, [workspaceId.trim()])) as unknown as RawLinkRow[];
     } else {
       // Strict multi-tenant isolation: Never expose links without workspace or code filter
@@ -76,6 +99,12 @@ export async function GET(request: Request) {
           });
         }
 
+        const exactClicksCount = Number(
+          (l as unknown as { resolved_clicks_count?: number | string }).resolved_clicks_count !== undefined
+            ? (l as unknown as { resolved_clicks_count?: number | string }).resolved_clicks_count
+            : l.clicks_count
+        ) || 0;
+
         return {
           id: l.id,
           workspace_id: l.workspace_id || '',
@@ -87,7 +116,7 @@ export async function GET(request: Request) {
           visitor_geo: geo,
           title: l.title || `Short Link /${l.short_code}`,
           tags: typeof l.tags === 'string' ? JSON.parse(l.tags) : (Array.isArray(l.tags) ? l.tags : []),
-          clicks_count: Number(l.clicks_count) || 0,
+          clicks_count: exactClicksCount,
           status: (l.status as 'active' | 'disabled' | 'expired' | 'flagged') || 'active',
           is_flagged: !!l.is_flagged,
           risk_score: Number(l.risk_score) || 0,
@@ -113,7 +142,7 @@ export async function GET(request: Request) {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, OPTIONS',
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
     }

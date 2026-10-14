@@ -38,9 +38,15 @@ export const LinksView: React.FC<LinksViewProps> = ({
   onOpenCreateModal,
   onNavigateTab 
 }) => {
-  const { links, deleteLink, currentUserRole } = useStore();
+  const { links, clicks, deleteLink, currentUserRole } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
+
+  // Helper to get true clicks for link (taking max of clicks_count and telemetry click_events)
+  const getLinkClicks = useCallback((l: typeof links[0]) => {
+    const eventsCount = clicks.filter(c => c.link_id === l.id || (c.short_code && l.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())).length;
+    return Math.max(l.clicks_count || 0, eventsCount);
+  }, [clicks]);
 
   const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
   const canCreateLinks = hasPermission(currentUserRole, 'links:create');
@@ -203,8 +209,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
       if (statusFilter === 'flagged' && link.status !== 'flagged') return false;
 
       return true;
-    }).sort((a, b) => (b.clicks_count || 0) - (a.clicks_count || 0));
-  }, [links, searchTerm, platformFilter, statusFilter, getPlacementTag]);
+    }).sort((a, b) => getLinkClicks(b) - getLinkClicks(a));
+  }, [links, searchTerm, platformFilter, statusFilter, getPlacementTag, getLinkClicks]);
 
   // Paginated links
   const totalPages = Math.max(1, Math.ceil(filteredLinks.length / pageSize));
@@ -215,13 +221,16 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
   // Dynamic Metrics calculations
   const totalClicksCount = useMemo(() => {
-    return links.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
-  }, [links]);
+    return Math.max(
+      links.reduce((acc, curr) => acc + getLinkClicks(curr), 0),
+      clicks.length
+    );
+  }, [links, clicks, getLinkClicks]);
 
   const topPerformingLink = useMemo(() => {
     if (links.length === 0) return null;
-    return [...links].sort((a, b) => (b.clicks_count || 0) - (a.clicks_count || 0))[0];
-  }, [links]);
+    return [...links].sort((a, b) => getLinkClicks(b) - getLinkClicks(a))[0];
+  }, [links, getLinkClicks]);
 
   const channelDistribution = useMemo(() => {
     if (links.length === 0) return [];
@@ -261,11 +270,11 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
     links.forEach(l => {
       const info = getPlatformInfo(l);
-      const clicks = l.clicks_count || 0;
-      totalClicks += clicks;
+      const linkClicks = getLinkClicks(l);
+      totalClicks += linkClicks;
 
       const existing = platformMap.get(info.name) || { ...info, count: 0 };
-      existing.count += clicks;
+      existing.count += linkClicks;
       platformMap.set(info.name, existing);
     });
 
@@ -301,7 +310,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         isLinkCount: false
       }))
       .sort((a, b) => b.count - a.count);
-  }, [links]);
+  }, [links, getLinkClicks]);
 
   const topChannel = channelDistribution.length > 0 ? channelDistribution[0] : null;
 
@@ -316,7 +325,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         `"${(l.title || '').replace(/"/g, '""')}"`,
         slug,
         `"${(l.destination_url || '').replace(/"/g, '""')}"`,
-        l.clicks_count || 0,
+        getLinkClicks(l),
         placement.label,
         l.status,
         l.created_at
@@ -376,7 +385,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         `"${(l.title || '').replace(/"/g, '""')}"`,
         slug,
         `"${(l.destination_url || '').replace(/"/g, '""')}"`,
-        l.clicks_count || 0,
+        getLinkClicks(l),
         placement.label,
         l.status,
         l.created_at
@@ -576,7 +585,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
               {topPerformingLink ? `${originDomain}/${topPerformingLink.custom_slug || topPerformingLink.short_code}` : 'No links yet'}
             </span>
             <span className="text-base font-bold text-on-surface mt-0.5">
-              {(topPerformingLink?.clicks_count || 0).toLocaleString()} clicks
+              {(topPerformingLink ? getLinkClicks(topPerformingLink) : 0).toLocaleString()} clicks
             </span>
           </div>
           <div className="mt-3 flex items-center gap-1 text-[11px] text-on-surface-variant">
@@ -813,10 +822,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         <td className={`px-4 whitespace-nowrap ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
                           <div className="flex flex-col">
                             <span className="font-mono text-xs font-bold text-on-surface">
-                              {(link.clicks_count || 0).toLocaleString()}
+                              {getLinkClicks(link).toLocaleString()}
                             </span>
                             <span className="text-[10px] text-emerald-600 font-medium">
-                              &uarr; {(8.2 + (link.clicks_count % 7)).toFixed(1)}% pacing
+                              &uarr; {(8.2 + (getLinkClicks(link) % 7)).toFixed(1)}% pacing
                             </span>
                           </div>
                         </td>

@@ -843,11 +843,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               let hasChanges = false;
               const updated = currentActive.map(local => {
                 const remote = remoteMap.get(local.short_code.toLowerCase());
-                if (remote && (remote.clicks_count || 0) > (local.clicks_count || 0)) {
+                const remoteCount = remote ? (Number(remote.clicks_count) || 0) : 0;
+                const localCount = Number(local.clicks_count) || 0;
+                if (remoteCount > localCount) {
                   hasChanges = true;
                   return {
                     ...local,
-                    clicks_count: remote.clicks_count
+                    clicks_count: remoteCount
                   };
                 }
                 return local;
@@ -872,7 +874,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         // 2. Fetch newest click events from PostgreSQL
-        const analyticsRes = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWs.id)}`);
+        const analyticsRes = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWs.id)}`, {
+          cache: 'no-store'
+        });
         const analyticsData = await analyticsRes.json();
         if (analyticsData?.success && Array.isArray(analyticsData.recent_clicks) && analyticsData.recent_clicks.length > 0) {
           setClicks(currentClicks => {
@@ -902,7 +906,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 });
               }
             });
-            if (hasNewClicks) {
+
+            // Always verify if clickMap total is greater than existing clicks
+            if (hasNewClicks || clickMap.size > currentClicks.length) {
               const sorted = Array.from(clickMap.values()).sort(
                 (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
               );
@@ -910,6 +916,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const clicksKey = getUserStorageKey('url_shortener_clicks', activeUser.email);
                 localStorage.setItem(clicksKey, JSON.stringify(sorted));
               } catch {}
+
+              // Synchronize links clicks_count immediately with the verified telemetry events count
+              setLinks(currentLinks => {
+                let linksChanged = false;
+                const synchronizedLinks = currentLinks.map(l => {
+                  const eventsForL = sorted.filter(c => 
+                    (c.link_id && c.link_id === l.id) || 
+                    (c.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())
+                  ).length;
+                  if (eventsForL > (l.clicks_count || 0)) {
+                    linksChanged = true;
+                    return { ...l, clicks_count: eventsForL };
+                  }
+                  return l;
+                });
+                if (linksChanged) {
+                  try {
+                    const linksKey = getUserStorageKey('url_shortener_links', activeUser.email);
+                    localStorage.setItem(linksKey, JSON.stringify(synchronizedLinks));
+                  } catch {}
+                  return synchronizedLinks;
+                }
+                return currentLinks;
+              });
+
               return sorted;
             }
             return currentClicks;

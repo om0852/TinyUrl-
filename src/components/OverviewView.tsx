@@ -109,8 +109,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return matchesSearch;
   });
 
+  // Helper to get true clicks for link (taking max of clicks_count and telemetry click_events)
+  const getLinkClicks = (l: typeof links[0]) => {
+    const eventsCount = clicks.filter(c => c.link_id === l.id || (c.short_code && l.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())).length;
+    return Math.max(l.clicks_count || 0, eventsCount);
+  };
+
   // Calculate live statistics
-  const totalClicksCount = links.reduce((acc, l) => acc + (l.clicks_count || 0), 0);
+  const totalClicksCount = Math.max(
+    links.reduce((acc, l) => acc + getLinkClicks(l), 0),
+    clicks.length
+  );
   const appDeepLinksCount = links.filter(l => l.deep_link?.enabled).length;
   const activeLinksCount = links.filter(l => l.status === 'active').length;
   const activePercentage = links.length > 0 ? Math.round((activeLinksCount / links.length) * 100) : 100;
@@ -182,7 +191,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               {totalClicksCount.toLocaleString()}
             </div>
             <p className="text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-              <span className="text-emerald-600 font-semibold">{clicks.length} events</span> tracked in real time
+              <span className="text-emerald-600 font-semibold">{totalClicksCount} events</span> tracked in real time
             </p>
           </div>
         </div>
@@ -416,7 +425,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     {/* Click Stat Pill */}
                     <div className="px-2.5 py-1 rounded-lg bg-surface-container text-xs font-semibold text-on-surface flex items-center gap-1.5 font-mono">
                       <Activity className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{link.clicks_count || 0} clicks</span>
+                      <span>{getLinkClicks(link)} clicks</span>
                     </div>
 
                     {/* Copy Button */}

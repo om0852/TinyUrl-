@@ -53,6 +53,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     teamMembers, 
     removeTeamMember, 
     links, 
+    clicks,
     updateLink, 
     createShortLink, 
     currentWorkspace,
@@ -152,6 +153,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     );
   };
 
+  // Helper to get true clicks for link (taking max of clicks_count and telemetry click_events)
+  const getLinkClicks = (l: LinkType) => {
+    const eventsCount = clicks.filter(c => c.link_id === l.id || (c.short_code && l.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())).length;
+    return Math.max(l.clicks_count || 0, eventsCount);
+  };
+
   // KPI Calculations
   const campaignLinkIds = new Set<string>();
   campaigns.forEach(c => {
@@ -163,7 +170,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   });
 
   const campaignLinksTotal = links.filter(l => campaignLinkIds.has(l.id));
-  const totalAttributedClicks = campaignLinksTotal.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+  const totalAttributedClicks = campaignLinksTotal.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
 
   const compliantLinks = campaignLinksTotal.filter(l => 
     l.utm_source || l.utm_medium || l.utm_campaign || 
@@ -176,7 +183,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   // Filter campaigns
   const filteredCampaigns = campaigns.filter(camp => {
     const campLinks = getCampaignLinks(camp);
-    const campClicks = campLinks.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+    const campClicks = campLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
     const target = camp.target_clicks || 50000;
     const isCompleted = campClicks >= target;
 
@@ -187,13 +194,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
   const liveCampaignsCount = campaigns.filter(c => {
     const cLinks = getCampaignLinks(c);
-    const cClicks = cLinks.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+    const cClicks = cLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
     return cClicks < (c.target_clicks || 50000);
   }).length;
 
   const completedCampaignsCount = campaigns.filter(c => {
     const cLinks = getCampaignLinks(c);
-    const cClicks = cLinks.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+    const cClicks = cLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
     return cClicks >= (c.target_clicks || 50000);
   }).length;
 
@@ -656,7 +663,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
           ) : (
             filteredCampaigns.map((camp) => {
               const campLinks = getCampaignLinks(camp);
-              const campClicks = campLinks.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+              const campClicks = campLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
               const target = camp.target_clicks || 50000;
               const pct = Math.min(100, Math.round((campClicks / target) * 100));
               const isGoalReached = campClicks >= target;
@@ -876,7 +883,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                             const slug = link.custom_slug || link.short_code;
                             const fullShortUrl = `${originUrl}/${slug}`;
                             const isCopied = copiedLinkId === link.id;
-                            const linkSharePct = campClicks > 0 ? Math.round(((link.clicks_count || 0) / campClicks) * 100) : 0;
+                            const linkClicks = getLinkClicks(link);
+                            const linkSharePct = campClicks > 0 ? Math.round((linkClicks / campClicks) * 100) : 0;
 
                             return (
                               <div 
@@ -902,7 +910,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                                   <div className="text-right pr-2">
                                     <div className="text-xs font-bold text-on-surface font-mono">
-                                      {(link.clicks_count || 0).toLocaleString()} clicks
+                                      {linkClicks.toLocaleString()} clicks
                                     </div>
                                     <div className="text-[10px] text-on-surface-variant font-medium">
                                       {linkSharePct}% of deal
@@ -1713,7 +1721,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
               {reportCampaignsList.map(camp => {
                 const campLinks = getCampaignLinks(camp);
-                const campClicks = campLinks.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
+                const campClicks = campLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
                 const target = camp.target_clicks || 50000;
                 const pct = Math.min(100, Math.round((campClicks / target) * 100));
 
@@ -1759,7 +1767,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                                 <td className="py-2 px-2 font-medium text-on-surface truncate max-w-[150px]">{l.title}</td>
                                 <td className="py-2 px-2 font-mono text-primary-container">{originUrl}/{l.custom_slug || l.short_code}</td>
                                 <td className="py-2 px-2 text-on-surface-variant">{l.utm_medium || 'Direct Read'}</td>
-                                <td className="py-2 px-2 font-mono text-right font-bold text-on-surface">{(l.clicks_count || 0).toLocaleString()}</td>
+                                <td className="py-2 px-2 font-mono text-right font-bold text-on-surface">{getLinkClicks(l).toLocaleString()}</td>
                               </tr>
                             ))
                           )}
