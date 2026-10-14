@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
     if (!linkData) {
       // Query Neon PostgreSQL
       const rows = (await sql.query(
-        `SELECT * FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+        `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
         [code]
       )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
 
