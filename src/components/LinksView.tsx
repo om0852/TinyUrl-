@@ -38,7 +38,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
   onOpenCreateModal,
   onNavigateTab 
 }) => {
-  const { links, clicks, deleteLink, currentUserRole } = useStore();
+  const { links, clicks, domains, deleteLink, currentUserRole } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
 
@@ -80,17 +80,21 @@ export const LinksView: React.FC<LinksViewProps> = ({
   const pageSize = 6;
 
   // Domain resolver
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
 
-  const getFullShortUrl = (shortCode: string, customSlug?: string) => {
+  const getFullShortUrl = useCallback((shortCode: string, customSlug?: string, domainId?: string) => {
     const slug = customSlug || shortCode;
+    const customDom = domains.find(d => d.id === domainId);
+    if (customDom?.hostname) {
+      return `https://${customDom.hostname}/${slug}`;
+    }
     return typeof window !== 'undefined'
       ? `${window.location.origin}/${slug}`
-      : `${originDomain}/${slug}`;
-  };
+      : `https://${originDomain}/${slug}`;
+  }, [domains, originDomain]);
 
-  const handleCopy = (id: string, shortCode: string, customSlug?: string) => {
-    const url = getFullShortUrl(shortCode, customSlug);
+  const handleCopy = (id: string, shortCode: string, customSlug?: string, domainId?: string) => {
+    const url = getFullShortUrl(shortCode, customSlug, domainId);
     navigator.clipboard.writeText(url).catch(() => {});
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2200);
@@ -732,7 +736,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   paginatedLinks.map((link) => {
                     const placement = getPlacementTag(link);
                     const shortSlug = link.custom_slug || link.short_code;
-                    const fullShortUrl = getFullShortUrl(link.short_code, link.custom_slug);
+                    const linkedDomain = domains.find(d => d.id === link.domain_id);
+                    const displayHost = linkedDomain?.hostname || originDomain;
+                    const fullShortUrl = getFullShortUrl(link.short_code, link.custom_slug, link.domain_id);
                     const isCopied = copiedId === link.id;
                     const isSelected = selectedLinkIds.has(link.id);
 
@@ -767,11 +773,16 @@ export const LinksView: React.FC<LinksViewProps> = ({
                             {/* Short link slug + Copy */}
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <span className="font-mono text-xs text-primary-container font-semibold truncate">
-                                {originDomain}/{shortSlug}
+                                {displayHost}/{shortSlug}
                               </span>
+                              {linkedDomain && (
+                                <span className="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-container font-medium text-[10px]">
+                                  Branded
+                                </span>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => handleCopy(link.id, link.short_code, link.custom_slug)}
+                                onClick={() => handleCopy(link.id, link.short_code, link.custom_slug, link.domain_id)}
                                 title="Copy short link"
                                 className="text-outline hover:text-primary-container transition-colors cursor-pointer p-0.5"
                               >

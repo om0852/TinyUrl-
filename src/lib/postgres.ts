@@ -63,12 +63,22 @@ export async function initializeDatabase() {
         id VARCHAR(64) PRIMARY KEY,
         workspace_id VARCHAR(64),
         hostname VARCHAR(255) UNIQUE NOT NULL,
-        verified BOOLEAN DEFAULT true,
-        ssl_status VARCHAR(32) DEFAULT 'active',
+        verified BOOLEAN DEFAULT false,
+        ssl_status VARCHAR(32) DEFAULT 'pending',
         is_primary BOOLEAN DEFAULT false,
+        verify_token VARCHAR(128),
+        ownership_verified BOOLEAN DEFAULT false,
+        routing_verified BOOLEAN DEFAULT false,
+        root_redirect_url TEXT,
+        created_by VARCHAR(255),
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+    await sql.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS verify_token VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS ownership_verified BOOLEAN DEFAULT false;`).catch(() => {});
+    await sql.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS routing_verified BOOLEAN DEFAULT false;`).catch(() => {});
+    await sql.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS root_redirect_url TEXT;`).catch(() => {});
+    await sql.query(`ALTER TABLE domains ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);`).catch(() => {});
 
     // 3. Campaigns
     await sql.query(`

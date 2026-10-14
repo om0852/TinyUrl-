@@ -53,6 +53,12 @@ export interface Domain {
   ssl_status: 'active' | 'pending' | 'failed';
   is_default: boolean;
   workspace_id: string;
+  verify_token?: string;
+  ownership_verified?: boolean;
+  routing_verified?: boolean;
+  root_redirect_url?: string;
+  created_by?: string;
+  created_at?: string;
 }
 
 export interface LinkRule {
@@ -207,6 +213,7 @@ export interface ShortenApiRequest {
   id?: string;
   destination_url: string;
   workspace_id: string;
+  domain_id?: string;
   custom_slug?: string;
   title?: string;
   tags?: string[];

@@ -102,8 +102,9 @@ interface StoreContextType {
   removeRuleFromLink: (linkId: string, ruleId: string) => void;
   logClick: (linkId: string, clientInfo?: Partial<ClickEvent>) => ClickEvent;
   
-  addDomain: (hostname: string, is_default?: boolean) => Promise<Domain | null>;
-  verifyDomain: (idOrHostname: string) => Promise<boolean>;
+  addDomain: (hostname: string, is_default?: boolean, root_redirect_url?: string) => Promise<Domain | null>;
+  verifyDomain: (idOrHostname: string, simulateBypass?: boolean) => Promise<{ success: boolean; verified?: boolean; message?: string }>;
+  updateDomainConfig: (idOrHostname: string, updates: { root_redirect_url?: string; is_primary?: boolean }) => Promise<boolean>;
   deleteDomain: (idOrHostname: string) => Promise<boolean>;
   
   addCampaign: (name: string, description: string, tags: string[], target_clicks?: number) => Campaign;
@@ -1262,6 +1263,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           title: newLink.title,
           tags: newLink.tags,
           rules: newLink.rules,
+          domain_id: newLink.domain_id,
           workspace_id: newLink.workspace_id
         })
       })
@@ -1587,7 +1589,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addDomain = async (hostname: string, is_default?: boolean): Promise<Domain | null> => {
+  const addDomain = async (hostname: string, is_default?: boolean, root_redirect_url?: string): Promise<Domain | null> => {
     if (!checkPermissionOrToast('domains:manage', 'add custom domains')) {
       return null;
     }
@@ -1599,7 +1601,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       hostname: cleanHost,
       verified: false,
       ssl_status: 'pending',
-      is_default: !!is_default
+      is_default: !!is_default,
+      root_redirect_url: root_redirect_url || undefined,
+      ownership_verified: false,
+      routing_verified: false
     };
     const updated = [newDom, ...domains];
     setDomains(updated);
@@ -1613,12 +1618,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: newDom.id,
             workspace_id: newDom.workspace_id,
             hostname: cleanHost,
-            is_default: !!is_default
+            is_default: !!is_default,
+            root_redirect_url: root_redirect_url || null
           })
         });
         const data = await res.json();
         if (data?.success && data.domain) {
-          setDomains(prev => prev.map(d => d.id === newDom.id ? { ...d, id: data.domain.id } : d));
+          setDomains(prev => prev.map(d => d.id === newDom.id ? { ...d, ...data.domain } : d));
           return data.domain;
         }
       } catch (err) {
@@ -1628,18 +1634,71 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newDom;
   };
 
-  const verifyDomain = async (idOrHostname: string): Promise<boolean> => {
+  const verifyDomain = async (idOrHostname: string, simulateBypass?: boolean): Promise<{ success: boolean; verified?: boolean; message?: string }> => {
     if (!checkPermissionOrToast('domains:manage', 'verify custom domains')) {
-      return false;
+      return { success: false, message: 'Permission denied' };
     }
 
-    setDomains(prev => prev.map(d => (d.id === idOrHostname || d.hostname === idOrHostname) ? { ...d, verified: true, ssl_status: 'active' } : d));
     if (typeof window !== 'undefined') {
       try {
         const res = await apiFetch('/api/v1/domains', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: idOrHostname, verified: true, ssl_status: 'active' })
+          body: JSON.stringify({ 
+            id: idOrHostname, 
+            simulate_bypass: simulateBypass 
+          })
+        });
+        const data = await res.json();
+        if (data?.success && data.domain) {
+          setDomains(prev => prev.map(d => 
+            (d.id === idOrHostname || d.hostname === idOrHostname) 
+              ? { ...d, ...data.domain } 
+              : d
+          ));
+        }
+        return { 
+          success: !!data?.success, 
+          verified: !!data?.verified, 
+          message: data?.message 
+        };
+      } catch (err) {
+        return { success: false, message: 'Network error checking DNS' };
+      }
+    }
+    return { success: true, verified: true };
+  };
+
+  const updateDomainConfig = async (idOrHostname: string, updates: { root_redirect_url?: string; is_primary?: boolean }): Promise<boolean> => {
+    if (!checkPermissionOrToast('domains:manage', 'update custom domains')) {
+      return false;
+    }
+
+    setDomains(prev => prev.map(d => {
+      if (d.id === idOrHostname || d.hostname === idOrHostname) {
+        return {
+          ...d,
+          root_redirect_url: updates.root_redirect_url !== undefined ? updates.root_redirect_url : d.root_redirect_url,
+          is_default: updates.is_primary !== undefined ? updates.is_primary : d.is_default
+        };
+      }
+      if (updates.is_primary) {
+        return { ...d, is_default: false };
+      }
+      return d;
+    }));
+
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await apiFetch('/api/v1/domains', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: idOrHostname,
+            action: 'update_config',
+            root_redirect_url: updates.root_redirect_url,
+            is_primary: updates.is_primary
+          })
         });
         const data = await res.json();
         return !!data?.success;
@@ -2699,6 +2758,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       domains,
       addDomain,
       verifyDomain,
+      updateDomainConfig,
       deleteDomain,
       campaigns,
       links,

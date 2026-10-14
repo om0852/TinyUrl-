@@ -31,11 +31,12 @@ interface CreateLinkModalProps {
 }
 
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
-  const { createShortLink, links, campaigns } = useStore();
+  const { createShortLink, links, campaigns, domains } = useStore();
 
   const [destinationUrl, setDestinationUrl] = useState('');
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
+  const [selectedDomainId, setSelectedDomainId] = useState('');
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
   
@@ -161,6 +162,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         destination_url: destinationUrl.trim(),
         title: title.trim() || undefined,
         custom_slug: customSlug.trim() ? customSlug.trim().toLowerCase() : undefined,
+        domain_id: selectedDomainId || undefined,
         tags,
         campaign_id: selectedCampaignId || undefined,
         utm_source: utmSource,
@@ -186,9 +188,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
       if (res.link) {
         const slug = res.link.custom_slug || res.link.short_code;
-        const shortUrl = typeof window !== 'undefined'
-          ? `${window.location.origin}/${slug}`
-          : `${originDomain}/${slug}`;
+        const chosenDomain = domains.find(d => d.id === (res.link?.domain_id || selectedDomainId));
+        const resolvedHost = chosenDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
+        const shortUrl = `https://${resolvedHost}/${slug}`;
 
         setCreatedResult({
           id: res.link.id,
@@ -382,10 +384,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 />
               </div>
 
-              {/* Custom Back-Half / Slug */}
+              {/* Custom Domain & Back-Half Slug */}
               <div className="flex flex-col gap-1">
                 <label className="font-semibold text-on-surface flex items-center justify-between text-xs">
-                  <span>Short Link Custom Slug</span>
+                  <span>Domain & Short Link Slug</span>
                   {customSlug.trim() && (
                     <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-error' : 'text-emerald-600'}`}>
                       <CheckCircle2 className="w-3 h-3" />
@@ -393,17 +395,34 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     </span>
                   )}
                 </label>
-                <div className="flex rounded-xl overflow-hidden bg-surface-container-low p-0.5 border border-outline-variant/40">
-                  <div className="px-2.5 py-1 text-on-surface-variant font-mono text-[11px] flex items-center select-none bg-surface-container-lowest rounded-lg border border-outline-variant/30">
-                    {originDomain} /
+                <div className="flex flex-col sm:flex-row rounded-xl overflow-hidden bg-surface-container-low p-1 border border-outline-variant/40 gap-1">
+                  {/* Domain Selector */}
+                  <div className="flex items-center gap-1.5 bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-outline-variant/30">
+                    <Globe className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                    <select
+                      value={selectedDomainId}
+                      onChange={(e) => setSelectedDomainId(e.target.value)}
+                      className="bg-transparent font-mono text-xs text-on-surface font-semibold outline-none cursor-pointer pr-1"
+                    >
+                      <option value="">{originDomain} (Platform)</option>
+                      {domains.map(d => (
+                        <option key={d.id} value={d.id} disabled={!d.verified}>
+                          {d.hostname} {d.verified ? '✓' : '(Pending DNS)'}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <input
-                    type="text"
-                    value={customSlug}
-                    onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                    placeholder="custom-alias"
-                    className="flex-1 px-2.5 py-1 bg-transparent font-mono text-xs text-primary-container font-semibold focus:outline-none"
-                  />
+                  
+                  <div className="flex items-center flex-1 px-1">
+                    <span className="text-on-surface-variant font-mono text-xs select-none pr-1">/</span>
+                    <input
+                      type="text"
+                      value={customSlug}
+                      onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                      placeholder="custom-slug"
+                      className="flex-1 px-1 py-1 bg-transparent font-mono text-xs text-primary-container font-semibold focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 

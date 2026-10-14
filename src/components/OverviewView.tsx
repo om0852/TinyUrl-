@@ -74,16 +74,20 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       return;
     }
 
+    const primaryDomain = domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified) || domains[0];
+
     const res = createShortLink({
       destination_url: quickUrl,
       custom_slug: quickAlias.trim() || undefined,
+      domain_id: primaryDomain?.id,
       title: quickAlias ? `${quickAlias} Link` : undefined
     });
 
     if (res.link) {
-      const domain = domains[0]?.hostname || (typeof window !== 'undefined' ? window.location.host : 'snip.to');
-      const full = `https://${domain}/${res.link.short_code}`;
-      setQuickResult({ url: full, code: res.link.short_code });
+      const slug = res.link.custom_slug || res.link.short_code;
+      const domainHost = primaryDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev');
+      const full = `https://${domainHost}/${slug}`;
+      setQuickResult({ url: full, code: slug });
       setQuickUrl('');
       setQuickAlias('');
     }
@@ -95,7 +99,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const originDomain = domains[0]?.hostname || (typeof window !== 'undefined' ? window.location.host : 'snip.to');
+  const originDomain = (domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified))?.hostname || (typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev');
 
   // Filter links
   const filteredLinks = links.filter(link => {

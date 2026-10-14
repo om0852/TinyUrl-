@@ -20,8 +20,39 @@ const EXCLUDED_PREFIXES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const rawHost = request.headers.get('host') || request.nextUrl.host || '';
+  const currentHost = rawHost.split(':')[0].toLowerCase();
+  const isPlatformDomain = currentHost === 'localhost' || 
+                           currentHost === '127.0.0.1' || 
+                           currentHost.includes('vercel.app') || 
+                           currentHost === 'tinyurl.dev';
 
-  // 1. Skip system paths, root, bridge path /r/, and static assets
+  // 1. Custom Domain Root Redirect (e.g. go.brand.com/ -> brand.com)
+  if (!isPlatformDomain) {
+    try {
+      let customDomain = linkCache.get<{ id: string; hostname: string; root_redirect_url?: string }>(`domain_${currentHost}`);
+      if (!customDomain) {
+        const domainRows = (await sql.query(
+          `SELECT id, hostname, root_redirect_url, verified FROM domains WHERE LOWER(hostname) = $1 AND verified = true LIMIT 1`,
+          [currentHost]
+        )) as unknown as Array<{ id: string; hostname: string; root_redirect_url?: string; verified: boolean }>;
+        if (domainRows && domainRows.length > 0) {
+          customDomain = domainRows[0];
+          linkCache.set(`domain_${currentHost}`, customDomain, 300);
+        }
+      }
+
+      if (customDomain && (pathname === '/' || pathname === '')) {
+        if (customDomain.root_redirect_url && /^https?:\/\//i.test(customDomain.root_redirect_url)) {
+          return NextResponse.redirect(new URL(customDomain.root_redirect_url), 307);
+        }
+      }
+    } catch {
+      // Fallback silently
+    }
+  }
+
+  // 2. Skip system paths, root on platform domain, bridge path /r/, and static assets
   if (
     pathname === '/' ||
     pathname.startsWith('/r/') ||
@@ -31,7 +62,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Extract potential short code (handles both /code and /r/code)
+  // 3. Extract potential short code (handles both /code and /r/code)
   let code = pathname.startsWith('/r/') ? pathname.slice(3) : pathname.slice(1);
   code = code.replace(/\/$/, '').toLowerCase();
 
@@ -40,19 +71,35 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // 3. Fast Cache Lookup (Edge LRU Cache)
-    let linkData = linkCache.get<Link & { rules?: string | LinkRule[] }>(`link_${code}`);
+    // 4. Fast Cache Lookup (Edge LRU Cache)
+    const cacheKey = !isPlatformDomain ? `link_${currentHost}_${code}` : `link_${code}`;
+    let linkData = linkCache.get<Link & { rules?: string | LinkRule[] }>(cacheKey);
 
     if (!linkData) {
       // Query Neon PostgreSQL
-      const rows = (await sql.query(
-        `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
-        [code]
-      )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
+      let rows: Array<Link & { rules?: string | LinkRule[] }> = [];
+
+      if (!isPlatformDomain) {
+        // Look up link for this custom domain first, fallback to unassigned link
+        rows = (await sql.query(
+          `SELECT l.* FROM links l
+           LEFT JOIN domains d ON d.id = l.domain_id
+           WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
+             AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
+           ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
+           LIMIT 1`,
+          [currentHost, code]
+        )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
+      } else {
+        rows = (await sql.query(
+          `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
+          [code]
+        )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
+      }
 
       if (rows && rows.length > 0) {
         linkData = rows[0];
-        linkCache.set(`link_${code}`, linkData, 180); // Cache for 3 minutes
+        linkCache.set(cacheKey, linkData, 180); // Cache for 3 minutes
       }
     }
 

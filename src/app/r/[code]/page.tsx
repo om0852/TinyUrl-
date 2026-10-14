@@ -20,12 +20,18 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
   if (code) {
     try {
       const cleanCode = code.trim().toLowerCase();
-      const rows = (await sql.query(
-        `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
-        [cleanCode]
-      )) as unknown as Array<{
+      const headersList = await headers();
+      const rawHost = headersList.get('host') || '';
+      const currentHost = rawHost.split(':')[0].toLowerCase();
+      const isPlatformDomain = currentHost === 'localhost' || 
+                               currentHost === '127.0.0.1' || 
+                               currentHost.includes('vercel.app') || 
+                               currentHost === 'tinyurl.dev';
+
+      let rows: Array<{
         id: string;
         workspace_id?: string;
+        domain_id?: string;
         short_code: string;
         custom_slug?: string;
         destination_url: string;
@@ -41,7 +47,24 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         password_hash?: string;
         expires_at?: string;
         max_clicks?: number;
-      }>;
+      }> = [];
+
+      if (!isPlatformDomain) {
+        rows = (await sql.query(
+          `SELECT l.* FROM links l
+           LEFT JOIN domains d ON d.id = l.domain_id
+           WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
+             AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
+           ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
+           LIMIT 1`,
+          [currentHost, cleanCode]
+        )) as unknown as typeof rows;
+      } else {
+        rows = (await sql.query(
+          `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
+          [cleanCode]
+        )) as unknown as typeof rows;
+      }
 
       if (rows && rows.length > 0) {
         const row = rows[0];
@@ -55,7 +78,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           workspace_id: row.workspace_id || '',
           short_code: row.short_code,
           custom_slug: row.custom_slug || row.short_code,
-          domain_id: 'dom_primary',
+          domain_id: row.domain_id || 'dom_primary',
           destination_url: isPasswordLocked ? '' : row.destination_url,
           title: row.title || `Short Link /${row.short_code}`,
           tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : (Array.isArray(row.tags) ? row.tags : []),
