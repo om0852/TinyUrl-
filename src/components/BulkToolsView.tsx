@@ -20,8 +20,6 @@ import {
   X, 
   Layers, 
   AlertCircle, 
-  Table, 
-  CheckCircle,
   FileText,
   Activity,
   QrCode,
@@ -762,7 +760,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-bold">
-                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                     <span>Import Completed: {importResult.imported} links generated!</span>
                   </div>
                   <span className="font-mono text-[11px]">
@@ -1071,7 +1069,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       {/* Floating Notification Toast */}
       {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
         <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>,
         document.body
