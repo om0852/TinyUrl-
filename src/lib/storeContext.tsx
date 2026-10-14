@@ -443,6 +443,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setTeamMembers(Array.from(memberMap.values()));
           }
         }).catch(() => {});
+
+      // 4. Fetch custom domains for newly selected workspace
+      fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(ws.id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success && Array.isArray(d.domains)) {
+            setDomains(d.domains);
+            try {
+              if (currentUser?.email) {
+                const domKey = getUserStorageKey('url_shortener_domains', currentUser.email);
+                localStorage.setItem(domKey, JSON.stringify(d.domains));
+              }
+              localStorage.setItem('url_shortener_domains', JSON.stringify(d.domains));
+            } catch {}
+          }
+        }).catch(() => {});
     }
   }, [currentUser?.email]);
 
@@ -508,7 +524,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshTeamMembers();
   }, [refreshIncomingInvitations, refreshTeamMembers]);
 
-  const [domains, setDomains] = useState<Domain[]>(initialDomains);
+  const [domains, setDomains] = useState<Domain[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
@@ -518,17 +534,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Initialize dynamic domain & sync localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const activeDomain = window.location.host || process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || 'localhost:3000';
-      setDomains([
-        {
-          id: 'dom_primary',
-          hostname: activeDomain,
-          verified: true,
-          ssl_status: 'active',
-          is_default: true,
-          workspace_id: 'ws_default'
+      try {
+        const savedGlobalDom = localStorage.getItem('url_shortener_domains');
+        if (savedGlobalDom) {
+          const parsed = JSON.parse(savedGlobalDom);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDomains(parsed);
+          }
         }
-      ]);
+      } catch {}
     }
     try {
       let user: User | null = null;
@@ -715,9 +729,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch {}
         }
 
-        // 8. Synchronize with backend API only for current user's workspace
+        // 8. Account-scoped Custom Domains
+        const domKey = getUserStorageKey('url_shortener_domains', user.email);
+        const savedDom = localStorage.getItem(domKey) || localStorage.getItem('url_shortener_domains');
+        let loadedDom: Domain[] = [];
+        if (savedDom) {
+          try {
+            const parsedDom = JSON.parse(savedDom);
+            if (Array.isArray(parsedDom)) loadedDom = parsedDom;
+          } catch {}
+        }
+        if (loadedDom.length > 0) {
+          setDomains(loadedDom);
+        }
+
+        // 9. Synchronize with backend API only for current user's workspace
         if (loadedWs && loadedWs[0]?.id) {
           const activeWsId = loadedWs[0].id;
+          // Synchronize custom domains
+          fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWsId)}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.success && Array.isArray(data.domains)) {
+                setDomains(data.domains);
+                try {
+                  const domKey = getUserStorageKey('url_shortener_domains', user.email);
+                  localStorage.setItem(domKey, JSON.stringify(data.domains));
+                  localStorage.setItem('url_shortener_domains', JSON.stringify(data.domains));
+                } catch {}
+              }
+            })
+            .catch(() => {});
+
           fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`)
             .then(res => res.json())
             .then(data => {
@@ -777,6 +820,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTeamMembers([]);
         setApiKeys([]);
         setWebhooks([]);
+        setDomains([]);
       }
     } catch {
       setLinks([]);
@@ -821,6 +865,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           }
         }
+        const domKey = getUserStorageKey('url_shortener_domains', activeEmail);
+        const rawDom = localStorage.getItem(domKey) || localStorage.getItem('url_shortener_domains');
+        if (rawDom) {
+          try {
+            const parsedDom = JSON.parse(rawDom);
+            if (Array.isArray(parsedDom)) {
+              setDomains(parsedDom);
+            }
+          } catch {}
+        }
       } catch {}
     };
 
@@ -834,7 +888,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const wsKey = getUserStorageKey('url_shortener_workspaces', activeUser.email);
         const rawWs = localStorage.getItem(wsKey);
         const parsedWs: Workspace[] = rawWs ? JSON.parse(rawWs) : [];
-        const savedWsId = localStorage.getItem(`url_shortener_current_workspace_id_${activeUser.email}`) || 
+        const wsIdKey = getUserStorageKey('url_shortener_current_workspace_id', activeUser.email);
+        const savedWsId = localStorage.getItem(wsIdKey) || 
+                          localStorage.getItem(`url_shortener_current_workspace_id_${activeUser.email}`) || 
                           localStorage.getItem('url_shortener_current_workspace_id');
         const activeWs = (savedWsId ? parsedWs.find(w => w.id === savedWsId) : null) || parsedWs[0];
         if (!activeWs?.id) return;
@@ -958,8 +1014,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWs.id)}`)
           .then(r => r.json())
           .then(d => {
-            if (d?.success && Array.isArray(d.domains) && d.domains.length > 0) {
+            if (d?.success && Array.isArray(d.domains)) {
               setDomains(d.domains);
+              try {
+                const domKey = getUserStorageKey('url_shortener_domains', activeUser.email);
+                localStorage.setItem(domKey, JSON.stringify(d.domains));
+                localStorage.setItem('url_shortener_domains', JSON.stringify(d.domains));
+              } catch {}
             }
           }).catch(() => {});
 
@@ -1129,6 +1190,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const userKey = getUserStorageKey('url_shortener_webhooks', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newHooks));
       localStorage.setItem('url_shortener_webhooks', JSON.stringify(newHooks));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('url_shortener_sync'));
+      }
+    } catch {}
+  };
+
+  const saveDomainsState = (newDomains: Domain[]) => {
+    setDomains(newDomains);
+    try {
+      const userKey = getUserStorageKey('url_shortener_domains', currentUser?.email);
+      localStorage.setItem(userKey, JSON.stringify(newDomains));
+      localStorage.setItem('url_shortener_domains', JSON.stringify(newDomains));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
       }
@@ -1594,7 +1667,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return null;
     }
 
-    const cleanHost = hostname.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const cleanHost = hostname.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
     const newDom: Domain = {
       id: generateId('dom'),
       workspace_id: currentWorkspace?.id || 'ws_default',
@@ -1606,8 +1679,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ownership_verified: false,
       routing_verified: false
     };
-    const updated = [newDom, ...domains];
-    setDomains(updated);
+
+    const previousDomains = [...domains];
+    const updated = [newDom, ...domains.filter(d => d.hostname !== cleanHost)];
+    saveDomainsState(updated);
 
     if (typeof window !== 'undefined') {
       try {
@@ -1622,13 +1697,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             root_redirect_url: root_redirect_url || null
           })
         });
-        const data = await res.json();
-        if (data?.success && data.domain) {
-          setDomains(prev => prev.map(d => d.id === newDom.id ? { ...d, ...data.domain } : d));
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.success && data.domain) {
+          const finalDomains = [
+            data.domain,
+            ...domains.filter(d => d.id !== newDom.id && d.hostname !== cleanHost)
+          ];
+          saveDomainsState(finalDomains);
           return data.domain;
+        } else {
+          saveDomainsState(previousDomains);
+          showToast('error', 'Domain Error', data?.error || 'Domain registration failed on server.');
+          return null;
         }
       } catch (err) {
         console.warn('Failed to register domain on server:', err);
+        saveDomainsState(previousDomains);
+        showToast('error', 'Network Error', 'Network error while registering domain.');
+        return null;
       }
     }
     return newDom;
@@ -1649,13 +1735,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             simulate_bypass: simulateBypass 
           })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (data?.success && data.domain) {
-          setDomains(prev => prev.map(d => 
+          const updated = domains.map(d => 
             (d.id === idOrHostname || d.hostname === idOrHostname) 
               ? { ...d, ...data.domain } 
               : d
-          ));
+          );
+          saveDomainsState(updated);
         }
         return { 
           success: !!data?.success, 
@@ -1674,7 +1761,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    setDomains(prev => prev.map(d => {
+    const updated = domains.map(d => {
       if (d.id === idOrHostname || d.hostname === idOrHostname) {
         return {
           ...d,
@@ -1686,7 +1773,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return { ...d, is_default: false };
       }
       return d;
-    }));
+    });
+    saveDomainsState(updated);
 
     if (typeof window !== 'undefined') {
       try {
@@ -1700,7 +1788,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             is_primary: updates.is_primary
           })
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         return !!data?.success;
       } catch {
         return false;
@@ -1714,11 +1802,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    setDomains(prev => prev.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname));
+    const remaining = domains.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname);
+    saveDomainsState(remaining);
+
     if (typeof window !== 'undefined') {
       try {
         const res = await apiFetch(`/api/v1/domains?id=${encodeURIComponent(idOrHostname)}`, { method: 'DELETE' });
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         return !!data?.success;
       } catch {
         return false;
@@ -2103,20 +2193,49 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     setWebhooks(userWh);
 
+    // Load account-isolated custom domains
+    const domKey = getUserStorageKey('url_shortener_domains', cleanEmail);
+    const savedDom = localStorage.getItem(domKey) || localStorage.getItem('url_shortener_domains');
+    let userDom: Domain[] = [];
+    if (savedDom) {
+      try {
+        const parsed = JSON.parse(savedDom);
+        if (Array.isArray(parsed)) userDom = parsed;
+      } catch {}
+    }
+    setDomains(userDom);
+
     try {
       localStorage.setItem('url_shortener_user', JSON.stringify(user));
       localStorage.setItem('url_shortener_workspaces', JSON.stringify(userWorkspaces));
       localStorage.setItem('url_shortener_current_workspace_id', userWorkspaces[0].id);
+      localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', cleanEmail), userWorkspaces[0].id);
       localStorage.setItem('url_shortener_links', JSON.stringify(userLinks));
       localStorage.setItem('url_shortener_clicks', JSON.stringify(userClicks));
       localStorage.setItem('url_shortener_campaigns', JSON.stringify(userCamp));
       localStorage.setItem('url_shortener_team_members', JSON.stringify(userTm));
       localStorage.setItem('url_shortener_api_keys', JSON.stringify(userKeys));
       localStorage.setItem('url_shortener_webhooks', JSON.stringify(userWh));
+      localStorage.setItem(domKey, JSON.stringify(userDom));
+      localStorage.setItem('url_shortener_domains', JSON.stringify(userDom));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
       }
     } catch {}
+
+    if (userWorkspaces[0]?.id) {
+      fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(userWorkspaces[0].id)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success && Array.isArray(d.domains)) {
+            setDomains(d.domains);
+            try {
+              localStorage.setItem(domKey, JSON.stringify(d.domains));
+              localStorage.setItem('url_shortener_domains', JSON.stringify(d.domains));
+            } catch {}
+          }
+        }).catch(() => {});
+    }
   };
 
   // Auth functions with true credential verification
@@ -2332,6 +2451,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('url_shortener_api_keys', JSON.stringify([]));
       localStorage.setItem(getUserStorageKey('url_shortener_webhooks', cleanEmail), JSON.stringify([]));
       localStorage.setItem('url_shortener_webhooks', JSON.stringify([]));
+      localStorage.setItem(getUserStorageKey('url_shortener_domains', cleanEmail), JSON.stringify([]));
+      localStorage.setItem('url_shortener_domains', JSON.stringify([]));
+      setDomains([]);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
         fetch('/api/v1/workspaces', {

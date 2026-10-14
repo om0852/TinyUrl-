@@ -223,6 +223,25 @@ export async function verifyWorkspacePermission(
       resolvedRole = 'admin';
     }
 
+    if (!resolvedRole && userEmail) {
+      // Check if user owns this workspace or any workspace
+      const userWs = (await sql.query(
+        `SELECT id, owner_email FROM workspaces WHERE LOWER(owner_email) = $1 LIMIT 1`,
+        [userEmail]
+      ).catch(() => [])) as { id: string; owner_email?: string }[];
+      if (userWs && userWs.length > 0) {
+        resolvedRole = 'owner';
+      } else {
+        const userRows = (await sql.query(
+          `SELECT role FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+          [userEmail]
+        ).catch(() => [])) as { role?: string }[];
+        if (userRows && userRows.length > 0) {
+          resolvedRole = (userRows[0].role as WorkspaceRole) || 'owner';
+        }
+      }
+    }
+
     if (!resolvedRole) {
       return {
         success: false,

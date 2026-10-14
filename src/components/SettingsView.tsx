@@ -278,22 +278,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
     showToast(`Domain ${hostname} removed.`);
   };
 
-  // Active domains list (with fallback to current host)
+  // Active domains list for current workspace
   const displayDomains: Domain[] = useMemo(() => {
-    if (domains.length > 0) return domains;
-    return [{
-      id: 'dom_primary_default',
-      workspace_id: currentWorkspace?.id || 'ws_default',
-      hostname: originDomain,
-      verified: true,
-      ssl_status: 'active',
-      is_default: true,
-      ownership_verified: true,
-      routing_verified: true,
-      verify_token: 'tinyurl-verification=default_token',
-      created_at: new Date().toISOString()
-    }];
-  }, [domains, originDomain, currentWorkspace?.id]);
+    return domains;
+  }, [domains]);
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in text-on-surface">
@@ -555,7 +543,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
           {/* Domains Table / Cards */}
           <div className="space-y-4 text-xs">
-            {displayDomains.map((dom) => {
+            {displayDomains.length === 0 ? (
+              <div className="rounded-2xl bg-surface-container-low p-8 border border-outline-variant/30 text-center flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-primary-container shadow-xs">
+                  <Globe className="w-6 h-6" />
+                </div>
+                <div className="max-w-md">
+                  <h3 className="text-sm font-bold text-on-surface">No Custom Domains Connected</h3>
+                  <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                    Connect your organization&apos;s custom domain (e.g. <span className="font-mono text-primary-container">links.yourbrand.com</span>) to route short links under your brand with automated Edge SSL certificates.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddDomainModalOpen(true)}
+                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Connect Your First Domain</span>
+                </button>
+              </div>
+            ) : (
+              displayDomains.map((dom) => {
               const isDefaultPrimary = dom.is_default || dom.id === 'dom_primary_default';
               const isExpanded = expandedDnsDomainId === dom.id;
               const subdomainHost = dom.hostname.includes('.') ? dom.hostname.split('.')[0] : '@';
@@ -765,7 +774,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   )}
                 </div>
               );
-            })}
+            }))}
           </div>
 
           {/* Inline DNS Quick Info Notice */}
