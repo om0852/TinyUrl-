@@ -469,9 +469,24 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
       if (!alreadyLogged) {
         try {
+          const rawRef = typeof document !== 'undefined' && document.referrer ? document.referrer : '';
+          const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+          const inApp = detectInAppBrowser(ua);
+          const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+          const utmSource = urlParams?.get('utm_source') || urlParams?.get('ref') || urlParams?.get('source');
+
+          let effectiveReferrer = rawRef;
+          if (!effectiveReferrer && inApp.isInApp && inApp.browserName) {
+            effectiveReferrer = inApp.browserName;
+          } else if (!effectiveReferrer && utmSource) {
+            effectiveReferrer = `utm:${utmSource}`;
+          } else if (!effectiveReferrer) {
+            effectiveReferrer = 'Direct / None';
+          }
+
           logClick(link.id, {
             short_code: code,
-            referrer: typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / None'
+            referrer: effectiveReferrer
           });
         } catch (err) {
           console.warn('Click logging error:', err);

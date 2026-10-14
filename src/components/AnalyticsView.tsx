@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { detectAppDeepLink } from '@/lib/deepLink';
+import { detectSourcePlatform, SourcePlatformInfo } from '@/lib/sourcePlatform';
 import { 
   BarChart3, 
   Calendar, 
@@ -25,7 +27,12 @@ import {
   Palette, 
   Layers, 
   MapPin, 
-  HardDrive
+  HardDrive,
+  Search,
+  X,
+  ChevronRight,
+  Filter,
+  ExternalLink
 } from 'lucide-react';
 
 interface AnalyticsViewProps {
@@ -34,6 +41,11 @@ interface AnalyticsViewProps {
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) => {
   const { links, clicks } = useStore();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h' | 'custom'>('30d');
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
@@ -47,6 +59,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [geoLevel, setGeoLevel] = useState<'countries' | 'regions' | 'cities'>('countries');
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+
+  // Platform Details Modal states
+  const [platformDetailsModalOpen, setPlatformDetailsModalOpen] = useState(false);
+  const [platformSearchQuery, setPlatformSearchQuery] = useState('');
+  const [platformCategoryFilter, setPlatformCategoryFilter] = useState<string>('all');
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
 
@@ -192,88 +209,48 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     ? timeSeriesData[hoveredIndex] 
     : (totalClicks > 0 ? timeSeriesData[timeSeriesData.length - 1] : null);
 
-  const channelBreakdown = useMemo(() => {
-    const resolvePlatformName = (url: string, deepApp?: string, _tags?: string[]) => {
-      const dest = (url || '').toLowerCase();
-      if (dest.includes('drive.google.com') || dest.includes('docs.google.com') || deepApp?.includes('drive')) {
-        return { name: 'Google Drive', color: 'bg-blue-600' };
-      }
-      if (dest.includes('youtube.com') || dest.includes('youtu.be') || deepApp === 'youtube') {
-        return { name: 'YouTube', color: 'bg-red-600' };
-      }
-      if (dest.includes('instagram.com') || deepApp === 'instagram') {
-        return { name: 'Instagram', color: 'bg-pink-600' };
-      }
-      if (dest.includes('tiktok.com') || deepApp === 'tiktok') {
-        return { name: 'TikTok', color: 'bg-neutral-900' };
-      }
-      if (dest.includes('twitter.com') || dest.includes('x.com') || deepApp === 'twitter' || deepApp === 'x') {
-        return { name: 'X / Twitter', color: 'bg-slate-800' };
-      }
-      if (dest.includes('spotify.com') || deepApp === 'spotify') {
-        return { name: 'Spotify', color: 'bg-emerald-600' };
-      }
-      if (dest.includes('github.com') || deepApp === 'github') {
-        return { name: 'GitHub', color: 'bg-purple-600' };
-      }
-      const detected = detectAppDeepLink(url);
-      if (detected && detected.appName && detected.appName !== 'Web Destination') {
-        return { name: detected.appName, color: 'bg-indigo-600' };
-      }
-      return { name: 'Direct / Other', color: 'bg-primary-container' };
-    };
-
-    const linkPlatformMap = new Map<string, { name: string; color: string }>();
+  // Comprehensive Source Platforms Breakdown (supporting 300+ platforms & in-app webviews)
+  const allPlatformsBreakdown = useMemo(() => {
+    const linkDestMap = new Map<string, string>();
     links.forEach(l => {
-      const info = resolvePlatformName(l.destination_url, l.deep_link?.app, l.tags);
-      if (l.id) linkPlatformMap.set(l.id.toLowerCase(), info);
-      if (l.short_code) linkPlatformMap.set(l.short_code.toLowerCase(), info);
-      if (l.custom_slug) linkPlatformMap.set(l.custom_slug.toLowerCase(), info);
+      if (l.id) linkDestMap.set(l.id.toLowerCase(), l.destination_url);
+      if (l.short_code) linkDestMap.set(l.short_code.toLowerCase(), l.destination_url);
+      if (l.custom_slug) linkDestMap.set(l.custom_slug.toLowerCase(), l.destination_url);
     });
 
-    const platformCounts = new Map<string, { name: string; count: number; color: string }>();
+    const platformCounts = new Map<string, { info: SourcePlatformInfo; count: number }>();
 
     if (clicks.length > 0) {
       clicks.forEach(c => {
         const linkKey = (c.link_id || c.short_code || '').toLowerCase();
-        const linkInfo = linkKey ? linkPlatformMap.get(linkKey) : undefined;
-        
-        let pName = linkInfo?.name;
-        let pColor = linkInfo?.color || 'bg-primary-container';
+        const dest = linkKey ? linkDestMap.get(linkKey) : undefined;
+        const platform = detectSourcePlatform(c.referrer, dest);
 
-        if (!pName) {
-          const ref = (c.referrer || '').toLowerCase();
-          if (ref.includes('youtube') || ref.includes('youtu.be')) { pName = 'YouTube'; pColor = 'bg-red-600'; }
-          else if (ref.includes('instagram')) { pName = 'Instagram'; pColor = 'bg-pink-600'; }
-          else if (ref.includes('tiktok')) { pName = 'TikTok'; pColor = 'bg-neutral-900'; }
-          else if (ref.includes('twitter') || ref.includes('t.co')) { pName = 'X / Twitter'; pColor = 'bg-slate-800'; }
-          else if (ref.includes('drive.google')) { pName = 'Google Drive'; pColor = 'bg-blue-600'; }
-          else { pName = 'Direct / Other'; pColor = 'bg-primary-container'; }
-        }
-
-        const existing = platformCounts.get(pName) || { name: pName, count: 0, color: pColor };
+        const existing = platformCounts.get(platform.id) || { info: platform, count: 0 };
         existing.count += 1;
-        platformCounts.set(pName, existing);
+        platformCounts.set(platform.id, existing);
       });
     }
 
-    if (totalClicks > 0 && platformCounts.size === 0) {
+    if (platformCounts.size === 0 && totalClicks > 0) {
       links.forEach(l => {
-        const info = resolvePlatformName(l.destination_url, l.deep_link?.app, l.tags);
+        const platform = detectSourcePlatform(undefined, l.destination_url);
         const count = l.clicks_count || 0;
-        const existing = platformCounts.get(info.name) || { name: info.name, count: 0, color: info.color };
+        const existing = platformCounts.get(platform.id) || { info: platform, count: 0 };
         existing.count += count;
-        platformCounts.set(info.name, existing);
+        platformCounts.set(platform.id, existing);
       });
     }
 
-    const effectiveTotal = Array.from(platformCounts.values()).reduce((sum, p) => sum + p.count, 0) || totalClicks || 0;
+    const effectiveTotal = Array.from(platformCounts.values()).reduce((sum, p) => sum + p.count, 0) || totalClicks || 1;
 
-    if (effectiveTotal === 0) {
+    if (platformCounts.size === 0) {
       return [
-        { name: 'Google Drive', count: 0, pct: 0, color: 'bg-blue-600' },
-        { name: 'YouTube', count: 0, pct: 0, color: 'bg-red-600' },
-        { name: 'Direct / Other', count: 0, pct: 0, color: 'bg-primary-container' },
+        {
+          info: detectSourcePlatform('direct'),
+          count: 0,
+          pct: 0
+        }
       ];
     }
 
@@ -285,10 +262,38 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       .sort((a, b) => b.count - a.count);
   }, [totalClicks, clicks, links]);
 
+  // Top 5 platforms for the main dashboard overview card
+  const channelBreakdown = useMemo(() => {
+    return allPlatformsBreakdown.slice(0, 5).map(p => ({
+      name: p.info.name,
+      count: p.count,
+      pct: p.pct,
+      color: p.info.color,
+      category: p.info.category,
+      badgeBg: p.info.badgeBg,
+      badgeText: p.info.badgeText
+    }));
+  }, [allPlatformsBreakdown]);
+
   const topChannel = useMemo(() => {
-    const sorted = [...channelBreakdown].filter(c => c.count > 0).sort((a, b) => b.count - a.count);
-    return sorted.length > 0 ? sorted[0] : null;
-  }, [channelBreakdown]);
+    if (allPlatformsBreakdown.length > 0 && allPlatformsBreakdown[0].count > 0) {
+      return {
+        name: allPlatformsBreakdown[0].info.name,
+        count: allPlatformsBreakdown[0].count,
+        pct: allPlatformsBreakdown[0].pct
+      };
+    }
+    return null;
+  }, [allPlatformsBreakdown]);
+
+  const filteredModalPlatforms = useMemo(() => {
+    return allPlatformsBreakdown.filter(p => {
+      const q = platformSearchQuery.toLowerCase().trim();
+      const matchesSearch = !q || p.info.name.toLowerCase().includes(q) || p.info.category.toLowerCase().includes(q) || p.info.id.toLowerCase().includes(q);
+      const matchesCategory = platformCategoryFilter === 'all' || p.info.category === platformCategoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [allPlatformsBreakdown, platformSearchQuery, platformCategoryFilter]);
 
   // Top Markets from real clicks with country normalization
   const topMarkets = useMemo(() => {
@@ -883,21 +888,32 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         {/* Left Column: Platform Traffic Share */}
         <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
                 <h3 className="text-base font-bold text-on-surface tracking-tight">Platform Traffic Share</h3>
-                <span className="text-xs text-on-surface-variant">Clicks grouped by primary origin referrer</span>
+                <span className="text-xs text-on-surface-variant">Clicks identified by source platform &amp; in-app referrer</span>
               </div>
-              <Share2 className="w-4 h-4 text-outline" />
+              <button
+                type="button"
+                id="platform-details-btn"
+                onClick={() => setPlatformDetailsModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-primary-container text-xs font-semibold transition cursor-pointer border border-outline-variant/30"
+              >
+                <span>Details ({allPlatformsBreakdown.length})</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
 
-            <div className="flex flex-col gap-4 mt-2">
+            <div className="flex flex-col gap-3.5 mt-2">
               {channelBreakdown.map((item) => (
                 <div key={item.name} className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
                       <span className="font-semibold text-on-surface">{item.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium capitalize ${item.badgeBg} ${item.badgeText}`}>
+                        {item.category}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-on-surface-variant">{item.count.toLocaleString()} clicks</span>
@@ -905,30 +921,43 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     </div>
                   </div>
                   <div className="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
-                    <div className="bg-primary-container h-full rounded-full transition-all duration-500" style={{ width: `${item.pct}%` }} />
+                    <div className={`h-full rounded-full transition-all duration-500 ${item.color}`} style={{ width: `${item.pct}%` }} />
                   </div>
                 </div>
               ))}
+
+              {allPlatformsBreakdown.length > 5 && (
+                <div className="pt-2 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setPlatformDetailsModalOpen(true)}
+                    className="text-xs text-primary-container hover:underline font-semibold cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <span>+ {allPlatformsBreakdown.length - 5} more detected platforms</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="mt-6 pt-3 flex items-center justify-between bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30 text-xs">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary-container" />
-              <span className="text-on-surface">
+            <div className="flex items-center gap-2 min-w-0 pr-2">
+              <Sparkles className="w-4 h-4 text-primary-container shrink-0" />
+              <span className="text-on-surface truncate">
                 {topChannel && topChannel.count > 0 ? (
-                  <><strong>{topChannel.name}</strong> accounts for <strong>{topChannel.pct}%</strong> of platform traffic</>
+                  <><strong>{topChannel.name}</strong> is your leading source with <strong>{topChannel.pct}%</strong> of total traffic</>
                 ) : (
-                  <>Video channels account for <strong>100%</strong> of target links</>
+                  <>Real-time platform detection across <strong>300+ AppInRouter platforms</strong> active</>
                 )}
               </span>
             </div>
-            <button 
+            <button
               type="button"
-              onClick={() => onNavigateTab && onNavigateTab('routing')}
-              className="font-mono text-xs text-primary-container font-semibold hover:underline cursor-pointer"
+              onClick={() => setPlatformDetailsModalOpen(true)}
+              className="text-primary-container font-semibold hover:underline cursor-pointer shrink-0"
             >
-              Deep-dive &rarr;
+              View Breakdown &rarr;
             </button>
           </div>
         </div>
@@ -1350,16 +1379,26 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         </div>
                       </td>
 
-                      {/* Browser & Referrer */}
+                      {/* Browser & Source Platform */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-on-surface">
-                            {c.browser || 'Chrome Web'}
-                          </span>
-                          <span className="text-[10px] text-on-surface-variant truncate max-w-[140px]">
-                            {c.referrer || 'direct'}
-                          </span>
-                        </div>
+                        {(() => {
+                          const detectedPlat = detectSourcePlatform(c.referrer);
+                          return (
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-xs text-on-surface">
+                                  {detectedPlat.name}
+                                </span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium capitalize ${detectedPlat.badgeBg} ${detectedPlat.badgeText}`}>
+                                  {detectedPlat.category}
+                                </span>
+                              </div>
+                              <span className="text-[10px] text-on-surface-variant truncate max-w-[150px]" title={c.referrer || 'Direct'}>
+                                {c.browser || 'Browser'} &bull; {c.referrer || 'Direct'}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Timestamp */}
@@ -1374,6 +1413,147 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </table>
         </div>
       </div>
+
+      {/* 300+ Platform Breakdown Details Modal Popup */}
+      {mounted && platformDetailsModalOpen && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setPlatformDetailsModalOpen(false);
+          }}
+        >
+          <div className="bg-surface-container-lowest rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar text-on-surface flex flex-col">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-primary-container text-on-primary flex items-center justify-center">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-on-surface">Source Platforms &amp; Referral Breakdown</h3>
+                  <p className="text-xs text-on-surface-variant">
+                    Detailed attribution across 300+ registered platforms, social networks, and mobile in-app webviews
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlatformDetailsModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search & Category Filter Controls */}
+            <div className="my-4 space-y-3">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
+                <input
+                  type="text"
+                  placeholder="Search 300+ platforms (e.g. Instagram, Facebook, TikTok, WhatsApp, Google)..."
+                  value={platformSearchQuery}
+                  onChange={(e) => setPlatformSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-xl text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                />
+                {platformSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPlatformSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                {[
+                  { id: 'all', label: 'All Platforms' },
+                  { id: 'social', label: 'Social Networks' },
+                  { id: 'messaging', label: 'Messaging & Chats' },
+                  { id: 'search', label: 'Search Engines' },
+                  { id: 'media', label: 'Media & Streaming' },
+                  { id: 'direct', label: 'Direct / Browser' }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setPlatformCategoryFilter(tab.id)}
+                    className={`px-3 py-1 rounded-xl font-semibold text-xs transition cursor-pointer whitespace-nowrap shrink-0 ${
+                      platformCategoryFilter === tab.id
+                        ? 'bg-primary-container text-on-primary shadow-xs'
+                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Platform List */}
+            <div className="flex-1 overflow-y-auto space-y-2.5 max-h-[45vh] pr-1">
+              {filteredModalPlatforms.length === 0 ? (
+                <div className="p-8 text-center bg-surface-container-low rounded-2xl border border-dashed border-outline-variant/30 text-xs text-on-surface-variant">
+                  No source platforms found matching &ldquo;{platformSearchQuery}&rdquo;.
+                </div>
+              ) : (
+                filteredModalPlatforms.map((item) => (
+                  <div
+                    key={item.info.id}
+                    className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-xl border border-outline-variant/20 flex items-center justify-between transition-colors gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-8 h-8 rounded-xl ${item.info.color} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs`}>
+                        {item.info.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-on-surface truncate">{item.info.name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium capitalize ${item.info.badgeBg} ${item.info.badgeText}`}>
+                            {item.info.category}
+                          </span>
+                        </div>
+                        <div className="w-36 sm:w-48 bg-surface-container-highest h-1.5 rounded-full overflow-hidden mt-1.5">
+                          <div className={`h-full rounded-full ${item.info.color}`} style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="text-xs font-bold font-mono text-on-surface">
+                        {item.count.toLocaleString()} clicks
+                      </div>
+                      <div className="text-[11px] font-semibold text-primary-container font-mono">
+                        {item.pct}% share
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-4 border-t border-outline-variant/20 mt-4 flex items-center justify-between text-xs">
+              <span className="text-on-surface-variant">
+                Showing {filteredModalPlatforms.length} of {allPlatformsBreakdown.length} active platforms
+              </span>
+              <button
+                type="button"
+                onClick={() => setPlatformDetailsModalOpen(false)}
+                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-xl text-xs hover:bg-primary transition cursor-pointer shadow-xs"
+              >
+                Done
+              </button>
+            </div>
+
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );
