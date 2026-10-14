@@ -43,6 +43,7 @@ interface StoreContextType {
   deleteWorkspace: (workspaceId: string) => Promise<boolean>;
 
   teamMembers: TeamMember[];
+  refreshTeamMembers: () => Promise<void>;
   inviteTeamMember: (name: string, email: string, role: WorkspaceRole) => Promise<WorkspaceInvitation | null>;
   removeTeamMember: (id: string) => void;
   updateMemberRole: (memberId: string, role: WorkspaceRole) => Promise<boolean>;
@@ -332,6 +333,49 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
 
+  const refreshTeamMembers = useCallback(async () => {
+    if (!currentWorkspace?.id || typeof window === 'undefined') return;
+    try {
+      const res = await fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(currentWorkspace.id)}`);
+      const d = await res.json();
+      if (d?.success) {
+        const memberMap = new Map<string, TeamMember>();
+        if (Array.isArray(d.invitations)) {
+          d.invitations.forEach((inv: WorkspaceInvitation) => {
+            const key = inv.email.toLowerCase().trim();
+            memberMap.set(key, {
+              id: inv.id,
+              workspace_id: inv.workspace_id,
+              name: inv.name,
+              email: inv.email,
+              role: inv.role,
+              status: 'invited',
+              token: inv.token,
+              invite_url: inv.invite_url,
+              avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
+              created_at: inv.created_at
+            });
+          });
+        }
+        if (Array.isArray(d.members)) {
+          d.members.forEach((m: TeamMember) => {
+            const key = m.email.toLowerCase().trim();
+            memberMap.set(key, m);
+          });
+        }
+        const fresh = Array.from(memberMap.values());
+        setTeamMembers(fresh);
+        if (currentUser?.email) {
+          const tmKey = getUserStorageKey('url_shortener_team_members', currentUser.email);
+          try {
+            localStorage.setItem(tmKey, JSON.stringify(fresh));
+            localStorage.setItem('url_shortener_team_members', JSON.stringify(fresh));
+          } catch {}
+        }
+      }
+    } catch {}
+  }, [currentWorkspace?.id, currentUser?.email]);
+
   const refreshIncomingInvitations = useCallback(async () => {
     if (!currentUser?.email) {
       setIncomingInvitations([]);
@@ -348,7 +392,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     refreshIncomingInvitations();
-  }, [refreshIncomingInvitations]);
+    refreshTeamMembers();
+  }, [refreshIncomingInvitations, refreshTeamMembers]);
+
   const [domains, setDomains] = useState<Domain[]>(initialDomains);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
@@ -1999,11 +2045,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('url_shortener_webhooks', JSON.stringify([]));
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('url_shortener_sync'));
+        fetch('/api/v1/workspaces', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: newWs.id,
+            name: newWs.name,
+            slug: newWs.slug,
+            plan: newWs.plan,
+            owner_email: cleanEmail,
+            owner_id: newUser.id,
+            owner_name: trimmedName
+          })
+        }).catch(() => {});
       }
     } catch {}
 
     return { success: true };
   };
+
 
 
   const logout = () => {
@@ -2074,7 +2134,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           id: newWs.id,
           name: newWs.name,
           slug: newWs.slug,
-          plan: newWs.plan
+          plan: newWs.plan,
+          owner_email: currentUser?.email,
+          owner_id: currentUser?.id,
+          owner_name: currentUser?.name
         })
       }).catch(err => console.warn('Failed to save workspace on server:', err));
     }
@@ -2235,6 +2298,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentWorkspace(data.workspace);
         // 3. Remove from incoming invitations
         setIncomingInvitations(prev => prev.filter(inv => inv.token !== token));
+        refreshTeamMembers();
         return { success: true };
       }
       return { success: false, error: data.error || 'Failed to accept invitation.' };
@@ -2295,6 +2359,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateWorkspace,
       deleteWorkspace,
       teamMembers,
+      refreshTeamMembers,
       inviteTeamMember,
       removeTeamMember,
       updateMemberRole,

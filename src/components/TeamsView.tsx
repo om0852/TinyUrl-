@@ -40,6 +40,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     workspaces, 
     setCurrentWorkspace, 
     teamMembers, 
+    refreshTeamMembers,
     removeTeamMember, 
     updateMemberRole,
     currentUser,
@@ -52,6 +53,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [createWsModalOpen, setCreateWsModalOpen] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
@@ -76,10 +78,32 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
   // Incoming invite action loading state
   const [processingToken, setProcessingToken] = useState<string | null>(null);
 
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refreshTeamMembers(),
+        refreshIncomingInvitations()
+      ]);
+    } finally {
+      setTimeout(() => setRefreshing(false), 500);
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
     refreshIncomingInvitations();
-  }, [refreshIncomingInvitations]);
+    refreshTeamMembers();
+
+    // Auto-poll members list every 6 seconds so invite acceptances update live on inviter's screen
+    const interval = setInterval(() => {
+      refreshTeamMembers();
+      refreshIncomingInvitations();
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [refreshIncomingInvitations, refreshTeamMembers]);
+
 
   useEffect(() => {
     if (currentWorkspace) {
@@ -189,6 +213,17 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline-variant/30 transition shadow-2xs cursor-pointer disabled:opacity-50"
+            title="Refresh team members and invitations"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-primary-container ${refreshing ? 'animate-spin' : ''}`} />
+            <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setCreateWsModalOpen(true)}
@@ -531,7 +566,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                       Primary Session
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <span className="text-[11px] text-on-surface-variant">Workspace Lead</span>
+                      <span className="text-[11px] font-medium text-on-surface-variant">
+                        {userRole === 'owner' ? 'Workspace Owner' : userRole === 'admin' ? 'Workspace Admin' : 'Collaborator'}
+                      </span>
                     </td>
                   </tr>
 
@@ -539,7 +576,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   {filteredMembers
                     .filter(m => !currentUser?.email || m.email.toLowerCase().trim() !== currentUser.email.toLowerCase().trim())
                     .map((m) => {
-                      const isPending = m.status === 'invited';
+                      const isMemberOwner = m.role === 'owner';
+                      const isPending = m.status === 'invited' && !isMemberOwner;
                       const inviteLink = m.invite_url || (m.token ? `${originUrl}/invite/${m.token}` : '');
                       const roleConfig = ROLE_DESCRIPTIONS[m.role] || ROLE_DESCRIPTIONS.editor;
 
@@ -561,7 +599,11 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
                           {/* Role Selector */}
                           <td className="py-3.5 px-4">
-                            {isOwnerOrAdmin && !isPending ? (
+                            {isMemberOwner ? (
+                              <span className="px-2 py-0.5 rounded text-[11px] font-bold capitalize bg-primary-fixed text-primary-container">
+                                Owner
+                              </span>
+                            ) : isOwnerOrAdmin && !isPending ? (
                               <select
                                 value={m.role}
                                 onChange={(e) => updateMemberRole(m.id, e.target.value as WorkspaceRole)}
@@ -595,7 +637,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
                           {/* Invitation Link Action */}
                           <td className="py-3.5 px-4">
-                            {isPending && inviteLink ? (
+                            {isMemberOwner ? (
+                              <span className="text-on-surface-variant text-[11px]">Primary Lead</span>
+                            ) : isPending && inviteLink ? (
                               <button
                                 type="button"
                                 onClick={() => handleCopyLink(inviteLink, m.id)}
@@ -611,7 +655,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
                           {/* Actions */}
                           <td className="py-3.5 px-4 text-right">
-                            {hasPermission(userRole, 'members:remove') && (
+                            {isMemberOwner ? (
+                              <span className="text-[11px] text-on-surface-variant font-medium">Workspace Owner</span>
+                            ) : hasPermission(userRole, 'members:remove') ? (
                               <button
                                 type="button"
                                 onClick={() => removeTeamMember(m.id)}
@@ -620,7 +666,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
-                            )}
+                            ) : null}
                           </td>
 
                         </tr>

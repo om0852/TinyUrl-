@@ -25,18 +25,23 @@ export async function GET(request: Request) {
       )) as unknown as RawWorkspaceRow[];
     } else if (email) {
       const cleanEmail = email.trim().toLowerCase();
-      // Workspaces where user is an active member or has an accepted invitation
+      // Workspaces where user is the owner, or an active collaborator
       rows = (await sql.query(
         `SELECT DISTINCT 
            w.id, 
            w.name, 
            w.slug, 
            w.plan, 
-           COALESCE(wm.role, w.role, 'viewer') as role, 
+           CASE 
+             WHEN LOWER(COALESCE(w.owner_email, '')) = $1 THEN 'owner'
+             ELSE COALESCE(wm.role, w.role, 'editor')
+           END as role, 
+           w.owner_email,
            w.created_at
          FROM workspaces w
          LEFT JOIN workspace_members wm ON wm.workspace_id = w.id AND LOWER(wm.email) = $1
-         WHERE LOWER(wm.email) = $1 
+         WHERE LOWER(COALESCE(w.owner_email, '')) = $1
+            OR LOWER(wm.email) = $1 
             OR w.id IN (SELECT workspace_id FROM workspace_members WHERE LOWER(email) = $1 AND status = 'active')
          ORDER BY w.created_at DESC`,
         [cleanEmail]
@@ -70,7 +75,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, slug, plan } = body;
+    const { id, name, slug, plan, owner_email, owner_id, owner_name } = body;
 
     if (!name || typeof name !== 'string') {
       return NextResponse.json({ success: false, error: 'Workspace name is required.' }, { status: 400 });
@@ -81,15 +86,32 @@ export async function POST(request: Request) {
       ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-')
       : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
     const cleanPlan = plan || 'pro';
+    const cleanOwnerEmail = (owner_email && typeof owner_email === 'string') ? owner_email.trim().toLowerCase() : null;
+    const cleanOwnerId = (owner_id && typeof owner_id === 'string') ? owner_id.trim() : null;
+    const cleanOwnerName = (owner_name && typeof owner_name === 'string') ? owner_name.trim() : 'Workspace Owner';
 
     const rows = (await sql.query(
-      `INSERT INTO workspaces (id, name, slug, plan, role, created_at)
-       VALUES ($1, $2, $3, $4, 'owner', NOW())
-       ON CONFLICT (slug) DO UPDATE
-       SET name = EXCLUDED.name, plan = EXCLUDED.plan
+      `INSERT INTO workspaces (id, name, slug, plan, role, owner_email, owner_id, created_at)
+       VALUES ($1, $2, $3, $4, 'owner', $5, $6, NOW())
+       ON CONFLICT (id) DO UPDATE
+       SET name = EXCLUDED.name, plan = EXCLUDED.plan, owner_email = COALESCE(EXCLUDED.owner_email, workspaces.owner_email), owner_id = COALESCE(EXCLUDED.owner_id, workspaces.owner_id)
        RETURNING *`,
-      [cleanId, name.trim(), cleanSlug, cleanPlan]
+      [cleanId, name.trim(), cleanSlug, cleanPlan, cleanOwnerEmail, cleanOwnerId]
     )) as unknown as RawWorkspaceRow[];
+
+    // Ensure the owner is automatically inserted into workspace_members as an active owner
+    if (cleanOwnerEmail) {
+      const memberId = `tm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      await sql.query(`
+        INSERT INTO workspace_members (id, workspace_id, user_id, name, email, role, status, created_at)
+        VALUES ($1, $2, $3, $4, $5, 'owner', 'active', NOW())
+        ON CONFLICT (workspace_id, email) DO UPDATE SET
+          role = 'owner',
+          status = 'active',
+          name = EXCLUDED.name,
+          user_id = COALESCE(EXCLUDED.user_id, workspace_members.user_id)
+      `, [memberId, cleanId, cleanOwnerId, cleanOwnerName, cleanOwnerEmail]).catch(() => {});
+    }
 
     const created = rows && rows.length > 0 ? rows[0] : null;
 

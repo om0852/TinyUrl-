@@ -48,9 +48,14 @@ export async function initializeDatabase() {
         slug VARCHAR(255) UNIQUE NOT NULL,
         plan VARCHAR(32) DEFAULT 'pro',
         role VARCHAR(32) DEFAULT 'owner',
+        owner_email VARCHAR(255),
+        owner_id VARCHAR(64),
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+    await sql.query(`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS owner_email VARCHAR(255);`).catch(() => {});
+    await sql.query(`ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS owner_id VARCHAR(64);`).catch(() => {});
+
 
     // 2. Custom Domains
     await sql.query(`

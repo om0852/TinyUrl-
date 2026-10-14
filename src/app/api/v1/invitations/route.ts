@@ -273,6 +273,13 @@ export async function POST(request: Request) {
       WHERE token = $1
     `, [token.trim()]);
 
+    await sql.query(`
+      UPDATE workspace_invitations 
+      SET status = 'revoked'
+      WHERE workspace_id = $1 AND LOWER(email) = $2 AND status = 'pending'
+    `, [invite.workspace_id, cleanEmail]).catch(() => {});
+
+
     // 5. Upsert workspace_members with active status and linked user_id
     const memberId = `tm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     await sql.query(`

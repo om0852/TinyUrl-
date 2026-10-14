@@ -47,6 +47,13 @@ export async function GET(request: Request) {
 
     const baseUrl = getBaseUrl(request);
 
+    // Fetch workspace to know who the designated owner is
+    const wsRows = (await sql.query(`
+      SELECT id, name, slug, owner_email, owner_id FROM workspaces WHERE id = $1 LIMIT 1
+    `, [workspaceId.trim()]).catch(() => [])) as { id: string; name: string; slug: string; owner_email?: string; owner_id?: string }[];
+    const ws = wsRows && wsRows.length > 0 ? wsRows[0] : null;
+    const ownerEmail = ws?.owner_email ? ws.owner_email.toLowerCase().trim() : null;
+
     // 1. Fetch active members (filter status = 'active' so pending invitations are never duplicated)
     const memberRows = (await sql.query(`
       SELECT * FROM workspace_members
@@ -61,7 +68,12 @@ export async function GET(request: Request) {
       ORDER BY created_at DESC
     `, [workspaceId.trim()])) as unknown as RawInvitationRow[];
 
-    const formattedMembers: TeamMember[] = (memberRows || []).map(m => {
+    const activeEmails = new Set<string>();
+
+    let formattedMembers: TeamMember[] = (memberRows || []).map(m => {
+      const emailLower = m.email.toLowerCase().trim();
+      activeEmails.add(emailLower);
+      const isOwner = ownerEmail ? emailLower === ownerEmail : m.role === 'owner';
       const initials = (m.name || 'TM').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
       return {
         id: m.id,
@@ -69,26 +81,57 @@ export async function GET(request: Request) {
         user_id: m.user_id || undefined,
         name: m.name,
         email: m.email,
-        role: (m.role as WorkspaceRole) || 'editor',
-        status: (m.status as 'active' | 'invited') || 'active',
+        role: isOwner ? 'owner' : ((m.role as WorkspaceRole) || 'editor'),
+        status: 'active',
         avatar: initials,
         created_at: m.created_at || new Date().toISOString()
       };
     });
 
-    const formattedInvitations: WorkspaceInvitation[] = (inviteRows || []).map(inv => ({
-      id: inv.id,
-      workspace_id: inv.workspace_id,
-      inviter_email: inv.inviter_email || undefined,
-      name: inv.name,
-      email: inv.email,
-      role: (inv.role as WorkspaceRole) || 'editor',
-      token: inv.token,
-      status: (inv.status as 'pending' | 'accepted' | 'revoked' | 'expired') || 'pending',
-      expires_at: inv.expires_at || undefined,
-      created_at: inv.created_at || new Date().toISOString(),
-      invite_url: `${baseUrl}/invite/${inv.token}`
-    }));
+    // If the workspace has an owner registered who isn't in memberRows yet, include them as active owner
+    if (ownerEmail && !activeEmails.has(ownerEmail)) {
+      const ownerUserRows = (await sql.query(`
+        SELECT id, name, email FROM users WHERE LOWER(email) = $1 LIMIT 1
+      `, [ownerEmail]).catch(() => [])) as { id: string; name: string; email: string }[];
+      const ownerUser = ownerUserRows && ownerUserRows.length > 0 ? ownerUserRows[0] : null;
+      const ownerName = ownerUser?.name || 'Workspace Owner';
+      const initials = ownerName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'WO';
+
+      formattedMembers.unshift({
+        id: `tm_owner_${workspaceId}`,
+        workspace_id: workspaceId,
+        user_id: ownerUser?.id || ws?.owner_id || undefined,
+        name: ownerName,
+        email: ownerEmail,
+        role: 'owner',
+        status: 'active',
+        avatar: initials,
+        created_at: new Date().toISOString()
+      });
+      activeEmails.add(ownerEmail);
+    }
+
+    // Filter out invitations for people who have already accepted or are the owner
+    const formattedInvitations: WorkspaceInvitation[] = (inviteRows || [])
+      .filter(inv => {
+        const invEmail = inv.email.toLowerCase().trim();
+        if (ownerEmail && invEmail === ownerEmail) return false;
+        if (activeEmails.has(invEmail)) return false;
+        return true;
+      })
+      .map(inv => ({
+        id: inv.id,
+        workspace_id: inv.workspace_id,
+        inviter_email: inv.inviter_email || undefined,
+        name: inv.name,
+        email: inv.email,
+        role: (inv.role as WorkspaceRole) || 'editor',
+        token: inv.token,
+        status: (inv.status as 'pending' | 'accepted' | 'revoked' | 'expired') || 'pending',
+        expires_at: inv.expires_at || undefined,
+        created_at: inv.created_at || new Date().toISOString(),
+        invite_url: `${baseUrl}/invite/${inv.token}`
+      }));
 
     return NextResponse.json({
       success: true,
@@ -118,6 +161,18 @@ export async function POST(request: Request) {
     const cleanRole: WorkspaceRole = ['admin', 'editor', 'viewer'].includes(role) ? role : 'editor';
     const baseUrl = getBaseUrl(request);
 
+    // Prevent inviting the workspace owner as a subordinate collaborator
+    const wsRows = (await sql.query(`
+      SELECT owner_email FROM workspaces WHERE id = $1 LIMIT 1
+    `, [workspace_id.trim()]).catch(() => [])) as { owner_email?: string }[];
+    const ownerEmail = wsRows?.[0]?.owner_email?.toLowerCase().trim();
+    if (ownerEmail && cleanEmail === ownerEmail) {
+      return NextResponse.json({
+        success: false,
+        error: 'This email is already the Owner of this workspace and cannot be invited.'
+      }, { status: 400 });
+    }
+
     // Generate secure 48-character hex token
     const token = crypto.randomBytes(24).toString('hex');
     const inviteId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -145,14 +200,14 @@ export async function POST(request: Request) {
       token
     ])) as unknown as RawInvitationRow[];
 
-    // 3. Upsert member record in workspace_members with status 'invited'
+    // 3. Upsert member record in workspace_members with status 'invited' (never downgrade an existing owner)
     await sql.query(`
       INSERT INTO workspace_members (id, workspace_id, name, email, role, status, created_at)
       VALUES ($1, $2, $3, $4, $5, 'invited', NOW())
       ON CONFLICT (workspace_id, email) DO UPDATE SET
         name = EXCLUDED.name,
-        role = EXCLUDED.role,
-        status = 'invited'
+        role = CASE WHEN workspace_members.role = 'owner' THEN 'owner' ELSE EXCLUDED.role END,
+        status = CASE WHEN workspace_members.role = 'owner' THEN 'active' ELSE 'invited' END
     `, [
       memberId,
       workspace_id.trim(),
@@ -295,17 +350,26 @@ export async function PATCH(request: Request) {
 
     const cleanRole: WorkspaceRole = ['admin', 'editor', 'viewer'].includes(role) ? role : 'editor';
 
+    const wsRows = (await sql.query(`
+      SELECT owner_email FROM workspaces WHERE id = $1 LIMIT 1
+    `, [workspace_id.trim()]).catch(() => [])) as { owner_email?: string }[];
+    const ownerEmail = wsRows?.[0]?.owner_email?.toLowerCase().trim();
+
     await sql.query(`
       UPDATE workspace_members
       SET role = $1
-      WHERE (id = $2 OR LOWER(email) = LOWER($2)) AND workspace_id = $3
-    `, [cleanRole, member_id.trim(), workspace_id.trim()]);
+      WHERE (id = $2 OR LOWER(email) = LOWER($2)) 
+        AND workspace_id = $3 
+        AND role != 'owner'
+        AND ($4::text IS NULL OR LOWER(email) != $4)
+    `, [cleanRole, member_id.trim(), workspace_id.trim(), ownerEmail || null]);
 
     await sql.query(`
       UPDATE workspace_invitations
       SET role = $1
       WHERE (id = $2 OR LOWER(email) = LOWER($2)) AND workspace_id = $3 AND status = 'pending'
     `, [cleanRole, member_id.trim(), workspace_id.trim()]).catch(() => {});
+
 
     return NextResponse.json({
       success: true,
