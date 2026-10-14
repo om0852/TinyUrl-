@@ -31,11 +31,12 @@ interface CreateLinkModalProps {
 }
 
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
-  const { createShortLink, links } = useStore();
+  const { createShortLink, links, campaigns } = useStore();
 
   const [destinationUrl, setDestinationUrl] = useState('');
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
   const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
   
   // UTM params
@@ -161,6 +162,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         title: title.trim() || undefined,
         custom_slug: customSlug.trim() ? customSlug.trim().toLowerCase() : undefined,
         tags,
+        campaign_id: selectedCampaignId || undefined,
         utm_source: utmSource,
         utm_medium: utmMedium,
         utm_campaign: utmCampaign,
@@ -404,6 +406,33 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   />
                 </div>
               </div>
+
+              {/* Campaign Attribution Selector */}
+              {campaigns.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  <label className="font-semibold text-on-surface text-xs flex items-center justify-between">
+                    <span>Attach to Campaign (Optional)</span>
+                    <span className="text-[11px] text-on-surface-variant font-normal">Auto-links deliverable metrics</span>
+                  </label>
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setSelectedCampaignId(newId);
+                      const camp = campaigns.find(c => c.id === newId);
+                      if (camp) {
+                        setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"
+                  >
+                    <option value="">No Campaign (Direct Deliverable)</option>
+                    {campaigns.map(c => (
+                      <option key={c.id} value={c.id}>{c.name} ({c.description || 'Campaign'})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Platform Pill Tags */}
               <div className="flex flex-col gap-1.5">

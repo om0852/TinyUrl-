@@ -93,6 +93,7 @@ interface StoreContextType {
   deleteDomain: (idOrHostname: string) => Promise<boolean>;
   
   addCampaign: (name: string, description: string, tags: string[], target_clicks?: number) => Campaign;
+  updateCampaign: (id: string, updates: Partial<Campaign>) => void;
   deleteCampaign: (id: string) => void;
   addApiKey: (name: string, permissions: string[]) => ApiKey;
   deleteApiKey: (id: string) => void;
@@ -963,7 +964,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             rules: target.rules,
             status: target.status,
             title: target.title,
-            destination_url: target.destination_url
+            destination_url: target.destination_url,
+            campaign_id: target.campaign_id !== undefined ? target.campaign_id : null,
+            tags: target.tags
           })
         }).catch(err => console.warn('Failed to update link on server:', err));
       }
@@ -1186,6 +1189,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     return newCamp;
+  };
+
+  const updateCampaign = (id: string, updates: Partial<Campaign>) => {
+    const updated = campaigns.map(c => c.id === id ? { ...c, ...updates } : c);
+    saveCampaignsState(updated);
+    if (typeof window !== 'undefined') {
+      const target = updated.find(c => c.id === id);
+      if (target) {
+        fetch('/api/v1/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: target.id,
+            workspace_id: target.workspace_id,
+            name: target.name,
+            description: target.description,
+            tags: target.tags,
+            target_clicks: target.target_clicks
+          })
+        }).catch(err => console.warn('Failed to update campaign on server:', err));
+      }
+    }
   };
 
   const deleteCampaign = (id: string) => {
@@ -1977,6 +2002,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       removeRuleFromLink,
       logClick,
       addCampaign,
+      updateCampaign,
       deleteCampaign,
       addApiKey,
       deleteApiKey,

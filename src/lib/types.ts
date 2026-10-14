@@ -218,6 +218,7 @@ export interface ShortenApiRequest {
   password?: string;
   expires_at?: string;
   max_clicks?: number;
+  campaign_id?: string;
 }
 
 export interface ShortenApiResponse {

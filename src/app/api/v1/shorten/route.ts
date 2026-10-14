@@ -30,7 +30,8 @@ export async function POST(request: Request) {
       rules,
       password,
       expires_at,
-      max_clicks
+      max_clicks,
+      campaign_id
     } = body;
 
     // 1. Strict Destination URL Validation
@@ -116,12 +117,15 @@ export async function POST(request: Request) {
 
     const uniqueId = body.id || `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 
+    const cleanCampaignId = campaign_id && typeof campaign_id === 'string' && campaign_id.trim() ? campaign_id.trim() : undefined;
+
     const newLink: Link = {
       id: uniqueId,
       workspace_id: workspace_id.trim(),
       short_code: code,
       custom_slug: custom_slug ? code : undefined,
       domain_id: 'dom_primary',
+      campaign_id: cleanCampaignId,
       destination_url: finalUrl,
       title: title && typeof title === 'string' ? title.slice(0, 255) : `Short Link /${code}`,
       tags: Array.isArray(tags) ? tags.map(String).slice(0, 10) : ['api'],
@@ -140,13 +144,14 @@ export async function POST(request: Request) {
     // Save to PostgreSQL with collision guard
     try {
       const insertResult = await sql.query(
-        `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          ON CONFLICT (short_code) DO UPDATE SET
            destination_url = EXCLUDED.destination_url,
            custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
            rules = COALESCE(EXCLUDED.rules, links.rules),
-           title = COALESCE(EXCLUDED.title, links.title)
+           title = COALESCE(EXCLUDED.title, links.title),
+           campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id)
          RETURNING id`,
         [
           newLink.id,
@@ -162,6 +167,7 @@ export async function POST(request: Request) {
           utm_source || null,
           utm_medium || null,
           utm_campaign || null,
+          cleanCampaignId || null,
           newLink.created_at
         ]
       );

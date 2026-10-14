@@ -10,6 +10,7 @@ interface RawLinkRow {
   short_code: string;
   custom_slug?: string | null;
   domain_id?: string | null;
+  campaign_id?: string | null;
   destination_url: string;
   title?: string | null;
   tags?: string[] | string | null;
@@ -93,6 +94,7 @@ export async function GET(request: Request) {
           created_by: l.created_by || 'Owner',
           created_at: l.created_at || new Date().toISOString(),
           rules: parsedRules,
+          campaign_id: l.campaign_id || undefined,
           utm_source: l.utm_source || undefined,
           utm_medium: l.utm_medium || undefined,
           utm_campaign: l.utm_campaign || undefined,
@@ -130,15 +132,17 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, short_code, custom_slug, rules, status, title, destination_url } = body;
+    const { id, short_code, custom_slug, rules, status, title, destination_url, campaign_id, tags } = body;
     const lookupId = (id || short_code || custom_slug || '').trim();
     if (!lookupId) {
       return NextResponse.json({ success: false, error: 'Link identifier is required.' }, { status: 400 });
     }
 
     const rulesJson = Array.isArray(rules) ? JSON.stringify(rules) : null;
+    const tagsJson = Array.isArray(tags) ? JSON.stringify(tags) : null;
     const newShortCode = short_code ? String(short_code).trim() : null;
     const newCustomSlug = custom_slug ? String(custom_slug).trim() : null;
+    const newCampaignId = campaign_id !== undefined ? (campaign_id === null || campaign_id === '' || campaign_id === '__remove__' ? '__null__' : String(campaign_id).trim()) : null;
 
     const rows = (await sql.query(
       `UPDATE links 
@@ -148,6 +152,12 @@ export async function PATCH(request: Request) {
            destination_url = COALESCE($4, destination_url),
            short_code = COALESCE($5, short_code),
            custom_slug = COALESCE($6, custom_slug),
+           campaign_id = CASE 
+             WHEN $9 = '__null__' THEN NULL 
+             WHEN $9::text IS NOT NULL THEN $9 
+             ELSE campaign_id 
+           END,
+           tags = CASE WHEN $10::text IS NOT NULL THEN $10::jsonb ELSE tags END,
            updated_at = NOW()
        WHERE id = $7 
           OR LOWER(short_code) = LOWER($7) 
@@ -163,7 +173,9 @@ export async function PATCH(request: Request) {
         newShortCode, 
         newCustomSlug, 
         lookupId, 
-        newShortCode || newCustomSlug || null
+        newShortCode || newCustomSlug || null,
+        newCampaignId,
+        tagsJson
       ]
     )) as unknown as RawLinkRow[];
 
