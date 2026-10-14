@@ -215,6 +215,25 @@ export async function initializeDatabase() {
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_invitations_ws ON workspace_invitations (workspace_id)`);
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_campaigns_workspace ON campaigns (workspace_id)`);
 
+    // 10. Bulk Import & Export Jobs
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS bulk_jobs (
+        id VARCHAR(64) PRIMARY KEY,
+        workspace_id VARCHAR(64) NOT NULL,
+        user_email VARCHAR(255),
+        operation VARCHAR(32) NOT NULL DEFAULT 'import',
+        batch_name VARCHAR(255) NOT NULL,
+        total_rows INT DEFAULT 0,
+        success_count INT DEFAULT 0,
+        error_count INT DEFAULT 0,
+        error_details JSONB DEFAULT '[]'::jsonb,
+        status VARCHAR(32) DEFAULT 'completed',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_bulk_jobs_workspace ON bulk_jobs (workspace_id);`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_bulk_jobs_created ON bulk_jobs (created_at DESC);`);
+
     return { success: true };
   } catch (error) {
     console.error('Failed to initialize database tables:', error);

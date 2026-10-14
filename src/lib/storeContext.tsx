@@ -120,6 +120,11 @@ interface StoreContextType {
   aiSummarizePerformance: (linkId?: string) => string;
   exportLinksCsv: () => void;
   importLinksCsv: (csvContent: string) => number;
+  importLinksBatch: (
+    items: Array<{ destination_url: string; custom_slug?: string; title?: string; tags?: string[]; utm_source?: string; utm_medium?: string; utm_campaign?: string }>,
+    batchName?: string
+  ) => Promise<{ success: boolean; imported: number; failed: number; errors: any[] }>;
+  logExportJob: (batchName: string, totalRows: number) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -2564,6 +2569,79 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return importedCount;
   };
 
+  const importLinksBatch = async (
+    items: Array<{ destination_url: string; custom_slug?: string; title?: string; tags?: string[]; utm_source?: string; utm_medium?: string; utm_campaign?: string }>,
+    batchName?: string
+  ): Promise<{ success: boolean; imported: number; failed: number; errors: any[] }> => {
+    if (!checkPermissionOrToast('links:create', 'import links in bulk')) {
+      return { success: false, imported: 0, failed: items.length, errors: [{ row: 0, url: '', error: 'Permission denied.' }] };
+    }
+
+    try {
+      const res = await fetch('/api/v1/links/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspace_id: currentWorkspace.id,
+          batch_name: batchName || `Batch Import (${items.length} links)`,
+          items
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (Array.isArray(data.links) && data.links.length > 0) {
+          setLinks(prev => {
+            const newIds = new Set(data.links.map((l: Link) => l.id));
+            const filtered = prev.filter(l => !newIds.has(l.id));
+            const updated = [...data.links, ...filtered];
+            try {
+              const linksKey = getUserStorageKey('url_shortener_links', currentUser?.email);
+              localStorage.setItem(linksKey, JSON.stringify(updated));
+              localStorage.setItem('url_shortener_links', JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+        }
+        return {
+          success: true,
+          imported: data.imported || 0,
+          failed: data.failed || 0,
+          errors: data.errors || []
+        };
+      }
+      return {
+        success: false,
+        imported: 0,
+        failed: items.length,
+        errors: [{ row: 0, url: '', error: data.error || 'Failed to process bulk import.' }]
+      };
+    } catch {
+      return {
+        success: false,
+        imported: 0,
+        failed: items.length,
+        errors: [{ row: 0, url: '', error: 'Network error during bulk import.' }]
+      };
+    }
+  };
+
+  const logExportJob = async (batchName: string, totalRows: number) => {
+    try {
+      await fetch('/api/v1/bulk/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workspace_id: currentWorkspace.id,
+          operation: 'export',
+          batch_name: batchName,
+          total_rows: totalRows,
+          success_count: totalRows
+        })
+      });
+    } catch {}
+  };
+
   return (
     <StoreContext.Provider value={{
       currentUser,
@@ -2614,7 +2692,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       aiSuggestSlugs,
       aiSummarizePerformance,
       exportLinksCsv,
-      importLinksCsv
+      importLinksCsv,
+      importLinksBatch,
+      logExportJob
     }}>
       {children}
     </StoreContext.Provider>
