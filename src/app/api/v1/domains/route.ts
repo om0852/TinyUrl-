@@ -303,10 +303,12 @@ export async function PATCH(request: Request) {
       routingVerified = true;
     }
 
-    // C. Developer Demo / Localhost bypass
+    // C. Developer Demo / Localhost / DuckDNS bypass
+    const isDuckDns = cleanHost.endsWith('.duckdns.org') && (resolvedIps.length > 0 || isIpMatched);
     const isLocalOrTest = cleanHost.includes('localhost') || 
                           cleanHost.endsWith('.test') || 
                           cleanHost.endsWith('.local') || 
+                          isDuckDns ||
                           simulate_bypass === true;
 
     if (isLocalOrTest) {
