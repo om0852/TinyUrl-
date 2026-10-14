@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { headers } from 'next/headers';
 import { sql } from '@/lib/postgres';
 import { Link, LinkRule } from '@/lib/types';
+import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 import { RedirectClient } from './RedirectClient';
 
 interface PageProps {
@@ -70,23 +71,22 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           password_hash: row.password_hash ? 'PROTECTED' : undefined
         };
 
-        // Server-Side Device Smart Routing evaluation
+        // Server-Side Location & Device Smart Routing evaluation
         if (!isPasswordLocked && parsedRules.length > 0) {
           try {
             const reqHeaders = await headers();
             const userAgent = reqHeaders.get('user-agent') || '';
-            const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-            const isAndroid = /Android/i.test(userAgent);
+            const geo = extractGeoFromHeaders(name => reqHeaders.get(name));
 
-            const devRule = parsedRules.find(r => 
-              r.rule_type === 'device' && (
-                (r.condition?.toLowerCase() === 'android' && isAndroid) ||
-                (r.condition?.toLowerCase() === 'ios' && isIOS) ||
-                (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
-              )
-            );
-            if (devRule && devRule.target_url) {
-              initialTarget = devRule.target_url;
+            const resolved = resolveSmartTargetUrl({
+              rules: parsedRules,
+              defaultUrl: row.destination_url,
+              userAgent,
+              geo
+            });
+
+            if (resolved) {
+              initialTarget = resolved;
             }
           } catch {}
         }

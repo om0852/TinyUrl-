@@ -40,9 +40,10 @@ export interface LinkRule {
   id: string;
   link_id: string;
   rule_type: 'geo' | 'device' | 'ab';
-  condition: string; // e.g. 'iOS', 'Android', 'US', 'IN', '50'
+  condition: string; // e.g. 'iOS', 'Android', 'IN', 'Maharashtra', 'Mumbai'
   target_url: string;
   weight?: number;
+  geo_type?: 'country' | 'state' | 'city';
 }
 
 export interface RetargetingPixel {

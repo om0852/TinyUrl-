@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { Link, LinkRule } from '@/lib/types';
+import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 
 const EXCLUDED_PREFIXES = [
   '/_next',
@@ -84,67 +85,40 @@ export async function middleware(request: NextRequest) {
     // 7. Hand off click tracking and telemetry to /r/[code] and /api/v1/track
     // Deduplication guarantees exact 1-count tracking per real user visit without double-counting.
 
-    // 8. Resolve Smart Edge Routing (Device, Geo & A/B Split Testing)
+    // 8. Resolve Smart Edge Routing (Location: City > State > Country, Device, & A/B Split Testing)
     let destinationUrl = linkData.destination_url;
     const rules: LinkRule[] = typeof linkData.rules === 'string' ? JSON.parse(linkData.rules) : (linkData.rules || []);
 
     const userAgent = request.headers.get('user-agent') || '';
-    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-    const isAndroid = /Android/i.test(userAgent);
-    const country = request.headers.get('x-vercel-ip-country') || request.headers.get('cf-ipcountry') || 'US';
+    const geo = extractGeoFromHeaders(name => request.headers.get(name));
+    const existingAbVariant = request.cookies.get(`ab_${code}`)?.value as 'A' | 'B' | undefined;
 
     if (rules.length > 0) {
-      // Device rule
-      const deviceRule = rules.find((r: LinkRule) => 
-        r.rule_type === 'device' && (
-          (r.condition?.toLowerCase() === 'ios' && isIOS) ||
-          (r.condition?.toLowerCase() === 'android' && isAndroid) ||
-          (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
-        )
-      );
+      destinationUrl = resolveSmartTargetUrl({
+        rules,
+        defaultUrl: linkData.destination_url,
+        userAgent,
+        geo,
+        abVariant: existingAbVariant || null
+      });
 
-      if (deviceRule && deviceRule.target_url) {
-        destinationUrl = deviceRule.target_url;
-      } else {
-        // Geo rule
-        const geoRule = rules.find((r: LinkRule) => 
-          r.rule_type === 'geo' && r.condition?.toUpperCase() === country.toUpperCase()
-        );
+      // Handle sticky A/B test assignment if an A/B rule exists and no cookie is set
+      const abRule = rules.find(r => r.rule_type === 'ab');
+      if (abRule && !existingAbVariant) {
+        const isB = destinationUrl === abRule.target_url;
+        const abRewriteUrl = new URL(`/r/${code}`, request.url);
+        abRewriteUrl.searchParams.set('target', destinationUrl);
+        const response = pathname.startsWith('/r/')
+          ? NextResponse.next()
+          : NextResponse.rewrite(abRewriteUrl);
 
-        if (geoRule && geoRule.target_url) {
-          destinationUrl = geoRule.target_url;
-        } else {
-          // A/B test rule with sticky visitor assignment (cookie-based)
-          const abRule = rules.find((r: LinkRule) => r.rule_type === 'ab');
-          if (abRule && abRule.target_url) {
-            const weight = abRule.weight || 50;
-            const existingVariant = request.cookies.get(`ab_${code}`)?.value;
-
-            if (existingVariant === 'B') {
-              destinationUrl = abRule.target_url;
-            } else if (existingVariant === 'A') {
-              destinationUrl = linkData.destination_url;
-            } else {
-              const assignB = Math.random() * 100 < weight;
-              const target = assignB ? abRule.target_url : linkData.destination_url;
-
-              const abRewriteUrl = new URL(`/r/${code}`, request.url);
-              abRewriteUrl.searchParams.set('target', target);
-              const response = pathname.startsWith('/r/')
-                ? NextResponse.next()
-                : NextResponse.rewrite(abRewriteUrl);
-
-              response.headers.set('x-destination-url', target);
-              response.cookies.set(`ab_${code}`, assignB ? 'B' : 'A', {
-                path: '/',
-                maxAge: 60 * 60 * 24 * 30, // 30 days
-                sameSite: 'lax',
-              });
-
-              return response;
-            }
-          }
-        }
+        response.headers.set('x-destination-url', destinationUrl);
+        response.cookies.set(`ab_${code}`, isB ? 'B' : 'A', {
+          path: '/',
+          maxAge: 60 * 60 * 24 * 30, // 30 days
+          sameSite: 'lax',
+        });
+        return response;
       }
     }
 

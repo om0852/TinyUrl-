@@ -73,7 +73,7 @@ interface StoreContextType {
 
   updateLink: (id: string, updates: Partial<Link>) => void;
   deleteLink: (id: string) => void;
-  addRuleToLink: (linkId: string, rule: { rule_type: 'geo' | 'device' | 'ab'; condition: string; target_url: string; weight?: number }) => void;
+  addRuleToLink: (linkId: string, rule: { rule_type: 'geo' | 'device' | 'ab'; condition: string; target_url: string; weight?: number; geo_type?: 'country' | 'state' | 'city' }) => void;
   removeRuleFromLink: (linkId: string, ruleId: string) => void;
   logClick: (linkId: string, clientInfo?: Partial<ClickEvent>) => ClickEvent;
   
@@ -946,17 +946,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addRuleToLink = (linkId: string, rule: { rule_type: 'geo' | 'device' | 'ab'; condition: string; target_url: string; weight?: number }) => {
-    const targetLink = links.find(l => l.id === linkId || l.short_code?.toLowerCase() === linkId.toLowerCase());
+  const addRuleToLink = (linkId: string, rule: { rule_type: 'geo' | 'device' | 'ab'; condition: string; target_url: string; weight?: number; geo_type?: 'country' | 'state' | 'city' }) => {
+    const targetLink = links.find(l => l.id === linkId || l.short_code?.toLowerCase() === linkId.toLowerCase() || (l.custom_slug && l.custom_slug.toLowerCase() === linkId.toLowerCase()));
     if (!targetLink) return;
 
     const newRule: LinkRule = {
       id: generateId('rule'),
       link_id: targetLink.id,
       rule_type: rule.rule_type,
-      condition: rule.condition.toLowerCase(),
+      condition: rule.condition.trim(),
       target_url: normalizeUrl(rule.target_url),
-      weight: rule.weight
+      weight: rule.weight,
+      geo_type: rule.geo_type
     };
 
     // Filter out existing rule with same rule_type and condition to prevent conflicts

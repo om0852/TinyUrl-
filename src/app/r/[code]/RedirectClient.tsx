@@ -350,29 +350,36 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
     let finalUrl = (link && link.destination_url) || edgeTarget || '';
 
     if (link?.rules && link.rules.length > 0) {
-      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-      const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-      const isAndroid = /Android/i.test(userAgent);
+      // If edgeTarget was matched by Edge/Server Location routing (City > State > Country), prioritize it
+      const isGeoEdgeTarget = edgeTarget && link.rules.some(r => r.rule_type === 'geo' && r.target_url === edgeTarget);
 
-      const deviceRule = link.rules.find(r => 
-        r.rule_type === 'device' && (
-          (r.condition?.toLowerCase() === 'android' && isAndroid) ||
-          (r.condition?.toLowerCase() === 'ios' && isIOS) ||
-          (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
-        )
-      );
-
-      if (deviceRule && deviceRule.target_url) {
-        finalUrl = deviceRule.target_url;
+      if (isGeoEdgeTarget) {
+        finalUrl = edgeTarget;
       } else {
-        const abRule = link.rules.find(r => r.rule_type === 'ab');
-        if (abRule && abRule.target_url) {
-          const weight = abRule.weight || 50;
-          if (abRoll < weight) {
-            finalUrl = abRule.target_url;
+        const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+        const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+        const isAndroid = /Android/i.test(userAgent);
+
+        const deviceRule = link.rules.find(r => 
+          r.rule_type === 'device' && (
+            (r.condition?.toLowerCase() === 'android' && isAndroid) ||
+            (r.condition?.toLowerCase() === 'ios' && isIOS) ||
+            (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
+          )
+        );
+
+        if (deviceRule && deviceRule.target_url) {
+          finalUrl = deviceRule.target_url;
+        } else {
+          const abRule = link.rules.find(r => r.rule_type === 'ab');
+          if (abRule && abRule.target_url) {
+            const weight = abRule.weight || 50;
+            if (abRoll < weight) {
+              finalUrl = abRule.target_url;
+            }
+          } else if (edgeTarget) {
+            finalUrl = edgeTarget;
           }
-        } else if (edgeTarget) {
-          finalUrl = edgeTarget;
         }
       }
     } else if (edgeTarget) {
