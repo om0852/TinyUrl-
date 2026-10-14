@@ -13,6 +13,7 @@ const EXCLUDED_PREFIXES = [
   '/login',
   '/signup',
   '/invite',
+  '/c',
   '/stitch-screenshot',
   '/stitch-screen'
 ];

@@ -309,11 +309,18 @@ export const CampaignsView: React.FC = () => {
                     <div className="flex items-center gap-2 shrink-0">
                       <button 
                         type="button"
-                        onClick={() => handleCopyPreset(`https://snip.to/c/${camp.id}`, camp.id)}
+                        onClick={() => {
+                          const origin = typeof window !== 'undefined' ? window.location.origin : 'https://tiny-url-self.vercel.app';
+                          const primaryLink = campLinks[0];
+                          const shareUrl = primaryLink 
+                            ? `${origin}/${primaryLink.custom_slug || primaryLink.short_code}`
+                            : `${origin}/c/${camp.id}`;
+                          handleCopyPreset(shareUrl, camp.id);
+                        }}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low hover:bg-surface-container-high text-on-surface px-3 py-1.5 rounded-xl transition-colors border border-outline-variant/30 cursor-pointer"
                       >
                         <Link2 className="w-3.5 h-3.5 text-primary-container" />
-                        <span>{copiedPreset === camp.id ? 'Copied!' : 'Share Link'}</span>
+                        <span>{copiedPreset === camp.id ? 'Copied Link!' : 'Share Link'}</span>
                       </button>
                       <button 
                         type="button" 

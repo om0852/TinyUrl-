@@ -17,7 +17,7 @@ interface SlugInputProps {
 export const SlugInput: React.FC<SlugInputProps> = ({
   value,
   onChange,
-  prefix = 'snip.to/',
+  prefix,
   label,
   placeholder = 'custom-slug',
   error,
@@ -26,6 +26,9 @@ export const SlugInput: React.FC<SlugInputProps> = ({
   disabled = false,
   className = ''
 }) => {
+  const dynamicHost = typeof window !== 'undefined' ? `${window.location.host}/` : 'tinyurl.com/';
+  const displayPrefix = prefix !== undefined ? prefix : dynamicHost;
+
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
       {label && (
@@ -36,9 +39,9 @@ export const SlugInput: React.FC<SlugInputProps> = ({
       <div className={`flex rounded-xl shadow-xs overflow-hidden bg-surface-container-lowest border transition-colors ${
         error ? 'border-error ring-2 ring-error/20' : 'border-outline-variant/50 focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20'
       }`}>
-        {prefix && (
+        {displayPrefix && (
           <span className="px-3.5 py-2.5 bg-surface-container text-on-surface-variant font-mono text-xs flex items-center select-none border-r border-outline-variant/30">
-            {prefix}
+            {displayPrefix}
           </span>
         )}
         <input

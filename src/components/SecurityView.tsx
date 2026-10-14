@@ -47,6 +47,7 @@ interface SecurityRow {
 export const SecurityView: React.FC = () => {
   const { links, updateLink, currentWorkspace, addWebhook } = useStore();
   const [mounted, setMounted] = useState(false);
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
 
   // Audit animation state
   const [isAuditing, setIsAuditing] = useState(false);
@@ -841,14 +842,14 @@ export const SecurityView: React.FC = () => {
                 <span>Active Incident Under Mitigation</span>
               </div>
               <p className="text-xs text-amber-800 leading-relaxed mb-4">
-                Endpoint <strong className="font-mono text-amber-950 font-bold">snip.to/old-sponsor-discount</strong> returned 404 for 24 consecutive checks. Auto-redirect killswitch engaged. Visitors currently directed to your main fallback hub.
+                Endpoint <strong className="font-mono text-amber-950 font-bold">{originDomain}/old-sponsor-discount</strong> returned 404 for 24 consecutive checks. Auto-redirect killswitch engaged. Visitors currently directed to your main fallback hub.
               </p>
             </div>
 
             <div className="flex items-center gap-2 pt-2 border-t border-amber-200">
               <button 
                 type="button"
-                onClick={() => handleOpenSwapModal('snip.to/old-sponsor-discount')}
+                onClick={() => handleOpenSwapModal(`${originDomain}/old-sponsor-discount`)}
                 className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-xl hover:bg-primary transition-colors cursor-pointer shadow-xs"
               >
                 Swap Destination Now
