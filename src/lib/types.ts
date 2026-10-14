@@ -135,6 +135,7 @@ export interface ClickEvent {
   short_code: string;
   timestamp: string; // ISO string
   ip_hash: string;
+  visitor_id?: string;
   country: string;
   country_code: string;
   region?: string;
@@ -259,6 +260,9 @@ export interface AuthApiResponse {
 export interface AnalyticsMetrics {
   total_clicks: number;
   unique_visitors: number;
+  unique_clicks?: number;
+  repeat_clicks?: number;
+  repeat_rate?: string;
   bot_clicks_filtered: number;
   avg_latency_ms: number;
   top_countries: Array<{ country: string; code: string; clicks: number }>;

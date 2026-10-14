@@ -12,6 +12,8 @@ interface CountryStatRow {
 interface ClickStatRow {
   total_clicks?: number | string | null;
   unique_visitors?: number | string | null;
+  unique_clicks?: number | string | null;
+  repeat_clicks?: number | string | null;
   bot_clicks?: number | string | null;
   avg_latency?: number | string | null;
   mobile_clicks?: number | string | null;
@@ -45,6 +47,8 @@ export async function GET(request: Request) {
 
   let totalClicks = 0;
   let uniqueVisitors = 0;
+  let uniqueClicks = 0;
+  let repeatClicks = 0;
   let botClicks = 0;
   let avgLatency = 0;
   let mobileClicks = 0;
@@ -60,6 +64,9 @@ export async function GET(request: Request) {
       metrics: {
         total_clicks: 0,
         unique_visitors: 0,
+        unique_clicks: 0,
+        repeat_clicks: 0,
+        repeat_rate: '0%',
         bot_clicks_filtered: 0,
         avg_latency_ms: 0,
         top_countries: [],
@@ -74,6 +81,8 @@ export async function GET(request: Request) {
         SELECT 
           COUNT(*)::int as total_clicks,
           COUNT(DISTINCT ip_hash)::int as unique_visitors,
+          COUNT(*) FILTER (WHERE is_unique = true)::int as unique_clicks,
+          COUNT(*) FILTER (WHERE is_unique = false)::int as repeat_clicks,
           COUNT(*) FILTER (WHERE is_bot = true)::int as bot_clicks,
           ROUND(AVG(COALESCE(latency_ms, 20))::numeric, 1) as avg_latency,
           COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'mobile')::int as mobile_clicks,
@@ -86,6 +95,8 @@ export async function GET(request: Request) {
       if (stats && stats.length > 0) {
         totalClicks = Number(stats[0].total_clicks) || 0;
         uniqueVisitors = Number(stats[0].unique_visitors) || 0;
+        uniqueClicks = Number(stats[0].unique_clicks) || uniqueVisitors;
+        repeatClicks = Number(stats[0].repeat_clicks) || Math.max(0, totalClicks - uniqueVisitors);
         botClicks = Number(stats[0].bot_clicks) || 0;
         avgLatency = Number(stats[0].avg_latency) || 0;
         mobileClicks = Number(stats[0].mobile_clicks) || 0;
@@ -115,6 +126,8 @@ export async function GET(request: Request) {
         SELECT 
           COUNT(c.id)::int as total_clicks,
           COUNT(DISTINCT c.ip_hash)::int as unique_visitors,
+          COUNT(c.id) FILTER (WHERE c.is_unique = true)::int as unique_clicks,
+          COUNT(c.id) FILTER (WHERE c.is_unique = false)::int as repeat_clicks,
           COUNT(c.id) FILTER (WHERE c.is_bot = true)::int as bot_clicks,
           ROUND(AVG(COALESCE(c.latency_ms, 20))::numeric, 1) as avg_latency,
           COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'mobile')::int as mobile_clicks,
@@ -128,6 +141,8 @@ export async function GET(request: Request) {
       if (stats && stats.length > 0) {
         totalClicks = Number(stats[0].total_clicks) || 0;
         uniqueVisitors = Number(stats[0].unique_visitors) || 0;
+        uniqueClicks = Number(stats[0].unique_clicks) || uniqueVisitors;
+        repeatClicks = Number(stats[0].repeat_clicks) || Math.max(0, totalClicks - uniqueVisitors);
         botClicks = Number(stats[0].bot_clicks) || 0;
         avgLatency = Number(stats[0].avg_latency) || 0;
         mobileClicks = Number(stats[0].mobile_clicks) || 0;
@@ -157,6 +172,8 @@ export async function GET(request: Request) {
     console.warn('Analytics query fallback:', err);
     totalClicks = 0;
     uniqueVisitors = 0;
+    uniqueClicks = 0;
+    repeatClicks = 0;
     botClicks = 0;
     avgLatency = 0;
     topCountries = [];
@@ -266,9 +283,14 @@ export async function GET(request: Request) {
     else desktopPct += diff;
   }
 
+  const repeatRatePct = totalClicks > 0 ? `${Math.round((repeatClicks / totalClicks) * 100)}%` : '0%';
+
   const metrics: AnalyticsMetrics = {
     total_clicks: totalClicks,
     unique_visitors: uniqueVisitors,
+    unique_clicks: uniqueClicks,
+    repeat_clicks: repeatClicks,
+    repeat_rate: repeatRatePct,
     bot_clicks_filtered: botClicks,
     avg_latency_ms: avgLatency,
     top_countries: topCountries,

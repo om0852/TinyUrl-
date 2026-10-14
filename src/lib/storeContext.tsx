@@ -256,6 +256,53 @@ export const normalizeCountryName = (country?: string, code?: string): { country
   return { country: c, country_code: cd || 'IN' };
 };
 
+/**
+ * Retrieve or generate a persistent anonymous visitor ID that remains identical
+ * across page refreshes, tab switches, and revisits on the current browser.
+ */
+export const getPersistentVisitorId = (): string => {
+  if (typeof window === 'undefined') return 'vid_server';
+  try {
+    let vid = localStorage.getItem('tiny_visitor_id');
+    if (!vid) {
+      const randPart = Math.random().toString(36).substring(2, 10);
+      const timePart = Date.now().toString(36);
+      vid = `vid_${randPart}${timePart}`;
+      localStorage.setItem('tiny_visitor_id', vid);
+    }
+    return vid;
+  } catch {
+    return 'vid_anonymous';
+  }
+};
+
+/**
+ * Checks if this device/browser has already visited this short link.
+ * If visited before => returns false (repeat click).
+ * If never visited before => records the visit and returns true (unique click).
+ */
+export const checkAndMarkLinkVisited = (targetKey: string): boolean => {
+  if (typeof window === 'undefined' || !targetKey) return true;
+  try {
+    const storageKey = 'tiny_visited_links';
+    const raw = localStorage.getItem(storageKey);
+    const visited: string[] = raw ? JSON.parse(raw) : [];
+    const cleanKey = targetKey.toLowerCase().trim();
+
+    if (visited.includes(cleanKey)) {
+      return false; // Repeat click
+    }
+
+    visited.push(cleanKey);
+    // Keep max 500 recent links to prevent storage bloat
+    if (visited.length > 500) visited.shift();
+    localStorage.setItem(storageKey, JSON.stringify(visited));
+    return true; // First-time unique click
+  } catch {
+    return true;
+  }
+};
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoaded, setAuthLoaded] = useState<boolean>(true);
@@ -1356,12 +1403,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       ? normalizeCountryName(clientInfo.country, clientInfo.country_code) 
       : geo;
 
+    const persistentVid = (clientInfo?.visitor_id || clientInfo?.ip_hash || getPersistentVisitorId()).trim();
+    const linkVisitKey = targetRealId || targetShortCode || cleanTargetId;
+    const isFirstTimeVisit = checkAndMarkLinkVisited(linkVisitKey);
+    const resolvedIsUnique = clientInfo?.is_unique !== undefined ? clientInfo.is_unique : isFirstTimeVisit;
+
     const newClick: ClickEvent = {
       id: generateId('clk'),
       link_id: targetRealId,
       short_code: targetShortCode,
       timestamp: new Date().toISOString(),
-      ip_hash: clientInfo?.ip_hash || `ip_${Math.floor(Math.random() * 90000 + 10000)}`,
+      ip_hash: persistentVid,
+      visitor_id: persistentVid,
       country: resolvedCountry.country,
       country_code: resolvedCountry.country_code,
       region: clientInfo?.region || geo.region,
@@ -1371,7 +1424,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       browser: clientInfo?.browser || (typeof navigator !== 'undefined' && /Chrome/i.test(navigator.userAgent) ? 'Chrome' : typeof navigator !== 'undefined' && /Safari/i.test(navigator.userAgent) ? 'Safari' : typeof navigator !== 'undefined' && /Firefox/i.test(navigator.userAgent) ? 'Firefox' : 'Edge'),
       referrer: clientInfo?.referrer || (typeof document !== 'undefined' && document.referrer ? document.referrer : 'Direct / Mobile'),
       is_bot: clientInfo?.is_bot || false,
-      is_unique: clientInfo?.is_unique ?? true,
+      is_unique: resolvedIsUnique,
       latency_ms: clientInfo?.latency_ms || Math.floor(15 + Math.random() * 20)
     };
 

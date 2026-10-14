@@ -60,6 +60,44 @@ export async function POST(request: Request) {
         const resolvedRegion = (headerGeo.regionName || click.region || '').trim() || null;
         const resolvedCity = (headerGeo.city || click.city || 'Direct').trim();
 
+        // 1. Extract real client IP from standard proxy and CDN headers
+        const forwarded = request.headers.get('x-forwarded-for');
+        const realIp = request.headers.get('x-real-ip');
+        const cfIp = request.headers.get('cf-connecting-ip');
+        const clientIp = (cfIp || (forwarded ? forwarded.split(',')[0].trim() : '') || realIp || '127.0.0.1').trim();
+        const userAgent = (request.headers.get('user-agent') || '').slice(0, 120);
+
+        // 2. Generate deterministic visitor IP hash (SHA-256 of IP + UA or persistent visitor ID)
+        const visitorToken = (click.visitor_id || click.ip_hash || clientIp).trim();
+        const deterministicIpHash = crypto
+          .createHash('sha256')
+          .update(`${clientIp}:${visitorToken}:${userAgent}`)
+          .digest('hex')
+          .substring(0, 32);
+
+        // 3. Server-side Uniqueness Verification: Check if this visitor has ever visited this link before
+        let isUniqueVisitor = true;
+        try {
+          const priorClicks = await sql.query(
+            `SELECT 1 FROM click_events 
+             WHERE ((link_id = $1 AND $1 != '') OR (LOWER(short_code) = $2 AND $2 != '')) 
+               AND ip_hash = $3 
+             LIMIT 1`,
+            [id || '', code || '', deterministicIpHash]
+          );
+          if (priorClicks && priorClicks.length > 0) {
+            isUniqueVisitor = false;
+          }
+        } catch {
+          // If query fails, fallback to client-asserted uniqueness flag
+          isUniqueVisitor = click.is_unique !== false;
+        }
+
+        // If client's local visited link history already marked it as not unique, respect that
+        if (click.is_unique === false) {
+          isUniqueVisitor = false;
+        }
+
         const clickId = click.id || `clk_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 
         try {
@@ -71,7 +109,7 @@ export async function POST(request: Request) {
               clickId,
               id || null,
               code || null,
-              click.ip_hash || 'ip_anon',
+              deterministicIpHash,
               resolvedCountry,
               resolvedCode,
               resolvedRegion || null,
@@ -81,7 +119,7 @@ export async function POST(request: Request) {
               click.browser || 'Safari',
               click.referrer || 'Direct / Mobile',
               !!click.is_bot,
-              click.is_unique ?? true,
+              isUniqueVisitor,
               click.latency_ms || 20
             ]
           );
@@ -95,7 +133,7 @@ export async function POST(request: Request) {
               clickId,
               id || null,
               code || null,
-              click.ip_hash || 'ip_anon',
+              deterministicIpHash,
               resolvedCountry,
               resolvedCode,
               resolvedCity,
@@ -104,7 +142,7 @@ export async function POST(request: Request) {
               click.browser || 'Safari',
               click.referrer || 'Direct / Mobile',
               !!click.is_bot,
-              click.is_unique ?? true,
+              isUniqueVisitor,
               click.latency_ms || 20
             ]
           );

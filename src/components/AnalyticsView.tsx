@@ -81,9 +81,22 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
   const uniqueVisitors = useMemo(() => {
     if (totalClicks === 0) return 0;
-    const uniques = clicks.filter(c => c.is_unique).length;
-    return uniques > 0 ? uniques : Math.min(totalClicks, clicks.length);
-  }, [totalClicks, clicks]);
+    if (clicks.length > 0) {
+      const distinctVisitors = new Set(clicks.map(c => c.ip_hash || (c as { visitor_id?: string }).visitor_id || c.id));
+      const explicitUniques = clicks.filter(c => c.is_unique).length;
+      return Math.min(totalClicks, distinctVisitors.size, explicitUniques > 0 ? explicitUniques : distinctVisitors.size);
+    }
+    return Math.min(totalClicks, links.length > 0 ? 1 : 0);
+  }, [totalClicks, clicks, links]);
+
+  const repeatClicks = useMemo(() => {
+    return Math.max(0, totalClicks - uniqueVisitors);
+  }, [totalClicks, uniqueVisitors]);
+
+  const repeatRate = useMemo(() => {
+    if (totalClicks === 0) return '0%';
+    return `${Math.round((repeatClicks / totalClicks) * 100)}%`;
+  }, [totalClicks, repeatClicks]);
 
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
@@ -534,7 +547,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         {/* Card 1: Total Clicks */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-on-surface-variant font-semibold">Total Clicks</span>
+            <span className="text-xs text-on-surface-variant font-semibold">Total Clicks (All Opens)</span>
             <div className="p-2 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center">
               <MousePointerClick className="w-4 h-4" />
             </div>
@@ -547,7 +560,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
                 <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? 'Live Telemetry' : '0%'}
               </span>
-              <span className="text-xs text-on-surface-variant">vs previous 30d</span>
+              <span className="text-xs text-on-surface-variant font-medium">
+                {uniqueVisitors.toLocaleString()} unique · {repeatClicks.toLocaleString()} repeat
+              </span>
             </div>
           </div>
         </div>
@@ -566,9 +581,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
-                <TrendingUp className="w-3 h-3" /> {uniqueVisitors > 0 ? 'Verified' : '0%'}
+                <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? `${Math.round((uniqueVisitors / totalClicks) * 100)}% Unique` : '0%'}
               </span>
-              <span className="text-xs text-on-surface-variant">vs previous 30d</span>
+              <span className="text-xs text-on-surface-variant font-medium">
+                {repeatClicks > 0 ? `${repeatRate} repeat rate` : 'Distinct IP / Fingerprint'}
+              </span>
             </div>
           </div>
         </div>
