@@ -5,26 +5,21 @@ import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { 
   Smartphone, 
-  Play, 
   Plus, 
   ChevronRight, 
   Zap, 
   Cpu, 
   Layers, 
-  Check, 
-  Copy, 
   Download, 
   Filter, 
   Trash2, 
   X, 
   ExternalLink,
-  AlertCircle,
   MapPin,
   Globe,
   Building2,
   Laptop
 } from 'lucide-react';
-import { detectAppDeepLink } from '@/lib/deepLink';
 
 export const SmartRoutingView: React.FC = () => {
   const { links, addRuleToLink, removeRuleFromLink, createShortLink } = useStore();
@@ -33,27 +28,6 @@ export const SmartRoutingView: React.FC = () => {
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Policy switches state
-  const [policies, setPolicies] = useState({
-    bypassIg: true,
-    bypassTiktok: true,
-    preserveAffiliate: true,
-    customUniversal: true
-  });
-
-  // Simulator state
-  const [testUrl, setTestUrl] = useState('');
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simVerified, setSimVerified] = useState(false);
-  const [copiedPayload, setCopiedPayload] = useState(false);
-  const [simResult, setSimResult] = useState<{
-    appName: string;
-    scheme: string;
-    androidIntent: string;
-    iosUri: string;
-    latencyMs: number;
-  } | null>(null);
 
   // New Rule Modal
   const [newRuleModalOpen, setNewRuleModalOpen] = useState(false);
@@ -73,45 +47,6 @@ export const SmartRoutingView: React.FC = () => {
       setTargetLinkId(links[0].id);
     }
   }, [links, targetLinkId]);
-
-  // Handle Real Simulation
-  const handleSimulate = () => {
-    setIsSimulating(true);
-    setSimVerified(false);
-    const urlToTest = testUrl.trim() || 'https://instagram.com/p/C34xyz';
-    const start = performance.now();
-    try {
-      const detection = detectAppDeepLink(urlToTest);
-      const elapsed = Math.max(1, Math.round((performance.now() - start) * 10) / 10);
-      setSimResult({
-        appName: detection?.appName || 'Web Browser',
-        scheme: detection?.iosUri || detection?.androidIntent ? 'Native Deep-Link URI' : 'Direct HTTPS Fallback',
-        androidIntent: detection?.androidIntent || urlToTest,
-        iosUri: detection?.iosUri || urlToTest,
-        latencyMs: elapsed
-      });
-      setIsSimulating(false);
-      setSimVerified(true);
-    } catch {
-      setIsSimulating(false);
-    }
-  };
-
-  const handleCopyPayload = () => {
-    const urlToTest = testUrl.trim() || 'https://instagram.com/p/C34xyz';
-    const detection = detectAppDeepLink(urlToTest);
-    const payload = JSON.stringify({
-      target_url: urlToTest,
-      detected_app: detection?.appName || 'Web Browser',
-      intent_android: detection?.androidIntent || urlToTest,
-      universal_ios: detection?.iosUri || urlToTest,
-      resolved_ms: simResult?.latencyMs || 6.2,
-      bypass_webview: true
-    }, null, 2);
-    navigator.clipboard.writeText(payload);
-    setCopiedPayload(true);
-    setTimeout(() => setCopiedPayload(false), 2000);
-  };
 
   const handleCreateRule = (e: React.FormEvent) => {
     e.preventDefault();
@@ -244,21 +179,6 @@ export const SmartRoutingView: React.FC = () => {
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <button 
             type="button"
-            onClick={() => {
-              const input = document.getElementById('intent-test-input') as HTMLInputElement;
-              if (input) {
-                input.focus();
-                input.select();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all text-xs font-semibold shadow-xs border border-outline-variant/30 cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Play className="w-3.5 h-3.5 text-primary-container fill-primary-container" />
-            <span>Test Intent URL</span>
-          </button>
-          
-          <button 
-            type="button"
             id="new-routing-rule-btn"
             onClick={() => setNewRuleModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-all text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap shrink-0"
@@ -373,248 +293,7 @@ export const SmartRoutingView: React.FC = () => {
 
       </div>
 
-      {/* 3. Interactive Rule Matrix & Visual Sandbox Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Rule Configuration Matrix / Rule Builder Preview (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30">
-          <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs">
-                <Smartphone className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-on-surface">Rule Configuration Matrix</h2>
-                <p className="text-xs text-on-surface-variant">Active execution protocol definition</p>
-              </div>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Live Protocol</span>
-            </span>
-          </div>
-
-          {/* Highlighted Protocol Rule Card */}
-          <div className="p-4 rounded-xl bg-surface-container-low flex flex-col gap-4 mt-4 border border-outline-variant/30">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow-xs font-bold text-xs">
-                  ▶
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-on-surface">YouTube Native Deep-Link Protocol</div>
-                  <div className="font-mono text-xs text-primary-container font-semibold">snip.to/latest-video</div>
-                </div>
-              </div>
-              <span className="text-xs font-semibold text-on-surface-variant bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-outline-variant/30 self-start sm:self-auto">
-                Priority: 01 (Critical)
-              </span>
-            </div>
-
-            {/* Intent Scheme Mapping Visualizer */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex flex-col border border-outline-variant/20">
-                <span className="text-on-surface-variant text-[10px] uppercase font-bold tracking-wider">Primary Intent (Android)</span>
-                <span className="text-primary-container font-semibold truncate mt-1">vnd.youtube://v/xyz</span>
-              </div>
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex flex-col border border-outline-variant/20">
-                <span className="text-on-surface-variant text-[10px] uppercase font-bold tracking-wider">Universal Link (iOS)</span>
-                <span className="text-primary-container font-semibold truncate mt-1">youtube.com/watch?v=xyz</span>
-              </div>
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex flex-col border border-outline-variant/20">
-                <span className="text-on-surface-variant text-[10px] uppercase font-bold tracking-wider">HTTP Web Fallback</span>
-                <span className="text-on-surface-variant font-medium truncate mt-1">https://m.youtube.com</span>
-              </div>
-            </div>
-
-            {/* Matrix Policy Switches */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              
-              {/* Switch 1: Bypass IG */}
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex items-center justify-between border border-outline-variant/20">
-                <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-on-surface">Bypass IG In-App Browser</span>
-                  <span className="text-[11px] text-on-surface-variant">Break webview into Safari/Chrome</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input 
-                    type="checkbox" 
-                    checked={policies.bypassIg}
-                    onChange={(e) => setPolicies(p => ({ ...p, bypassIg: e.target.checked }))}
-                    className="sr-only peer" 
-                  />
-                  <div className="w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-
-              {/* Switch 2: Bypass TikTok */}
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex items-center justify-between border border-outline-variant/20">
-                <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-on-surface">Bypass TikTok Webview</span>
-                  <span className="text-[11px] text-on-surface-variant">Auto-invoke native deep link</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input 
-                    type="checkbox" 
-                    checked={policies.bypassTiktok}
-                    onChange={(e) => setPolicies(p => ({ ...p, bypassTiktok: e.target.checked }))}
-                    className="sr-only peer" 
-                  />
-                  <div className="w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-
-              {/* Switch 3: Affiliate Cookies */}
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex items-center justify-between border border-outline-variant/20">
-                <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-on-surface">Preserve Affiliate Cookies</span>
-                  <span className="text-[11px] text-on-surface-variant">Append subtag &amp; tag parameters</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input 
-                    type="checkbox" 
-                    checked={policies.preserveAffiliate}
-                    onChange={(e) => setPolicies(p => ({ ...p, preserveAffiliate: e.target.checked }))}
-                    className="sr-only peer" 
-                  />
-                  <div className="w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-
-              {/* Switch 4: Custom Universal Domain */}
-              <div className="p-3 rounded-xl bg-surface-container-lowest flex items-center justify-between border border-outline-variant/20">
-                <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-on-surface">Custom Universal Domain</span>
-                  <span className="text-[11px] font-mono text-on-surface-variant">links.creatorstudio.io</span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input 
-                    type="checkbox" 
-                    checked={policies.customUniversal}
-                    onChange={(e) => setPolicies(p => ({ ...p, customUniversal: e.target.checked }))}
-                    className="sr-only peer" 
-                  />
-                  <div className="w-9 h-5 bg-surface-container peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Visual Simulator / Test Sandbox Panel (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30">
-          <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center">
-                <Smartphone className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-on-surface">Handoff Simulator</h2>
-                <p className="text-xs text-on-surface-variant">Live intent payload validation</p>
-              </div>
-            </div>
-            <span className="font-mono text-[11px] text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-lg border border-outline-variant/30">
-              iPhone 15 Pro (iOS 17.4)
-            </span>
-          </div>
-
-          {/* Test URL Input Box */}
-          <div className="flex flex-col gap-1.5 mt-4">
-            <label className="text-xs font-semibold text-on-surface-variant" htmlFor="intent-test-input">
-              Destination Target URL
-            </label>
-            <div className="flex items-center gap-2 bg-surface-container-low rounded-xl p-1.5 border border-outline-variant/30 focus-within:ring-2 focus-within:ring-primary-container transition-all">
-              <span className="pl-2 text-on-surface-variant text-xs">🔗</span>
-              <input 
-                id="intent-test-input"
-                type="text"
-                value={testUrl}
-                onChange={(e) => setTestUrl(e.target.value)}
-                placeholder="Paste any URL to test deep link detection..."
-                className="w-full bg-transparent px-2 py-1 font-mono text-xs text-on-surface outline-none"
-              />
-              <button 
-                type="button"
-                onClick={handleSimulate}
-                disabled={isSimulating}
-                className="px-4 py-1.5 rounded-lg bg-primary-container text-on-primary font-bold text-xs hover:bg-primary transition-all shrink-0 cursor-pointer disabled:opacity-75"
-              >
-                {isSimulating ? 'Resolving...' : simVerified ? 'Verified ✓' : 'Simulate'}
-              </button>
-            </div>
-          </div>
-
-          {/* Split Preview Simulator Cards */}
-          <div className="grid grid-cols-2 gap-3 mt-4 flex-1">
-            
-            {/* Standard Webview (Negative UX) */}
-            <div className="flex flex-col rounded-xl bg-surface-container-low p-3 border border-outline-variant/20">
-              <div className="flex items-center gap-1.5 pb-2 text-rose-600 text-xs font-bold">
-                <span>✕</span>
-                <span>Standard Webview</span>
-              </div>
-              <div className="p-3 rounded-lg bg-surface-container-lowest flex flex-col gap-2 flex-1 shadow-2xs border border-outline-variant/20 justify-between">
-                <div className="h-2 w-16 bg-surface-container rounded" />
-                <div className="h-16 w-full rounded-lg bg-surface-container-low flex flex-col items-center justify-center text-center p-2">
-                  <AlertCircle className="w-5 h-5 text-rose-400 mb-1" />
-                  <span className="text-[11px] text-on-surface-variant font-medium leading-tight">
-                    Logged Out &bull; Cookie Dropped
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-rose-50 text-rose-700 text-[10px] leading-tight font-medium">
-                  ⚠️ User forced to manually re-login. 68% cart abandonment.
-                </div>
-              </div>
-            </div>
-
-            {/* Snip Smart Hand-off (Optimized UX) */}
-            <div className="flex flex-col rounded-xl bg-surface-container-high p-3 border border-primary-container/30">
-              <div className="flex items-center gap-1.5 pb-2 text-primary-container text-xs font-bold">
-                <Check className="w-3.5 h-3.5" />
-                <span>Snip Deep-Link Direct</span>
-              </div>
-              <div className="p-3 rounded-lg bg-surface-container-lowest flex flex-col gap-2 flex-1 shadow-2xs border border-primary-container/20 justify-between">
-                <div className="h-2 w-20 bg-primary-container/20 rounded" />
-                <div className="h-16 w-full rounded-lg bg-primary-container/10 flex flex-col items-center justify-center text-center p-2">
-                  <Smartphone className="w-5 h-5 text-primary-container mb-1" />
-                  <span className="text-[11px] text-primary-container font-bold leading-tight">
-                    Native App Activated
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-emerald-50 text-emerald-800 text-[10px] leading-tight font-medium">
-                  ✓ Direct 1-tap checkout. User profile &amp; credit cards active.
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Micro status footer */}
-          <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-on-surface-variant font-mono text-xs">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>
-                {simResult 
-                  ? `${simResult.appName} (${simResult.scheme}) resolved in ${simResult.latencyMs}ms` 
-                  : 'Deep-link engine ready (simulates real client app intents)'}
-              </span>
-            </span>
-            <button 
-              type="button"
-              onClick={handleCopyPayload}
-              className="hover:text-primary-container transition-colors flex items-center gap-1 cursor-pointer font-semibold"
-            >
-              {copiedPayload ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedPayload ? 'Copied!' : 'Copy payload'}</span>
-            </button>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* 4. Routing Rules Data Table Section */}
+      {/* 3. Routing Rules Data Table Section */}
       <div className="flex flex-col p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-outline-variant/20">
           <div>
@@ -746,13 +425,12 @@ export const SmartRoutingView: React.FC = () => {
                       <button 
                         type="button"
                         onClick={() => {
-                          setTestUrl(rule.scheme);
-                          handleSimulate();
+                          window.open(rule.scheme, '_blank', 'noopener,noreferrer');
                         }}
                         className="p-1.5 rounded-lg hover:bg-surface-container hover:text-on-surface cursor-pointer" 
-                        title="Test Rule"
+                        title="Open Target URL"
                       >
-                        <Play className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3.5 h-3.5" />
                       </button>
                       {rule.isCustom && (
                         <button 
