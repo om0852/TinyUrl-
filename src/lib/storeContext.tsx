@@ -113,6 +113,7 @@ interface StoreContextType {
   deleteApiKey: (id: string) => void;
   addWebhook: (url: string, events: string[]) => Webhook;
   deleteWebhook: (id: string) => void;
+  toggleWebhook: (id: string) => Promise<boolean>;
   
   // Security & AI utilities
   scanUrlSecurity: (url: string) => SecurityReport;
@@ -1769,6 +1770,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const toggleWebhook = async (id: string): Promise<boolean> => {
+    if (!checkPermissionOrToast('api_keys:manage', 'modify webhooks')) {
+      return false;
+    }
+
+    const target = webhooks.find(w => w.id === id);
+    if (!target) return false;
+
+    const nextActive = !target.active;
+    const updated = webhooks.map(w => w.id === id ? { ...w, active: nextActive } : w);
+    saveWebhooksState(updated);
+
+    if (typeof window !== 'undefined') {
+      try {
+        await apiFetch('/api/v1/webhooks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, is_active: nextActive })
+        });
+        return true;
+      } catch (err) {
+        console.warn('Failed to toggle webhook on server:', err);
+      }
+    }
+    return true;
+  };
+
   // AI Slug Generator
   const aiSuggestSlugs = (url: string, title?: string): string[] => {
     const text = (title || url).toLowerCase().replace(/[^a-z0-9]/g, '-').split('-').filter(Boolean);
@@ -2690,6 +2718,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deleteApiKey,
       addWebhook,
       deleteWebhook,
+      toggleWebhook,
       scanUrlSecurity,
       aiSuggestSlugs,
       aiSummarizePerformance,
