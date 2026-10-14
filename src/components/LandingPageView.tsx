@@ -118,7 +118,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
     const cleanSlug = aliasInput.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
     
     if (currentLink.id) {
-      updateLink(currentLink.id, { custom_slug: cleanSlug });
+      updateLink(currentLink.id, { custom_slug: cleanSlug, short_code: cleanSlug });
     }
 
     const fullUrl = typeof window !== 'undefined'

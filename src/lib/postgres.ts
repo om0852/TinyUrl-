@@ -87,6 +87,7 @@ export async function initializeDatabase() {
         campaign_id VARCHAR(64),
         title VARCHAR(255) NOT NULL,
         short_code VARCHAR(128) UNIQUE NOT NULL,
+        custom_slug VARCHAR(128),
         destination_url TEXT NOT NULL,
         status VARCHAR(32) DEFAULT 'active',
         clicks_count INT DEFAULT 0,
@@ -110,9 +111,12 @@ export async function initializeDatabase() {
       );
     `);
 
-    // Index on short_code for instant lookups
+    // Index on short_code and custom_slug for instant lookups
     await sql.query(`
       CREATE INDEX IF NOT EXISTS idx_links_short_code ON links (short_code);
+    `);
+    await sql.query(`
+      CREATE INDEX IF NOT EXISTS idx_links_custom_slug ON links (custom_slug);
     `);
 
     // 5. Click Events table

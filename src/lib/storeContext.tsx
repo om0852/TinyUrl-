@@ -873,36 +873,55 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: newLink.id,
           destination_url: newLink.destination_url,
-          custom_slug: newLink.short_code,
+          custom_slug: newLink.custom_slug || newLink.short_code,
           title: newLink.title,
           tags: newLink.tags,
           rules: newLink.rules,
           workspace_id: newLink.workspace_id
         })
-      }).catch(() => {});
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.data?.id) {
+          setLinks(prev => prev.map(l => l.id === newLink.id ? { ...l, id: data.data.id } : l));
+        }
+      })
+      .catch(() => {});
     }
 
     return { link: newLink };
   };
 
   const updateLink = (id: string, updates: Partial<Link>) => {
-    const updated = links.map(l => (l.id === id || l.short_code?.toLowerCase() === id.toLowerCase()) ? { ...l, ...updates } : l);
+    const updated = links.map(l => (
+      l.id === id || 
+      l.short_code?.toLowerCase() === id.toLowerCase() || 
+      (l.custom_slug && l.custom_slug.toLowerCase() === id.toLowerCase())
+    ) ? { ...l, ...updates } : l);
     saveLinksState(updated);
 
     if (typeof window !== 'undefined') {
-      const target = updated.find(l => l.id === id || l.short_code?.toLowerCase() === id.toLowerCase());
+      const target = updated.find(l => 
+        l.id === id || 
+        l.short_code?.toLowerCase() === id.toLowerCase() || 
+        (l.custom_slug && l.custom_slug.toLowerCase() === id.toLowerCase())
+      );
       if (target) {
         fetch('/api/v1/links', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: target.id,
+            short_code: target.short_code,
+            custom_slug: target.custom_slug || target.short_code,
             rules: target.rules,
             status: target.status,
-            title: target.title
+            title: target.title,
+            destination_url: target.destination_url
           })
-        }).catch(() => {});
+        }).catch(err => console.warn('Failed to update link on server:', err));
       }
     }
   };

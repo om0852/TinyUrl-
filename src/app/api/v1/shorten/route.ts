@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       // Check if custom slug already exists in Neon DB
       try {
         const existing = await sql.query(
-          `SELECT id, workspace_id FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+          `SELECT id, workspace_id FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
           [code.toLowerCase()]
         );
         if (existing && existing.length > 0) {
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
       while (attempts < 5) {
         try {
           const existing = await sql.query(
-            `SELECT id FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+            `SELECT id FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
             [uniqueCode.toLowerCase()]
           );
           if (!existing || existing.length === 0) break;
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
       campaign: utm_campaign
     });
 
-    const uniqueId = `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
+    const uniqueId = body.id || `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 
     const newLink: Link = {
       id: uniqueId,
@@ -139,14 +139,19 @@ export async function POST(request: Request) {
     // Save to PostgreSQL with collision guard
     try {
       const insertResult = await sql.query(
-        `INSERT INTO links (id, workspace_id, short_code, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         ON CONFLICT (short_code) DO NOTHING
+        `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (short_code) DO UPDATE SET
+           destination_url = EXCLUDED.destination_url,
+           custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
+           rules = COALESCE(EXCLUDED.rules, links.rules),
+           title = COALESCE(EXCLUDED.title, links.title)
          RETURNING id`,
         [
           newLink.id,
           newLink.workspace_id,
           newLink.short_code,
+          newLink.custom_slug || newLink.short_code,
           newLink.destination_url,
           newLink.title,
           newLink.status,

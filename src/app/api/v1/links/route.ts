@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     let rows: RawLinkRow[] = [];
     if (code && typeof code === 'string' && code.trim()) {
       rows = (await sql.query(`
-        SELECT * FROM links WHERE LOWER(short_code) = $1 LIMIT 1
+        SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1
       `, [code.trim().toLowerCase()])) as unknown as RawLinkRow[];
     } else if (workspaceId && typeof workspaceId === 'string' && workspaceId.trim()) {
       rows = (await sql.query(`
@@ -109,12 +109,15 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, rules, status, title, destination_url } = body;
-    if (!id || typeof id !== 'string') {
-      return NextResponse.json({ success: false, error: 'Link ID is required.' }, { status: 400 });
+    const { id, short_code, custom_slug, rules, status, title, destination_url } = body;
+    const lookupId = (id || short_code || custom_slug || '').trim();
+    if (!lookupId) {
+      return NextResponse.json({ success: false, error: 'Link identifier is required.' }, { status: 400 });
     }
 
     const rulesJson = Array.isArray(rules) ? JSON.stringify(rules) : null;
+    const newShortCode = short_code ? String(short_code).trim() : null;
+    const newCustomSlug = custom_slug ? String(custom_slug).trim() : null;
 
     const rows = (await sql.query(
       `UPDATE links 
@@ -122,10 +125,25 @@ export async function PATCH(request: Request) {
            status = COALESCE($2, status),
            title = COALESCE($3, title),
            destination_url = COALESCE($4, destination_url),
+           short_code = COALESCE($5, short_code),
+           custom_slug = COALESCE($6, custom_slug),
            updated_at = NOW()
-       WHERE id = $5 OR LOWER(short_code) = LOWER($5)
+       WHERE id = $7 
+          OR LOWER(short_code) = LOWER($7) 
+          OR LOWER(custom_slug) = LOWER($7)
+          OR (LOWER(short_code) = LOWER(COALESCE($8, '')) AND $8 IS NOT NULL)
+          OR (LOWER(custom_slug) = LOWER(COALESCE($8, '')) AND $8 IS NOT NULL)
        RETURNING *`,
-      [rulesJson, status || null, title || null, destination_url || null, id.trim()]
+      [
+        rulesJson, 
+        status || null, 
+        title || null, 
+        destination_url || null, 
+        newShortCode, 
+        newCustomSlug, 
+        lookupId, 
+        newShortCode || newCustomSlug || null
+      ]
     )) as unknown as RawLinkRow[];
 
     if (rows && rows.length > 0) {

@@ -347,17 +347,17 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
   // Compute smart destination URL
   const resolvedTarget = useMemo(() => {
-    let finalUrl = edgeTarget || (link ? link.destination_url : '');
+    let finalUrl = (link && link.destination_url) || edgeTarget || '';
 
-    if (!edgeTarget && link?.rules && link.rules.length > 0) {
+    if (link?.rules && link.rules.length > 0) {
       const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
       const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
       const isAndroid = /Android/i.test(userAgent);
 
       const deviceRule = link.rules.find(r => 
         r.rule_type === 'device' && (
-          (r.condition?.toLowerCase() === 'ios' && isIOS) ||
           (r.condition?.toLowerCase() === 'android' && isAndroid) ||
+          (r.condition?.toLowerCase() === 'ios' && isIOS) ||
           (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
         )
       );
@@ -371,8 +371,12 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           if (abRoll < weight) {
             finalUrl = abRule.target_url;
           }
+        } else if (edgeTarget) {
+          finalUrl = edgeTarget;
         }
       }
+    } else if (edgeTarget) {
+      finalUrl = edgeTarget;
     }
     if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.includes('://')) {
       finalUrl = 'https://' + finalUrl;

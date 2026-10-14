@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { headers } from 'next/headers';
 import { sql } from '@/lib/postgres';
 import { Link, LinkRule } from '@/lib/types';
 import { RedirectClient } from './RedirectClient';
@@ -19,12 +20,13 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
     try {
       const cleanCode = code.trim().toLowerCase();
       const rows = (await sql.query(
-        `SELECT * FROM links WHERE LOWER(short_code) = $1 LIMIT 1`,
+        `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
         [cleanCode]
       )) as unknown as Array<{
         id: string;
         workspace_id?: string;
         short_code: string;
+        custom_slug?: string;
         destination_url: string;
         title?: string;
         tags?: string[] | string;
@@ -43,11 +45,15 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
       if (rows && rows.length > 0) {
         const row = rows[0];
         const isPasswordLocked = !!row.password_hash;
+        const parsedRules: LinkRule[] = isPasswordLocked 
+          ? [] 
+          : (typeof row.rules === 'string' ? JSON.parse(row.rules) : (Array.isArray(row.rules) ? row.rules : []));
+
         initialLink = {
           id: row.id,
           workspace_id: row.workspace_id || '',
           short_code: row.short_code,
-          custom_slug: row.short_code,
+          custom_slug: row.custom_slug || row.short_code,
           domain_id: 'dom_primary',
           destination_url: isPasswordLocked ? '' : row.destination_url,
           title: row.title || `Short Link /${row.short_code}`,
@@ -58,11 +64,32 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           risk_score: Number(row.risk_score) || 0,
           created_by: row.created_by || 'Owner',
           created_at: row.created_at || new Date().toISOString(),
-          rules: isPasswordLocked ? [] : (typeof row.rules === 'string' ? JSON.parse(row.rules) : (Array.isArray(row.rules) ? row.rules : [])),
+          rules: parsedRules,
           expires_at: row.expires_at || undefined,
           max_clicks: row.max_clicks ? Number(row.max_clicks) : undefined,
           password_hash: row.password_hash ? 'PROTECTED' : undefined
         };
+
+        // Server-Side Device Smart Routing evaluation
+        if (!isPasswordLocked && parsedRules.length > 0) {
+          try {
+            const reqHeaders = await headers();
+            const userAgent = reqHeaders.get('user-agent') || '';
+            const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+            const isAndroid = /Android/i.test(userAgent);
+
+            const devRule = parsedRules.find(r => 
+              r.rule_type === 'device' && (
+                (r.condition?.toLowerCase() === 'android' && isAndroid) ||
+                (r.condition?.toLowerCase() === 'ios' && isIOS) ||
+                (r.condition?.toLowerCase() === 'all' && (isIOS || isAndroid))
+              )
+            );
+            if (devRule && devRule.target_url) {
+              initialTarget = devRule.target_url;
+            }
+          } catch {}
+        }
 
         if (!initialTarget && !isPasswordLocked) {
           initialTarget = row.destination_url;

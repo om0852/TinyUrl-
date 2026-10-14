@@ -169,6 +169,7 @@ export interface SecurityReport {
 // ─── API Request & Response Contracts ───
 
 export interface ShortenApiRequest {
+  id?: string;
   destination_url: string;
   workspace_id: string;
   custom_slug?: string;
