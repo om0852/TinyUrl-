@@ -38,7 +38,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         onClick={onClose} 
       />
 
-      <div className="bg-card border border-border/60 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-foreground relative z-10">
+      <div className="bg-card border border-border/60 w-full max-w-md rounded-xl p-6 shadow-2xl space-y-5 text-foreground relative z-10">
         
         {/* Close Button */}
         <button
@@ -60,7 +60,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         </div>
 
         {success ? (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-xs flex items-center gap-2 font-bold justify-center">
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-500 text-xs flex items-center gap-2 font-bold justify-center">
             <Check className="w-4 h-4 text-emerald-500" /> Workspace Created &amp; Activated!
           </div>
         ) : (

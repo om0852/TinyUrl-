@@ -102,7 +102,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         onClick={onClose} 
       />
 
-      <div className="relative w-full max-w-xl bg-card border border-border/60 rounded-2xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh] text-foreground">
+      <div className="relative w-full max-w-xl bg-card border border-border/60 rounded-xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh] text-foreground">
         
         {/* Search Input Bar */}
         <div className="flex items-center px-4 py-3.5 border-b border-border/40 gap-3 bg-muted/20">

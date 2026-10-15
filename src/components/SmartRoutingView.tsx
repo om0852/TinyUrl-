@@ -164,7 +164,7 @@ export const SmartRoutingView: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight whitespace-nowrap">
               OpeninApp &amp; Smart Routing Console
             </h1>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low text-primary-container text-xs font-semibold border border-outline-variant/30 whitespace-nowrap shrink-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-surface-container-low text-primary-container text-xs font-semibold border border-outline-variant/30 whitespace-nowrap shrink-0">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>Engine: 99.98% Native App Bounce</span>
             </div>
@@ -181,7 +181,7 @@ export const SmartRoutingView: React.FC = () => {
             type="button"
             id="new-routing-rule-btn"
             onClick={() => setNewRuleModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-all text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-container text-on-primary hover:bg-primary transition-all text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>New Routing Rule</span>
@@ -193,10 +193,10 @@ export const SmartRoutingView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Card 1 */}
-        <div className="p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Pass-through Rate</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <Zap className="w-4 h-4" />
             </div>
           </div>
@@ -219,10 +219,10 @@ export const SmartRoutingView: React.FC = () => {
         </div>
 
         {/* Card 2 */}
-        <div className="p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Bypassed Webviews</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <ExternalLink className="w-4 h-4" />
             </div>
           </div>
@@ -246,10 +246,10 @@ export const SmartRoutingView: React.FC = () => {
         </div>
 
         {/* Card 3 */}
-        <div className="p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Active Deep-Link Rules</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <Layers className="w-4 h-4" />
             </div>
           </div>
@@ -269,10 +269,10 @@ export const SmartRoutingView: React.FC = () => {
         </div>
 
         {/* Card 4 */}
-        <div className="p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Direct Handoff Latency</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <Cpu className="w-4 h-4" />
             </div>
           </div>
@@ -294,7 +294,7 @@ export const SmartRoutingView: React.FC = () => {
       </div>
 
       {/* 3. Routing Rules Data Table Section */}
-      <div className="flex flex-col p-6 rounded-2xl bg-surface-container-lowest shadow-xs border border-outline-variant/30">
+      <div className="flex flex-col p-6 rounded-xl bg-surface-container-lowest shadow-xs border border-outline-variant/30">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-outline-variant/20">
           <div>
             <h2 className="text-base font-bold text-on-surface">Active Deep-Link Routing Rules</h2>
@@ -311,7 +311,7 @@ export const SmartRoutingView: React.FC = () => {
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Filter rules..."
-                className="pl-8 pr-3 py-1.5 bg-surface-container-low rounded-xl text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/30"
+                className="pl-8 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/30"
               />
             </div>
             <button 
@@ -325,7 +325,7 @@ export const SmartRoutingView: React.FC = () => {
                 a.download = 'smart-routing-rules.csv';
                 a.click();
               }}
-              className="p-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant transition-colors border border-outline-variant/30 cursor-pointer"
+              className="p-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant transition-colors border border-outline-variant/30 cursor-pointer"
               title="Export CSV"
             >
               <Download className="w-4 h-4" />
@@ -338,13 +338,13 @@ export const SmartRoutingView: React.FC = () => {
           <table className="w-full text-left text-xs text-on-surface">
             <thead>
               <tr className="bg-surface-container-low text-on-surface-variant font-bold text-[11px] uppercase tracking-wider">
-                <th className="py-3 px-4 rounded-l-xl">Rule &amp; Trigger URL</th>
+                <th className="py-3 px-4 rounded-l-lg">Rule &amp; Trigger URL</th>
                 <th className="py-3 px-4">Target App Scheme</th>
                 <th className="py-3 px-4">Device / OS Filters</th>
                 <th className="py-3 px-4">Fallback Strategy</th>
                 <th className="py-3 px-4 text-right">30D Clicks</th>
                 <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-right rounded-r-xl">Actions</th>
+                <th className="py-3 px-4 text-right rounded-r-lg">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/20">
@@ -352,7 +352,7 @@ export const SmartRoutingView: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-on-surface-variant">
                     <div className="flex flex-col items-center justify-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-outline">
+                      <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-outline">
                         <Smartphone className="w-6 h-6" />
                       </div>
                       <div className="flex flex-col items-center gap-1">
@@ -364,7 +364,7 @@ export const SmartRoutingView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setNewRuleModalOpen(true)}
-                        className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary font-semibold text-xs rounded-xl shadow-xs hover:bg-primary transition cursor-pointer"
+                        className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary font-semibold text-xs rounded-lg shadow-xs hover:bg-primary transition cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
                         <span>Create First Routing Rule</span>
@@ -377,7 +377,7 @@ export const SmartRoutingView: React.FC = () => {
                 <tr key={rule.id} className="hover:bg-surface-container-low/60 transition-colors">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${rule.badgeBg}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${rule.badgeBg}`}>
                         {rule.badge}
                       </div>
                       <div>
@@ -397,7 +397,7 @@ export const SmartRoutingView: React.FC = () => {
                   <td className="py-4 px-4">
                     <div className="flex flex-wrap gap-1">
                       {rule.filters.map(f => (
-                        <span key={f} className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface font-semibold text-[10px]">
+                        <span key={f} className="px-2 py-0.5 rounded-md bg-surface-container text-on-surface font-semibold text-[10px]">
                           {f}
                         </span>
                       ))}
@@ -415,7 +415,7 @@ export const SmartRoutingView: React.FC = () => {
                   </td>
 
                   <td className="py-4 px-4 text-center">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-100 text-emerald-800">
                       {rule.status}
                     </span>
                   </td>
@@ -469,7 +469,7 @@ export const SmartRoutingView: React.FC = () => {
             if (e.target === e.currentTarget) setNewRuleModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[92vh] overflow-y-auto">
+          <div className="bg-surface-container-lowest rounded-xl max-w-xl w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[92vh] overflow-y-auto">
             {/* Close Button */}
             <button
               type="button"
@@ -494,7 +494,7 @@ export const SmartRoutingView: React.FC = () => {
                     placeholder="e.g. India Android Offer or Mumbai Store"
                     value={ruleName}
                     onChange={(e) => setRuleName(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                   />
                 </div>
 
@@ -504,7 +504,7 @@ export const SmartRoutingView: React.FC = () => {
                     <select
                       value={targetLinkId || links[0]?.id}
                       onChange={(e) => setTargetLinkId(e.target.value)}
-                      className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs cursor-pointer font-medium"
+                      className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs cursor-pointer font-medium"
                     >
                       {links.map(l => (
                         <option key={l.id} value={l.id}>
@@ -515,7 +515,7 @@ export const SmartRoutingView: React.FC = () => {
                   ) : (
                     <select
                       disabled
-                      className="w-full px-3 py-2 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 text-on-surface-variant text-xs cursor-not-allowed opacity-80"
+                      className="w-full px-3 py-2 bg-surface-container-low/50 rounded-lg border border-outline-variant/30 text-on-surface-variant text-xs cursor-not-allowed opacity-80"
                     >
                       <option value="" disabled selected>No links found — create a link first</option>
                     </select>
@@ -524,7 +524,7 @@ export const SmartRoutingView: React.FC = () => {
               </div>
 
               {/* 1. DEVICE TARGETING SECTION */}
-              <div className="p-3.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 space-y-2">
+              <div className="p-3.5 rounded-lg bg-surface-container-low/60 border border-outline-variant/30 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-bold text-on-surface">
                     <Smartphone className="w-4 h-4 text-primary" />
@@ -547,7 +547,7 @@ export const SmartRoutingView: React.FC = () => {
                         type="button"
                         key={dev.id}
                         onClick={() => setSelectedDevice(dev.id as 'all' | 'android' | 'ios' | 'desktop')}
-                        className={`py-2 px-2.5 rounded-xl font-bold transition-all cursor-pointer border text-xs flex items-center justify-center gap-1.5 ${
+                        className={`py-2 px-2.5 rounded-lg font-bold transition-all cursor-pointer border text-xs flex items-center justify-center gap-1.5 ${
                           isSelected
                             ? 'bg-primary-container text-on-primary border-primary-container shadow-xs'
                             : 'bg-surface-container text-on-surface-variant border-outline-variant/30 hover:bg-surface-container-high'
@@ -562,7 +562,7 @@ export const SmartRoutingView: React.FC = () => {
               </div>
 
               {/* 2. LOCATION TARGETING SECTION (ALL 3: COUNTRY, STATE, CITY) */}
-              <div className="p-3.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 space-y-3.5">
+              <div className="p-3.5 rounded-lg bg-surface-container-low/60 border border-outline-variant/30 space-y-3.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 font-bold text-on-surface">
                     <MapPin className="w-4 h-4 text-emerald-600" />
@@ -585,7 +585,7 @@ export const SmartRoutingView: React.FC = () => {
                     placeholder="e.g. India or IN, United States or US, UK... (optional)"
                     value={targetCountry}
                     onChange={(e) => setTargetCountry(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-surface-container rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                    className="w-full px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                   />
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick:</span>
@@ -627,7 +627,7 @@ export const SmartRoutingView: React.FC = () => {
                     placeholder="e.g. Maharashtra or MH, California or CA, Delhi or DL... (optional)"
                     value={targetState}
                     onChange={(e) => setTargetState(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-surface-container rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                    className="w-full px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                   />
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick:</span>
@@ -669,7 +669,7 @@ export const SmartRoutingView: React.FC = () => {
                     placeholder="e.g. Mumbai, Pimpri, Pune, San Francisco, Bengaluru... (optional)"
                     value={targetCity}
                     onChange={(e) => setTargetCity(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-surface-container rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                    className="w-full px-3 py-1.5 bg-surface-container rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                   />
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     <span className="text-[10px] text-on-surface-variant font-medium self-center mr-0.5">Quick:</span>
@@ -702,7 +702,7 @@ export const SmartRoutingView: React.FC = () => {
                   placeholder="e.g. https://play.google.com/store/... or https://mumbai.store.com"
                   value={ruleDestinationUrl}
                   onChange={(e) => setRuleDestinationUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
                 />
               </div>
 
@@ -714,7 +714,7 @@ export const SmartRoutingView: React.FC = () => {
                   placeholder="https://example.com/fallback-page"
                   value={ruleFallback}
                   onChange={(e) => setRuleFallback(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-[11px]"
                 />
               </div>
 
@@ -723,13 +723,13 @@ export const SmartRoutingView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setNewRuleModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
+                  className="px-5 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
                   Save Smart Rule
                 </button>

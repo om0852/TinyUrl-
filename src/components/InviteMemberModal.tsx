@@ -80,19 +80,19 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}>
-      <div className="bg-card border border-border/80 w-full max-w-md rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5 text-foreground relative z-10">
+      <div className="bg-card border border-border/80 w-full max-w-md rounded-xl p-6 sm:p-7 shadow-2xl space-y-5 text-foreground relative z-10">
         
         {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute top-5 right-5 text-muted-foreground hover:text-foreground p-1 rounded-xl hover:bg-muted transition cursor-pointer"
+          className="absolute top-5 right-5 text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Header */}
         <div className="flex items-center gap-3 pb-3 border-b border-border/40">
-          <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center shrink-0 border border-primary/20">
+          <div className="w-10 h-10 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0 border border-primary/20">
             <UserPlus className="w-5 h-5" />
           </div>
           <div>
@@ -103,7 +103,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
 
         {createdInvite ? (
           <div className="space-y-4 animate-fade-in">
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-foreground text-xs space-y-2">
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-foreground text-xs space-y-2">
               <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
                 <Check className="w-4 h-4" />
                 <span>Invitation Link Ready!</span>
@@ -122,12 +122,12 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                   type="text"
                   readOnly
                   value={createdInvite.invite_url || ''}
-                  className="w-full h-10 px-3 bg-muted/60 border border-border/70 rounded-xl text-xs font-mono text-foreground outline-none"
+                  className="w-full h-10 px-3 bg-muted/60 border border-border/70 rounded-lg text-xs font-mono text-foreground outline-none"
                 />
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1.5 hover:bg-primary/95 transition shrink-0 cursor-pointer shadow-xs"
+                  className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1.5 hover:bg-primary/95 transition shrink-0 cursor-pointer shadow-xs"
                 >
                   {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -141,7 +141,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
             <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
               <a
                 href={`mailto:${encodeURIComponent(createdInvite.email)}?subject=${encodeURIComponent(`Invitation to join ${currentWorkspace.name} on TinyUrl`)}&body=${encodeURIComponent(`Hi ${createdInvite.name},\n\nYou have been invited to collaborate on our TinyUrl workspace "${currentWorkspace.name}" as an ${createdInvite.role}.\n\nAccept your invite here:\n${createdInvite.invite_url}\n\nThis invitation link expires in 7 days.`)}`}
-                className="w-full sm:w-1/2 h-10 px-3 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 transition cursor-pointer"
+                className="w-full sm:w-1/2 h-10 px-3 rounded-lg bg-secondary/80 hover:bg-secondary text-foreground text-xs font-semibold flex items-center justify-center gap-2 border border-border/70 transition cursor-pointer"
               >
                 <Mail className="w-4 h-4 text-primary shrink-0" />
                 <span>Email Collaborator</span>
@@ -149,7 +149,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
               <Button
                 type="button"
                 onClick={handleClose}
-                className="w-full sm:w-1/2 text-xs font-bold h-10 rounded-xl"
+                className="w-full sm:w-1/2 text-xs font-bold h-10 rounded-lg"
               >
                 Done &amp; Close
               </Button>
@@ -165,7 +165,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                 placeholder="e.g. Sarah Jenkins"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full h-10 px-3.5 bg-background border border-border/70 focus:border-primary rounded-xl text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                className="w-full h-10 px-3.5 bg-background border border-border/70 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
               />
             </div>
 
@@ -177,7 +177,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                 placeholder="sarah@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-10 px-3.5 bg-background border border-border/70 focus:border-primary rounded-xl text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                className="w-full h-10 px-3.5 bg-background border border-border/70 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
               />
             </div>
 
@@ -189,7 +189,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                     key={r}
                     type="button"
                     onClick={() => setRole(r)}
-                    className={`h-9 rounded-xl border text-center font-bold capitalize text-xs transition cursor-pointer ${
+                    className={`h-9 rounded-lg border text-center font-bold capitalize text-xs transition cursor-pointer ${
                       role === r
                         ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                         : 'bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted'
@@ -200,7 +200,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                 ))}
               </div>
               {activeRoleDesc && (
-                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed bg-muted/30 p-2.5 rounded-xl border border-border/40">
+                <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed bg-muted/30 p-2.5 rounded-lg border border-border/40">
                   <strong className="text-foreground">{activeRoleDesc.title}:</strong> {activeRoleDesc.description}
                 </p>
               )}
@@ -209,7 +209,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full h-11 text-xs font-bold rounded-xl mt-2 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full h-11 text-xs font-bold rounded-lg mt-2 flex items-center justify-center gap-2 cursor-pointer"
             >
               {submitting ? (
                 <>

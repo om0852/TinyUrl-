@@ -468,10 +468,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         
         {/* Metric 1 */}
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-on-surface-variant font-medium">Active Creator Campaigns</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <FolderKanban className="w-4 h-4" />
             </div>
           </div>
@@ -491,10 +491,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Metric 2: Real Attributed Campaign Clicks */}
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-on-surface-variant font-medium">Attributed Campaign Clicks</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
@@ -503,7 +503,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <span className="text-3xl font-black text-on-surface tracking-tight">
                 {totalAttributedClicks.toLocaleString()}
               </span>
-              <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">
+              <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md font-bold">
                 Live
               </span>
             </div>
@@ -518,10 +518,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Metric 3 */}
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-on-surface-variant font-medium">Workspace Collaborators</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <Sparkles className="w-4 h-4" />
             </div>
           </div>
@@ -541,17 +541,17 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Metric 4: Real Auto-UTM Compliance */}
-        <div className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs text-on-surface-variant font-medium">Auto-UTM Compliance</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
               <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-on-surface tracking-tight">{utmCompliancePct}%</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md ${
                 utmCompliancePct >= 90 ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'
               }`}>
                 {utmCompliancePct >= 90 ? 'Optimized' : 'Attention'}
@@ -627,7 +627,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
           {/* Dynamic Campaigns List */}
           {filteredCampaigns.length === 0 ? (
-            <div className="p-12 rounded-2xl bg-surface-container-lowest border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-center">
+            <div className="p-12 rounded-xl bg-surface-container-lowest border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-center">
               <FolderKanban className="w-12 h-12 text-outline mb-3" />
               <h3 className="text-base font-bold text-on-surface">
                 {campaigns.length === 0 ? 'No campaigns created yet' : `No ${filterTab} campaigns found`}
@@ -651,7 +651,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   }
                   setCreateModalOpen(true);
                 }}
-                className={`mt-4 px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer shadow-xs ${
+                className={`mt-4 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs ${
                   canCreate 
                     ? 'bg-primary-container text-on-primary hover:bg-primary' 
                     : 'bg-surface-container-low text-on-surface-variant/60'
@@ -670,12 +670,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               const isExpanded = !!expandedCampaigns[camp.id];
 
               return (
-                <div key={camp.id} className="bg-surface-container-lowest rounded-2xl p-6 shadow-xs border border-outline-variant/30 hover:shadow-md transition-shadow">
+                <div key={camp.id} className="bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant/30 hover:shadow-md transition-shadow">
                   
                   {/* Top Bar: Title, Sponsor, Actions */}
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary-container shrink-0">
+                      <div className="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container shrink-0">
                         <Video className="w-6 h-6" />
                       </div>
                       <div className="min-w-0">
@@ -683,7 +683,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                           <h3 className="text-base font-bold text-on-surface truncate">
                             {camp.name}
                           </h3>
-                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-md font-bold ${
                             isGoalReached 
                               ? 'text-purple-800 bg-purple-50'
                               : 'text-emerald-800 bg-emerald-50'
@@ -710,7 +710,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                           setAttachError('');
                         }}
                         title="Attach link to campaign"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low hover:bg-surface-container-high text-on-surface px-3 py-1.5 rounded-xl transition-colors border border-outline-variant/30 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low hover:bg-surface-container-high text-on-surface px-3 py-1.5 rounded-lg transition-colors border border-outline-variant/30 cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5 text-primary-container" />
                         <span>Add Deliverable</span>
@@ -726,7 +726,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                             : `${originUrl}/c/${camp.id}`;
                           handleCopyText(shareUrl, camp.id, 'preset');
                         }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary hover:bg-primary px-3 py-1.5 rounded-xl transition-colors cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary hover:bg-primary px-3 py-1.5 rounded-lg transition-colors cursor-pointer shadow-xs"
                       >
                         <Link2 className="w-3.5 h-3.5" />
                         <span>{copiedPreset === camp.id ? 'Copied Link!' : 'Share Link'}</span>
@@ -748,7 +748,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                           openEditModal(camp);
                         }}
                         title={canCreate ? "Edit Campaign" : "Edit Campaign (Requires Editor, Admin, or Owner)"}
-                        className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
                           canCreate 
                             ? 'bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border-outline-variant/30'
                             : 'bg-surface-container-low text-on-surface-variant/40 border-outline-variant/20'
@@ -773,7 +773,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                           setDeleteCampaignModal(camp);
                         }}
                         title={canDelete ? "Delete campaign" : "Delete Campaign (Requires Admin or Owner permissions)"}
-                        className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
                           canDelete
                             ? 'text-outline hover:text-error hover:bg-error-container/20 border-outline-variant/20'
                             : 'text-outline/40 border-outline-variant/10'
@@ -788,7 +788,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   {camp.tags && camp.tags.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2 mt-4">
                       {camp.tags.map((tag) => (
-                        <span key={tag} className="inline-flex items-center gap-1.5 text-xs font-medium bg-surface-container-low text-on-surface px-3 py-1 rounded-full border border-outline-variant/20">
+                        <span key={tag} className="inline-flex items-center gap-1.5 text-xs font-medium bg-surface-container-low text-on-surface px-3 py-1 rounded-md border border-outline-variant/20">
                           #{tag}
                         </span>
                       ))}
@@ -796,7 +796,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   )}
 
                   {/* Progress and Metrics Split */}
-                  <div className="mt-5 pt-4 bg-surface-container-low/60 p-4 rounded-xl border border-outline-variant/20">
+                  <div className="mt-5 pt-4 bg-surface-container-low/60 p-4 rounded-lg border border-outline-variant/20">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-2 font-medium gap-1">
                       <span className="text-on-surface font-semibold">Deliverable Clicks Performance</span>
                       <span className="font-mono text-on-surface">
@@ -855,7 +855,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                       </div>
 
                       {campLinks.length === 0 ? (
-                        <div className="p-4 bg-surface-container-low rounded-xl text-center text-xs text-on-surface-variant border border-dashed border-outline-variant/40 space-y-2">
+                        <div className="p-4 bg-surface-container-low rounded-lg text-center text-xs text-on-surface-variant border border-dashed border-outline-variant/40 space-y-2">
                           <p>No links attached to this campaign yet.</p>
                           <button
                             type="button"
@@ -889,7 +889,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                             return (
                               <div 
                                 key={link.id}
-                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 hover:border-outline-variant/50 transition-all gap-3"
+                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-surface-container-low rounded-lg border border-outline-variant/20 hover:border-outline-variant/50 transition-all gap-3"
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
@@ -964,7 +964,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
         <div className="lg:col-span-4 flex flex-col gap-6">
           
           {/* Automated UTM Tagging Presets Module */}
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-xs border border-outline-variant/30">
+          <div className="bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant/30">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
@@ -989,7 +989,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             <div className="flex flex-col gap-2">
               
               {/* Preset 1 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-xl flex items-center justify-between transition-colors border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant/20">
                 <div className="min-w-0 pr-2">
                   <span className="text-xs text-on-surface font-semibold block truncate">YouTube Video Integrated Read</span>
                   <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_medium=video_sponsor</span>
@@ -1004,7 +1004,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               {/* Preset 2 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-xl flex items-center justify-between transition-colors border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant/20">
                 <div className="min-w-0 pr-2">
                   <span className="text-xs text-on-surface font-semibold block truncate">Instagram Bio Link</span>
                   <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_source=ig_bio&amp;utm_medium=bio</span>
@@ -1019,7 +1019,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               {/* Preset 3 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-xl flex items-center justify-between transition-colors border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant/20">
                 <div className="min-w-0 pr-2">
                   <span className="text-xs text-on-surface font-semibold block truncate">TikTok Pinned Bio</span>
                   <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_source=tiktok_feed&amp;medium=clip</span>
@@ -1034,7 +1034,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               {/* Preset 4 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-xl flex items-center justify-between transition-colors border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant/20">
                 <div className="min-w-0 pr-2">
                   <span className="text-xs text-on-surface font-semibold block truncate">Newsletter Sponsor Slot</span>
                   <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_source=substack&amp;utm_medium=email</span>
@@ -1060,7 +1060,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 }
                 setBulkUtmModalOpen(true);
               }}
-              className="w-full mt-4 py-2.5 bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-primary-container font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              className="w-full mt-4 py-2.5 bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-primary-container font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
             >
               <Sparkles className="w-4 h-4" />
               <span>One-Click Bulk Apply UTM Preset</span>
@@ -1068,15 +1068,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Workspace Team Collaborators Quick Access */}
-          <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-xs border border-outline-variant/30 flex items-center justify-between gap-4">
+          <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary-container flex items-center justify-center shrink-0 border border-primary/20">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary-container flex items-center justify-center shrink-0 border border-primary/20">
                 <Users className="w-5 h-5" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-bold text-on-surface truncate">Workspace Team</h4>
-                  <span className="text-[10px] px-2 py-0.2 rounded font-bold bg-primary-fixed text-primary-container">
+                  <span className="text-[10px] px-2 py-0.2 rounded-md font-bold bg-primary-fixed text-primary-container">
                     {teamMembers.length + 1} Member{teamMembers.length + 1 === 1 ? '' : 's'}
                   </span>
                 </div>
@@ -1088,14 +1088,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             <button
               type="button"
               onClick={() => onNavigateTab ? onNavigateTab('teams') : null}
-              className="px-3.5 py-1.5 rounded-xl bg-primary-container hover:opacity-90 text-on-primary text-xs font-bold transition shadow-xs shrink-0 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-primary-container hover:opacity-90 text-on-primary text-xs font-bold transition shadow-xs shrink-0 cursor-pointer"
             >
               Manage Teams &rarr;
             </button>
           </div>
 
           {/* Dynamic Live Link Health Check */}
-          <div className="bg-surface-container-low rounded-2xl p-6 shadow-xs border border-outline-variant/30">
+          <div className="bg-surface-container-low rounded-xl p-6 shadow-xs border border-outline-variant/30">
             <div className="flex items-center gap-2 mb-1.5 text-on-surface font-bold text-sm">
               <Activity className="w-4 h-4 text-emerald-600" />
               <span>Live Deliverable Link Health Check</span>
@@ -1130,7 +1130,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setCreateModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button
               type="button"
               onClick={() => setCreateModalOpen(false)}
@@ -1153,7 +1153,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   placeholder="e.g. Autumn Gear Sponsor"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                 />
               </div>
 
@@ -1164,7 +1164,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   placeholder="e.g. Sony, NordVPN, Adobe"
                   value={newSponsor}
                   onChange={(e) => setNewSponsor(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                 />
               </div>
 
@@ -1174,7 +1174,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   type="number"
                   value={newTarget}
                   onChange={(e) => setNewTarget(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
                 />
               </div>
 
@@ -1185,7 +1185,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   placeholder="sponsor, active, autumn2026"
                   value={newTagsStr}
                   onChange={(e) => setNewTagsStr(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                 />
               </div>
 
@@ -1193,13 +1193,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
+                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
                   Create Deal
                 </button>
@@ -1218,7 +1218,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setEditCampaignModal(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button
               type="button"
               onClick={() => setEditCampaignModal(null)}
@@ -1240,7 +1240,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   required
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                 />
               </div>
 
@@ -1250,7 +1250,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   type="text"
                   value={editSponsor}
                   onChange={(e) => setEditSponsor(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                 />
               </div>
 
@@ -1260,7 +1260,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   type="number"
                   value={editTarget}
                   onChange={(e) => setEditTarget(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
                 />
               </div>
 
@@ -1270,7 +1270,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   type="text"
                   value={editTagsStr}
                   onChange={(e) => setEditTagsStr(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface text-xs"
                 />
               </div>
 
@@ -1278,13 +1278,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <button
                   type="button"
                   onClick={() => setEditCampaignModal(null)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
+                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
                   Save Changes
                 </button>
@@ -1303,8 +1303,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setDeleteCampaignModal(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in text-on-surface">
-            <div className="w-10 h-10 rounded-xl bg-error-container/30 text-error flex items-center justify-center mb-3">
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in text-on-surface">
+            <div className="w-10 h-10 rounded-lg bg-error-container/30 text-error flex items-center justify-center mb-3">
               <AlertCircle className="w-6 h-6" />
             </div>
 
@@ -1317,14 +1317,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => setDeleteCampaignModal(null)}
-                className="px-3.5 py-1.5 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                className="px-3.5 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="px-3.5 py-1.5 rounded-xl bg-error text-white font-bold hover:bg-error/90 cursor-pointer text-xs shadow-xs"
+                className="px-3.5 py-1.5 rounded-lg bg-error text-white font-bold hover:bg-error/90 cursor-pointer text-xs shadow-xs"
               >
                 Delete Campaign
               </button>
@@ -1342,7 +1342,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setAttachModalCampaign(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar text-on-surface">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar text-on-surface">
             <button
               type="button"
               onClick={() => setAttachModalCampaign(null)}
@@ -1359,11 +1359,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </p>
 
             {/* Tab switch */}
-            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl mb-4 border border-outline-variant/30">
+            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg mb-4 border border-outline-variant/30">
               <button
                 type="button"
                 onClick={() => setAttachTab('existing')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${
                   attachTab === 'existing' 
                     ? 'bg-surface-container-lowest text-on-surface shadow-xs' 
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -1374,7 +1374,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => setAttachTab('new')}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${
                   attachTab === 'new' 
                     ? 'bg-surface-container-lowest text-on-surface shadow-xs' 
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -1385,7 +1385,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </div>
 
             {attachError && (
-              <div className="p-2.5 mb-3 rounded-xl bg-error-container/30 border border-error text-error text-xs">
+              <div className="p-2.5 mb-3 rounded-lg bg-error-container/30 border border-error text-error text-xs">
                 {attachError}
               </div>
             )}
@@ -1397,7 +1397,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   <select
                     value={selectedLinkToAttach}
                     onChange={(e) => setSelectedLinkToAttach(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs cursor-pointer"
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs cursor-pointer"
                   >
                     <option value="">-- Choose a link from workspace --</option>
                     {links
@@ -1415,7 +1415,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   <button
                     type="button"
                     onClick={() => setAttachModalCampaign(null)}
-                    className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                    className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                   >
                     Cancel
                   </button>
@@ -1423,7 +1423,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                     type="button"
                     disabled={!selectedLinkToAttach}
                     onClick={handleAttachExisting}
-                    className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer disabled:opacity-50 text-xs shadow-xs"
+                    className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer disabled:opacity-50 text-xs shadow-xs"
                   >
                     Attach Link
                   </button>
@@ -1439,7 +1439,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                     placeholder="https://sponsor.com/offer"
                     value={newDeliverableUrl}
                     onChange={(e) => setNewDeliverableUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs"
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs"
                   />
                 </div>
 
@@ -1450,7 +1450,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                     placeholder="e.g. YouTube Dedicated Segment, IG Story Link"
                     value={newDeliverableTitle}
                     onChange={(e) => setNewDeliverableTitle(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs"
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs"
                   />
                 </div>
 
@@ -1461,11 +1461,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                     placeholder="e.g. sponsor-exclusive"
                     value={newDeliverableSlug}
                     onChange={(e) => setNewDeliverableSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container font-mono text-xs"
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container font-mono text-xs"
                   />
                 </div>
 
-                <div className="p-2.5 bg-surface-container-low rounded-xl text-[11px] text-on-surface-variant flex items-center gap-2">
+                <div className="p-2.5 bg-surface-container-low rounded-lg text-[11px] text-on-surface-variant flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary-container shrink-0" />
                   <span>Will auto-tag with <code>utm_campaign={attachModalCampaign.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}</code></span>
                 </div>
@@ -1474,13 +1474,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   <button
                     type="button"
                     onClick={() => setAttachModalCampaign(null)}
-                    className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                    className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer text-xs shadow-xs"
+                    className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer text-xs shadow-xs"
                   >
                     Create &amp; Attach
                   </button>
@@ -1500,7 +1500,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setBulkUtmModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in text-on-surface">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in text-on-surface">
             <button
               type="button"
               onClick={() => setBulkUtmModalOpen(false)}
@@ -1510,7 +1510,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </button>
 
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
                 <Sparkles className="w-4 h-4" />
               </div>
               <h4 className="text-sm font-bold text-on-surface">Bulk Apply UTM Preset</h4>
@@ -1520,7 +1520,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </p>
 
             {bulkSuccessMsg && (
-              <div className="p-3 mb-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+              <div className="p-3 mb-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
                 <Check className="w-4 h-4 shrink-0" />
                 <span>{bulkSuccessMsg}</span>
               </div>
@@ -1532,7 +1532,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <select
                   value={bulkTargetCampaignId}
                   onChange={(e) => setBulkTargetCampaignId(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs cursor-pointer"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs cursor-pointer"
                 >
                   {campaigns.map(c => (
                     <option key={c.id} value={c.id}>
@@ -1547,7 +1547,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <select
                   value={bulkPresetType}
                   onChange={(e) => setBulkPresetType(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs cursor-pointer"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-on-surface outline-none focus:ring-2 focus:ring-primary-container text-xs cursor-pointer"
                 >
                   <option value="youtube">YouTube (utm_source=youtube &amp; medium=video_sponsor)</option>
                   <option value="instagram">Instagram (utm_source=ig_bio &amp; medium=bio)</option>
@@ -1561,14 +1561,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <button
                   type="button"
                   onClick={() => setBulkUtmModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!bulkTargetCampaignId}
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer disabled:opacity-50 text-xs shadow-xs"
+                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer disabled:opacity-50 text-xs shadow-xs"
                 >
                   Apply to All Deliverables
                 </button>
@@ -1587,7 +1587,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setUtmSettingsModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in text-on-surface">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in text-on-surface">
             <button
               type="button"
               onClick={() => setUtmSettingsModalOpen(false)}
@@ -1597,7 +1597,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </button>
 
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-xl bg-surface-container-high text-primary-container flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary-container flex items-center justify-center">
                 <Settings className="w-4 h-4" />
               </div>
               <h4 className="text-sm font-bold text-on-surface">Standard UTM Taxonomies</h4>
@@ -1607,25 +1607,25 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </p>
 
             <div className="space-y-2.5 text-xs">
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <span className="font-bold block text-on-surface">1. Video Placements</span>
                 <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
                   utm_source=youtube &bull; utm_medium=video_sponsor
                 </span>
               </div>
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <span className="font-bold block text-on-surface">2. Social Bio Links</span>
                 <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
                   utm_source=ig_bio &bull; utm_medium=bio
                 </span>
               </div>
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <span className="font-bold block text-on-surface">3. Short-Form Video</span>
                 <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
                   utm_source=tiktok_feed &bull; utm_medium=clip
                 </span>
               </div>
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <span className="font-bold block text-on-surface">4. Written Newsletters</span>
                 <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
                   utm_source=substack &bull; utm_medium=email
@@ -1637,7 +1637,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => setUtmSettingsModalOpen(false)}
-                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-xl text-xs hover:bg-primary transition cursor-pointer"
+                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-lg text-xs hover:bg-primary transition cursor-pointer"
               >
                 Close Settings
               </button>
@@ -1655,12 +1655,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setReportModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[92vh] overflow-y-auto custom-scrollbar text-on-surface">
+          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[92vh] overflow-y-auto custom-scrollbar text-on-surface">
             
             {/* Header controls (hidden on print) */}
             <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20 print:hidden">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-primary-container text-on-primary flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
@@ -1673,7 +1673,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-container text-on-primary rounded-xl text-xs font-bold hover:bg-primary transition cursor-pointer shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-container text-on-primary rounded-lg text-xs font-bold hover:bg-primary transition cursor-pointer shadow-xs"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print / Save PDF</span>
@@ -1681,7 +1681,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <button
                   type="button"
                   onClick={() => setReportModalOpen(false)}
-                  className="p-1 rounded-xl hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
+                  className="p-1 rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1694,7 +1694,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <select
                 value={selectedReportCampId}
                 onChange={(e) => setSelectedReportCampId(e.target.value)}
-                className="w-full px-3 py-2 bg-surface-container-low rounded-xl text-xs text-on-surface border border-outline-variant/30 outline-none cursor-pointer"
+                className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none cursor-pointer"
               >
                 <option value="all">All Brand Deals (Executive Overview)</option>
                 {campaigns.map(c => (
@@ -1713,7 +1713,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                  <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
                     VERIFIED DATA
                   </span>
                 </div>
@@ -1726,7 +1726,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 const pct = Math.min(100, Math.round((campClicks / target) * 100));
 
                 return (
-                  <div key={camp.id} className="p-5 rounded-2xl bg-surface-container-low/50 border border-outline-variant/30 space-y-4">
+                  <div key={camp.id} className="p-5 rounded-lg bg-surface-container-low/50 border border-outline-variant/30 space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
                         <h4 className="text-base font-extrabold text-on-surface">{camp.name}</h4>
@@ -1794,10 +1794,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setMatrixModalOpen(false); }}
         >
-          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-3xl p-6 sm:p-7 w-full max-w-xl shadow-2xl space-y-5 text-on-surface">
+          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-6 sm:p-7 w-full max-w-xl shadow-2xl space-y-5 text-on-surface">
             <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary flex items-center justify-center">
+                <div className="w-9 h-9 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -1808,7 +1808,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <button 
                 type="button" 
                 onClick={() => setMatrixModalOpen(false)}
-                className="p-1 rounded-xl hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
+                className="p-1 rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1890,7 +1890,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => setMatrixModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl bg-primary-container text-on-primary font-bold text-xs hover:bg-primary transition cursor-pointer"
+                className="px-5 py-2.5 rounded-lg bg-primary-container text-on-primary font-bold text-xs hover:bg-primary transition cursor-pointer"
               >
                 Close Matrix
               </button>

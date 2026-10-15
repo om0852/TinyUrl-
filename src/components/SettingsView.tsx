@@ -309,7 +309,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-surface-container-high rounded-full text-xs text-on-surface font-semibold border border-outline-variant/30 shadow-xs">
+            <span className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-container-high rounded-md text-xs text-on-surface font-semibold border border-outline-variant/30 shadow-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>{currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'Pro Active'}</span>
             </span>
@@ -317,7 +317,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             <button
               type="button"
               onClick={handleCopyWsId}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface rounded-xl text-xs font-mono font-medium border border-outline-variant/30 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface rounded-md text-xs font-mono font-medium border border-outline-variant/30 transition cursor-pointer"
               title="Click to copy Workspace ID"
             >
               <span>{currentWorkspace?.id || 'ws_default'}</span>
@@ -328,7 +328,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
       </div>
 
       {/* 2. SETTINGS HORIZONTAL TABS */}
-      <div className="bg-surface-container-low p-1.5 rounded-2xl flex items-center gap-1 overflow-x-auto shadow-xs border border-outline-variant/30 text-xs font-bold">
+      <div className="bg-surface-container-low p-1 rounded-xl flex items-center gap-1 overflow-x-auto shadow-xs border border-outline-variant/30 text-xs font-bold">
         {[
           { id: 'profile', label: 'Workspace Profile', icon: User },
           { id: 'domains', label: `Branded Domains (${domains.length})`, icon: Globe },
@@ -343,7 +343,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               key={tab.id}
               type="button"
               onClick={() => setActiveSettingsTab(tab.id as SettingsTab)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${isActive
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${isActive
                   ? 'bg-surface-container-lowest text-primary-container shadow-xs font-extrabold'
                   : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60'
                 }`}
@@ -357,7 +357,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 3. TAB 1: CREATOR & WORKSPACE PROFILE */}
       {activeSettingsTab === 'profile' && (
-        <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
+        <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
           <div className="flex items-start justify-between pb-3 border-b border-outline-variant/20">
             <div>
               <h2 className="text-base font-bold text-on-surface">Workspace Brand &amp; Profile</h2>
@@ -365,13 +365,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 Public presence details used across all generated bio links, Open Graph cards, and landing pages.
               </p>
             </div>
-            <span className="font-mono text-xs text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-lg border border-outline-variant/30">
+            <span className="font-mono text-xs text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md border border-outline-variant/30">
               ID: {currentWorkspace?.id || 'ws_default'}
             </span>
           </div>
 
           {/* Avatar Uploader & Info */}
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-5 rounded-xl bg-surface-container-low border border-outline-variant/30">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30">
             <div className="relative group shrink-0">
               <input
                 type="file"
@@ -382,7 +382,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               />
               <div
                 onClick={() => avatarInputRef.current?.click()}
-                className="w-20 h-20 rounded-2xl overflow-hidden shadow-xs bg-primary-container text-on-primary flex items-center justify-center text-2xl font-bold border-2 border-surface-container-lowest cursor-pointer hover:opacity-90 transition relative"
+                className="w-20 h-20 rounded-xl overflow-hidden shadow-xs bg-primary-container text-on-primary flex items-center justify-center text-2xl font-bold border-2 border-surface-container-lowest cursor-pointer hover:opacity-90 transition relative"
                 title="Click to change photo"
               >
                 {customAvatar ? (
@@ -406,7 +406,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <span className="text-base font-bold text-on-surface">
                   {displayName || currentWorkspace?.name || 'Workspace Owner'}
                 </span>
-                <span className="px-2.5 py-0.5 bg-surface-container-high rounded-full text-xs text-primary-container font-semibold w-fit mx-auto sm:mx-0">
+                <span className="px-2 py-0.5 bg-surface-container-high rounded-md text-xs text-primary-container font-semibold w-fit mx-auto sm:mx-0">
                   {currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'Pro Active'}
                 </span>
               </div>
@@ -416,7 +416,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <button
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
-                  className="px-3 py-1.5 bg-surface-container-lowest text-xs font-semibold text-on-surface rounded-xl shadow-xs border border-outline-variant/30 hover:bg-surface-container transition-all cursor-pointer"
+                  className="px-3 py-1.5 bg-surface-container-lowest text-xs font-semibold text-on-surface rounded-lg shadow-xs border border-outline-variant/30 hover:bg-surface-container transition-all cursor-pointer"
                 >
                   Upload new photo
                 </button>
@@ -447,7 +447,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="e.g. Acme Marketing Studio"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
               />
             </div>
 
@@ -457,15 +457,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <span>Default Vanity Slug / Alias</span>
                 <span className="text-[11px] text-on-surface-variant font-normal">Bio hub URL prefix</span>
               </label>
-              <div className="flex rounded-xl bg-surface-container-low overflow-hidden border border-outline-variant/30 focus-within:ring-2 focus-within:ring-primary-container transition-all">
-                <span className="px-3.5 py-2.5 font-mono text-xs text-on-surface-variant select-none bg-surface-container border-r border-outline-variant/30">
+              <div className="flex rounded-lg bg-surface-container-low overflow-hidden border border-outline-variant/30 focus-within:ring-2 focus-within:ring-primary-container transition-all">
+                <span className="px-3 py-2 font-mono text-xs text-on-surface-variant select-none bg-surface-container border-r border-outline-variant/30">
                   {originDomain}/
                 </span>
                 <input
                   type="text"
                   value={vanityHandle}
                   onChange={(e) => setVanityHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                  className="flex-1 px-3 py-2.5 bg-transparent font-mono text-xs text-primary-container font-bold focus:outline-none"
+                  className="flex-1 px-3 py-2 bg-transparent font-mono text-xs text-primary-container font-bold focus:outline-none"
                   placeholder="brand-name"
                 />
                 <button
@@ -489,7 +489,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   placeholder="contact@yourcompany.com"
-                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+                  className="w-full pl-9 pr-3.5 py-2.5 rounded-lg bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
                 />
               </div>
             </div>
@@ -502,7 +502,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <select
                   value={languageRegion}
                   onChange={(e) => setLanguageRegion(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container appearance-none transition-all cursor-pointer"
+                  className="w-full pl-9 pr-8 py-2.5 rounded-lg bg-surface-container-low text-xs text-on-surface border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container appearance-none transition-all cursor-pointer"
                 >
                   <option value="en-US">English (United States - en-US)</option>
                   <option value="en-GB">English (United Kingdom - en-GB)</option>
@@ -521,12 +521,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 4. TAB 2: BRANDED CUSTOM DOMAINS */}
       {activeSettingsTab === 'domains' && (
-        <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
+        <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-outline-variant/20">
             <div>
               <div className="flex items-center gap-2.5">
                 <h2 className="text-base font-bold text-on-surface">Branded Custom Domains</h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant text-[11px] font-bold">
+                <span className="px-2 py-0.5 rounded-md bg-secondary-fixed text-on-secondary-fixed-variant text-[11px] font-bold">
                   {domains.length} / 5 Connected
                 </span>
               </div>
@@ -537,7 +537,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             <button
               type="button"
               onClick={() => setAddDomainModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Connect New Domain</span>
@@ -547,8 +547,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           {/* Domains Table / Cards */}
           <div className="space-y-4 text-xs">
             {displayDomains.length === 0 ? (
-              <div className="rounded-2xl bg-surface-container-low p-8 border border-outline-variant/30 text-center flex flex-col items-center justify-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-primary-container shadow-xs">
+              <div className="rounded-lg bg-surface-container-low p-8 border border-outline-variant/30 text-center flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shadow-xs">
                   <Globe className="w-6 h-6" />
                 </div>
                 <div className="max-w-md">
@@ -560,7 +560,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <button
                   type="button"
                   onClick={() => setAddDomainModalOpen(true)}
-                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition shadow-xs cursor-pointer"
+                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Connect Your First Domain</span>
@@ -577,12 +577,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 return (
                   <div
                     key={dom.id}
-                    className="rounded-2xl bg-surface-container-low p-4 sm:p-5 flex flex-col gap-4 border border-outline-variant/30 transition-all shadow-xs"
+                    className="rounded-lg bg-surface-container-low p-4 sm:p-5 flex flex-col gap-4 border border-outline-variant/30 transition-all shadow-xs"
                   >
                     {/* Card Header */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                       <div className="flex items-start gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary-container shrink-0 shadow-xs">
+                        <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0 shadow-xs">
                           <Globe className="w-5 h-5" />
                         </div>
                         <div className="flex flex-col gap-1 min-w-0">
@@ -593,12 +593,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
                             {/* Ownership Badge */}
                             {dom.ownership_verified || dom.verified ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">
                                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                                 <span>Ownership Verified</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
                                 <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
                                 <span>Ownership Pending (TXT)</span>
                               </span>
@@ -606,18 +606,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
                             {/* Routing & SSL Badge */}
                             {dom.verified ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
                                 <span>Edge TLS 1.3 Active</span>
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant/40 text-[11px] font-medium">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant border border-outline-variant/40 text-[11px] font-medium">
                                 <span>Routing Pending (CNAME)</span>
                               </span>
                             )}
 
                             {isDefaultPrimary && (
-                              <span className="px-2 py-0.5 rounded-md bg-primary-container text-on-primary text-[10px] font-bold uppercase tracking-wider">
+                              <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary text-[10px] font-bold uppercase tracking-wider">
                                 Default Primary
                               </span>
                             )}
@@ -639,7 +639,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                           <button
                             type="button"
                             onClick={() => setExpandedDnsDomainId(isExpanded ? null : dom.id)}
-                            className="px-3 py-1.5 bg-surface-container text-on-surface text-xs font-semibold rounded-xl hover:bg-surface-container-high transition-colors shadow-xs border border-outline-variant/30 cursor-pointer"
+                            className="px-3 py-1.5 bg-surface-container text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container-high transition-colors shadow-xs border border-outline-variant/30 cursor-pointer"
                           >
                             {isExpanded ? 'Hide DNS Records' : 'View DNS Records'}
                           </button>
@@ -650,7 +650,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                             type="button"
                             disabled={verifyingDomainId === dom.id}
                             onClick={() => handleTestDomainDns(dom.id, dom.hostname, false)}
-                            className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-xl hover:bg-primary transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                            className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-lg hover:bg-primary transition-all shadow-xs cursor-pointer disabled:opacity-50"
                           >
                             {verifyingDomainId === dom.id ? 'Checking DNS...' : 'Verify Live DNS'}
                           </button>
@@ -661,7 +661,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                             type="button"
                             onClick={() => handleTestDomainDns(dom.id, dom.hostname, true)}
                             title="Simulate DNS verification instantly for testing or local demonstration"
-                            className="px-2.5 py-1.5 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold rounded-xl hover:bg-secondary-fixed-dim transition-colors shadow-xs cursor-pointer"
+                            className="px-2.5 py-1.5 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold rounded-lg hover:bg-secondary-fixed-dim transition-colors shadow-xs cursor-pointer"
                           >
                             Demo Instant Verify
                           </button>
@@ -671,7 +671,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                           <button
                             type="button"
                             onClick={() => handleSetPrimaryDomain(dom.id, dom.hostname)}
-                            className="px-2.5 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-medium rounded-xl hover:bg-surface-container border border-outline-variant/30 transition cursor-pointer"
+                            className="px-2.5 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-medium rounded-lg hover:bg-surface-container border border-outline-variant/30 transition cursor-pointer"
                           >
                             Set Primary
                           </button>
@@ -681,7 +681,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                           <button
                             type="button"
                             onClick={() => handleDeleteDomain(dom.id, dom.hostname)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition cursor-pointer"
                             title="Remove domain"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -692,7 +692,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
                     {/* Expandable DNS Records Drawer */}
                     {isExpanded && (
-                      <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3 animate-fade-in bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/30">
+                      <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3 animate-fade-in bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant/30">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-outline-variant/20">
                           <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                             <Server className="w-4 h-4 text-primary-container" />
@@ -702,14 +702,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                         </div>
 
                         {/* Apex vs Subdomain Quick Tip */}
-                        <div className="p-2.5 rounded-lg bg-primary-container/10 border border-primary-container/20 text-[11px] text-on-surface leading-relaxed">
+                        <div className="p-2.5 rounded-md bg-primary-container/10 border border-primary-container/20 text-[11px] text-on-surface leading-relaxed">
                           💡 <strong>DNS Guide:</strong> If using a <strong>Root/Apex domain</strong> (e.g. <span className="font-mono text-primary-container">{dom.hostname}</span>), add the <strong>A Record</strong> below. If using a <strong>Subdomain</strong> (e.g. <span className="font-mono text-primary-container">links.{dom.hostname}</span>), add the <strong>CNAME Record</strong>.
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
 
                           {/* Record 1: A Record (Recommended for Root Domains) */}
-                          <div className="p-3 rounded-xl bg-surface-container-low border border-emerald-200/60 dark:border-emerald-800/40 flex flex-col gap-2">
+                          <div className="p-3 rounded-md bg-surface-container-low border border-emerald-200/60 dark:border-emerald-800/40 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
                                 <span>A Record</span>
@@ -746,7 +746,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                           </div>
 
                           {/* Record 2: CNAME Record (For Subdomains) */}
-                          <div className="p-3 rounded-xl bg-surface-container-low border border-blue-200/60 dark:border-blue-800/40 flex flex-col gap-2">
+                          <div className="p-3 rounded-md bg-surface-container-low border border-blue-200/60 dark:border-blue-800/40 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
                                 <span>CNAME Record</span>
@@ -783,7 +783,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                           </div>
 
                           {/* Record 3: Ownership Challenge TXT */}
-                          <div className="p-3 rounded-xl bg-surface-container-low border border-amber-200/60 dark:border-amber-800/40 flex flex-col gap-2">
+                          <div className="p-3 rounded-md bg-surface-container-low border border-amber-200/60 dark:border-amber-800/40 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
                                 <span>Ownership TXT</span>
@@ -828,7 +828,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           </div>
 
           {/* Inline DNS Quick Info Notice */}
-          <div className="p-4 rounded-xl bg-surface-container-low flex items-start gap-3 border border-outline-variant/30 text-xs">
+          <div className="p-4 rounded-lg bg-surface-container-low flex items-start gap-3 border border-outline-variant/30 text-xs">
             <Info className="w-4 h-4 text-primary-container shrink-0 mt-0.5" />
             <div className="text-on-surface leading-relaxed flex-1">
               <strong className="font-semibold">Enterprise Domain Verification:</strong> To guarantee security and prevent unauthorized domain hijacking, we verify that your organization controls the DNS zone via the <code className="font-mono px-1.5 py-0.5 bg-surface-container-lowest rounded border border-outline-variant/20">TXT</code> challenge before provisioning automated Edge TLS certificates.
@@ -839,7 +839,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 5. TAB 3: SOCIAL CHANNELS & ATTRIBUTION */}
       {activeSettingsTab === 'social' && (
-        <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
+        <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
           <div>
             <h2 className="text-base font-bold text-on-surface">Social Channel Integrations</h2>
             <p className="text-xs text-on-surface-variant mt-0.5">
@@ -850,10 +850,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
 
             {/* YouTube */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center text-red-600 shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-600 shrink-0">
                     <Video className="w-5 h-5" />
                   </div>
                   <div>
@@ -876,15 +876,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 placeholder="@yourchannel or channel URL"
                 value={socialChannels.youtube.handle}
                 onChange={(e) => setSocialChannels(s => ({ ...s, youtube: { ...s.youtube, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
+                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
               />
             </div>
 
             {/* Instagram */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-600 shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-600 shrink-0">
                     <Camera className="w-5 h-5" />
                   </div>
                   <div>
@@ -907,15 +907,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 placeholder="@instagram_handle"
                 value={socialChannels.instagram.handle}
                 onChange={(e) => setSocialChannels(s => ({ ...s, instagram: { ...s.instagram, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
+                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
               />
             </div>
 
             {/* TikTok */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 shrink-0">
                     <Smartphone className="w-5 h-5" />
                   </div>
                   <div>
@@ -938,15 +938,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 placeholder="@tiktok_creator"
                 value={socialChannels.tiktok.handle}
                 onChange={(e) => setSocialChannels(s => ({ ...s, tiktok: { ...s.tiktok, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
+                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
               />
             </div>
 
             {/* X / Twitter */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-surface-container-lowest flex items-center justify-center text-on-surface font-bold text-sm shrink-0 border border-outline-variant/20">
+                  <div className="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-on-surface font-bold text-sm shrink-0 border border-outline-variant/20">
                     𝕏
                   </div>
                   <div>
@@ -969,7 +969,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 placeholder="@x_handle"
                 value={socialChannels.twitter.handle}
                 onChange={(e) => setSocialChannels(s => ({ ...s, twitter: { ...s.twitter, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
+                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-container"
               />
             </div>
 
@@ -979,7 +979,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 6. TAB 4: TRACKING & PRIVACY PREFERENCES */}
       {activeSettingsTab === 'privacy' && (
-        <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
+        <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
           <div>
             <h2 className="text-base font-bold text-on-surface">Tracking &amp; Privacy Preferences</h2>
             <p className="text-xs text-on-surface-variant mt-0.5">
@@ -994,7 +994,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               <div className="flex flex-col gap-1 max-w-xl">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-on-surface text-xs">Cookie-less Analytics Processing</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-[10px]">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-[10px]">
                     GDPR &amp; CCPA Compliant
                   </span>
                 </div>
@@ -1057,12 +1057,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 7. TAB 5: BILLING & RESOURCE QUOTAS */}
       {activeSettingsTab === 'billing' && (
-        <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
+        <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 flex flex-col gap-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-outline-variant/20">
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-bold text-on-surface">Workspace Plan &amp; Quotas</h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant text-[11px] font-bold">
+                <span className="px-2 py-0.5 rounded-md bg-secondary-fixed text-on-secondary-fixed-variant text-[11px] font-bold">
                   {currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'PRO Plan'}
                 </span>
               </div>
@@ -1078,7 +1078,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             {/* Links Quota */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
               <div>
                 <span className="text-xs text-on-surface-variant font-medium">Active Short Links</span>
                 <div className="text-xl font-bold text-on-surface mt-1">{links.length} Active</div>
@@ -1087,7 +1087,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             </div>
 
             {/* Custom Domains Quota */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
               <div>
                 <span className="text-xs text-on-surface-variant font-medium">Custom Branded Domains</span>
                 <div className="text-xl font-bold text-on-surface mt-1">{domains.length} of 3 Used</div>
@@ -1098,7 +1098,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             </div>
 
             {/* Team Collaborators Quota */}
-            <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
+            <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between">
               <div>
                 <span className="text-xs text-on-surface-variant font-medium">Team Collaborators</span>
                 <div className="text-xl font-bold text-on-surface mt-1">{teamMembers.length} Members</div>
@@ -1114,7 +1114,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             <button
               type="button"
               onClick={() => setUpgradeModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary transition shadow-xs cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary transition shadow-xs cursor-pointer"
             >
               Manage Subscription Plan
             </button>
@@ -1123,7 +1123,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
       )}
 
       {/* 8. PERSISTENT STICKY BOTTOM ACTION BAR */}
-      <div className="sticky bottom-4 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-outline-variant/40 flex items-center justify-between">
+      <div className="sticky bottom-4 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-3.5 sm:p-4 rounded-xl shadow-xl border border-outline-variant/40 flex items-center justify-between">
         <div className="flex items-center gap-2 text-on-surface-variant text-xs">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Workspace: <strong className="text-on-surface">{currentWorkspace?.name || 'My Workspace'}</strong></span>
@@ -1137,7 +1137,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               setVanityHandle(currentWorkspace?.slug || 'workspace');
               showToast('Reset form to current saved state.');
             }}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-all cursor-pointer"
           >
             Reset
           </button>
@@ -1146,7 +1146,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             type="button"
             disabled={isSaving}
             onClick={handleSaveAll}
-            className="px-5 py-2.5 rounded-xl text-xs bg-primary-container text-on-primary font-bold hover:bg-primary transition-all shadow-md shadow-primary-container/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
+            className="px-4 py-2 rounded-lg text-xs bg-primary-container text-on-primary font-bold hover:bg-primary transition-all shadow-md shadow-primary-container/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
           >
             {isSaving ? (
               <>
@@ -1176,7 +1176,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             if (e.target === e.currentTarget) setAddDomainModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
             <button
               type="button"
               onClick={() => setAddDomainModalOpen(false)}
@@ -1204,7 +1204,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   placeholder="e.g. go.yourcompany.com or links.brand.org"
                   value={newDomainHostname}
                   onChange={(e) => setNewDomainHostname(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low rounded-xl border border-outline-variant/30 text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3 py-2.5 bg-surface-container-low rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
                 />
               </div>
 
@@ -1218,27 +1218,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   placeholder="https://yourcompany.com"
                   value={newDomainRootRedirect}
                   onChange={(e) => setNewDomainRootRedirect(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low rounded-xl border border-outline-variant/30 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3 py-2.5 bg-surface-container-low rounded-lg border border-outline-variant/30 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
                 />
                 <span className="text-[11px] text-on-surface-variant mt-1 block">
                   Redirects users who open the root domain directly without a short slug.
                 </span>
               </div>
 
-              <div className="p-3 bg-surface-container-low rounded-xl space-y-2 border border-outline-variant/30 text-xs">
+              <div className="p-3 bg-surface-container-low rounded-lg space-y-2 border border-outline-variant/30 text-xs">
                 <span className="font-bold text-on-surface flex items-center gap-1.5">
                   <Server className="w-4 h-4 text-primary-container" />
                   <span>DNS Setup Options to Route Traffic:</span>
                 </span>
                 <div className="space-y-1.5 text-[11px] font-mono">
-                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/20">
+                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-md border border-outline-variant/20">
                     <div>
                       <span className="font-bold text-emerald-700 mr-1.5">Option 1 (Root @):</span>
                       <span className="text-on-surface-variant font-sans">A Record pointing to</span>
                     </div>
                     <span className="font-bold text-primary-container">{edgeProxyIp}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/20">
+                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-md border border-outline-variant/20">
                     <div>
                       <span className="font-bold text-blue-700 mr-1.5">Option 2 (Subdomain):</span>
                       <span className="text-on-surface-variant font-sans">CNAME pointing to</span>
@@ -1255,14 +1255,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 <button
                   type="button"
                   onClick={() => setAddDomainModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingDomain}
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs disabled:opacity-50"
                 >
                   {isAddingDomain ? 'Registering...' : 'Register Domain'}
                 </button>
@@ -1281,7 +1281,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             if (e.target === e.currentTarget) setUpgradeModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
             <button
               type="button"
               onClick={() => setUpgradeModalOpen(false)}
@@ -1299,17 +1299,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
             </p>
 
             <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-surface-container-low border border-primary-container/30 flex items-center justify-between">
+              <div className="p-3.5 rounded-lg bg-surface-container-low border border-primary-container/30 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-on-surface block text-sm">Pro Creator ($29/mo)</span>
                   <span className="text-on-surface-variant">Unlimited links, 3 custom domains, zero-trust shield</span>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-primary-container text-on-primary font-bold text-[11px]">
+                <span className="px-2 py-0.5 rounded-md bg-primary-container text-on-primary font-bold text-[11px]">
                   Active
                 </span>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-between">
+              <div className="p-3.5 rounded-lg bg-surface-container-low border border-outline-variant/20 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-on-surface block text-sm">Enterprise Dedicated ($199/mo)</span>
                   <span className="text-on-surface-variant">Unlimited custom domains, dedicated IP pools, custom SLA</span>
@@ -1320,7 +1320,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                     setUpgradeModalOpen(false);
                     showToast('Enterprise inquiry dispatched to support.');
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high font-bold text-on-surface text-xs transition cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-bold text-on-surface text-xs transition cursor-pointer"
                 >
                   Contact Sales
                 </button>
@@ -1331,7 +1331,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               <button
                 type="button"
                 onClick={() => setUpgradeModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
               >
                 Close
               </button>
@@ -1343,7 +1343,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 11. FLOATING NOTIFICATION TOAST */}
       {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
+        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-3.5 py-2 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>,

@@ -136,7 +136,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl font-bold tracking-tight text-on-surface whitespace-nowrap">Workspace Overview</h1>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-primary-container text-on-primary font-bold shadow-xs whitespace-nowrap shrink-0">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-primary-container text-on-primary font-bold shadow-xs whitespace-nowrap shrink-0">
               {links.length} Links Active
             </span>
           </div>
@@ -149,7 +149,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           <button 
             type="button"
             onClick={onOpenCreateModal}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary-container hover:bg-primary text-on-primary transition-all rounded-xl text-xs font-bold shadow-md shadow-primary-container/20 cursor-pointer whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-container hover:bg-primary text-on-primary transition-all rounded-lg text-xs font-bold shadow-md shadow-primary-container/20 cursor-pointer whitespace-nowrap shrink-0"
           >
             <Plus className="h-4 w-4" />
             <span>Create Short Link</span>
@@ -161,12 +161,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Links */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-4.5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
               Total Links
             </span>
-            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
               <Layers className="h-4 w-4" />
             </div>
           </div>
@@ -181,12 +181,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Card 2: Total Clicks */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-4.5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
               Total Clicks
             </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600">
+            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
               <MousePointerClick className="h-4 w-4" />
             </div>
           </div>
@@ -201,12 +201,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Card 3: Mobile App Opens */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-4.5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
               OpeninApp Routing
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
               <Smartphone className="h-4 w-4" />
             </div>
           </div>
@@ -221,12 +221,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Card 4: Active Health */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-4.5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
               Network Health
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
               <CheckCircle2 className="h-4 w-4" />
             </div>
           </div>
@@ -243,7 +243,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       </div>
 
       {/* 3. Quick Shorten Hero Bar */}
-      <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-5 shadow-xs">
+      <div className="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-5 shadow-xs">
         <form onSubmit={handleQuickShorten} className="space-y-3">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {/* Long URL Input */}
@@ -254,7 +254,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 placeholder="Paste destination long URL (YouTube, Instagram, Amazon, Shopify, website...)"
                 value={quickUrl}
                 onChange={(e) => setQuickUrl(e.target.value)}
-                className="w-full h-11 px-4 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-xs text-on-surface placeholder:text-on-surface-variant/60 outline-none transition"
+                className="w-full h-11 px-4 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/60 outline-none transition"
               />
             </div>
 
@@ -264,13 +264,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               placeholder="custom-slug (optional)"
               value={quickAlias}
               onChange={(e) => setQuickAlias(e.target.value)}
-              className="w-full sm:w-48 h-11 px-3.5 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl text-xs font-mono text-on-surface placeholder:text-on-surface-variant/60 outline-none transition"
+              className="w-full sm:w-48 h-11 px-3.5 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg text-xs font-mono text-on-surface placeholder:text-on-surface-variant/60 outline-none transition"
             />
 
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full sm:w-auto h-11 px-5 bg-primary-container hover:bg-primary text-on-primary rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-primary-container/20 cursor-pointer"
+              className="w-full sm:w-auto h-11 px-5 bg-primary-container hover:bg-primary text-on-primary rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md shadow-primary-container/20 cursor-pointer"
             >
               <span>Shorten URL</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -279,7 +279,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           {/* Quick Success Toast Bar */}
           {quickResult && (
-            <div className="p-3 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-between text-xs animate-fade-in">
+            <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between text-xs animate-fade-in">
               <div className="flex items-center gap-2 truncate">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
                 <span className="text-primary font-semibold shrink-0">Shortened Link Ready:</span>
@@ -303,7 +303,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       </div>
 
       {/* 4. Filter & Search Toolbar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-2.5 sm:p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/40 shadow-xs">
         
         {/* Left Search and Filter Pills */}
         <div className="flex flex-wrap items-center gap-2.5">
@@ -314,17 +314,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               placeholder="Search links, slugs, targets..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 pl-9 pr-3 w-full sm:w-72 bg-surface-container-lowest border border-outline-variant/60 rounded-xl text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary outline-none transition"
+              className="h-9 pl-9 pr-3 w-full sm:w-72 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary outline-none transition"
             />
           </div>
 
-          <div className="flex items-center gap-1 bg-surface-container p-1 rounded-xl shrink-0">
+          <div className="flex items-center gap-1 bg-surface-container p-1 rounded-lg shrink-0">
             {(['all', 'active', 'openinapp'] as const).map((filter) => (
               <button
                 key={filter}
                 type="button"
                 onClick={() => setStatusFilter(filter)}
-                className={`h-7 px-3 rounded-lg text-xs font-semibold capitalize transition cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`h-7 px-3 rounded-md text-xs font-semibold capitalize transition cursor-pointer whitespace-nowrap shrink-0 ${
                   statusFilter === filter
                     ? 'bg-surface-container-lowest text-primary shadow-xs'
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -344,7 +344,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <button
           type="button"
           onClick={onOpenCreateModal}
-          className="px-3.5 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer border border-outline-variant/40 whitespace-nowrap shrink-0"
+          className="px-3 py-1.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer border border-outline-variant/40 whitespace-nowrap shrink-0"
         >
           <Plus className="w-3.5 h-3.5 text-primary" />
           <span>New Link</span>
@@ -354,7 +354,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* 5. Resource Cards */}
       <div className="space-y-3">
         {filteredLinks.length === 0 ? (
-          <div className="border-2 border-dashed border-outline-variant/60 rounded-2xl bg-surface-container-low p-12 text-center space-y-3">
+          <div className="border-2 border-dashed border-outline-variant/60 rounded-xl bg-surface-container-low p-12 text-center space-y-3">
             <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center mx-auto text-on-surface-variant">
               <Search className="w-5 h-5" />
             </div>
@@ -367,7 +367,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <button
               type="button"
               onClick={onOpenCreateModal}
-              className="mt-2 px-4 py-2 bg-primary-container text-on-primary text-xs font-bold rounded-xl cursor-pointer"
+              className="mt-2 px-4 py-2 bg-primary-container text-on-primary text-xs font-bold rounded-lg cursor-pointer"
             >
               + Create Short Link
             </button>
@@ -381,7 +381,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             return (
               <div
                 key={link.id}
-                className="relative rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200 group overflow-hidden"
+                className="relative rounded-lg border border-outline-variant/40 bg-surface-container-lowest p-4 sm:p-4.5 shadow-xs hover:shadow-md transition-all duration-200 group overflow-hidden"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   
@@ -395,7 +395,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         /{link.short_code}
                       </span>
                       {link.deep_link?.enabled && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 font-bold">
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 font-bold">
                           OpeninApp
                         </span>
                       )}
@@ -427,7 +427,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   {/* Right: Metrics & Interactive Actions */}
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                     {/* Click Stat Pill */}
-                    <div className="px-2.5 py-1 rounded-lg bg-surface-container text-xs font-semibold text-on-surface flex items-center gap-1.5 font-mono">
+                    <div className="px-2.5 py-1 rounded-md bg-surface-container text-xs font-semibold text-on-surface flex items-center gap-1.5 font-mono">
                       <Activity className="w-3.5 h-3.5 text-blue-600" />
                       <span>{getLinkClicks(link)} clicks</span>
                     </div>
@@ -436,7 +436,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <button
                       type="button"
                       onClick={() => copyToClipboard(fullShortUrl, link.id)}
-                      className="px-2.5 py-1.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-md border border-outline-variant/40 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
                     >
                       {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-outline" />}
                       <span>{isCopied ? 'Copied' : 'Copy'}</span>
@@ -446,7 +446,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setSelectedQr({ url: fullShortUrl, title: link.title })}
-                      className="p-1.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface text-xs transition cursor-pointer"
+                      className="p-1.5 rounded-md border border-outline-variant/40 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface text-xs transition cursor-pointer"
                       title="View QR Code"
                     >
                       <QrCode className="w-4 h-4 text-on-surface-variant" />
@@ -469,7 +469,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           deleteLink(link.id);
                         }
                       }}
-                      className={`p-1.5 rounded-lg transition cursor-pointer ${
+                      className={`p-1.5 rounded-md transition cursor-pointer ${
                         canDeleteLinks
                           ? 'text-on-surface-variant hover:text-error hover:bg-error-container/20'
                           : 'text-outline/40 hover:bg-surface-container'
@@ -492,16 +492,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {selectedQr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
           <div className="fixed inset-0" onClick={() => setSelectedQr(null)} />
-          <div className="bg-surface-container-lowest border border-outline-variant/60 w-full max-w-sm rounded-2xl p-6 shadow-2xl relative z-10 text-center space-y-4">
+          <div className="bg-surface-container-lowest border border-outline-variant/60 w-full max-w-sm rounded-xl p-6 shadow-2xl relative z-10 text-center space-y-4">
             <h3 className="text-base font-bold text-on-surface">{selectedQr.title || 'QR Code'}</h3>
-            <div className="p-4 bg-white rounded-xl inline-block shadow-md">
+            <div className="p-4 bg-white rounded-lg inline-block shadow-md">
               <QRCodeSVG value={selectedQr.url} size={180} />
             </div>
             <p className="text-xs font-mono text-on-surface-variant break-all">{selectedQr.url}</p>
             <button
               type="button"
               onClick={() => setSelectedQr(null)}
-              className="w-full py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs rounded-xl cursor-pointer"
+              className="w-full py-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs rounded-lg cursor-pointer"
             >
               Close Preview
             </button>

@@ -37,7 +37,7 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative bg-card border border-border/60 w-full max-w-2xl rounded-2xl p-5 shadow-2xl space-y-4 text-foreground z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div className="relative bg-card border border-border/60 w-full max-w-2xl rounded-xl p-5 shadow-2xl space-y-4 text-foreground z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-border/40">
@@ -118,7 +118,7 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/60 overflow-hidden bg-background">
+          <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
             <img
               src={ogUrl}
               alt="Social Card Preview"

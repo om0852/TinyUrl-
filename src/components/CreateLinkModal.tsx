@@ -287,7 +287,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         onClick={resetAndClose}
       />
 
-      <div className="relative bg-surface-container-lowest rounded-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-outline-variant/40 z-10 text-on-surface">
+      <div className="relative bg-surface-container-lowest rounded-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-outline-variant/40 z-10 text-on-surface">
         
         {/* Modal Header (Fixed) */}
         <div className="px-5 py-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0">
@@ -324,7 +324,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
 
             {/* Short link box */}
-            <div className="w-full p-2.5 bg-surface-container-low rounded-xl border border-outline-variant/40 flex items-center justify-between gap-2.5 text-left">
+            <div className="w-full p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/40 flex items-center justify-between gap-2.5 text-left">
               <div className="min-w-0 flex-1">
                 <span className="font-mono text-xs font-bold text-primary-container truncate block">
                   {createdResult.shortUrl}
@@ -344,7 +344,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
 
             {/* QR Preview in Success */}
-            <div className="w-24 h-24 p-1.5 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center shrink-0">
+            <div className="w-24 h-24 p-1.5 bg-surface-container-lowest rounded-lg shadow-xs border border-outline-variant/30 flex items-center justify-center shrink-0">
               <QRCodeSVG
                 value={createdResult.shortUrl}
                 size={80}
@@ -363,7 +363,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   setTitle('');
                   setCustomSlug('');
                 }}
-                className="flex-1 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors cursor-pointer"
+                className="flex-1 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors cursor-pointer"
               >
                 Create Another Link
               </button>
@@ -371,7 +371,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 href={createdResult.shortUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 py-2 rounded-xl bg-primary-container hover:bg-primary text-on-primary text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                className="flex-1 py-2 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <span>Test Link</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -385,7 +385,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             <div className="px-5 py-3.5 flex flex-col gap-3 text-xs overflow-y-auto custom-scrollbar flex-1">
               
               {errorMsg && (
-                <div className="p-2.5 bg-error-container text-on-error-container rounded-xl flex items-center gap-2 font-medium text-xs">
+                <div className="p-2.5 bg-error-container text-on-error-container rounded-lg flex items-center gap-2 font-medium text-xs">
                   <ShieldAlert className="w-4 h-4 shrink-0 text-error" />
                   <span>{errorMsg}</span>
                 </div>
@@ -405,7 +405,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     value={destinationUrl}
                     onChange={(e) => setDestinationUrl(e.target.value)}
                     placeholder="https://yourstore.com/special-offer"
-                    className="w-full pl-8 pr-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+                    className="w-full pl-8 pr-3 py-2 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
                   />
                 </div>
 
@@ -429,7 +429,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Summer Merch Launch, Instagram Link in Bio"
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
                 />
               </div>
 
@@ -444,7 +444,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     </span>
                   )}
                 </label>
-                <div className="flex flex-col sm:flex-row rounded-xl overflow-hidden bg-surface-container-low p-1 border border-outline-variant/40 gap-1">
+                <div className="flex flex-col sm:flex-row rounded-lg overflow-hidden bg-surface-container-low p-1 border border-outline-variant/40 gap-1">
                   {/* Domain Selector */}
                   <div className="flex items-center gap-1.5 bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-outline-variant/30">
                     <Globe className="w-3.5 h-3.5 text-primary-container shrink-0" />
@@ -524,7 +524,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                         setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
                       }
                     }}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"
                   >
                     <option value="">No Campaign (Direct Deliverable)</option>
                     {campaigns.map(c => (
@@ -543,7 +543,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('drive')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'drive'
                         ? 'bg-blue-100 text-blue-800 shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -556,7 +556,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('youtube')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'youtube'
                         ? 'bg-error-container text-on-error-container shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -569,7 +569,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('instagram')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'instagram'
                         ? 'bg-primary-container text-on-primary shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -582,7 +582,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('tiktok')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'tiktok'
                         ? 'bg-inverse-surface text-inverse-on-surface shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -595,7 +595,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('x')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'x'
                         ? 'bg-surface-container-highest text-on-surface font-bold shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -608,7 +608,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('podcast')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'podcast'
                         ? 'bg-emerald-100 text-emerald-800 shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -621,7 +621,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => handlePlacementChange('direct')}
-                    className={`px-2.5 py-1 rounded-full font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
                       placementTag === 'direct'
                         ? 'bg-surface-container-high text-primary font-bold shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -637,7 +637,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-0.5">
                 
                 {/* UTM Section (8 cols) */}
-                <div className="md:col-span-8 flex flex-col gap-2 bg-surface-container-low p-2.5 rounded-xl border border-outline-variant/30">
+                <div className="md:col-span-8 flex flex-col gap-2 bg-surface-container-low p-2.5 rounded-lg border border-outline-variant/30">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-on-surface flex items-center gap-1.5 text-[11px]">
                       <Sliders className="w-3 h-3 text-outline" />
@@ -691,7 +691,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Instant QR Code Preview (4 cols) */}
-                <div className="md:col-span-4 flex flex-col items-center justify-center p-2 bg-surface-container-low rounded-xl border border-outline-variant/30 gap-1 text-center">
+                <div className="md:col-span-4 flex flex-col items-center justify-center p-2 bg-surface-container-low rounded-lg border border-outline-variant/30 gap-1 text-center">
                   <div className="w-14 h-14 bg-surface-container-lowest p-1 rounded-md shadow-xs flex items-center justify-center border border-outline-variant/30">
                     <QRCodeSVG
                       value={previewShortUrl}
@@ -710,7 +710,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               </div>
 
               {/* Smart Device Routing Accordion (iOS vs Android) */}
-              <div className="bg-surface-container-low rounded-xl border border-outline-variant/30 overflow-hidden">
+              <div className="bg-surface-container-low rounded-lg border border-outline-variant/30 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setShowDeviceRouting(!showDeviceRouting)}
@@ -720,7 +720,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <Smartphone className="w-3.5 h-3.5 text-primary-container" />
                     <span className="font-semibold text-xs text-on-surface">Smart Device Routing (iOS &amp; Android)</span>
                     {(iosTargetUrl.trim() || androidTargetUrl.trim()) && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                         Active
                       </span>
                     )}
@@ -770,14 +770,14 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               <button
                 type="button"
                 onClick={resetAndClose}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-1.5 rounded-xl text-xs bg-primary-container hover:bg-primary text-on-primary transition-all shadow-sm font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-1.5 rounded-lg text-xs bg-primary-container hover:bg-primary text-on-primary transition-all shadow-sm font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>{isSubmitting ? 'Creating...' : 'Create Link'}</span>

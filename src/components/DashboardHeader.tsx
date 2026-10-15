@@ -99,8 +99,8 @@ export function DashboardHeader({
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-2 z-50 animate-fade-in text-xs">
-              <div className="p-3 bg-surface-container-low rounded-xl mb-1.5 flex items-center gap-3">
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-2 z-50 animate-fade-in text-xs">
+              <div className="p-3 bg-surface-container-low rounded-lg mb-1.5 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs ring-1 ring-outline-variant/40 shrink-0">
                   {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
                 </div>

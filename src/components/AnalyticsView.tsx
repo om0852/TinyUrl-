@@ -464,7 +464,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             <button
               type="button"
               onClick={() => setDatePickerOpen(!datePickerOpen)}
-              className="inline-flex items-center justify-between gap-2 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
+              className="inline-flex items-center justify-between gap-2 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-lg shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
             >
               <Calendar className="w-4 h-4 text-outline" />
               <span>
@@ -473,7 +473,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </button>
 
             {datePickerOpen && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border/80 shadow-2xl rounded-2xl p-3 z-30 animate-fade-in text-foreground">
+              <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border/80 shadow-2xl rounded-xl p-3 z-30 animate-fade-in text-foreground">
                 <div className="flex flex-col gap-1 text-xs">
                   {(['24h', '7d', '30d'] as const).map(r => (
                     <button
@@ -483,7 +483,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         setDateRange(r);
                         setDatePickerOpen(false);
                       }}
-                      className={`text-left px-3 py-1.5 rounded-xl font-medium transition cursor-pointer ${
+                      className={`text-left px-3 py-1.5 rounded-lg font-medium transition cursor-pointer ${
                         dateRange === r 
                           ? 'bg-primary text-primary-foreground font-bold' 
                           : 'hover:bg-muted text-foreground'
@@ -534,7 +534,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <button
             type="button"
             onClick={handleExportReport}
-            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-xl shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-lg shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <Download className="w-4 h-4 text-outline" />
             <span>Export Report</span>
@@ -546,10 +546,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Clicks */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-on-surface-variant font-semibold">Total Clicks (All Opens)</span>
-            <div className="p-2 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center">
+            <div className="p-2 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
               <MousePointerClick className="w-4 h-4" />
             </div>
           </div>
@@ -558,7 +558,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               {totalClicks.toLocaleString()}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700">
                 <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? 'Live Telemetry' : '0%'}
               </span>
               <span className="text-xs text-on-surface-variant font-medium">
@@ -569,10 +569,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Card 2: Unique Visitors */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-on-surface-variant font-semibold">Unique Visitors</span>
-            <div className="p-2 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center">
+            <div className="p-2 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
           </div>
@@ -581,7 +581,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               {uniqueVisitors.toLocaleString()}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700">
                 <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? `${Math.round((uniqueVisitors / totalClicks) * 100)}% Unique` : '0%'}
               </span>
               <span className="text-xs text-on-surface-variant font-medium">
@@ -592,10 +592,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Card 3: Avg. Conversion / CTR */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-on-surface-variant font-semibold">Avg. Conversion / CTR</span>
-            <div className="p-2 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center">
+            <div className="p-2 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
               <PieChartIcon className="w-4 h-4" />
             </div>
           </div>
@@ -604,7 +604,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               {totalClicks > 0 ? '100%' : '0.0%'}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700">
                 <TrendingUp className="w-3 h-3" /> {totalClicks > 0 ? 'Tracking' : '0%'}
               </span>
               <span className="text-xs text-on-surface-variant">vs previous 30d</span>
@@ -613,10 +613,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Card 4: Top Performing Channel */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-on-surface-variant font-semibold">Top Performing Channel</span>
-            <div className="p-2 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center">
+            <div className="p-2 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
               <Video className="w-4 h-4" />
             </div>
           </div>
@@ -625,7 +625,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               {topChannel ? topChannel.name : 'No traffic yet'}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-surface-container-high text-primary-container">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-surface-container-high text-primary-container">
                 {topChannel ? `${topChannel.pct}% Share` : '0% Share'}
               </span>
               <span className="text-xs text-on-surface-variant font-mono">
@@ -638,7 +638,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       </div>
 
       {/* 3. CLICK VELOCITY & TIMELINE SVG CHART CARD */}
-      <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40">
         
         {/* Chart Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -653,12 +653,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
           <div className="flex items-center flex-wrap gap-4 text-xs">
             {/* Quick Time Range Selector */}
-            <div className="flex items-center bg-surface-container rounded-xl p-1 border border-outline-variant/30 shrink-0">
+            <div className="flex items-center bg-surface-container rounded-lg p-1 border border-outline-variant/30 shrink-0">
               {(['24h', '7d', '30d'] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setDateRange(r)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                     dateRange === r
                       ? 'bg-surface-container-lowest text-primary-container shadow-xs'
                       : 'text-on-surface-variant hover:text-on-surface'
@@ -685,8 +685,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
         {/* SVG Bezier Chart Graphic / Empty State */}
         {totalClicks === 0 ? (
-          <div className="relative w-full h-72 flex flex-col items-center justify-center rounded-xl bg-surface-container-low/30 border border-dashed border-outline-variant/40 p-6 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-surface-container-low flex items-center justify-center text-primary-container mb-3 shadow-xs">
+          <div className="relative w-full h-72 flex flex-col items-center justify-center rounded-lg bg-surface-container-low/30 border border-dashed border-outline-variant/40 p-6 text-center">
+            <div className="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container mb-3 shadow-xs">
               <BarChart3 className="w-6 h-6 text-outline" />
             </div>
             <h3 className="text-sm font-bold text-on-surface">No Click Velocity Recorded Yet</h3>
@@ -904,7 +904,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Left Column: Platform Traffic Share */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
@@ -915,7 +915,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 type="button"
                 id="platform-details-btn"
                 onClick={() => setPlatformDetailsModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container-high text-primary-container text-xs font-semibold transition cursor-pointer border border-outline-variant/30"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container-high text-primary-container text-xs font-semibold transition cursor-pointer border border-outline-variant/30"
               >
                 <span>Details ({allPlatformsBreakdown.length})</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -929,7 +929,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <div className="flex items-center gap-2">
                       <span className={`w-2.5 h-2.5 rounded-full ${item.color}`} />
                       <span className="font-semibold text-on-surface">{item.name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium capitalize ${item.badgeBg} ${item.badgeText}`}>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-medium capitalize ${item.badgeBg} ${item.badgeText}`}>
                         {item.category}
                       </span>
                     </div>
@@ -959,7 +959,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </div>
           </div>
 
-          <div className="mt-6 pt-3 flex items-center justify-between bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/30 text-xs">
+          <div className="mt-6 pt-3 flex items-center justify-between bg-surface-container-low p-3.5 rounded-lg border border-outline-variant/30 text-xs">
             <div className="flex items-center gap-2 min-w-0 pr-2">
               <Sparkles className="w-4 h-4 text-primary-container shrink-0" />
               <span className="text-on-surface truncate">
@@ -981,7 +981,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Right Column: Geographic Distribution & Devices */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-5">
               <div className="flex flex-col">
@@ -1104,7 +1104,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   Device Categories
                 </span>
                 <div className="flex flex-col gap-2.5">
-                  <div className="bg-surface-container-low p-2.5 rounded-xl flex items-center justify-between border border-outline-variant/30">
+                  <div className="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between border border-outline-variant/30">
                     <div className="flex items-center gap-2">
                       <Smartphone className="w-4 h-4 text-primary-container" />
                       <div className="flex flex-col">
@@ -1115,7 +1115,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <span className="font-mono text-sm font-bold text-on-surface">{deviceBreakdown.mobile}%</span>
                   </div>
 
-                  <div className="bg-surface-container-low p-2.5 rounded-xl flex items-center justify-between border border-outline-variant/30">
+                  <div className="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between border border-outline-variant/30">
                     <div className="flex items-center gap-2">
                       <Laptop className="w-4 h-4 text-outline" />
                       <div className="flex flex-col">
@@ -1126,7 +1126,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <span className="font-mono text-sm font-bold text-on-surface">{deviceBreakdown.desktop}%</span>
                   </div>
 
-                  <div className="bg-surface-container-low p-2.5 rounded-xl flex items-center justify-between border border-outline-variant/30">
+                  <div className="bg-surface-container-low p-2.5 rounded-lg flex items-center justify-between border border-outline-variant/30">
                     <div className="flex items-center gap-2">
                       <Tablet className="w-4 h-4 text-outline" />
                       <div className="flex flex-col">
@@ -1151,7 +1151,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       </div>
 
       {/* 5. RECENT HIGH-PERFORMING LINKS TABLE CARD */}
-      <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div>
             <h3 className="text-lg font-bold text-on-surface tracking-tight">
@@ -1177,12 +1177,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                <th className="py-3 px-4 rounded-l-xl">Link Title &amp; Destination</th>
+                <th className="py-3 px-4 rounded-l-lg">Link Title &amp; Destination</th>
                 <th className="py-3 px-4">Short URL</th>
                 <th className="py-3 px-4">Primary Platform</th>
                 <th className="py-3 px-4 text-right">30d Clicks</th>
                 <th className="py-3 px-4 text-right">Bounce Rate</th>
-                <th className="py-3 px-4 text-right rounded-r-xl">Trend</th>
+                <th className="py-3 px-4 text-right rounded-r-lg">Trend</th>
               </tr>
             </thead>
             <tbody className="text-xs divide-y divide-outline-variant/20">
@@ -1210,7 +1210,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       {/* Title & Target */}
                       <td className="py-4 px-4 max-w-[260px]">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-surface-container flex items-center justify-center shrink-0 text-primary-container">
+                          <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary-container">
                             {isDrive ? <HardDrive className="w-4 h-4 text-blue-600" /> : idx === 0 ? <Palette className="w-4 h-4" /> : idx === 1 ? <Layers className="w-4 h-4" /> : <Video className="w-4 h-4" />}
                           </div>
                           <div className="flex flex-col min-w-0">
@@ -1241,7 +1241,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
                       {/* Primary Platform */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] bg-surface-container text-on-surface font-semibold">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] bg-surface-container text-on-surface font-semibold">
                           <span className={`w-1.5 h-1.5 rounded-full ${platformDot}`} />
                           <span>{platformLabel}</span>
                         </span>
@@ -1259,7 +1259,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
                       {/* Trend */}
                       <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700">
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700">
                           <TrendingUp className="w-3 h-3" /> +{24 - idx * 5}%
                         </span>
                       </td>
@@ -1273,7 +1273,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* Footer info bar */}
-        <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 bg-surface-container-low px-4 py-3 rounded-xl border border-outline-variant/30 text-xs">
+        <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 bg-surface-container-low px-4 py-3 rounded-lg border border-outline-variant/30 text-xs">
           <div className="flex items-center gap-1.5 text-on-surface-variant">
             <Verified className="w-4 h-4 text-primary-container" />
             <span>All click events verified against automated bot filtering protocols</span>
@@ -1288,16 +1288,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       </div>
 
       {/* 6. LIVE GEO-LOCATION TELEMETRY & CLICK STREAM */}
-      <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/40">
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary-container">
+            <div className="w-10 h-10 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary-container">
               <Globe2 className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-on-surface tracking-tight flex items-center gap-2">
                 <span>Live Geo-Location &amp; Click Telemetry Stream</span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live GPS/IP
                 </span>
@@ -1316,11 +1316,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                <th className="py-3 px-4 rounded-l-xl">Target Link &amp; Platform</th>
+                <th className="py-3 px-4 rounded-l-lg">Target Link &amp; Platform</th>
                 <th className="py-3 px-4">Geo Location (City, State, Country)</th>
                 <th className="py-3 px-4">Device &amp; OS</th>
                 <th className="py-3 px-4">Browser &amp; Referrer</th>
-                <th className="py-3 px-4 text-right rounded-r-xl">Timestamp</th>
+                <th className="py-3 px-4 text-right rounded-r-lg">Timestamp</th>
               </tr>
             </thead>
             <tbody className="text-xs divide-y divide-outline-variant/20">
@@ -1440,12 +1440,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             if (e.target === e.currentTarget) setPlatformDetailsModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-3xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar text-on-surface flex flex-col">
+          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar text-on-surface flex flex-col">
             
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-primary-container text-on-primary flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
                   <Share2 className="w-5 h-5" />
                 </div>
                 <div>
@@ -1458,7 +1458,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => setPlatformDetailsModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1473,7 +1473,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   placeholder="Search 300+ platforms (e.g. Instagram, Facebook, TikTok, WhatsApp, Google)..."
                   value={platformSearchQuery}
                   onChange={(e) => setPlatformSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-xl text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
                 />
                 {platformSearchQuery && (
                   <button
@@ -1500,7 +1500,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     key={tab.id}
                     type="button"
                     onClick={() => setPlatformCategoryFilter(tab.id)}
-                    className={`px-3 py-1 rounded-xl font-semibold text-xs transition cursor-pointer whitespace-nowrap shrink-0 ${
+                    className={`px-3 py-1 rounded-md font-semibold text-xs transition cursor-pointer whitespace-nowrap shrink-0 ${
                       platformCategoryFilter === tab.id
                         ? 'bg-primary-container text-on-primary shadow-xs'
                         : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
@@ -1515,23 +1515,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             {/* Platform List */}
             <div className="flex-1 overflow-y-auto space-y-2.5 max-h-[45vh] pr-1">
               {filteredModalPlatforms.length === 0 ? (
-                <div className="p-8 text-center bg-surface-container-low rounded-2xl border border-dashed border-outline-variant/30 text-xs text-on-surface-variant">
+                <div className="p-8 text-center bg-surface-container-low rounded-lg border border-dashed border-outline-variant/30 text-xs text-on-surface-variant">
                   No source platforms found matching &ldquo;{platformSearchQuery}&rdquo;.
                 </div>
               ) : (
                 filteredModalPlatforms.map((item) => (
                   <div
                     key={item.info.id}
-                    className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-xl border border-outline-variant/20 flex items-center justify-between transition-colors gap-3"
+                    className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg border border-outline-variant/20 flex items-center justify-between transition-colors gap-3"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-8 h-8 rounded-xl ${item.info.color} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs`}>
+                      <div className={`w-8 h-8 rounded-lg ${item.info.color} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs`}>
                         {item.info.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-on-surface truncate">{item.info.name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium capitalize ${item.info.badgeBg} ${item.info.badgeText}`}>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-medium capitalize ${item.info.badgeBg} ${item.info.badgeText}`}>
                             {item.info.category}
                           </span>
                         </div>
@@ -1562,7 +1562,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => setPlatformDetailsModalOpen(false)}
-                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-xl text-xs hover:bg-primary transition cursor-pointer shadow-xs"
+                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-lg text-xs hover:bg-primary transition cursor-pointer shadow-xs"
               >
                 Done
               </button>

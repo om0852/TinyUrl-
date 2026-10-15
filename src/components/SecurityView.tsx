@@ -542,7 +542,7 @@ export const SecurityView: React.FC = () => {
       </div>
 
       {/* 2. Security Posture Health Banner */}
-      <div className="relative overflow-hidden bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-6 mb-6">
+      <div className="relative overflow-hidden bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 mb-6">
         <div className="absolute -right-8 -top-8 w-64 h-64 bg-primary/5 rounded-full pointer-events-none" />
         
         <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -577,7 +577,7 @@ export const SecurityView: React.FC = () => {
                 <span className="text-base font-bold text-on-surface">
                   Workspace Security Posture: {healthPercent}%
                 </span>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold border ${
                   healthPercent === 100
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : 'bg-amber-50 text-amber-800 border-amber-200'
@@ -617,10 +617,10 @@ export const SecurityView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         
         {/* Card 1: Scanned Endpoints */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Monitored Links</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <Shield className="w-4 h-4" />
             </div>
           </div>
@@ -637,10 +637,10 @@ export const SecurityView: React.FC = () => {
         </div>
 
         {/* Card 2: Threats Neutralized */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Flagged Threats</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <ShieldAlert className="w-4 h-4" />
             </div>
           </div>
@@ -666,10 +666,10 @@ export const SecurityView: React.FC = () => {
         </div>
 
         {/* Card 3: Destination Uptime */}
-        <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Destination Health</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
               <Zap className="w-4 h-4" />
             </div>
           </div>
@@ -688,7 +688,7 @@ export const SecurityView: React.FC = () => {
         </div>
 
         {/* Card 4: Dead / Inactive Link Alerts */}
-        <div className={`bg-surface-container-lowest rounded-2xl p-5 shadow-xs border ${
+        <div className={`bg-surface-container-lowest rounded-xl p-5 shadow-xs border ${
           flaggedCount + pausedCount > 0 ? 'border-amber-300' : 'border-outline-variant/30'
         } flex flex-col justify-between hover:shadow-sm transition-shadow relative overflow-hidden`}>
           {flaggedCount + pausedCount > 0 && (
@@ -696,7 +696,7 @@ export const SecurityView: React.FC = () => {
           )}
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Interventions Needed</span>
-            <div className="w-8 h-8 rounded-xl bg-surface-container-low flex items-center justify-center text-on-surface-variant">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
@@ -724,7 +724,7 @@ export const SecurityView: React.FC = () => {
       </div>
 
       {/* 4. Real-Time Link Inspector & Audit Queue Section */}
-      <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 overflow-hidden mb-6">
+      <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 overflow-hidden mb-6">
         
         {/* Header & Table Controls */}
         <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant/20">
@@ -1017,7 +1017,7 @@ export const SecurityView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         
         {/* Left Column: 4 Persistent Guardrail Toggles */}
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-2xl p-6 shadow-xs border border-outline-variant/30">
+        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant/30">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-outline-variant/20">
             <div>
               <h2 className="text-base font-bold text-on-surface">Zero-Trust Guardrails &amp; Automated Quarantine</h2>
@@ -1029,7 +1029,7 @@ export const SecurityView: React.FC = () => {
           <div className="space-y-4 text-xs">
             
             {/* Toggle 1: Auto-Redirect Killswitch */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-xl hover:bg-surface-container-low/40 transition-colors">
+            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -1059,7 +1059,7 @@ export const SecurityView: React.FC = () => {
             </div>
 
             {/* Toggle 2: Bot Fraud Filtering */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-xl hover:bg-surface-container-low/40 transition-colors">
+            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
                   <Bot className="w-3.5 h-3.5" />
@@ -1089,7 +1089,7 @@ export const SecurityView: React.FC = () => {
             </div>
 
             {/* Toggle 3: Phishing Guard */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-xl hover:bg-surface-container-low/40 transition-colors">
+            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -1119,7 +1119,7 @@ export const SecurityView: React.FC = () => {
             </div>
 
             {/* Toggle 4: Instant Alerts */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-xl hover:bg-surface-container-low/40 transition-colors">
+            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
                   <Bell className="w-3.5 h-3.5" />
@@ -1156,7 +1156,7 @@ export const SecurityView: React.FC = () => {
           
           {/* Active Incident or Clean Posture Box */}
           {activeIncident ? (
-            <div className="bg-amber-50/90 rounded-2xl p-5 shadow-xs border-l-4 border-l-amber-600 border border-outline-variant/30 flex flex-col justify-between">
+            <div className="bg-amber-50/90 rounded-xl p-5 shadow-xs border-l-4 border-l-amber-600 border border-outline-variant/30 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 text-amber-900 text-xs font-bold mb-1">
                   <AlertTriangle className="w-4 h-4 text-amber-700" />
@@ -1165,7 +1165,7 @@ export const SecurityView: React.FC = () => {
                 <p className="text-xs text-amber-800 leading-relaxed mb-3">
                   Endpoint <strong className="font-mono text-amber-950 font-bold">{activeIncident.shortLink}</strong> returned status <strong className="font-mono">{activeIncident.httpStatus}</strong> (Risk Score: {activeIncident.riskScore}/100).
                 </p>
-                <div className="p-2.5 bg-amber-100/70 rounded-xl text-amber-900 text-[11px] font-mono break-all mb-4 border border-amber-200">
+                <div className="p-2.5 bg-amber-100/70 rounded-lg text-amber-900 text-[11px] font-mono break-all mb-4 border border-amber-200">
                   Target: {activeIncident.destinationUrl}
                 </div>
               </div>
@@ -1174,21 +1174,21 @@ export const SecurityView: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => handleOpenSwapModal(activeIncident.id)}
-                  className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-xl hover:bg-primary transition-colors cursor-pointer shadow-xs"
+                  className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-lg hover:bg-primary transition-colors cursor-pointer shadow-xs"
                 >
                   Swap Destination Now
                 </button>
                 <button 
                   type="button"
                   onClick={() => handleTogglePause(activeIncident)}
-                  className="px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-xl hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant/30"
+                  className="px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant/30"
                 >
                   {activeIncident.status === 'expired' ? 'Resume Link' : 'Pause Link'}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="bg-emerald-50/70 rounded-2xl p-5 shadow-xs border-l-4 border-l-emerald-600 border border-emerald-200 flex flex-col justify-between">
+            <div className="bg-emerald-50/70 rounded-xl p-5 shadow-xs border-l-4 border-l-emerald-600 border border-emerald-200 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 text-emerald-900 text-xs font-bold mb-1">
                   <CheckCircle2 className="w-4 h-4 text-emerald-700" />
@@ -1197,7 +1197,7 @@ export const SecurityView: React.FC = () => {
                 <p className="text-xs text-emerald-800 leading-relaxed mb-3">
                   All {totalCount} monitored endpoints in this workspace are resolving cleanly with valid TLS certificates and zero threat flags.
                 </p>
-                <div className="p-2.5 bg-emerald-100/60 rounded-xl text-emerald-900 text-xs flex items-center gap-2 border border-emerald-200/80">
+                <div className="p-2.5 bg-emerald-100/60 rounded-lg text-emerald-900 text-xs flex items-center gap-2 border border-emerald-200/80">
                   <Activity className="w-4 h-4 text-emerald-700 shrink-0" />
                   <span>Zero-Trust Edge WAF is continuously inspecting redirection headers.</span>
                 </div>
@@ -1208,7 +1208,7 @@ export const SecurityView: React.FC = () => {
                   type="button"
                   disabled={isAuditing}
                   onClick={triggerAudit}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 text-white text-xs font-bold rounded-xl hover:bg-emerald-800 transition-colors cursor-pointer shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 text-white text-xs font-bold rounded-lg hover:bg-emerald-800 transition-colors cursor-pointer shadow-xs"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isAuditing ? 'animate-spin' : ''}`} />
                   <span>Run Quick Health Sweep</span>
@@ -1218,12 +1218,12 @@ export const SecurityView: React.FC = () => {
           )}
 
           {/* Active Heuristics Status Box */}
-          <div className="bg-surface-container-lowest rounded-2xl p-5 shadow-xs border border-outline-variant/30">
+          <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30">
             <h3 className="text-sm font-bold text-on-surface mb-1">Threat Probes Connected</h3>
             <p className="text-xs text-on-surface-variant mb-3">Active edge consensus validating redirect safety</p>
             
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="font-semibold text-on-surface">Heuristic Safe Browsing</span>
@@ -1231,7 +1231,7 @@ export const SecurityView: React.FC = () => {
                 <span className="font-mono text-[11px] text-emerald-700 font-bold">Active</span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="font-semibold text-on-surface">TLS &amp; Certificate Handshake</span>
@@ -1239,7 +1239,7 @@ export const SecurityView: React.FC = () => {
                 <span className="font-mono text-[11px] text-emerald-700 font-bold">Strict</span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-xl border border-outline-variant/20">
+              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/20">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="font-semibold text-on-surface">Edge Quarantine Interstitial</span>
@@ -1261,7 +1261,7 @@ export const SecurityView: React.FC = () => {
             if (e.target === e.currentTarget) setSwapModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
             {/* Close Button */}
             <button
               type="button"
@@ -1288,11 +1288,11 @@ export const SecurityView: React.FC = () => {
                   placeholder="https://example.com/new-destination"
                   value={newDestinationUrl}
                   onChange={(e) => setNewDestinationUrl(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-xl font-mono text-xs border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-lg font-mono text-xs border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
                 />
               </div>
 
-              <div className="p-3 bg-surface-container-low rounded-xl flex items-center gap-2 text-on-surface-variant text-xs border border-outline-variant/20">
+              <div className="p-3 bg-surface-container-low rounded-lg flex items-center gap-2 text-on-surface-variant text-xs border border-outline-variant/20">
                 <Zap className="w-4 h-4 text-primary-container shrink-0" />
                 <span>Edge propagation: updates globally in ~200ms without modifying the shortened code.</span>
               </div>
@@ -1301,14 +1301,14 @@ export const SecurityView: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => setSwapModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
                   disabled={isSwapping}
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary shadow-xs cursor-pointer text-xs disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary shadow-xs cursor-pointer text-xs disabled:opacity-50"
                 >
                   {isSwapping ? 'Updating...' : 'Update & Re-Scan'}
                 </button>
@@ -1327,7 +1327,7 @@ export const SecurityView: React.FC = () => {
             if (e.target === e.currentTarget) setWebhookModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
             <button
               type="button"
               onClick={() => setWebhookModalOpen(false)}
@@ -1357,7 +1357,7 @@ export const SecurityView: React.FC = () => {
                       type="button"
                       key={srv}
                       onClick={() => setWebhookService(srv)}
-                      className={`py-1.5 rounded-xl font-bold transition-all cursor-pointer border text-xs ${
+                      className={`py-1.5 rounded-lg font-bold transition-all cursor-pointer border text-xs ${
                         webhookService === srv
                           ? 'bg-primary-container text-on-primary border-primary-container shadow-xs'
                           : 'bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-surface-container'
@@ -1377,7 +1377,7 @@ export const SecurityView: React.FC = () => {
                   placeholder="https://your-webhook-endpoint.com/..."
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-xl border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
                 />
               </div>
 
@@ -1385,13 +1385,13 @@ export const SecurityView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setWebhookModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
+                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
                   Save Webhook
                 </button>
@@ -1404,7 +1404,7 @@ export const SecurityView: React.FC = () => {
 
       {/* 8. Notification Toast */}
       {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
+        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>,

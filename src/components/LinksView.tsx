@@ -466,7 +466,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-xl text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer whitespace-nowrap shrink-0"
             >
               <FileDown className="w-4 h-4 text-outline" />
               <span>Export CSV</span>
@@ -475,7 +475,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* 2. FILTER & SEARCH BAR ROW */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center bg-surface-container-lowest p-2 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] border border-outline-variant/40">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center bg-surface-container-lowest p-2 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] border border-outline-variant/40">
           
           {/* Search Input (5 cols) */}
           <div className="md:col-span-5 relative flex items-center">
@@ -488,7 +488,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 setCurrentPage(1);
               }}
               placeholder="Search by title, short URL, or tag..."
-              className="w-full pl-9 pr-14 py-2 bg-surface-container-low rounded-xl text-xs text-on-surface placeholder:text-on-surface-variant border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+              className="w-full pl-9 pr-14 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
             />
             <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-outline bg-surface-container-lowest rounded shadow-xs pointer-events-none border border-outline-variant/30">
               ⌘K
@@ -506,7 +506,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   setPlatformFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-xl cursor-pointer border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-lg cursor-pointer border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container"
               >
                 <option value="all">All Platforms</option>
                 <option value="youtube">YouTube</option>
@@ -526,7 +526,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   setStatusFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-xl cursor-pointer border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-lg cursor-pointer border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container"
               >
                 <option value="all">Status: All</option>
                 <option value="active">Active Only</option>
@@ -540,7 +540,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium px-3 py-2 rounded-xl border border-outline-variant/30 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium px-3 py-2 rounded-lg border border-outline-variant/30 transition-colors cursor-pointer"
               >
                 <Calendar className="w-3.5 h-3.5 text-outline" />
                 <span>Last 30 days</span>
@@ -556,7 +556,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
         {/* Card 1: Total Clicks */}
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Total Clicks (30d)</span>
             <TrendingUp className="w-4 h-4 text-primary-container" />
@@ -579,7 +579,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* Card 2: Top Link */}
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Top Performing Link</span>
             <Flame className="w-4 h-4 text-amber-500" />
@@ -598,7 +598,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* Card 3: Top Channel */}
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Top Channel</span>
             <Video className="w-4 h-4 text-primary-container" />
@@ -625,7 +625,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* Card 4: Quota / Capacity */}
-        <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Active Short Links</span>
             <Link2 className="w-4 h-4 text-outline" />
@@ -652,7 +652,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Main Links Table (8 cols desktop) */}
-        <div className="lg:col-span-8 bg-surface-container-lowest rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 overflow-hidden">
+        <div className="lg:col-span-8 bg-surface-container-lowest rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 overflow-hidden">
           
           {/* Table Header Bar */}
           <div className="px-5 py-4 bg-surface-container-lowest flex items-center justify-between border-b border-outline-variant/30">
@@ -937,7 +937,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         <div className="lg:col-span-4 flex flex-col gap-6">
           
           {/* Top Referrers Breakdown Card */}
-          <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40">
+          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40">
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-on-surface">Top Referrers</span>
@@ -989,7 +989,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
 
           {/* Quick Pro Tips Card */}
-          <div className="bg-surface-container-low p-4 rounded-2xl flex items-start gap-3 border border-outline-variant/30">
+          <div className="bg-surface-container-low p-4 rounded-xl flex items-start gap-3 border border-outline-variant/30">
             <Lightbulb className="w-5 h-5 text-primary-container shrink-0 mt-0.5" />
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-on-surface">Pro tip: UTM Tagging &amp; App Routing</span>
@@ -1011,7 +1011,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             if (e.target === e.currentTarget) setSelectedQrLink(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
             
             {/* Close Button */}
             <button

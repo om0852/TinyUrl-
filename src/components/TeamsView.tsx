@@ -203,7 +203,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     const normRole = (role || 'editor').toLowerCase();
     if (normRole === 'owner') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25 shadow-2xs">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/25 shadow-2xs">
           <Key className="w-3 h-3 text-purple-600 dark:text-purple-400" />
           <span>Owner</span>
         </span>
@@ -211,7 +211,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     }
     if (normRole === 'admin') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/25 shadow-2xs">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/25 shadow-2xs">
           <ShieldCheck className="w-3 h-3 text-blue-600 dark:text-blue-400" />
           <span>Admin</span>
         </span>
@@ -219,13 +219,13 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     }
     if (normRole === 'editor') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shadow-2xs">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 shadow-2xs">
           <span>Editor</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/25 shadow-2xs">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/25 shadow-2xs">
         <span>Viewer</span>
       </span>
     );
@@ -308,7 +308,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 <span className="text-xl font-bold text-on-surface truncate max-w-[150px]">
                   {currentWorkspace.name}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
                   <Sparkles className="w-2.5 h-2.5 text-primary" />
                   <span>{currentWorkspace.plan || 'pro'}</span>
                 </span>
@@ -532,7 +532,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 <h2 className="text-lg font-bold text-on-surface truncate">
                   {currentWorkspace.name}
                 </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
                   <Sparkles className="w-2.5 h-2.5 text-primary" />
                   <span>{currentWorkspace.plan || 'pro'}</span>
                 </span>
@@ -690,7 +690,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   </td>
 
                   <td className="py-3.5 px-4">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                    <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-md font-medium shadow-2xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                       <span>Active</span>
                     </span>
@@ -759,12 +759,12 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                         {/* Status */}
                         <td className="py-3.5 px-4">
                           {isPending ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-md font-medium shadow-2xs">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                               <span>Pending</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-md font-medium shadow-2xs">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                               <span>Active</span>
                             </span>

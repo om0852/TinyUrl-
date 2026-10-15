@@ -497,11 +497,11 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
         
         {/* LEFT PANEL: Bulk Link Importer & Generator (7 Cols) */}
         <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-5 sm:p-6 flex flex-col">
+          <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-5 sm:p-6 flex flex-col">
             
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-outline-variant/20 flex-wrap gap-2">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                   <Upload className="w-5 h-5" />
                 </div>
                 <div>
@@ -513,7 +513,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                 type="button"
                 id="download-template-btn"
                 onClick={handleDownloadTemplate}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-primary hover:bg-surface-container-low transition-colors cursor-pointer border border-primary/20"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary hover:bg-surface-container-low transition-colors cursor-pointer border border-primary/20"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Download Sample CSV</span>
@@ -536,7 +536,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                   processUploadedFile(e.dataTransfer.files[0]);
                 }
               }}
-              className={`relative group cursor-pointer rounded-2xl transition-all p-7 text-center flex flex-col items-center justify-center border-2 border-dashed ${
+              className={`relative group cursor-pointer rounded-lg transition-all p-7 text-center flex flex-col items-center justify-center border-2 border-dashed ${
                 isDragging 
                   ? 'bg-primary/5 border-primary scale-[1.01]' 
                   : selectedFile
@@ -552,7 +552,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <div className="w-12 h-12 rounded-2xl bg-surface-container-lowest shadow-xs flex items-center justify-center text-primary group-hover:scale-110 transition-transform mb-3 border border-outline-variant/30">
+              <div className="w-12 h-12 rounded-lg bg-surface-container-lowest shadow-xs flex items-center justify-center text-primary group-hover:scale-110 transition-transform mb-3 border border-outline-variant/30">
                 <CloudUpload className="w-6 h-6" />
               </div>
 
@@ -572,7 +572,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                   <span className="text-xs text-on-surface-variant mt-1">
                     or <span className="text-primary font-semibold underline underline-offset-2">browse files</span> from your local computer
                   </span>
-                  <div className="mt-3 inline-flex items-center gap-1.5 bg-surface-container-lowest px-3 py-1 rounded-full border border-outline-variant/30 text-[11px] text-on-surface-variant font-medium">
+                  <div className="mt-3 inline-flex items-center gap-1.5 bg-surface-container-lowest px-3 py-1 rounded-md border border-outline-variant/30 text-[11px] text-on-surface-variant font-medium">
                     <AlertCircle className="w-3.5 h-3.5 text-outline" />
                     <span>Supports Bitly migrations, UTM sheets, and up to 1,000 links per batch</span>
                   </div>
@@ -593,7 +593,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-surface-container-low p-4 rounded-xl border border-outline-variant/25 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-surface-container-low p-4 rounded-lg border border-outline-variant/25 text-xs">
                   {/* Destination URL */}
                   <div>
                     <label className="font-semibold text-on-surface block mb-1 flex items-center justify-between">
@@ -667,7 +667,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                     <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                       Transformation Preview (First {Math.min(3, parsedRows.length)} rows)
                     </span>
-                    <div className="overflow-x-auto rounded-xl border border-outline-variant/20 bg-surface-container-low text-[11px]">
+                    <div className="overflow-x-auto rounded-lg border border-outline-variant/20 bg-surface-container-low text-[11px]">
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="border-b border-outline-variant/20 bg-surface-container-high/60 text-on-surface-variant font-semibold">
@@ -687,8 +687,8 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                               </td>
                               <td className="py-2 px-3 text-primary font-bold">
                                 {columnMapping.custom_slug && row[columnMapping.custom_slug] 
-                                  ? `/${row[columnMapping.custom_slug]}` 
-                                  : '/[auto]'}
+                                   ? `/${row[columnMapping.custom_slug]}` 
+                                   : '/[auto]'}
                               </td>
                               <td className="py-2 px-3 truncate max-w-[120px]">
                                 {columnMapping.title && row[columnMapping.title] ? row[columnMapping.title] : 'Untitled'}
@@ -711,7 +711,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
             {/* Pre-Flight Validation Bar & Execution Button */}
             {preflightSummary && (
               <div className="mt-6 pt-4 border-t border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
-                <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border text-xs ${
+                <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-lg border text-xs ${
                   preflightSummary.invalid > 0 
                     ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300' 
                     : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
@@ -734,7 +734,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                   id="process-batch-btn"
                   disabled={isProcessing || preflightSummary.valid === 0}
                   onClick={handleProcessBatch}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary-container text-on-primary text-xs font-bold hover:bg-primary shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-[0.99] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary-container text-on-primary text-xs font-bold hover:bg-primary shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-[0.99] disabled:opacity-50"
                 >
                   {isProcessing ? (
                     <>
@@ -753,7 +753,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
 
             {/* Import Result Notification */}
             {importResult && (
-              <div className={`mt-4 p-4 rounded-xl border text-xs space-y-2 animate-fade-in ${
+              <div className={`mt-4 p-4 rounded-lg border text-xs space-y-2 animate-fade-in ${
                 importResult.success 
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
                   : 'bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200'
@@ -790,11 +790,11 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
 
         {/* RIGHT PANEL: Real Creator Data Export Utilities (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col gap-4">
-          <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-5 sm:p-6 flex flex-col h-full">
+          <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-5 sm:p-6 flex flex-col h-full">
             
             <div className="flex items-center justify-between pb-3 mb-4 border-b border-outline-variant/20">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                   <Download className="w-5 h-5" />
                 </div>
                 <div>
@@ -808,13 +808,13 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
             <div className="flex flex-col gap-3">
               
               {/* Export Utility 1: Links Inventory */}
-              <div className="p-4 bg-surface-container-low rounded-xl flex flex-col gap-2 border border-outline-variant/20 hover:border-outline-variant/50 transition">
+              <div className="p-4 bg-surface-container-low rounded-lg flex flex-col gap-2 border border-outline-variant/20 hover:border-outline-variant/50 transition">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileSpreadsheet className="w-4 h-4 text-primary" />
                     <span className="text-xs font-bold text-on-surface">Workspace Links Inventory</span>
                   </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-semibold">
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant font-semibold">
                     {links.length} Links
                   </span>
                 </div>
@@ -835,13 +835,13 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
               </div>
 
               {/* Export Utility 2: Raw Telemetry Click Events */}
-              <div className="p-4 bg-surface-container-low rounded-xl flex flex-col gap-2 border border-outline-variant/20 hover:border-outline-variant/50 transition">
+              <div className="p-4 bg-surface-container-low rounded-lg flex flex-col gap-2 border border-outline-variant/20 hover:border-outline-variant/50 transition">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-blue-600" />
                     <span className="text-xs font-bold text-on-surface">Raw Telemetry Click Logs</span>
                   </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 font-semibold">
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-semibold">
                     {clicks.length} Events
                   </span>
                 </div>
@@ -862,13 +862,13 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
               </div>
 
               {/* Export Utility 3: Campaigns & Sponsor Deliverables */}
-              <div className="p-4 bg-surface-container-low rounded-xl flex flex-col gap-2 border border-outline-variant/20 hover:border-outline-variant/50 transition">
+              <div className="p-4 bg-surface-container-low rounded-lg flex flex-col gap-2 border border-outline-variant/20 hover:border-outline-variant/50 transition">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FolderKanban className="w-4 h-4 text-purple-600" />
                     <span className="text-xs font-bold text-on-surface">Sponsor Deals &amp; Deliverables</span>
                   </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 font-semibold">
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 font-semibold">
                     {campaigns.length} Campaigns
                   </span>
                 </div>
@@ -896,11 +896,11 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       </div>
 
       {/* 3. BOTTOM SECTION: Real Bulk Job History & Audit Log Table (from PostgreSQL) */}
-      <div className="bg-surface-container-lowest rounded-2xl shadow-xs border border-outline-variant/30 p-5 sm:p-6 flex flex-col">
+      <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-5 sm:p-6 flex flex-col">
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-outline-variant/20">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
@@ -920,7 +920,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                   setJobSearch(e.target.value);
                   setJobPage(1);
                 }}
-                className="bg-surface-container-low rounded-xl px-3 py-1.5 text-xs text-on-surface pl-8 w-48 sm:w-56 outline-none focus:ring-2 focus:ring-primary border border-outline-variant/30 transition-all"
+                className="bg-surface-container-low rounded-lg px-3 py-1.5 text-xs text-on-surface pl-8 w-48 sm:w-56 outline-none focus:ring-2 focus:ring-primary border border-outline-variant/30 transition-all"
               />
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-outline pointer-events-none" />
             </div>
@@ -928,7 +928,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
               type="button"
               onClick={fetchJobs}
               disabled={loadingJobs}
-              className="p-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface transition-colors border border-outline-variant/30 cursor-pointer disabled:opacity-50"
+              className="p-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-colors border border-outline-variant/30 cursor-pointer disabled:opacity-50"
               title="Refresh Audit Log"
             >
               <RefreshCw className={`w-4 h-4 text-outline ${loadingJobs ? 'animate-spin text-primary' : ''}`} />
@@ -937,7 +937,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto rounded-xl border border-outline-variant/20">
+        <div className="overflow-x-auto rounded-lg border border-outline-variant/20">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/20">
@@ -958,7 +958,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                     #{job.id.slice(0, 14)}
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider ${
                       job.operation === 'import' 
                         ? 'bg-primary/10 text-primary border border-primary/20'
                         : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
@@ -988,7 +988,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                     })}
                   </td>
                   <td className="py-3.5 px-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold border ${
                       job.status === 'completed' 
                         ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' 
                         : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
@@ -1034,7 +1034,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                 type="button"
                 disabled={jobPage <= 1}
                 onClick={() => setJobPage(p => Math.max(1, p - 1))}
-                className="px-3 py-1 rounded-xl bg-surface-container-low text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs border border-outline-variant/20 hover:bg-surface-container transition cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-surface-container-low text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs border border-outline-variant/20 hover:bg-surface-container transition cursor-pointer"
               >
                 Previous
               </button>
@@ -1043,7 +1043,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                   key={pageNum}
                   type="button"
                   onClick={() => setJobPage(pageNum)}
-                  className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
                     jobPage === pageNum 
                       ? 'bg-primary-container text-on-primary shadow-xs' 
                       : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-outline-variant/20'
@@ -1056,7 +1056,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
                 type="button"
                 disabled={jobPage >= totalJobPages}
                 onClick={() => setJobPage(p => Math.min(totalJobPages, p + 1))}
-                className="px-3 py-1 rounded-xl bg-surface-container-low text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs border border-outline-variant/20 hover:bg-surface-container transition cursor-pointer"
+                className="px-3 py-1 rounded-lg bg-surface-container-low text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs border border-outline-variant/20 hover:bg-surface-container transition cursor-pointer"
               >
                 Next
               </button>
@@ -1068,7 +1068,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
 
       {/* Floating Notification Toast */}
       {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
+        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>,

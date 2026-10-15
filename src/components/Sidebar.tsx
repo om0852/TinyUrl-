@@ -115,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-4 py-2 relative shrink-0">
           <button
             onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
-            className="w-full justify-between h-9 px-3 rounded-xl border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center text-left transition cursor-pointer group shadow-2xs"
+            className="w-full justify-between h-9 px-3 rounded-lg border border-outline-variant/40 bg-surface-container-low hover:bg-surface-container text-on-surface flex items-center text-left transition cursor-pointer group shadow-2xs"
           >
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-5 h-5 rounded-md bg-surface-container-highest text-primary-container flex items-center justify-center text-[11px] font-bold shrink-0">
@@ -132,7 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Workspace Dropdown */}
           {workspaceMenuOpen && (
-            <div className="absolute top-[50px] left-4 right-4 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-xl py-1.5 z-50 animate-fade-in">
+            <div className="absolute top-[50px] left-4 right-4 bg-surface-container-lowest border border-outline-variant/40 rounded-lg shadow-xl py-1.5 z-50 animate-fade-in">
               <div className="px-3 py-1 text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
                 Switch Workspace
               </div>
@@ -184,7 +184,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all cursor-pointer ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all cursor-pointer ${
                     isActive
                       ? 'bg-surface-container-high text-primary-container font-semibold shadow-xs'
                       : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface font-medium'
@@ -195,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className="truncate">{item.label}</span>
                   </div>
                   {item.badge !== undefined && (
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold whitespace-nowrap shrink-0 ${
+                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-mono font-semibold whitespace-nowrap shrink-0 ${
                       isActive
                         ? 'bg-primary-container text-on-primary'
                         : 'bg-surface-container text-on-surface-variant'
@@ -212,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* User Footer Profile Pill matching reference HTML */}
       <div className="px-4 shrink-0 pt-2">
-        <div className="p-3 rounded-xl bg-surface-container-low flex items-center justify-between gap-3 border border-outline-variant/30 shadow-xs">
+        <div className="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between gap-3 border border-outline-variant/30 shadow-xs">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-outline-variant/40 shadow-xs">
               {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
