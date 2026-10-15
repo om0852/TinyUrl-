@@ -28,7 +28,8 @@ import {
   Layers,
   Lock,
   User,
-  Globe
+  Globe,
+  Edit3
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -97,6 +98,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
   const [copiedTokenDomainId, setCopiedTokenDomainId] = useState<string | null>(null);
   const [copiedCnameDomainId, setCopiedCnameDomainId] = useState<string | null>(null);
   const [copiedIpDomainId, setCopiedIpDomainId] = useState<string | null>(null);
+
+  // Edit Domain Configuration state
+  const [editingDomain, setEditingDomain] = useState<Domain | null>(null);
+  const [editRootRedirectUrl, setEditRootRedirectUrl] = useState('');
+  const [isSavingDomain, setIsSavingDomain] = useState(false);
 
   const edgeProxyIp = process.env.NEXT_PUBLIC_EDGE_PROXY_IP || '159.54.139.45';
   const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
@@ -280,6 +286,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
     }
     await deleteDomain(domainId);
     showToast(`Domain ${hostname} removed.`);
+  };
+
+  // Handle Save Domain Configuration (e.g. Root Redirect URL)
+  const handleSaveDomainConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDomain) return;
+    setIsSavingDomain(true);
+    try {
+      const success = await updateDomainConfig(editingDomain.id, {
+        root_redirect_url: editRootRedirectUrl.trim() || undefined
+      });
+      if (success) {
+        showToast(`Domain ${editingDomain.hostname} configuration updated.`);
+        setEditingDomain(null);
+      } else {
+        showToast(`Failed to update domain configuration.`);
+      }
+    } finally {
+      setIsSavingDomain(false);
+    }
   };
 
   // Active domains list for current workspace
@@ -674,6 +700,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                             className="px-2.5 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-medium rounded-lg hover:bg-surface-container border border-outline-variant/30 transition cursor-pointer"
                           >
                             Set Primary
+                          </button>
+                        )}
+
+                        {dom.id !== 'dom_platform' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingDomain(dom);
+                              setEditRootRedirectUrl(dom.root_redirect_url || '');
+                            }}
+                            className="p-1.5 text-outline hover:text-primary hover:bg-surface-container rounded-lg border border-outline-variant/30 transition cursor-pointer"
+                            title="Edit Root Redirect & Domain Configuration"
+                          >
+                            <Edit3 className="w-4 h-4" />
                           </button>
                         )}
 
@@ -1336,6 +1376,71 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 Close
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL: EDIT DOMAIN CONFIGURATION */}
+      {editingDomain && mounted && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingDomain(null);
+          }}
+        >
+          <div className="bg-surface rounded-2xl border border-outline-variant/40 shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="px-5 py-4 border-b border-outline-variant/30 flex items-center justify-between bg-surface-container-low">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-on-surface">Edit Domain Config</h3>
+                  <span className="font-mono text-xs text-primary font-semibold">{editingDomain.hostname}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingDomain(null)}
+                className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDomainConfig} className="p-5 flex flex-col gap-4 text-xs">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-on-surface text-xs">Root Destination URL</label>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Visitors accessing <span className="font-mono text-primary">https://{editingDomain.hostname}/</span> directly without a short slug will be automatically redirected to this URL.
+                </p>
+                <input
+                  type="url"
+                  value={editRootRedirectUrl}
+                  onChange={(e) => setEditRootRedirectUrl(e.target.value)}
+                  placeholder={`https://example.com/homepage`}
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant/30">
+                <button
+                  type="button"
+                  onClick={() => setEditingDomain(null)}
+                  className="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-xs font-semibold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingDomain}
+                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingDomain ? 'Saving...' : 'Save Configuration'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>,
         document.body

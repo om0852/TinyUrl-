@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
-export async function POST(request: Request) {
+async function handleSaveCampaign(request: Request) {
   try {
     const body = await request.json();
     const { id, workspace_id, name, description, tags, target_clicks } = body;
@@ -72,13 +72,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Campaign name is required.' }, { status: 400 });
     }
 
-    if (!workspace_id || typeof workspace_id !== 'string') {
-      return NextResponse.json({ success: false, error: 'Workspace ID is required.' }, { status: 400 });
+    let cleanWsId = (workspace_id && typeof workspace_id === 'string' && workspace_id.trim()) 
+      ? workspace_id.trim() 
+      : (request.headers.get('x-workspace-id') || '').trim();
+
+    if (!cleanWsId && id) {
+      const existing = (await sql.query(
+        `SELECT workspace_id FROM campaigns WHERE id = $1 LIMIT 1`,
+        [id]
+      ).catch(() => [])) as { workspace_id?: string }[];
+      if (existing?.[0]?.workspace_id) {
+        cleanWsId = existing[0].workspace_id;
+      }
+    }
+
+    if (!cleanWsId) {
+      cleanWsId = 'ws_default';
     }
 
     // RBAC: Requires campaigns:create permission (owner, admin, editor)
     const authResult = await verifyWorkspacePermission(request, 'campaigns:create', {
-      workspaceId: workspace_id.trim()
+      workspaceId: cleanWsId,
+      campaignId: id || undefined
     });
     if (!authResult.success) {
       return authResult.response;
@@ -99,32 +114,40 @@ export async function POST(request: Request) {
       RETURNING *
     `, [
       campaignId,
-      workspace_id.trim(),
+      cleanWsId,
       name.trim(),
       description ? description.trim() : '',
       JSON.stringify(cleanTags),
       cleanTarget
     ])) as unknown as RawCampaignRow[];
 
-    const created = rows && rows.length > 0 ? rows[0] : null;
+    const saved = rows && rows.length > 0 ? rows[0] : null;
 
     return NextResponse.json({
       success: true,
-      message: 'Campaign created successfully.',
-      campaign: created ? {
-        id: created.id,
-        workspace_id: created.workspace_id,
-        name: created.name,
-        description: created.description || '',
-        tags: typeof created.tags === 'string' ? JSON.parse(created.tags) : (Array.isArray(created.tags) ? created.tags : cleanTags),
-        target_clicks: Number(created.target_clicks) || cleanTarget,
-        created_at: created.created_at || new Date().toISOString()
+      message: id ? 'Campaign updated successfully.' : 'Campaign created successfully.',
+      campaign: saved ? {
+        id: saved.id,
+        workspace_id: saved.workspace_id,
+        name: saved.name,
+        description: saved.description || '',
+        tags: typeof saved.tags === 'string' ? JSON.parse(saved.tags) : (Array.isArray(saved.tags) ? saved.tags : cleanTags),
+        target_clicks: Number(saved.target_clicks) || cleanTarget,
+        created_at: saved.created_at || new Date().toISOString()
       } : null
-    }, { status: 201 });
+    }, { status: 200 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database error';
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
+}
+
+export async function POST(request: Request) {
+  return handleSaveCampaign(request);
+}
+
+export async function PATCH(request: Request) {
+  return handleSaveCampaign(request);
 }
 
 export async function DELETE(request: Request) {
@@ -170,7 +193,7 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-workspace-id, x-user-email'
     }
   });

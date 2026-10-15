@@ -253,6 +253,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
       tags: parsedTags
     });
 
+    showToast(
+      'success',
+      'Campaign Updated',
+      `Campaign "${editTitle.trim()}" has been updated successfully.`
+    );
+
     setEditCampaignModal(null);
   };
 

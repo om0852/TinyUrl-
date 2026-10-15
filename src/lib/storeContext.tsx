@@ -1447,9 +1447,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             title: target.title,
             destination_url: target.destination_url,
             campaign_id: target.campaign_id !== undefined ? target.campaign_id : null,
+            domain_id: target.domain_id,
             tags: target.tags,
             is_flagged: target.is_flagged,
-            risk_score: target.risk_score
+            risk_score: target.risk_score,
+            redirect_type: target.redirect_type,
+            http_status_code: target.http_status_code,
+            notes: target.notes,
+            shield_protection: target.shield_protection,
+            hide_referrer: target.hide_referrer,
+            channel: target.channel,
+            og_title: target.og_title,
+            og_description: target.og_description,
+            og_image_url: target.og_image_url,
+            utm_source: target.utm_source,
+            utm_medium: target.utm_medium,
+            utm_campaign: target.utm_campaign,
+            utm_term: target.utm_term,
+            utm_content: target.utm_content,
+            password: target.password_hash !== 'PROTECTED' ? target.password_hash : undefined,
+            password_hash: target.password_hash !== 'PROTECTED' ? target.password_hash : undefined,
+            expires_at: target.expires_at,
+            max_clicks: target.max_clicks
           })
         }).catch(err => console.warn('Failed to update link on server:', err));
       }
@@ -1699,11 +1718,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const target = updated.find(c => c.id === id);
       if (target) {
         apiFetch('/api/v1/campaigns', {
-          method: 'POST',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: target.id,
-            workspace_id: target.workspace_id,
+            workspace_id: target.workspace_id || currentWorkspace?.id || 'ws_default',
             name: target.name,
             description: target.description,
             tags: target.tags,

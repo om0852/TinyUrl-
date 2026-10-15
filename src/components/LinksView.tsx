@@ -25,9 +25,11 @@ import {
   SlidersHorizontal, 
   BarChart2, 
   X, 
-  Download
+  Download,
+  Edit3
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
+import { EditLinkModal } from '@/components/EditLinkModal';
 
 interface LinksViewProps {
   onOpenCreateModal: () => void;
@@ -50,6 +52,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
   const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
   const canCreateLinks = hasPermission(currentUserRole, 'links:create');
+  const canEditLinks = hasPermission(currentUserRole, 'links:edit');
+
+  const [editingLink, setEditingLink] = useState<typeof links[0] | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -851,6 +856,25 @@ export const LinksView: React.FC<LinksViewProps> = ({
                           <div className="inline-flex items-center gap-1">
                             <button
                               type="button"
+                              onClick={() => {
+                                if (!canEditLinks) {
+                                  const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+                                  showToast(
+                                    'error',
+                                    'Permission Denied',
+                                    `Your role (${roleName}) does not have permission to edit links.`
+                                  );
+                                  return;
+                                }
+                                setEditingLink(link);
+                              }}
+                              title={canEditLinks ? "Edit Link" : "Edit Link (Requires Editor or higher)"}
+                              className="p-1.5 text-outline hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setSelectedQrLink({
                                 id: link.id,
                                 slug: shortSlug,
@@ -1104,6 +1128,13 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Edit Link Modal */}
+      <EditLinkModal
+        isOpen={!!editingLink}
+        link={editingLink}
+        onClose={() => setEditingLink(null)}
+      />
 
     </div>
   );
