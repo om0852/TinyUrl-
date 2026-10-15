@@ -17,24 +17,20 @@ import {
   CheckCircle2, 
   Smartphone, 
   Sliders, 
-  Video,
-  Camera,
-  Music,
-  Radio,
-  HardDrive,
-  Globe,
-  ChevronDown,
-  ChevronUp,
-  Layers,
-  FileText,
-  EyeOff,
-  FolderKanban,
-  Share2,
-  Code2,
-  Wand2,
-  QrCode,
-  Sparkles,
-  ArrowRight
+  Globe, 
+  ChevronDown, 
+  ChevronUp, 
+  Layers, 
+  FileText, 
+  EyeOff, 
+  FolderKanban, 
+  Share2, 
+  Code2, 
+  QrCode, 
+  Sparkles, 
+  Image as ImageIcon,
+  MessageCircle,
+  CheckCheck
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { generateId, generateBase62Code } from '@/lib/db';
@@ -50,6 +46,9 @@ interface GeneratedItem {
   shortUrl: string;
   destinationUrl: string;
   title: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImageUrl?: string;
 }
 
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
@@ -66,6 +65,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
   const [selectedDomainId, setSelectedDomainId] = useState(primaryDomain?.id || 'dom_platform');
+
+  // Open Graph & Social Media Preview Meta Tags
+  const [ogTitle, setOgTitle] = useState('');
+  const [ogDescription, setOgDescription] = useState('');
+  const [ogImageUrl, setOgImageUrl] = useState('');
+  const [socialPreviewTab, setSocialPreviewTab] = useState<'whatsapp' | 'twitter'>('whatsapp');
+  const [showMetaSettings, setShowMetaSettings] = useState(false);
 
   // Two-column options matching screenshot
   const [redirectType, setRedirectType] = useState<'direct' | 'frame' | 'splash'>('direct');
@@ -153,7 +159,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       .filter(line => line.length > 0);
   }, [multipleUrls]);
 
-  // Auto-detect placement tag from Destination URL (single mode)
+  // Auto-detect placement tag and suggest meta title
   useEffect(() => {
     if (!destinationUrl.trim()) return;
     const url = destinationUrl.toLowerCase();
@@ -172,7 +178,24 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     } else {
       setPlacementTag('direct');
     }
-  }, [destinationUrl]);
+
+    // Auto-suggest meta title if empty
+    if (!ogTitle && !title) {
+      try {
+        const u = new URL(destinationUrl.startsWith('http') ? destinationUrl : `https://${destinationUrl}`);
+        const cleanHost = u.hostname.replace('www.', '');
+        const pathPart = u.pathname.split('/').filter(Boolean).pop();
+        if (pathPart) {
+          const autoSuggested = pathPart.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          setTitle(`${autoSuggested} - ${cleanHost}`);
+          setOgTitle(`${autoSuggested} - ${cleanHost}`);
+        } else {
+          setTitle(`Exclusive Link - ${cleanHost}`);
+          setOgTitle(`Exclusive Link - ${cleanHost}`);
+        }
+      } catch {}
+    }
+  }, [destinationUrl, ogTitle, title]);
 
   // Sync UTM Source with placement tag
   useEffect(() => {
@@ -190,6 +213,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
   const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
+  const currentDomain = domains.find(d => d.id === selectedDomainId) || primaryDomain;
+  const resolvedHost = currentDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
 
   // Slug availability check
   const isSlugTaken = customSlug.trim() 
@@ -220,6 +245,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setMultipleUrls('');
     setTitle('');
     setCustomSlug('');
+    setOgTitle('');
+    setOgDescription('');
+    setOgImageUrl('');
+    setShowMetaSettings(false);
     setPassword('');
     setLinkNotes('');
     setShieldProtection(false);
@@ -235,12 +264,15 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     onClose();
   };
 
+  const handleGenerateDynamicOg = () => {
+    const fallbackTitle = ogTitle.trim() || title.trim() || 'Exclusive Short Link';
+    const dynamicOgUrl = `/api/og?title=${encodeURIComponent(fallbackTitle)}&slug=${encodeURIComponent(resolvedHost)}&theme=purple`;
+    setOgImageUrl(dynamicOgUrl);
+  };
+
   const executeShorten = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setErrorMsg('');
-
-    const currentDomain = domains.find(d => d.id === selectedDomainId) || primaryDomain;
-    const resolvedHost = currentDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
 
     const linkRules = [];
     if (iosTargetUrl.trim()) {
@@ -304,6 +336,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           shield_protection: shieldProtection,
           hide_referrer: hideReferrer,
           channel: channel !== 'None' ? channel : undefined,
+          og_title: ogTitle.trim() || (title.trim() || undefined),
+          og_description: ogDescription.trim() || undefined,
+          og_image_url: ogImageUrl.trim() || undefined,
           expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
           max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
           utm_source: utmSource,
@@ -337,7 +372,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             slug,
             shortUrl,
             destinationUrl: res.link.destination_url,
-            title: res.link.title
+            title: res.link.title,
+            ogTitle: res.link.og_title,
+            ogDescription: res.link.og_description,
+            ogImageUrl: res.link.og_image_url
           };
           setGeneratedResults([newItem, ...generatedResults]);
           setDestinationUrl('');
@@ -386,6 +424,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           shield_protection: shieldProtection,
           hide_referrer: hideReferrer,
           channel: channel !== 'None' ? channel : undefined,
+          og_title: ogTitle.trim() || undefined,
+          og_description: ogDescription.trim() || undefined,
+          og_image_url: ogImageUrl.trim() || undefined,
           expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
           max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
           utm_source: utmSource,
@@ -404,7 +445,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             slug,
             shortUrl,
             destinationUrl: res.link.destination_url,
-            title: res.link.title
+            title: res.link.title,
+            ogTitle: res.link.og_title,
+            ogDescription: res.link.og_description,
+            ogImageUrl: res.link.og_image_url
           });
         }
       }
@@ -425,6 +469,11 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     }
   };
 
+  // Preview computed values
+  const previewOgTitle = ogTitle.trim() || title.trim() || 'Exclusive Short Link Preview';
+  const previewOgDescription = ogDescription.trim() || 'Click to view the verified destination link. Fast, safe and secure routing.';
+  const previewOgImage = ogImageUrl.trim() || '';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs transition-all duration-200 animate-fade-in">
       <div 
@@ -437,12 +486,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         {/* Modal Header */}
         <div className="px-5 py-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0 bg-surface-container-low/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shadow-xs shrink-0 font-bold">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shadow-xs shrink-0 font-bold">
               <Link2 className="w-4 h-4" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-on-surface">Create Short Links</h2>
-              <p className="text-[11px] text-on-surface-variant">Single &amp; multi-link batch generator with edge redirection</p>
+              <p className="text-[11px] text-on-surface-variant">Single &amp; multi-link batch generator with social meta previews</p>
             </div>
           </div>
           <button
@@ -471,17 +520,17 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             <div className="flex items-center justify-between">
               <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                 <span>{mode === 'single' ? 'Destination URL' : 'Multiple Destination URLs (One per line)'}</span>
-                <span className="text-red-500">*</span>
+                <span className="text-primary font-bold">*</span>
               </label>
 
-              {/* Single / Multiple Pills matching reference screenshot */}
+              {/* Single / Multiple Pills matching theme */}
               <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant/40">
                 <button
                   type="button"
                   onClick={() => setMode('single')}
                   className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     mode === 'single'
-                      ? 'bg-white dark:bg-surface-container-high text-[#ff5a54] shadow-xs font-bold'
+                      ? 'bg-primary text-white shadow-xs font-bold'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -493,7 +542,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   onClick={() => setMode('multiple')}
                   className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                     mode === 'multiple'
-                      ? 'bg-[#ff5a54] text-white shadow-xs font-bold'
+                      ? 'bg-primary text-white shadow-xs font-bold'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -512,14 +561,14 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     value={destinationUrl}
                     onChange={(e) => setDestinationUrl(e.target.value)}
                     placeholder="https://example.com/your-destination-page"
-                    className="w-full pl-3 pr-28 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 focus:border-[#ff5a54] transition-all font-mono"
+                    className="w-full pl-3 pr-28 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
                   />
                   <div className="absolute right-1.5 flex items-center gap-1">
                     <button
                       type="button"
                       onClick={handleRandomizeSlug}
                       title="Generate random custom slug"
-                      className="p-1.5 text-on-surface-variant hover:text-[#ff5a54] hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                     >
                       <Sparkles className="w-4 h-4" />
                     </button>
@@ -527,7 +576,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       type="button"
                       onClick={() => executeShorten()}
                       disabled={isSubmitting}
-                      className="px-4 py-1.5 bg-[#ff5a54] hover:bg-[#fa433d] text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-4 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {isSubmitting ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -540,7 +589,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
                 {detectedApp && (
                   <div className="flex items-center gap-1.5 p-1.5 bg-surface-container-low rounded-lg text-[11px] font-medium text-on-surface">
-                    <Smartphone className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                    <Smartphone className="w-3.5 h-3.5 text-primary shrink-0" />
                     <span>OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
                   </div>
                 )}
@@ -552,8 +601,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     rows={4}
                     value={multipleUrls}
                     onChange={(e) => setMultipleUrls(e.target.value)}
-                    placeholder={`https://onlylinks.cc/AQMs\nhttps://onlylinks.cc/FgRn\nhttps://onlylinks.cc/YoGa`}
-                    className="w-full p-3 pb-12 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 focus:border-[#ff5a54] transition-all font-mono custom-scrollbar resize-y"
+                    placeholder={`https://example.com/page-1\nhttps://example.com/page-2\nhttps://example.com/page-3`}
+                    className="w-full p-3 pb-12 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono custom-scrollbar resize-y"
                   />
                   <div className="absolute right-2.5 bottom-2.5 flex items-center gap-2">
                     <span className="text-[11px] font-medium text-on-surface-variant bg-surface-container-low px-2 py-1 rounded-md">
@@ -563,7 +612,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       type="button"
                       onClick={() => executeShorten()}
                       disabled={isSubmitting || parsedMultipleUrls.length === 0}
-                      className="px-4 py-1.5 bg-[#ff5a54] hover:bg-[#fa433d] text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      className="px-4 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                     >
                       {isSubmitting ? (
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -579,10 +628,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
           {/* ─── Instant Generated Short URLs Results Section ─── */}
           {generatedResults.length > 0 && (
-            <div className="flex flex-col gap-2 p-3.5 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+            <div className="flex flex-col gap-2 p-3.5 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center font-bold">
+                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
                     <Check className="w-3 h-3" />
                   </div>
                   <span className="font-bold text-xs text-on-surface">
@@ -618,16 +667,22 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 {generatedResults.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:border-emerald-500/40 transition-colors"
+                    className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:border-primary/40 transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-bold text-[#ff5a54] truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-primary truncate">
                           {item.shortUrl}
                         </span>
                         <span className="text-[10px] text-on-surface-variant px-1.5 py-0.2 rounded bg-surface-container font-mono">
                           /{item.slug}
                         </span>
+                        {item.ogTitle && (
+                          <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
+                            <Share2 className="w-2.5 h-2.5" />
+                            <span>OG Meta Active</span>
+                          </span>
+                        )}
                       </div>
                       <span className="text-[11px] text-on-surface-variant truncate block mt-0.5">
                         &rarr; {item.destinationUrl}
@@ -705,7 +760,195 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
           )}
 
-          {/* ─── Two-Column Options Grid (Matching Reference Image) ─── */}
+          {/* ─── Social Media Meta Tags & WhatsApp/Twitter Live Preview (Requested Feature) ─── */}
+          <div className="p-3.5 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-2xl border border-primary/20 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  <Share2 className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <span className="font-bold text-xs text-on-surface block">Social Media Meta Tags &amp; WhatsApp Card</span>
+                  <span className="text-[10px] text-on-surface-variant">Customize title, description, and thumbnail shown on WhatsApp, Twitter/X, Facebook &amp; LinkedIn</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowMetaSettings(!showMetaSettings)}
+                className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <span>{showMetaSettings ? 'Hide Settings' : 'Customize Preview'}</span>
+                {showMetaSettings ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {/* Meta Tags Inputs (Toggled or inline) */}
+            {showMetaSettings && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-primary/15 animate-fade-in">
+                
+                {/* Left: Input Fields */}
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-on-surface text-[11px]">Meta Title (og:title)</label>
+                      {title && !ogTitle && (
+                        <button
+                          type="button"
+                          onClick={() => setOgTitle(title)}
+                          className="text-[10px] text-primary hover:underline font-semibold"
+                        >
+                          Use Link Title
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={ogTitle}
+                      onChange={(e) => setOgTitle(e.target.value)}
+                      placeholder="e.g. 50% Off Launch Deal - Exclusive Access"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-[11px]">Meta Description (og:description)</label>
+                    <textarea
+                      rows={2}
+                      value={ogDescription}
+                      onChange={(e) => setOgDescription(e.target.value)}
+                      placeholder="e.g. Discover our top collection and redeem special discounts today."
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-on-surface text-[11px] flex items-center gap-1">
+                        <ImageIcon className="w-3 h-3 text-primary" />
+                        <span>Thumbnail Image URL (og:image)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleGenerateDynamicOg}
+                        className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-0.5"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Auto-Generate Card</span>
+                      </button>
+                    </div>
+                    <input
+                      type="url"
+                      value={ogImageUrl}
+                      onChange={(e) => setOgImageUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/... or /api/og?title=..."
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono text-[11px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Right: Live Interactive Card Preview */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-on-surface">Live Social Share Preview</span>
+                    <div className="flex items-center gap-1 bg-surface-container-low p-0.5 rounded-lg border border-outline-variant/30">
+                      <button
+                        type="button"
+                        onClick={() => setSocialPreviewTab('whatsapp')}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-all ${
+                          socialPreviewTab === 'whatsapp'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-on-surface-variant hover:text-on-surface'
+                        }`}
+                      >
+                        <MessageCircle className="w-2.5 h-2.5" />
+                        <span>WhatsApp</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSocialPreviewTab('twitter')}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-all ${
+                          socialPreviewTab === 'twitter'
+                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-xs'
+                            : 'text-on-surface-variant hover:text-on-surface'
+                        }`}
+                      >
+                        <span>X / Facebook</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {socialPreviewTab === 'whatsapp' ? (
+                    /* WhatsApp Chat Bubble Mockup */
+                    <div className="bg-[#e7fedb] dark:bg-[#005c4b]/30 p-2.5 rounded-xl border border-emerald-500/20 shadow-xs flex flex-col gap-1.5 text-left">
+                      {previewOgImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={previewOgImage}
+                          alt="Thumbnail preview"
+                          className="w-full h-28 object-cover rounded-lg border border-emerald-500/20"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-20 bg-emerald-500/10 rounded-lg border border-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-300 gap-1.5 text-[11px] font-medium">
+                          <ImageIcon className="w-4 h-4 opacity-60" />
+                          <span>Thumbnail Image Preview</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-bold text-xs text-gray-900 dark:text-gray-100 line-clamp-1 block">
+                          {previewOgTitle}
+                        </span>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-300 line-clamp-2 mt-0.5 leading-snug">
+                          {previewOgDescription}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-emerald-800 dark:text-emerald-400 font-mono pt-1 border-t border-emerald-600/15">
+                        <span className="truncate">https://{resolvedHost}/{customSlug || 'link'}</span>
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Twitter / Facebook Large Summary Card Mockup */
+                    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 overflow-hidden shadow-xs text-left">
+                      {previewOgImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={previewOgImage}
+                          alt="Twitter card thumbnail"
+                          className="w-full h-28 object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-24 bg-primary/10 flex items-center justify-center text-primary gap-1.5 text-[11px] font-medium">
+                          <ImageIcon className="w-4 h-4 opacity-60" />
+                          <span>Twitter 16:9 Large Image Preview</span>
+                        </div>
+                      )}
+                      <div className="p-2.5 flex flex-col gap-0.5">
+                        <span className="text-[10px] text-on-surface-variant font-mono uppercase">
+                          {resolvedHost}
+                        </span>
+                        <span className="font-bold text-xs text-on-surface line-clamp-1">
+                          {previewOgTitle}
+                        </span>
+                        <p className="text-[10px] text-on-surface-variant line-clamp-2 leading-snug">
+                          {previewOgDescription}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+          </div>
+
+          {/* ─── Two-Column Options Grid (Matching Screenshot Layout) ─── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             
             {/* ═══ Left Column ═══ */}
@@ -723,7 +966,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <select
                     value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
                     onChange={(e) => setSelectedDomainId(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 font-medium cursor-pointer appearance-none pr-8"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium cursor-pointer appearance-none pr-8"
                   >
                     {domains.map(d => (
                       <option key={d.id} value={d.id} disabled={!d.verified}>
@@ -739,7 +982,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <div className="px-0.5 pt-0.5">
                     {domainProbeStatus.checking ? (
                       <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant font-medium animate-pulse truncate">
-                        <RefreshCw className="w-3 h-3 animate-spin text-[#ff5a54] shrink-0" />
+                        <RefreshCw className="w-3 h-3 animate-spin text-primary shrink-0" />
                         <span className="truncate">Verifying Edge SSL for {domainProbeStatus.domain}...</span>
                       </div>
                     ) : domainProbeStatus.ssl_active ? (
@@ -771,7 +1014,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               {/* 2. Password Protection */}
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center">
                     <Lock className="w-3 h-3" />
                   </div>
                   <span>Password Protection</span>
@@ -784,7 +1027,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Type your password here"
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40"
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
 
@@ -803,7 +1046,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <select
                     value={headerCode}
                     onChange={(e) => setHeaderCode(Number(e.target.value) as 301 | 302 | 307 | 308)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 font-mono cursor-pointer appearance-none pr-8"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono cursor-pointer appearance-none pr-8"
                   >
                     <option value={301}>301 - Permanent Redirect (Recommended for SEO)</option>
                     <option value={302}>302 - Temporary Redirect (Found)</option>
@@ -866,7 +1109,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                         setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
                       }
                     }}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 cursor-pointer appearance-none pr-8"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer appearance-none pr-8"
                   >
                     <option value="">None</option>
                     {campaigns.map(c => (
@@ -885,7 +1128,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               {/* 1. Redirect Type */}
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
                     <Layers className="w-3 h-3" />
                   </div>
                   <span>Redirect Type</span>
@@ -894,7 +1137,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <select
                     value={redirectType}
                     onChange={(e) => setRedirectType(e.target.value as 'direct' | 'frame' | 'splash')}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 font-medium cursor-pointer appearance-none pr-8"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium cursor-pointer appearance-none pr-8"
                   >
                     <option value="direct">Direct (Standard Redirection)</option>
                     <option value="frame">Frame / Masked (Keep domain in address bar)</option>
@@ -920,7 +1163,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   value={linkNotes}
                   onChange={(e) => setLinkNotes(e.target.value)}
                   placeholder="Type your description here"
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40"
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
 
@@ -928,7 +1171,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
                 <div className="flex flex-col gap-0.5">
                   <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                    <div className="w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center">
                       <EyeOff className="w-3 h-3" />
                     </div>
                     <span>Hide Referrer</span>
@@ -943,7 +1186,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   aria-checked={hideReferrer}
                   onClick={() => setHideReferrer(!hideReferrer)}
                   className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 shrink-0 ${
-                    hideReferrer ? 'bg-[#ff5a54]' : 'bg-surface-container-highest border border-outline-variant/40'
+                    hideReferrer ? 'bg-primary' : 'bg-surface-container-highest border border-outline-variant/40'
                   }`}
                 >
                   <div
@@ -957,7 +1200,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               {/* 4. Channel */}
               <div className="flex flex-col gap-1">
                 <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                     <Share2 className="w-3 h-3" />
                   </div>
                   <span>Channel</span>
@@ -969,7 +1212,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <select
                     value={channel}
                     onChange={(e) => setChannel(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 cursor-pointer appearance-none pr-8"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer appearance-none pr-8"
                   >
                     <option value="None">None</option>
                     <option value="Social Media">Social Media</option>
@@ -991,13 +1234,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
           </div>
 
-          {/* ─── Bottom Red "Advanced" Button matching screenshot ─── */}
+          {/* ─── Bottom Purple "Advanced" Button matching Theme ─── */}
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full py-2.5 rounded-xl text-white font-bold bg-[#ff5a54] hover:bg-[#eb4c46] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer text-xs"
+            className="w-full py-2.5 rounded-xl text-white font-bold bg-primary hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer text-xs"
           >
-            <span>Advanced</span>
+            <span>Advanced Settings</span>
             {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -1024,12 +1267,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       value={customSlug}
                       onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
                       placeholder="custom-alias"
-                      className="flex-1 bg-transparent font-mono text-xs text-[#ff5a54] font-bold focus:outline-none"
+                      className="flex-1 bg-transparent font-mono text-xs text-primary font-bold focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={handleRandomizeSlug}
-                      className="text-[11px] text-on-surface-variant hover:text-[#ff5a54] font-medium"
+                      className="text-[11px] text-on-surface-variant hover:text-primary font-medium"
                     >
                       Randomize
                     </button>
@@ -1040,7 +1283,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               {/* Smart Device Routing */}
               <div className="flex flex-col gap-2">
                 <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-[#ff5a54]" />
+                  <Smartphone className="w-3.5 h-3.5 text-primary" />
                   <span>Smart Device Targeting (iOS &amp; Android Deep Routing)</span>
                 </span>
                 <p className="text-[11px] text-on-surface-variant">
@@ -1054,7 +1297,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       value={iosTargetUrl}
                       onChange={(e) => setIosTargetUrl(e.target.value)}
                       placeholder="https://apps.apple.com/app/..."
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-[#ff5a54]"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                   <div>
@@ -1064,7 +1307,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       value={androidTargetUrl}
                       onChange={(e) => setAndroidTargetUrl(e.target.value)}
                       placeholder="https://play.google.com/store/apps/..."
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-[#ff5a54]"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
                 </div>
@@ -1074,7 +1317,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               <div className="flex flex-col gap-2 pt-1 border-t border-outline-variant/20">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-[#ff5a54]" />
+                    <Sliders className="w-3.5 h-3.5 text-primary" />
                     <span>Automatic UTM Parameters</span>
                   </span>
                   <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">Free Included</span>
@@ -1118,7 +1361,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       type="checkbox"
                       checked={neverExpires}
                       onChange={(e) => setNeverExpires(e.target.checked)}
-                      className="rounded accent-[#ff5a54] w-3.5 h-3.5 cursor-pointer"
+                      className="rounded accent-primary w-3.5 h-3.5 cursor-pointer"
                     />
                     <span className="text-[11px] font-semibold text-on-surface">Never expires</span>
                   </label>
@@ -1169,7 +1412,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               type="button"
               onClick={() => executeShorten()}
               disabled={isSubmitting}
-              className="px-5 py-1.5 rounded-xl text-xs bg-[#ff5a54] hover:bg-[#fa433d] text-white transition-all shadow-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-5 py-1.5 rounded-xl text-xs bg-primary hover:bg-primary/90 text-white transition-all shadow-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>

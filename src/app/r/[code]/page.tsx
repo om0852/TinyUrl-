@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
+import { Metadata } from 'next';
 import { sql } from '@/lib/postgres';
 import { Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
@@ -10,19 +11,77 @@ interface PageProps {
   searchParams: Promise<{ target?: string; title?: string; id?: string }>;
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { code } = await params;
+  if (!code) return {};
+
+  try {
+    const cleanCode = code.trim().toLowerCase();
+    const rows = (await sql.query(
+      `SELECT title, destination_url, short_code, custom_slug, og_title, og_description, og_image_url 
+       FROM links 
+       WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 
+       LIMIT 1`,
+      [cleanCode]
+    )) as Array<{
+      title?: string;
+      destination_url?: string;
+      short_code?: string;
+      custom_slug?: string;
+      og_title?: string;
+      og_description?: string;
+      og_image_url?: string;
+    }>;
+
+    if (rows && rows.length > 0) {
+      const link = rows[0];
+      const title = link.og_title?.trim() || link.title?.trim() || `Link /${link.short_code}`;
+      const description = link.og_description?.trim() || `Open link: ${link.destination_url || 'destination'}`;
+      const imageUrl = link.og_image_url?.trim() || undefined;
+
+      return {
+        title,
+        description,
+        openGraph: {
+          title,
+          description,
+          images: imageUrl ? [{ url: imageUrl, alt: title }] : [],
+          type: 'website'
+        },
+        twitter: {
+          card: imageUrl ? 'summary_large_image' : 'summary',
+          title,
+          description,
+          images: imageUrl ? [imageUrl] : []
+        }
+      };
+    }
+  } catch (err) {
+    console.warn('Metadata generation error:', err);
+  }
+
+  return {};
+}
+
 export default async function RedirectPage({ params, searchParams }: PageProps) {
   const { code } = await params;
   const sParams = await searchParams;
 
   let initialTarget = sParams.target ? decodeURIComponent(sParams.target) : null;
   let initialLink: Link | null = null;
+  let isSocialCrawler = false;
 
   if (code) {
     try {
       const cleanCode = code.trim().toLowerCase();
       const headersList = await headers();
       const rawHost = headersList.get('host') || '';
+      const userAgent = headersList.get('user-agent') || '';
       const currentHost = rawHost.split(':')[0].toLowerCase();
+      
+      // Social crawler detection for WhatsApp, Facebook, Twitter, Telegram, Slack, LinkedIn, Discord
+      isSocialCrawler = /whatsapp|facebookexternalhit|twitterbot|telegrambot|linkedinbot|slackbot|discordbot/i.test(userAgent);
+
       const isPlatformDomain = currentHost === 'localhost' || 
                                currentHost === '127.0.0.1' || 
                                currentHost.includes('vercel.app') || 
@@ -47,6 +106,9 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         password_hash?: string;
         expires_at?: string;
         max_clicks?: number;
+        og_title?: string;
+        og_description?: string;
+        og_image_url?: string;
       }> = [];
 
       if (!isPlatformDomain) {
@@ -97,15 +159,16 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           notes: (row as Record<string, unknown>).notes as string | undefined,
           shield_protection: Boolean((row as Record<string, unknown>).shield_protection),
           hide_referrer: Boolean((row as Record<string, unknown>).hide_referrer),
-          channel: (row as Record<string, unknown>).channel as string | undefined
+          channel: (row as Record<string, unknown>).channel as string | undefined,
+          og_title: (row as Record<string, unknown>).og_title as string | undefined,
+          og_description: (row as Record<string, unknown>).og_description as string | undefined,
+          og_image_url: (row as Record<string, unknown>).og_image_url as string | undefined
         };
 
         // Server-Side Location & Device Smart Routing evaluation
         if (!isPasswordLocked && parsedRules.length > 0) {
           try {
-            const reqHeaders = await headers();
-            const userAgent = reqHeaders.get('user-agent') || '';
-            const geo = extractGeoFromHeaders(name => reqHeaders.get(name));
+            const geo = extractGeoFromHeaders(name => headersList.get(name));
 
             const resolved = resolveSmartTargetUrl({
               rules: parsedRules,
@@ -122,6 +185,34 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
 
         if (!initialTarget && !isPasswordLocked) {
           initialTarget = row.destination_url;
+        }
+
+        // If social crawler (WhatsApp/Telegram/Facebook), deliver direct preview card
+        if (isSocialCrawler) {
+          const ogTitle = initialLink.og_title || initialLink.title;
+          const ogDesc = initialLink.og_description || `Click to open link on ${currentHost}`;
+          const ogImg = initialLink.og_image_url;
+
+          return (
+            <div style={{ padding: '40px', fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+              {ogImg && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img 
+                  src={ogImg} 
+                  alt={ogTitle} 
+                  style={{ width: '100%', maxHeight: '315px', objectFit: 'cover', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }} 
+                />
+              )}
+              <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e293b', marginBottom: '10px' }}>{ogTitle}</h1>
+              <p style={{ fontSize: '15px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>{ogDesc}</p>
+              <a 
+                href={initialTarget || row.destination_url} 
+                style={{ display: 'inline-block', backgroundColor: '#4f46e5', color: '#ffffff', padding: '12px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' }}
+              >
+                Continue to Destination &rarr;
+              </a>
+            </div>
+          );
         }
       }
     } catch (err) {

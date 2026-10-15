@@ -131,6 +131,9 @@ export interface Link {
   shield_protection?: boolean;
   hide_referrer?: boolean;
   channel?: string;
+  og_title?: string;
+  og_description?: string;
+  og_image_url?: string;
 
   // Smart routing runtime resolution
   resolved_destination_url?: string;
@@ -241,6 +244,9 @@ export interface ShortenApiRequest {
   shield_protection?: boolean;
   hide_referrer?: boolean;
   channel?: string;
+  og_title?: string;
+  og_description?: string;
+  og_image_url?: string;
 }
 
 export interface ShortenApiResponse {

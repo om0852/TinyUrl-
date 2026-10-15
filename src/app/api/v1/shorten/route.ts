@@ -40,7 +40,10 @@ export async function POST(request: Request) {
       notes,
       shield_protection,
       hide_referrer,
-      channel
+      channel,
+      og_title,
+      og_description,
+      og_image_url
     } = body;
 
     // 1. Strict Destination URL Validation
@@ -163,14 +166,17 @@ export async function POST(request: Request) {
       shield_protection: Boolean(shield_protection),
       hide_referrer: Boolean(hide_referrer),
       channel: channel && typeof channel === 'string' ? channel.slice(0, 100) : undefined,
+      og_title: og_title && typeof og_title === 'string' ? og_title.slice(0, 255) : undefined,
+      og_description: og_description && typeof og_description === 'string' ? og_description.slice(0, 1000) : undefined,
+      og_image_url: og_image_url && typeof og_image_url === 'string' ? og_image_url.slice(0, 1000) : undefined,
       created_at: new Date().toISOString()
     };
 
     // Save to PostgreSQL with collision guard
     try {
       const insertResult = await sql.query(
-        `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, redirect_type, http_status_code, notes, shield_protection, hide_referrer, channel, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+        `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, redirect_type, http_status_code, notes, shield_protection, hide_referrer, channel, og_title, og_description, og_image_url, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
          ON CONFLICT (short_code) DO UPDATE SET
            destination_url = EXCLUDED.destination_url,
            custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
@@ -183,7 +189,10 @@ export async function POST(request: Request) {
            notes = COALESCE(EXCLUDED.notes, links.notes),
            shield_protection = COALESCE(EXCLUDED.shield_protection, links.shield_protection),
            hide_referrer = COALESCE(EXCLUDED.hide_referrer, links.hide_referrer),
-           channel = COALESCE(EXCLUDED.channel, links.channel)
+           channel = COALESCE(EXCLUDED.channel, links.channel),
+           og_title = COALESCE(EXCLUDED.og_title, links.og_title),
+           og_description = COALESCE(EXCLUDED.og_description, links.og_description),
+           og_image_url = COALESCE(EXCLUDED.og_image_url, links.og_image_url)
          RETURNING id`,
         [
           newLink.id,
@@ -207,6 +216,9 @@ export async function POST(request: Request) {
           newLink.shield_protection || false,
           newLink.hide_referrer || false,
           newLink.channel || null,
+          newLink.og_title || null,
+          newLink.og_description || null,
+          newLink.og_image_url || null,
           newLink.created_at
         ]
       );

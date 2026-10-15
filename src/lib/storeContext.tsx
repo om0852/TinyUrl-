@@ -93,6 +93,9 @@ interface StoreContextType {
     shield_protection?: boolean;
     hide_referrer?: boolean;
     channel?: string;
+    og_title?: string;
+    og_description?: string;
+    og_image_url?: string;
   }) => { link: Link | null; error?: string };
 
 
@@ -1363,7 +1366,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notes: data.notes,
       shield_protection: data.shield_protection || false,
       hide_referrer: data.hide_referrer || false,
-      channel: data.channel
+      channel: data.channel,
+      og_title: data.og_title,
+      og_description: data.og_description,
+      og_image_url: data.og_image_url
     };
 
     saveLinksState([newLink, ...links]);
@@ -1392,7 +1398,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           notes: newLink.notes,
           shield_protection: newLink.shield_protection,
           hide_referrer: newLink.hide_referrer,
-          channel: newLink.channel
+          channel: newLink.channel,
+          og_title: newLink.og_title,
+          og_description: newLink.og_description,
+          og_image_url: newLink.og_image_url
         })
       })
       .then(res => res.json())
