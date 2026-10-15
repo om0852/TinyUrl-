@@ -32,6 +32,7 @@ import {
   MessageCircle,
   CheckCheck
 } from 'lucide-react';
+import { InfoTooltip } from '@/components/ui';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { generateId, generateBase62Code, buildUtmUrl, normalizeUrl } from '@/lib/db';
 
@@ -658,7 +659,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 {/* Single Mode: Title & Custom Slug Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-xs">Link Title (Optional)</label>
+                    <label className="font-bold text-on-surface text-xs flex items-center">
+                      <span>Link Title (Optional)</span>
+                      <InfoTooltip text="Optional friendly name to identify this link across dashboards and reports." />
+                    </label>
                     <input
                       type="text"
                       value={title}
@@ -670,7 +674,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
                   <div className="flex flex-col gap-1">
                     <label className="font-bold text-on-surface text-xs flex items-center justify-between">
-                      <span>Custom Slug (Optional)</span>
+                      <span className="flex items-center">
+                        <span>Custom Slug (Optional)</span>
+                        <InfoTooltip text="Choose a custom back-half alias (e.g. /summer-sale) instead of a random string." />
+                      </span>
                       {customSlug.trim() && (
                         <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-red-500' : 'text-emerald-600'}`}>
                           <CheckCircle2 className="w-3 h-3" />
@@ -993,8 +1000,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               <div className="flex flex-col gap-2.5 pt-1 animate-fade-in">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px]">
-                      UTM Source <span className="text-primary">*</span>
+                    <label className="font-bold text-on-surface text-[11px] flex items-center">
+                      <span>UTM Source <span className="text-primary">*</span></span>
+                      <InfoTooltip text="Identify the advertiser, platform, or publication sending traffic (e.g. google, youtube, newsletter)." />
                     </label>
                     <input
                       type="text"
@@ -1009,8 +1017,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px]">
-                      UTM Medium <span className="text-primary">*</span>
+                    <label className="font-bold text-on-surface text-[11px] flex items-center">
+                      <span>UTM Medium <span className="text-primary">*</span></span>
+                      <InfoTooltip text="Identify the marketing medium (e.g. cpc, bio, social, email, banner)." />
                     </label>
                     <input
                       type="text"
@@ -1025,8 +1034,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px]">
-                      UTM Campaign
+                    <label className="font-bold text-on-surface text-[11px] flex items-center">
+                      <span>UTM Campaign</span>
+                      <InfoTooltip text="Identify the specific promotion or product campaign (e.g. summer_sale, promo_launch)." />
                     </label>
                     <input
                       type="text"
@@ -1043,8 +1053,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px]">
-                      UTM Term (Keywords)
+                    <label className="font-bold text-on-surface text-[11px] flex items-center">
+                      <span>UTM Term (Keywords)</span>
+                      <InfoTooltip text="Note paid search terms and keywords (e.g. running+shoes, software+deal)." />
                     </label>
                     <input
                       type="text"
@@ -1059,8 +1070,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px]">
-                      UTM Content (Ad / Placement)
+                    <label className="font-bold text-on-surface text-[11px] flex items-center">
+                      <span>UTM Content (Ad / Placement)</span>
+                      <InfoTooltip text="Differentiate ads or buttons pointing to the same URL (e.g. header_banner, cta_blue)." />
                     </label>
                     <input
                       type="text"
@@ -1117,7 +1129,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 <div className="flex flex-col gap-2.5">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                      <label className="font-bold text-on-surface text-[11px]">Meta Title (og:title)</label>
+                      <label className="font-bold text-on-surface text-[11px] flex items-center">
+                        <span>Meta Title (og:title)</span>
+                        <InfoTooltip text="Custom title displayed when this short link is shared on WhatsApp, Twitter, Facebook, or iMessage." />
+                      </label>
                       {title && !ogTitle && (
                         <button
                           type="button"
@@ -1138,7 +1153,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px]">Meta Description (og:description)</label>
+                    <label className="font-bold text-on-surface text-[11px] flex items-center">
+                      <span>Meta Description (og:description)</span>
+                      <InfoTooltip text="Summary text snippet shown under the preview card on messaging apps." />
+                    </label>
                     <textarea
                       rows={2}
                       value={ogDescription}
@@ -1153,6 +1171,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       <label className="font-bold text-on-surface text-[11px] flex items-center gap-1">
                         <ImageIcon className="w-3 h-3 text-primary" />
                         <span>Thumbnail Image URL (og:image)</span>
+                        <InfoTooltip text="Card thumbnail image shown on WhatsApp and social feeds (1200x630px recommended)." />
                       </label>
                       <button
                         type="button"
@@ -1287,6 +1306,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <Globe className="w-3 h-3" />
                   </div>
                   <span>Domain</span>
+                  <InfoTooltip text="Choose the base domain for your short link. Connect custom branded domains in workspace settings." />
                 </label>
                 <div className="relative">
                   <select
@@ -1344,10 +1364,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <Lock className="w-3 h-3" />
                   </div>
                   <span>Password Protection</span>
+                  <InfoTooltip text="By adding a password, you can restrict access. Visitors must enter the correct password to proceed." />
                 </label>
-                <p className="text-[11px] text-on-surface-variant">
-                  By adding a password, you can restrict the access.
-                </p>
                 <input
                   type="text"
                   value={password}
@@ -1364,10 +1382,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <Code2 className="w-3 h-3" />
                   </div>
                   <span>Header Codes</span>
+                  <InfoTooltip text="You can define custom header codes here. 301 is permanent redirect (recommended for SEO); 302/307 are temporary redirects." />
                 </label>
-                <p className="text-[11px] text-on-surface-variant">
-                  You can define custom header codes here.
-                </p>
                 <div className="relative">
                   <select
                     value={headerCode}
@@ -1385,16 +1401,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
               {/* 4. Shield Protection (100% Free Plan, No Starter Tag) */}
               <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
-                <div className="flex flex-col gap-0.5">
-                  <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                      <ShieldCheck className="w-3 h-3" />
-                    </div>
-                    <span>Shield Protection</span>
+                <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                    <ShieldCheck className="w-3 h-3" />
                   </div>
-                  <p className="text-[11px] text-on-surface-variant leading-tight">
-                    Block bots, crawlers and suspicious traffic. Filtered visitors get a neutral page instead of your destination, helping reduce shadowban risk on strict platforms.
-                  </p>
+                  <span>Shield Protection</span>
+                  <InfoTooltip text="Block bots, crawlers and suspicious traffic. Filtered visitors get a neutral page instead of your destination, helping reduce shadowban risk on strict platforms." />
                 </div>
                 <button
                   type="button"
@@ -1420,10 +1432,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <FolderKanban className="w-3 h-3" />
                   </div>
                   <span>Campaign</span>
+                  <InfoTooltip text="Assign this link to a marketing campaign for organized tracking and multi-link reporting." />
                 </label>
-                <p className="text-[11px] text-on-surface-variant">
-                  Assign link to a campaign.
-                </p>
                 <div className="relative">
                   <select
                     value={selectedCampaignId}
@@ -1458,6 +1468,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <Layers className="w-3 h-3" />
                   </div>
                   <span>Redirect Type</span>
+                  <InfoTooltip text="Direct sends visitors straight to target. Frame masks your short domain in the address bar. Splash presents a customizable interstitial page." />
                 </label>
                 <div className="relative">
                   <select
@@ -1492,10 +1503,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <FileText className="w-3 h-3" />
                   </div>
                   <span>Link Notes</span>
+                  <InfoTooltip text="This can be used to identify and organize URLs on your account." />
                 </label>
-                <p className="text-[11px] text-on-surface-variant">
-                  This can be used to identify URLs on your account.
-                </p>
                 <input
                   type="text"
                   value={linkNotes}
@@ -1507,16 +1516,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
               {/* 3. Hide Referrer (100% Free Plan, No Starter Tag) */}
               <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
-                <div className="flex flex-col gap-0.5">
-                  <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                      <EyeOff className="w-3 h-3" />
-                    </div>
-                    <span>Hide Referrer</span>
+                <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                    <EyeOff className="w-3 h-3" />
                   </div>
-                  <p className="text-[11px] text-on-surface-variant leading-tight">
-                    Enable this option to hide the referrer.
-                  </p>
+                  <span>Hide Referrer</span>
+                  <InfoTooltip text="Enable this option to hide the referrer header on destination redirect." />
                 </div>
                 <button
                   type="button"
@@ -1542,10 +1547,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <Share2 className="w-3 h-3" />
                   </div>
                   <span>Channel</span>
+                  <InfoTooltip text="Assign this link to a channel (e.g. Social, Email, Paid Ads) for segmented analytics." />
                 </label>
-                <p className="text-[11px] text-on-surface-variant">
-                  Assign link to a channel.
-                </p>
                 <div className="relative">
                   <select
                     value={channel}
@@ -1623,10 +1626,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5 text-primary" />
                   <span>Smart Device Targeting (iOS &amp; Android Deep Routing)</span>
+                  <InfoTooltip text="Optionally route mobile visitors to app-specific destinations while web visitors use default." />
                 </span>
-                <p className="text-[11px] text-on-surface-variant">
-                  Optionally route mobile visitors to app-specific destinations while web visitors use default.
-                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <div>
                     <label className="font-semibold text-[11px] text-on-surface block mb-0.5">🍎 iOS Destination</label>
@@ -1662,7 +1663,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                       onChange={(e) => setNeverExpires(e.target.checked)}
                       className="rounded accent-primary w-3.5 h-3.5 cursor-pointer"
                     />
-                    <span className="text-[11px] font-semibold text-on-surface">Never expires</span>
+                    <span className="text-[11px] font-semibold text-on-surface flex items-center">
+                      <span>Never expires</span>
+                      <InfoTooltip text="Set an expiration date and time after which this short link will automatically stop redirecting." />
+                    </span>
                   </label>
                   {!neverExpires && (
                     <input
@@ -1675,7 +1679,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-on-surface-variant">Max Clicks Limit:</span>
+                  <span className="text-[11px] text-on-surface-variant flex items-center">
+                    <span>Max Clicks Limit:</span>
+                    <InfoTooltip text="Automatically expire this link when the total clicks reach this threshold." />
+                  </span>
                   <input
                     type="number"
                     min="1"

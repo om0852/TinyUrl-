@@ -6,3 +6,4 @@ export * from './Modal';
 export * from './DropdownMenu';
 export * from './ToastHub';
 export * from './SlideOver';
+export * from './InfoTooltip';

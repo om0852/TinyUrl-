@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
+import { InfoTooltip } from '@/components/ui';
 import { Link as LinkType } from '@/lib/types';
 import { 
   X, 
@@ -393,7 +394,10 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                   <div className="flex flex-col gap-2.5">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center justify-between">
-                        <label className="font-bold text-on-surface text-[11px]">Meta Title (og:title)</label>
+                        <label className="font-bold text-on-surface text-[11px] flex items-center">
+                          <span>Meta Title (og:title)</span>
+                          <InfoTooltip text="Custom title displayed when this short link is shared on WhatsApp, Twitter, Facebook, or iMessage." />
+                        </label>
                         {title && !ogTitle && (
                           <button
                             type="button"
@@ -414,7 +418,10 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="font-bold text-on-surface text-[11px]">Meta Description (og:description)</label>
+                      <label className="font-bold text-on-surface text-[11px] flex items-center">
+                        <span>Meta Description (og:description)</span>
+                        <InfoTooltip text="Summary text snippet shown under the preview card on messaging apps." />
+                      </label>
                       <textarea
                         rows={2}
                         value={ogDescription}
@@ -429,6 +436,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                         <label className="font-bold text-on-surface text-[11px] flex items-center gap-1">
                           <ImageIcon className="w-3 h-3 text-primary" />
                           <span>Thumbnail Image URL (og:image)</span>
+                          <InfoTooltip text="Card thumbnail image shown on WhatsApp and social feeds (1200x630px recommended)." />
                         </label>
                         <button
                           type="button"
@@ -559,6 +567,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                   <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Domain</span>
+                    <InfoTooltip text="Choose the base domain for this short link. Connect custom branded domains in workspace settings." />
                   </label>
                   <div className="relative">
                     <select
@@ -582,6 +591,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                     <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-purple-600" />
                       <span>Password Protection</span>
+                      <InfoTooltip text="By adding a password, you can restrict access. Visitors must enter the password to unlock redirection." />
                     </label>
                     {link.password_hash && (
                       <span className="text-[10px] text-amber-600 font-semibold">Currently Protected</span>
@@ -618,6 +628,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                   <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                     <Code2 className="w-3.5 h-3.5 text-teal-600" />
                     <span>Header Codes</span>
+                    <InfoTooltip text="HTTP redirect status code. 301 is permanent redirect (recommended for SEO); 302/307 are temporary redirects." />
                   </label>
                   <div className="relative">
                     <select
@@ -636,14 +647,10 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
 
                 {/* Shield Protection */}
                 <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Shield Protection</span>
-                    </div>
-                    <p className="text-[11px] text-on-surface-variant leading-tight">
-                      Block crawlers &amp; bots from destination.
-                    </p>
+                  <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Shield Protection</span>
+                    <InfoTooltip text="Block bots, crawlers and suspicious traffic. Filtered visitors receive a neutral page instead of destination, reducing shadowban risk on strict platforms." />
                   </div>
                   <button
                     type="button"
@@ -672,6 +679,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                   <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Redirect Type</span>
+                    <InfoTooltip text="Direct sends visitors straight to target. Frame masks domain in browser address bar. Splash presents a countdown preview page." />
                   </label>
                   <div className="relative">
                     <select
@@ -692,6 +700,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                   <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                     <FolderKanban className="w-3.5 h-3.5 text-amber-600" />
                     <span>Campaign</span>
+                    <InfoTooltip text="Assign this link to a marketing campaign for organized tracking and multi-link reporting." />
                   </label>
                   <div className="relative">
                     <select
@@ -713,6 +722,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                   <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                     <Share2 className="w-3.5 h-3.5 text-primary" />
                     <span>Channel</span>
+                    <InfoTooltip text="Tag this short link by distribution channel (e.g. YouTube, TikTok, Email, Ads) for filtered analytics." />
                   </label>
                   <div className="relative">
                     <select
@@ -738,14 +748,10 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
 
                 {/* Hide Referrer */}
                 <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                      <EyeOff className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Hide Referrer</span>
-                    </div>
-                    <p className="text-[11px] text-on-surface-variant leading-tight">
-                      Strip referrer header on destination redirect.
-                    </p>
+                  <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                    <EyeOff className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Hide Referrer</span>
+                    <InfoTooltip text="Enable this option to hide the referrer header on destination redirect." />
                   </div>
                   <button
                     type="button"
@@ -773,6 +779,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
               <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-slate-500" />
                 <span>Link Notes &amp; Comments</span>
+                <InfoTooltip text="Optional internal notes and remarks to identify this link's purpose." />
               </label>
               <input
                 type="text"

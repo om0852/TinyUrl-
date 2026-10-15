@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
+import { InfoTooltip } from '@/components/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { 
   FolderKanban, 
@@ -1152,7 +1153,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
             <form onSubmit={handleCreate} className="space-y-3.5 text-xs">
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Campaign Title</label>
+                <label className="font-semibold text-on-surface mb-1 flex items-center">
+                  <span>Campaign Title</span>
+                  <InfoTooltip text="Unique name for this campaign deal, sponsor deliverable, or launch event." />
+                </label>
                 <input 
                   type="text"
                   required
@@ -1164,7 +1168,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Sponsor Organization</label>
+                <label className="font-semibold text-on-surface mb-1 flex items-center">
+                  <span>Sponsor Organization</span>
+                  <InfoTooltip text="Company or brand sponsoring this campaign track (e.g. Sony, NordVPN, Adobe)." />
+                </label>
                 <input 
                   type="text"
                   placeholder="e.g. Sony, NordVPN, Adobe"
@@ -1175,7 +1182,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Target Click Goal</label>
+                <label className="font-semibold text-on-surface mb-1 flex items-center">
+                  <span>Target Click Goal</span>
+                  <InfoTooltip text="Contracted or desired target click milestone to gauge deliverable completion." />
+                </label>
                 <input 
                   type="number"
                   value={newTarget}
@@ -1185,7 +1195,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Campaign Tags (comma-separated)</label>
+                <label className="font-semibold text-on-surface mb-1 flex items-center">
+                  <span>Campaign Tags (comma-separated)</span>
+                  <InfoTooltip text="Filterable tags to organize multiple deals across your workspace." />
+                </label>
                 <input 
                   type="text"
                   placeholder="sponsor, active, autumn2026"

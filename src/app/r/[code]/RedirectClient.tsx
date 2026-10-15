@@ -586,7 +586,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
         setIsUnlocked(true);
         setPasswordError(false);
         const unlockedUrl = data.destination_url;
-        setResolvedTarget(unlockedUrl);
+        setResolvedLink(prev => prev ? { ...prev, destination_url: unlockedUrl } : ({ id: code, short_code: code, destination_url: unlockedUrl, redirect_type: 'direct' } as any));
 
         // Frame + Password combination: render the masked frame upon unlock
         if (link?.redirect_type === 'frame') {

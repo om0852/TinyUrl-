@@ -5,6 +5,8 @@ import { useStore } from '@/lib/storeContext';
 import { X, Layers, Check } from 'lucide-react';
 import { Button } from './ui/button';
 
+import { InfoTooltip } from './ui/InfoTooltip';
+
 interface CreateTeamModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -66,7 +68,10 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block text-foreground font-semibold text-xs mb-1.5">Workspace Name</label>
+              <label className="text-foreground font-semibold text-xs mb-1.5 flex items-center">
+                <span>Workspace Name</span>
+                <InfoTooltip text="Unique organization or team workspace to isolate links, custom domains, and analytics." />
+              </label>
               <input
                 type="text"
                 required
@@ -78,7 +83,10 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
             </div>
 
             <div>
-              <label className="block text-foreground font-semibold text-xs mb-1.5">Select Tier Plan</label>
+              <label className="text-foreground font-semibold text-xs mb-1.5 flex items-center">
+                <span>Select Tier Plan</span>
+                <InfoTooltip text="Choose your workspace subscription tier. All plans provide high performance edge routing." />
+              </label>
               <div className="grid grid-cols-3 gap-2">
                 {(['free', 'pro', 'enterprise'] as const).map((p) => (
                   <button
