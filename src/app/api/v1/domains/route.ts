@@ -357,18 +357,18 @@ export async function PATCH(request: Request) {
       resolvedIps = await dns.promises.resolve4(cleanHost);
     } catch {}
 
-    const configuredTarget = getCloudflareCnameTarget();
+    const edgeProxyIp = process.env.EDGE_PROXY_IP || process.env.NEXT_PUBLIC_EDGE_PROXY_IP || '159.54.139.45';
+    const configuredTarget = getCloudflareCnameTarget() || 'creataurus.work.gd';
     const EXPECTED_CNAMES = [
       configuredTarget,
+      'creataurus.work.gd',
       'cname.tinyurl.dev', 
-      'cname.vercel-dns.com', 
-      'tiny-url-self.vercel.app', 
-      'cname.tinyurl.com'
+      'tiny-url-self.vercel.app'
     ];
     const isCnameMatched = resolvedCnames.some(c => 
       EXPECTED_CNAMES.some(exp => c.toLowerCase().includes(exp.toLowerCase()))
     );
-    const isIpMatched = resolvedIps.includes('76.76.21.21');
+    const isIpMatched = resolvedIps.includes(edgeProxyIp) || resolvedIps.includes('159.54.139.45');
 
     if (isCnameMatched || isIpMatched) {
       routingVerified = true;
@@ -430,13 +430,13 @@ export async function PATCH(request: Request) {
     // Construct informative diagnostic message
     let diagnosticMessage = '';
     if (isFullyVerified) {
-      diagnosticMessage = `Domain verified successfully! Organization ownership confirmed (TXT) and Edge routing active (CNAME).`;
+      diagnosticMessage = `Domain verified successfully! Edge routing active via ${isIpMatched ? `A record (${edgeProxyIp})` : `CNAME (${configuredTarget})`}.`;
     } else if (!ownershipVerified && !routingVerified) {
-      diagnosticMessage = `DNS pending: Add TXT challenge "_tinyurl-challenge.${cleanHost}" and CNAME pointing to "${configuredTarget}".`;
+      diagnosticMessage = `DNS pending: Add an A record pointing to "${edgeProxyIp}" (recommended for root domains) OR a CNAME pointing to "${configuredTarget}".`;
     } else if (!ownershipVerified) {
-      diagnosticMessage = `Routing is connected, but domain ownership is unverified. Add TXT record "${tokenToMatch}" to authorize your organization.`;
+      diagnosticMessage = `Routing is connected to Edge proxy! Add TXT record "${tokenToMatch}" to authorize your organization.`;
     } else {
-      diagnosticMessage = `Ownership confirmed! Waiting for CNAME record pointing to "${configuredTarget}" to route traffic.`;
+      diagnosticMessage = `Ownership confirmed! Point an A record to "${edgeProxyIp}" or CNAME to "${configuredTarget}".`;
     }
 
     // 3. Persist verification state

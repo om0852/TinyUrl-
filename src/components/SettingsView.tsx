@@ -96,6 +96,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
   const [expandedDnsDomainId, setExpandedDnsDomainId] = useState<string | null>(null);
   const [copiedTokenDomainId, setCopiedTokenDomainId] = useState<string | null>(null);
   const [copiedCnameDomainId, setCopiedCnameDomainId] = useState<string | null>(null);
+  const [copiedIpDomainId, setCopiedIpDomainId] = useState<string | null>(null);
+
+  const edgeProxyIp = process.env.NEXT_PUBLIC_EDGE_PROXY_IP || '159.54.139.45';
+  const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
 
   // Upgrade Plan Modal
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
@@ -689,24 +693,103 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                     {/* Expandable DNS Records Drawer */}
                     {isExpanded && (
                       <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3 animate-fade-in bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/30">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-outline-variant/20">
                           <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
                             <Server className="w-4 h-4 text-primary-container" />
-                            <span>DNS Verification &amp; Authorization Records</span>
+                            <span>DNS Records Required for {dom.hostname}</span>
                           </span>
-                          <span className="text-[11px] text-on-surface-variant">Add these 2 records in your DNS dashboard (Cloudflare, GoDaddy, Route53, Namecheap)</span>
+                          <span className="text-[11px] text-on-surface-variant">Configure in your DNS provider (Cloudflare, GoDaddy, Namecheap, Hostinger)</span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        {/* Apex vs Subdomain Quick Tip */}
+                        <div className="p-2.5 rounded-lg bg-primary-container/10 border border-primary-container/20 text-[11px] text-on-surface leading-relaxed">
+                          💡 <strong>DNS Guide:</strong> If using a <strong>Root/Apex domain</strong> (e.g. <span className="font-mono text-primary-container">{dom.hostname}</span>), add the <strong>A Record</strong> below. If using a <strong>Subdomain</strong> (e.g. <span className="font-mono text-primary-container">links.{dom.hostname}</span>), add the <strong>CNAME Record</strong>.
+                        </div>
 
-                          {/* Record 1: Ownership Challenge TXT */}
-                          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+
+                          {/* Record 1: A Record (Recommended for Root Domains) */}
+                          <div className="p-3 rounded-xl bg-surface-container-low border border-emerald-200/60 dark:border-emerald-800/40 flex flex-col gap-2">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                                <span>1. Ownership Challenge</span>
-                                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">TXT</span>
+                                <span>A Record</span>
+                                <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">A (Root @)</span>
                               </span>
-                              <span className="text-[10px] text-on-surface-variant">Proves org authorization</span>
+                              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">For Apex Domain</span>
+                            </div>
+                            <div className="space-y-1 font-mono text-[11px]">
+                              <div className="flex items-center justify-between">
+                                <span className="text-outline">Host/Name:</span>
+                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
+                                  @
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-outline shrink-0">IP Target:</span>
+                                <span className="text-primary-container font-semibold bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
+                                  {edgeProxyIp}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(edgeProxyIp);
+                                    setCopiedIpDomainId(dom.id);
+                                    setTimeout(() => setCopiedIpDomainId(null), 2000);
+                                  }}
+                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
+                                  title="Copy IP Address"
+                                >
+                                  {copiedIpDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Record 2: CNAME Record (For Subdomains) */}
+                          <div className="p-3 rounded-xl bg-surface-container-low border border-blue-200/60 dark:border-blue-800/40 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
+                                <span>CNAME Record</span>
+                                <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[10px] font-bold">CNAME</span>
+                              </span>
+                              <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium">For Subdomain</span>
+                            </div>
+                            <div className="space-y-1 font-mono text-[11px]">
+                              <div className="flex items-center justify-between">
+                                <span className="text-outline">Host/Name:</span>
+                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
+                                  {subdomainHost}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-outline shrink-0">Target:</span>
+                                <span className="text-primary-container font-semibold truncate bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
+                                  {cnameTarget}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(cnameTarget);
+                                    setCopiedCnameDomainId(dom.id);
+                                    setTimeout(() => setCopiedCnameDomainId(null), 2000);
+                                  }}
+                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
+                                  title="Copy CNAME target"
+                                >
+                                  {copiedCnameDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Record 3: Ownership Challenge TXT */}
+                          <div className="p-3 rounded-xl bg-surface-container-low border border-amber-200/60 dark:border-amber-800/40 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
+                                <span>Ownership TXT</span>
+                                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold">TXT</span>
+                              </span>
+                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">Authorization</span>
                             </div>
                             <div className="space-y-1 font-mono text-[11px]">
                               <div className="flex items-center justify-between">
@@ -731,43 +814,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                                   title="Copy TXT verification token"
                                 >
                                   {copiedTokenDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Record 2: Traffic Routing CNAME */}
-                          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                                <span>2. Traffic Routing</span>
-                                <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 text-[10px] font-bold">CNAME</span>
-                              </span>
-                              <span className="text-[10px] text-on-surface-variant">Routes to Edge nodes</span>
-                            </div>
-                            <div className="space-y-1 font-mono text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-outline">Host/Name:</span>
-                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
-                                  {subdomainHost}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-outline shrink-0">Target:</span>
-                                <span className="text-primary-container font-semibold bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                  {cnameTarget}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(cnameTarget);
-                                    setCopiedCnameDomainId(dom.id);
-                                    setTimeout(() => setCopiedCnameDomainId(null), 2000);
-                                  }}
-                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
-                                  title="Copy CNAME target"
-                                >
-                                  {copiedCnameDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
                               </div>
                             </div>
@@ -1179,13 +1225,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 </span>
               </div>
 
-              <div className="p-3 bg-surface-container-low rounded-xl space-y-1.5 border border-outline-variant/20 text-xs">
-                <span className="font-bold text-on-surface block flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-primary-container" />
-                  <span>Ownership &amp; Routing Verification:</span>
+              <div className="p-3 bg-surface-container-low rounded-xl space-y-2 border border-outline-variant/30 text-xs">
+                <span className="font-bold text-on-surface flex items-center gap-1.5">
+                  <Server className="w-4 h-4 text-primary-container" />
+                  <span>DNS Setup Options to Route Traffic:</span>
                 </span>
-                <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                  After registering, a unique cryptographic <strong>TXT token</strong> will be generated for your workspace to prove organization ownership, alongside a <strong>CNAME</strong> record to route traffic.
+                <div className="space-y-1.5 text-[11px] font-mono">
+                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/20">
+                    <div>
+                      <span className="font-bold text-emerald-700 mr-1.5">Option 1 (Root @):</span>
+                      <span className="text-on-surface-variant font-sans">A Record pointing to</span>
+                    </div>
+                    <span className="font-bold text-primary-container">{edgeProxyIp}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/20">
+                    <div>
+                      <span className="font-bold text-blue-700 mr-1.5">Option 2 (Subdomain):</span>
+                      <span className="text-on-surface-variant font-sans">CNAME pointing to</span>
+                    </div>
+                    <span className="font-bold text-primary-container">{cnameTarget}</span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed pt-1">
+                  Automated Edge SSL certificates are issued on-the-fly once either of these records is detected.
                 </p>
               </div>
 
