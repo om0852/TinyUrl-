@@ -1063,7 +1063,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
       {/* Floating Batch Selection Bar */}
       {selectedLinkIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border border-border/80 shadow-2xl rounded-2xl px-5 py-3 flex items-center gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border border-border/80 shadow-2xl rounded-xl px-5 py-3 flex items-center gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md">
           <div className="flex items-center gap-2 text-foreground font-bold">
             <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]">
               {selectedLinkIds.size}
@@ -1075,7 +1075,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <button
               type="button"
               onClick={handleBulkExportSelected}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border border-border/60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border border-border/60"
             >
               <FileDown className="w-3.5 h-3.5 text-primary" />
               <span>Export CSV</span>
@@ -1083,7 +1083,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <button
               type="button"
               onClick={handleBulkDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-destructive/15 hover:bg-destructive/25 text-destructive font-semibold cursor-pointer transition shadow-xs border border-destructive/20"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/15 hover:bg-destructive/25 text-destructive font-semibold cursor-pointer transition shadow-xs border border-destructive/20"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete Selected</span>

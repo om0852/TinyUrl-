@@ -78,14 +78,14 @@ function ConduitAnimation({ appName, appColor }: { appName?: string; appColor?: 
       {/* Source Node */}
       <div className="relative flex items-center justify-center">
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center relative shadow-sm"
+          className="w-14 h-14 rounded-lg flex items-center justify-center relative shadow-sm"
           style={{
             backgroundColor: 'var(--surface-container, #e9edff)',
             border: '1px solid var(--outline-variant, #c7c4d8)',
           }}
         >
           <div
-            className="absolute inset-0 rounded-2xl animate-ping opacity-20"
+            className="absolute inset-0 rounded-lg animate-ping opacity-20"
             style={{ backgroundColor: appColor || 'var(--primary, #4f46e5)' }}
           />
           <Link2 className="w-6 h-6" style={{ color: appColor || 'var(--primary, #4f46e5)' }} />
@@ -115,7 +115,7 @@ function ConduitAnimation({ appName, appColor }: { appName?: string; appColor?: 
       {/* Destination Node */}
       <div className="relative flex items-center justify-center">
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center relative shadow-md"
+          className="w-14 h-14 rounded-lg flex items-center justify-center relative shadow-md"
           style={{
             backgroundColor: appColor || 'var(--primary, #4f46e5)',
             color: 'white',
@@ -651,7 +651,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
         >
           {/* Error Icon */}
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+            className="w-16 h-16 rounded-lg flex items-center justify-center mb-4"
             style={{
               backgroundColor: 'rgba(186, 26, 26, 0.08)',
               border: '1px solid rgba(186, 26, 26, 0.15)',
@@ -783,7 +783,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           }}
         >
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+            className="w-14 h-14 rounded-lg flex items-center justify-center mb-4"
             style={{
               backgroundColor: 'rgba(79, 70, 229, 0.08)',
               border: '1px solid rgba(79, 70, 229, 0.15)',

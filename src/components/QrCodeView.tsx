@@ -899,7 +899,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                     : frameStyle === 'top-header'
                     ? 'p-6 rounded-xl shadow-xl border border-border/60 space-y-4'
                     : frameStyle === 'phone-mockup'
-                    ? 'p-6 rounded-2xl shadow-2xl border-4 space-y-4'
+                    ? 'p-6 rounded-xl shadow-2xl border-4 space-y-4'
                     : 'p-6 rounded-xl shadow-xl backdrop-blur-md border border-border/60 space-y-3'
                 }`}
                 style={{

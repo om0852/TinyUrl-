@@ -160,12 +160,12 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
 
       {/* Main Card */}
       <main className="w-full max-w-md my-auto">
-        <div className="bg-card/90 backdrop-blur-md border border-border/80 rounded-3xl p-6 sm:p-8 shadow-2xl relative">
+        <div className="bg-card/90 backdrop-blur-md border border-border/80 rounded-xl p-6 sm:p-8 shadow-2xl relative">
 
           {/* Loading State */}
           {loading && (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-12 h-12 rounded-2xl border-2 border-primary border-t-transparent animate-spin" />
+              <div className="w-12 h-12 rounded-lg border-2 border-primary border-t-transparent animate-spin" />
               <h2 className="text-lg font-bold">Verifying Invitation…</h2>
               <p className="text-xs text-muted-foreground">Checking security token &amp; workspace privileges</p>
             </div>
@@ -174,14 +174,14 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
           {/* Error State */}
           {!loading && error && (
             <div className="py-8 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
+              <div className="w-14 h-14 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center border border-destructive/20">
                 <AlertCircle className="w-7 h-7" />
               </div>
               <h2 className="text-xl font-bold">Invitation Not Found</h2>
               <p className="text-xs text-muted-foreground max-w-xs">{error}</p>
               <button
                 onClick={() => router.push('/')}
-                className="mt-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition shadow-sm cursor-pointer"
+                className="mt-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition shadow-sm cursor-pointer"
               >
                 Go to Homepage
               </button>
@@ -211,7 +211,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
               
               {/* Workspace Badge Header */}
               <div className="text-center space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20 mb-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 text-primary text-xs font-bold border border-primary/20 mb-1">
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Workspace Collaboration</span>
                 </div>
@@ -224,13 +224,13 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
               </div>
 
               {/* Role & Permissions Card */}
-              <div className="bg-muted/40 border border-border/60 rounded-2xl p-4 space-y-2.5">
+              <div className="bg-muted/40 border border-border/60 rounded-lg p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-primary" />
                     <span className="text-xs font-bold text-foreground">Assigned Seat:</span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground">
+                  <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground">
                     {invitation.role}
                   </span>
                 </div>
@@ -242,7 +242,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
               </div>
 
               {submitError && (
-                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{submitError}</span>
                 </div>
@@ -260,7 +260,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Alex Rivera"
-                    className="w-full h-10 px-3.5 bg-background border border-border/80 focus:border-primary rounded-xl text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                    className="w-full h-10 px-3.5 bg-background border border-border/80 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
                   />
                 </div>
 
@@ -272,7 +272,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                     type="email"
                     disabled
                     value={invitation.email}
-                    className="w-full h-10 px-3.5 bg-muted/60 border border-border/40 rounded-xl text-xs text-muted-foreground font-mono outline-none cursor-not-allowed"
+                    className="w-full h-10 px-3.5 bg-muted/60 border border-border/40 rounded-lg text-xs text-muted-foreground font-mono outline-none cursor-not-allowed"
                   />
                 </div>
 
@@ -289,7 +289,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter or set your password"
-                      className="w-full h-10 pl-3.5 pr-10 bg-background border border-border/80 focus:border-primary rounded-xl text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                      className="w-full h-10 pl-3.5 pr-10 bg-background border border-border/80 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
                     />
                     <Lock className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
@@ -298,7 +298,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full h-11 rounded-xl bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-primary/20 transition active:scale-[0.98] cursor-pointer disabled:opacity-50 mt-2"
+                  className="w-full h-11 rounded-lg bg-primary hover:bg-primary/95 text-primary-foreground font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-primary/20 transition active:scale-[0.98] cursor-pointer disabled:opacity-50 mt-2"
                 >
                   {submitting ? (
                     <>

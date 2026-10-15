@@ -45,16 +45,16 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-xl bg-card border border-border/80 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+      <div className="w-full max-w-xl bg-card border border-border/80 rounded-xl p-6 sm:p-8 shadow-2xl space-y-6">
         
         {/* Header */}
         <div className="flex items-center gap-3 pb-4 border-b border-border/60">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
             <Link2 className="w-6 h-6" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary px-2 py-0.5 rounded-full bg-primary/10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary px-2 py-0.5 rounded-md bg-primary/10">
                 Campaign Deliverables
               </span>
             </div>
@@ -78,7 +78,7 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
           </div>
 
           {campaignLinks.length === 0 ? (
-            <div className="p-8 text-center bg-muted/30 rounded-2xl border border-dashed border-border/70 space-y-2">
+            <div className="p-8 text-center bg-muted/30 rounded-lg border border-dashed border-border/70 space-y-2">
               <p className="text-xs font-semibold text-foreground">No links attached to this campaign yet.</p>
               <p className="text-[11px] text-muted-foreground">
                 Links tagged or assigned to this campaign will appear here automatically.
@@ -92,7 +92,7 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
                   <a
                     key={link.id}
                     href={`/${slug}`}
-                    className="flex items-center justify-between p-4 bg-muted/40 hover:bg-muted/70 rounded-2xl border border-border/60 transition group cursor-pointer"
+                    className="flex items-center justify-between p-4 bg-muted/40 hover:bg-muted/70 rounded-lg border border-border/60 transition group cursor-pointer"
                   >
                     <div className="min-w-0 pr-3">
                       <div className="text-sm font-bold text-foreground group-hover:text-primary transition truncate">
@@ -106,7 +106,7 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
                       <span className="text-xs font-mono font-semibold text-muted-foreground hidden sm:inline">
                         {(link.clicks_count || 0).toLocaleString()} clicks
                       </span>
-                      <div className="w-8 h-8 rounded-xl bg-background flex items-center justify-center text-foreground group-hover:text-primary border border-border/60">
+                      <div className="w-8 h-8 rounded-md bg-background flex items-center justify-center text-foreground group-hover:text-primary border border-border/60">
                         <ExternalLink className="w-4 h-4" />
                       </div>
                     </div>

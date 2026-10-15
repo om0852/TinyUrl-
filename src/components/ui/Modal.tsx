@@ -50,7 +50,7 @@ export const Modal: React.FC<ModalProps> = ({
         aria-hidden="true"
       />
       
-      <div className={`relative w-full ${maxWidth} rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden z-10 max-h-[90vh]`}>
+      <div className={`relative w-full ${maxWidth} rounded-xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden z-10 max-h-[90vh]`}>
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-outline-variant/30 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -135,9 +135,9 @@ export const DangerConfirmDialog: React.FC<DangerDialogProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
       
-      <div className="relative w-full max-w-[480px] rounded-2xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-6 flex flex-col gap-4 z-10">
+      <div className="relative w-full max-w-[480px] rounded-xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-6 flex flex-col gap-4 z-10">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-error-container/40 flex items-center justify-center text-error shrink-0">
+          <div className="w-12 h-12 rounded-lg bg-error-container/40 flex items-center justify-center text-error shrink-0">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div className="flex flex-col gap-1 min-w-0">

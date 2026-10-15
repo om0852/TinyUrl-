@@ -995,12 +995,12 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setEditWsModalOpen(false); }}
         >
-          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-on-surface">Rename Workspace</h3>
               <button 
                 onClick={() => setEditWsModalOpen(false)}
-                className="p-1 rounded-lg text-on-surface-variant hover:text-on-surface"
+                className="p-1 rounded-md text-on-surface-variant hover:text-on-surface"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1061,9 +1061,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirmOpen(false); }}
         >
-          <div className="bg-surface-container-lowest border border-red-500/30 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-surface-container-lowest border border-red-500/30 rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <div className="flex items-center gap-3 text-red-600">
-              <span className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0">
+              <span className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
                 <AlertCircle className="w-5 h-5" />
               </span>
               <div>
