@@ -35,7 +35,8 @@ import {
   ChevronDown,
   Filter,
   ExternalLink,
-  Link2
+  Link2,
+  RefreshCw
 } from 'lucide-react';
 
 interface AnalyticsViewProps {
@@ -43,7 +44,7 @@ interface AnalyticsViewProps {
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) => {
-  const { links, clicks, selectedAnalyticsLinkId, setSelectedAnalyticsLinkId } = useStore();
+  const { links, clicks, selectedAnalyticsLinkId, setSelectedAnalyticsLinkId, refreshData, isRefreshing } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -740,6 +741,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               </div>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={refreshData}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3.5 py-2 rounded-lg shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition-colors cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60"
+            title="Refresh latest telemetry from server (auto-syncs with 12-18s jitter)"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-primary-container ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{isRefreshing ? 'Syncing…' : 'Refresh'}</span>
+          </button>
 
           <button
             type="button"
@@ -1654,9 +1666,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Live GPS/IP
                 </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant/30 hidden sm:inline-flex">
+                  Auto-sync (12-18s jitter)
+                </span>
               </h3>
               <p className="text-xs text-on-surface-variant">
-                Real-time geographic resolution (City, State / Region, Country) and visitor telemetry
+                Real-time geographic resolution (City, State / Region, Country) and visitor telemetry &bull; Updated via jittered polling or manual refresh
               </p>
             </div>
           </div>
