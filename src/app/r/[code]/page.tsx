@@ -91,7 +91,13 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           rules: parsedRules,
           expires_at: row.expires_at || undefined,
           max_clicks: row.max_clicks ? Number(row.max_clicks) : undefined,
-          password_hash: row.password_hash ? 'PROTECTED' : undefined
+          password_hash: row.password_hash ? 'PROTECTED' : undefined,
+          redirect_type: ((row as Record<string, unknown>).redirect_type as 'direct' | 'frame' | 'splash') || 'direct',
+          http_status_code: ((row as Record<string, unknown>).http_status_code as 301 | 302 | 307 | 308) || 301,
+          notes: (row as Record<string, unknown>).notes as string | undefined,
+          shield_protection: Boolean((row as Record<string, unknown>).shield_protection),
+          hide_referrer: Boolean((row as Record<string, unknown>).hide_referrer),
+          channel: (row as Record<string, unknown>).channel as string | undefined
         };
 
         // Server-Side Location & Device Smart Routing evaluation

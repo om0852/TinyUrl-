@@ -124,6 +124,14 @@ export interface Link {
   rules?: LinkRule[];
   scheduled_activation?: string;
 
+  // Advanced Redirect & Shield Options
+  redirect_type?: 'direct' | 'frame' | 'splash';
+  http_status_code?: 301 | 302 | 307 | 308;
+  notes?: string;
+  shield_protection?: boolean;
+  hide_referrer?: boolean;
+  channel?: string;
+
   // Smart routing runtime resolution
   resolved_destination_url?: string;
   visitor_geo?: {
@@ -227,6 +235,12 @@ export interface ShortenApiRequest {
   expires_at?: string;
   max_clicks?: number;
   campaign_id?: string;
+  redirect_type?: 'direct' | 'frame' | 'splash';
+  http_status_code?: 301 | 302 | 307 | 308;
+  notes?: string;
+  shield_protection?: boolean;
+  hide_referrer?: boolean;
+  channel?: string;
 }
 
 export interface ShortenApiResponse {

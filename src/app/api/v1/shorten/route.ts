@@ -34,7 +34,13 @@ export async function POST(request: Request) {
       password,
       expires_at,
       max_clicks,
-      campaign_id
+      campaign_id,
+      redirect_type,
+      http_status_code,
+      notes,
+      shield_protection,
+      hide_referrer,
+      channel
     } = body;
 
     // 1. Strict Destination URL Validation
@@ -151,21 +157,33 @@ export async function POST(request: Request) {
       password_hash: password ? String(password) : undefined,
       expires_at: expires_at ? new Date(expires_at).toISOString() : undefined,
       max_clicks: max_clicks ? Number(max_clicks) : undefined,
+      redirect_type: redirect_type || 'direct',
+      http_status_code: http_status_code || 301,
+      notes: notes && typeof notes === 'string' ? notes.slice(0, 1000) : undefined,
+      shield_protection: Boolean(shield_protection),
+      hide_referrer: Boolean(hide_referrer),
+      channel: channel && typeof channel === 'string' ? channel.slice(0, 100) : undefined,
       created_at: new Date().toISOString()
     };
 
     // Save to PostgreSQL with collision guard
     try {
       const insertResult = await sql.query(
-        `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, redirect_type, http_status_code, notes, shield_protection, hide_referrer, channel, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
          ON CONFLICT (short_code) DO UPDATE SET
            destination_url = EXCLUDED.destination_url,
            custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
            domain_id = COALESCE(EXCLUDED.domain_id, links.domain_id),
            rules = COALESCE(EXCLUDED.rules, links.rules),
            title = COALESCE(EXCLUDED.title, links.title),
-           campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id)
+           campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id),
+           redirect_type = COALESCE(EXCLUDED.redirect_type, links.redirect_type),
+           http_status_code = COALESCE(EXCLUDED.http_status_code, links.http_status_code),
+           notes = COALESCE(EXCLUDED.notes, links.notes),
+           shield_protection = COALESCE(EXCLUDED.shield_protection, links.shield_protection),
+           hide_referrer = COALESCE(EXCLUDED.hide_referrer, links.hide_referrer),
+           channel = COALESCE(EXCLUDED.channel, links.channel)
          RETURNING id`,
         [
           newLink.id,
@@ -183,6 +201,12 @@ export async function POST(request: Request) {
           utm_medium || null,
           utm_campaign || null,
           cleanCampaignId || null,
+          newLink.redirect_type || 'direct',
+          newLink.http_status_code || 301,
+          newLink.notes || null,
+          newLink.shield_protection || false,
+          newLink.hide_referrer || false,
+          newLink.channel || null,
           newLink.created_at
         ]
       );

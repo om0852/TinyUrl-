@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -24,25 +24,82 @@ import {
   HardDrive,
   Globe,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Layers,
+  FileText,
+  EyeOff,
+  FolderKanban,
+  Share2,
+  Code2,
+  Wand2,
+  QrCode,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
-import { generateId } from '@/lib/db';
+import { generateId, generateBase62Code } from '@/lib/db';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface GeneratedItem {
+  id: string;
+  slug: string;
+  shortUrl: string;
+  destinationUrl: string;
+  title: string;
+}
+
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
   const { createShortLink, links, campaigns, domains } = useStore();
 
   const primaryDomain = domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified) || domains[0];
+
+  // Mode: Single vs Multiple
+  const [mode, setMode] = useState<'single' | 'multiple'>('single');
+
+  // Input URLs
   const [destinationUrl, setDestinationUrl] = useState('');
+  const [multipleUrls, setMultipleUrls] = useState('');
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
   const [selectedDomainId, setSelectedDomainId] = useState(primaryDomain?.id || 'dom_platform');
+
+  // Two-column options matching screenshot
+  const [redirectType, setRedirectType] = useState<'direct' | 'frame' | 'splash'>('direct');
+  const [password, setPassword] = useState('');
+  const [headerCode, setHeaderCode] = useState<301 | 302 | 307 | 308>(301);
+  const [linkNotes, setLinkNotes] = useState('');
+  const [shieldProtection, setShieldProtection] = useState(false);
+  const [hideReferrer, setHideReferrer] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [channel, setChannel] = useState('None');
+
+  // Advanced accordion state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
+  const [utmSource, setUtmSource] = useState('direct');
+  const [utmMedium, setUtmMedium] = useState('web');
+  const [utmCampaign, setUtmCampaign] = useState('summer_launch');
+  const [utmTerm, setUtmTerm] = useState('');
+  const [utmContent, setUtmContent] = useState('');
+  const [neverExpires, setNeverExpires] = useState(true);
+  const [expiresAt, setExpiresAt] = useState('');
+  const [maxClicks, setMaxClicks] = useState('');
+
+  // Smart Device Routing (iOS / Android)
+  const [iosTargetUrl, setIosTargetUrl] = useState('');
+  const [androidTargetUrl, setAndroidTargetUrl] = useState('');
+
+  // Results State
+  const [generatedResults, setGeneratedResults] = useState<GeneratedItem[]>([]);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [activeQrModalUrl, setActiveQrModalUrl] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Domain SSL & Edge health check
   const [domainProbeStatus, setDomainProbeStatus] = useState<{
@@ -87,30 +144,16 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setSelectedDomainId(primaryDomain.id);
     }
   }, [domains, primaryDomain?.id, selectedDomainId]);
-  const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
-  
-  // UTM params
-  const [utmSource, setUtmSource] = useState('direct');
-  const [utmMedium, setUtmMedium] = useState('web');
-  const [utmCampaign, setUtmCampaign] = useState('summer_launch');
-  const [neverExpires, setNeverExpires] = useState(true);
 
-  // Smart Device Routing (iOS / Android)
-  const [showDeviceRouting, setShowDeviceRouting] = useState(false);
-  const [iosTargetUrl, setIosTargetUrl] = useState('');
-  const [androidTargetUrl, setAndroidTargetUrl] = useState('');
+  // Count parsed multiple URLs
+  const parsedMultipleUrls = useMemo(() => {
+    return multipleUrls
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+  }, [multipleUrls]);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [createdResult, setCreatedResult] = useState<{
-    id: string;
-    slug: string;
-    shortUrl: string;
-    destinationUrl: string;
-  } | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  // Auto-detect placement tag from Destination URL
+  // Auto-detect placement tag from Destination URL (single mode)
   useEffect(() => {
     if (!destinationUrl.trim()) return;
     const url = destinationUrl.toLowerCase();
@@ -145,7 +188,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
   const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
 
   // Slug availability check
@@ -153,151 +196,253 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     ? links.some(l => (l.custom_slug || l.short_code).toLowerCase() === customSlug.trim().toLowerCase())
     : false;
 
-  const handlePlacementChange = (p: 'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct') => {
-    setPlacementTag(p);
+  const handleRandomizeSlug = () => {
+    const code = generateBase62Code(6);
+    setCustomSlug(code);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCopySingle = (shortUrl: string, id: string) => {
+    navigator.clipboard.writeText(shortUrl).catch(() => {});
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleCopyAll = () => {
+    if (generatedResults.length === 0) return;
+    const allLinks = generatedResults.map(r => r.shortUrl).join('\n');
+    navigator.clipboard.writeText(allLinks).catch(() => {});
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  };
+
+  const resetAndClose = () => {
+    setDestinationUrl('');
+    setMultipleUrls('');
+    setTitle('');
+    setCustomSlug('');
+    setPassword('');
+    setLinkNotes('');
+    setShieldProtection(false);
+    setHideReferrer(false);
+    setSelectedCampaignId('');
+    setChannel('None');
+    setIosTargetUrl('');
+    setAndroidTargetUrl('');
+    setShowAdvanced(false);
+    setErrorMsg('');
+    setGeneratedResults([]);
+    setActiveQrModalUrl(null);
+    onClose();
+  };
+
+  const executeShorten = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setErrorMsg('');
 
-    if (!destinationUrl.trim()) {
-      setErrorMsg('Please enter a destination URL.');
+    const currentDomain = domains.find(d => d.id === selectedDomainId) || primaryDomain;
+    const resolvedHost = currentDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
+
+    const linkRules = [];
+    if (iosTargetUrl.trim()) {
+      linkRules.push({
+        id: generateId('rule_ios'),
+        link_id: '',
+        rule_type: 'device' as const,
+        condition: 'ios',
+        target_url: iosTargetUrl.trim().startsWith('http') || iosTargetUrl.trim().includes('://') 
+          ? iosTargetUrl.trim() 
+          : `https://${iosTargetUrl.trim()}`,
+        weight: 100
+      });
+    }
+    if (androidTargetUrl.trim()) {
+      linkRules.push({
+        id: generateId('rule_android'),
+        link_id: '',
+        rule_type: 'device' as const,
+        condition: 'android',
+        target_url: androidTargetUrl.trim().startsWith('http') || androidTargetUrl.trim().includes('://') 
+          ? androidTargetUrl.trim() 
+          : `https://${androidTargetUrl.trim()}`,
+        weight: 100
+      });
+    }
+
+    // ─── Single Mode ───
+    if (mode === 'single') {
+      let dest = destinationUrl.trim();
+      if (!dest) {
+        setErrorMsg('Please enter a destination URL.');
+        return;
+      }
+      if (!/^https?:\/\//i.test(dest)) {
+        dest = `https://${dest}`;
+      }
+
+      if (isSlugTaken) {
+        setErrorMsg(`Slug "${customSlug}" is already taken. Please choose another.`);
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const app = detectAppDeepLink(dest);
+        const tags = [placementTag === 'drive' ? 'google_drive' : placementTag];
+        if (channel && channel !== 'None') tags.push(channel.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+
+        const res = createShortLink({
+          destination_url: dest,
+          title: title.trim() || undefined,
+          custom_slug: customSlug.trim() ? customSlug.trim().toLowerCase() : undefined,
+          domain_id: selectedDomainId || undefined,
+          tags,
+          campaign_id: selectedCampaignId || undefined,
+          password: password.trim() || undefined,
+          redirect_type: redirectType,
+          http_status_code: headerCode,
+          notes: linkNotes.trim() || undefined,
+          shield_protection: shieldProtection,
+          hide_referrer: hideReferrer,
+          channel: channel !== 'None' ? channel : undefined,
+          expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
+          max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
+          utm_source: utmSource,
+          utm_medium: utmMedium,
+          utm_campaign: utmCampaign,
+          utm_term: utmTerm.trim() || undefined,
+          utm_content: utmContent.trim() || undefined,
+          rules: linkRules.length > 0 ? linkRules : undefined,
+          deep_link: app ? {
+            enabled: true,
+            app: app.app,
+            app_name: app.appName,
+            app_uri: app.iosUri,
+            ios_uri: app.iosUri,
+            android_intent: app.androidIntent,
+            fallback_url: app.fallbackUrl
+          } : undefined
+        });
+
+        if (res.error) {
+          setErrorMsg(res.error);
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (res.link) {
+          const slug = res.link.custom_slug || res.link.short_code;
+          const shortUrl = `https://${resolvedHost}/${slug}`;
+          const newItem: GeneratedItem = {
+            id: res.link.id,
+            slug,
+            shortUrl,
+            destinationUrl: res.link.destination_url,
+            title: res.link.title
+          };
+          setGeneratedResults([newItem, ...generatedResults]);
+          setDestinationUrl('');
+          setTitle('');
+          setCustomSlug('');
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to create short link';
+        setErrorMsg(msg);
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
-    if (!destinationUrl.startsWith('http://') && !destinationUrl.startsWith('https://')) {
-      setErrorMsg('Destination URL must start with http:// or https://');
-      return;
-    }
-
-    if (isSlugTaken) {
-      setErrorMsg(`Slug "${customSlug}" is already taken. Please choose another.`);
+    // ─── Multiple Mode ───
+    if (parsedMultipleUrls.length === 0) {
+      setErrorMsg('Please paste at least one destination URL (one per line).');
       return;
     }
 
     setIsSubmitting(true);
+    const newItems: GeneratedItem[] = [];
+    const errors: string[] = [];
 
     try {
-      const tags = [placementTag === 'drive' ? 'google_drive' : placementTag];
+      for (let i = 0; i < parsedMultipleUrls.length; i++) {
+        let rawUrl = parsedMultipleUrls[i];
+        if (!/^https?:\/\//i.test(rawUrl)) {
+          rawUrl = `https://${rawUrl}`;
+        }
 
-      const linkRules = [];
-      if (iosTargetUrl.trim()) {
-        linkRules.push({
-          id: generateId('rule_ios'),
-          link_id: '',
-          rule_type: 'device' as const,
-          condition: 'ios',
-          target_url: iosTargetUrl.trim().startsWith('http') || iosTargetUrl.trim().includes('://') 
-            ? iosTargetUrl.trim() 
-            : `https://${iosTargetUrl.trim()}`,
-          weight: 100
+        const tags = ['batch'];
+        if (channel && channel !== 'None') tags.push(channel.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+
+        const res = createShortLink({
+          destination_url: rawUrl,
+          title: `Bulk Link #${i + 1}`,
+          domain_id: selectedDomainId || undefined,
+          tags,
+          campaign_id: selectedCampaignId || undefined,
+          password: password.trim() || undefined,
+          redirect_type: redirectType,
+          http_status_code: headerCode,
+          notes: linkNotes.trim() || undefined,
+          shield_protection: shieldProtection,
+          hide_referrer: hideReferrer,
+          channel: channel !== 'None' ? channel : undefined,
+          expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
+          max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
+          utm_source: utmSource,
+          utm_medium: utmMedium,
+          utm_campaign: utmCampaign,
+          rules: linkRules.length > 0 ? linkRules : undefined
         });
-      }
-      if (androidTargetUrl.trim()) {
-        linkRules.push({
-          id: generateId('rule_android'),
-          link_id: '',
-          rule_type: 'device' as const,
-          condition: 'android',
-          target_url: androidTargetUrl.trim().startsWith('http') || androidTargetUrl.trim().includes('://') 
-            ? androidTargetUrl.trim() 
-            : `https://${androidTargetUrl.trim()}`,
-          weight: 100
-        });
-      }
 
-      const res = createShortLink({
-        destination_url: destinationUrl.trim(),
-        title: title.trim() || undefined,
-        custom_slug: customSlug.trim() ? customSlug.trim().toLowerCase() : undefined,
-        domain_id: selectedDomainId || undefined,
-        tags,
-        campaign_id: selectedCampaignId || undefined,
-        utm_source: utmSource,
-        utm_medium: utmMedium,
-        utm_campaign: utmCampaign,
-        rules: linkRules.length > 0 ? linkRules : undefined,
-        deep_link: detectedApp ? {
-          enabled: true,
-          app: detectedApp.app,
-          app_name: detectedApp.appName,
-          app_uri: detectedApp.iosUri,
-          ios_uri: detectedApp.iosUri,
-          android_intent: detectedApp.androidIntent,
-          fallback_url: detectedApp.fallbackUrl
-        } : undefined
-      });
-
-      if (res.error) {
-        setErrorMsg(res.error);
-        setIsSubmitting(false);
-        return;
+        if (res.error) {
+          errors.push(`Line ${i + 1}: ${res.error}`);
+        } else if (res.link) {
+          const slug = res.link.custom_slug || res.link.short_code;
+          const shortUrl = `https://${resolvedHost}/${slug}`;
+          newItems.push({
+            id: res.link.id,
+            slug,
+            shortUrl,
+            destinationUrl: res.link.destination_url,
+            title: res.link.title
+          });
+        }
       }
 
-      if (res.link) {
-        const slug = res.link.custom_slug || res.link.short_code;
-        const chosenDomain = domains.find(d => d.id === (res.link?.domain_id || selectedDomainId));
-        const resolvedHost = chosenDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
-        const shortUrl = `https://${resolvedHost}/${slug}`;
+      if (newItems.length > 0) {
+        setGeneratedResults([...newItems, ...generatedResults]);
+        setMultipleUrls('');
+      }
 
-        setCreatedResult({
-          id: res.link.id,
-          slug,
-          shortUrl,
-          destinationUrl: res.link.destination_url
-        });
+      if (errors.length > 0) {
+        setErrorMsg(errors.slice(0, 3).join(' | '));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create link';
+      const msg = err instanceof Error ? err.message : 'Error generating bulk links';
       setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleCopy = () => {
-    if (!createdResult) return;
-    navigator.clipboard.writeText(createdResult.shortUrl).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const resetAndClose = () => {
-    setDestinationUrl('');
-    setTitle('');
-    setCustomSlug('');
-    setIosTargetUrl('');
-    setAndroidTargetUrl('');
-    setShowDeviceRouting(false);
-    setErrorMsg('');
-    setCreatedResult(null);
-    onClose();
-  };
-
-  const previewSlug = customSlug.trim() || 'custom-alias';
-  const previewShortUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/${previewSlug}`
-    : `${originDomain}/${previewSlug}`;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-all duration-200 animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs transition-all duration-200 animate-fade-in">
       <div 
         className="fixed inset-0"
         onClick={resetAndClose}
       />
 
-      <div className="relative bg-surface-container-lowest rounded-xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-outline-variant/40 z-10 text-on-surface">
+      <div className="relative bg-surface-container-lowest rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-outline-variant/40 z-10 text-on-surface">
         
-        {/* Modal Header (Fixed) */}
-        <div className="px-5 py-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0">
+        {/* Modal Header */}
+        <div className="px-5 py-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0 bg-surface-container-low/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary-container flex items-center justify-center shadow-xs shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center shadow-xs shrink-0 font-bold">
               <Link2 className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-on-surface">Create new short link</h2>
-              <p className="text-[11px] text-on-surface-variant">Instant redirection, branded slugs &amp; integrated QR creation</p>
+              <h2 className="text-sm font-bold text-on-surface">Create Short Links</h2>
+              <p className="text-[11px] text-on-surface-variant">Single &amp; multi-link batch generator with edge redirection</p>
             </div>
           </div>
           <button
@@ -309,192 +454,306 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        {/* Modal Content */}
-        {createdResult ? (
-          <div className="px-5 py-4 text-center flex flex-col items-center gap-3 overflow-y-auto custom-scrollbar flex-1">
-            <div className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center border border-emerald-200 shadow-xs shrink-0 mt-1">
-              <CheckCircle2 className="w-5 h-5" />
+        {/* Modal Scrollable Body */}
+        <div className="px-5 py-4 flex flex-col gap-4 text-xs overflow-y-auto custom-scrollbar flex-1">
+          
+          {errorMsg && (
+            <div className="p-2.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2 font-medium text-xs border border-red-200 dark:border-red-900/40">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
+              <span>{errorMsg}</span>
             </div>
-            
-            <div>
-              <h3 className="text-base font-bold text-on-surface">Short Link Created!</h3>
-              <p className="text-xs text-on-surface-variant mt-0.5 max-w-md mx-auto">
-                Your short link is live and active with real-time analytics and mobile deep routing.
-              </p>
-            </div>
+          )}
 
-            {/* Short link box */}
-            <div className="w-full p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/40 flex items-center justify-between gap-2.5 text-left">
-              <div className="min-w-0 flex-1">
-                <span className="font-mono text-xs font-bold text-primary-container truncate block">
-                  {createdResult.shortUrl}
-                </span>
-                <span className="text-[11px] text-on-surface-variant truncate block mt-0.5">
-                  &rarr; {createdResult.destinationUrl}
-                </span>
+          {/* ─── Top Section: URL Input / Textarea & Shorten Action ─── */}
+          <div className="flex flex-col gap-2">
+            
+            {/* Top Bar with Mode Switcher Pills */}
+            <div className="flex items-center justify-between">
+              <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                <span>{mode === 'single' ? 'Destination URL' : 'Multiple Destination URLs (One per line)'}</span>
+                <span className="text-red-500">*</span>
+              </label>
+
+              {/* Single / Multiple Pills matching reference screenshot */}
+              <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant/40">
+                <button
+                  type="button"
+                  onClick={() => setMode('single')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    mode === 'single'
+                      ? 'bg-white dark:bg-surface-container-high text-[#ff5a54] shadow-xs font-bold'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span>Single</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('multiple')}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    mode === 'multiple'
+                      ? 'bg-[#ff5a54] text-white shadow-xs font-bold'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Multiple</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="px-3 py-1.5 bg-surface-container-lowest hover:bg-surface-container text-on-surface rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 flex items-center gap-1.5 shrink-0 transition-colors cursor-pointer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copied!' : 'Copy'}</span>
-              </button>
             </div>
 
-            {/* QR Preview in Success */}
-            <div className="w-24 h-24 p-1.5 bg-surface-container-lowest rounded-lg shadow-xs border border-outline-variant/30 flex items-center justify-center shrink-0">
-              <QRCodeSVG
-                value={createdResult.shortUrl}
-                size={80}
-                level="H"
-                fgColor="#141b2b"
-                bgColor="#ffffff"
-              />
-            </div>
-
-            <div className="w-full flex items-center gap-2 pt-1 mt-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  setCreatedResult(null);
-                  setDestinationUrl('');
-                  setTitle('');
-                  setCustomSlug('');
-                }}
-                className="flex-1 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Create Another Link
-              </button>
-              <a
-                href={createdResult.shortUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-2 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
-              >
-                <span>Test Link</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            
-            {/* Scrollable Form Body */}
-            <div className="px-5 py-3.5 flex flex-col gap-3 text-xs overflow-y-auto custom-scrollbar flex-1">
-              
-              {errorMsg && (
-                <div className="p-2.5 bg-error-container text-on-error-container rounded-lg flex items-center gap-2 font-medium text-xs">
-                  <ShieldAlert className="w-4 h-4 shrink-0 text-error" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {/* Destination URL */}
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold text-on-surface flex items-center justify-between text-xs">
-                  <span>Destination URL <span className="text-error">*</span></span>
-                  <span className="text-on-surface-variant font-normal text-[11px]">Where users will land</span>
-                </label>
+            {/* Input Element based on Mode */}
+            {mode === 'single' ? (
+              <div className="flex flex-col gap-2">
                 <div className="relative flex items-center">
-                  <Link2 className="w-3.5 h-3.5 text-outline absolute left-3 pointer-events-none" />
                   <input
                     type="url"
-                    required
                     value={destinationUrl}
                     onChange={(e) => setDestinationUrl(e.target.value)}
-                    placeholder="https://yourstore.com/special-offer"
-                    className="w-full pl-8 pr-3 py-2 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+                    placeholder="https://example.com/your-destination-page"
+                    className="w-full pl-3 pr-28 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 focus:border-[#ff5a54] transition-all font-mono"
                   />
+                  <div className="absolute right-1.5 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleRandomizeSlug}
+                      title="Generate random custom slug"
+                      className="p-1.5 text-on-surface-variant hover:text-[#ff5a54] hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => executeShorten()}
+                      disabled={isSubmitting}
+                      className="px-4 py-1.5 bg-[#ff5a54] hover:bg-[#fa433d] text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <span>Shorten</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Real-time deep link indicator */}
                 {detectedApp && (
-                  <div className="mt-0.5 flex items-center gap-1.5 p-1.5 bg-surface-container-low rounded-lg text-[11px] font-medium text-on-surface">
-                    <Smartphone className="w-3 h-3 text-primary-container shrink-0" />
-                    <span>⚡ OpeninApp: Direct native launch for <strong>{detectedApp.appName}</strong></span>
+                  <div className="flex items-center gap-1.5 p-1.5 bg-surface-container-low rounded-lg text-[11px] font-medium text-on-surface">
+                    <Smartphone className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                    <span>OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
                   </div>
                 )}
               </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <textarea
+                    rows={4}
+                    value={multipleUrls}
+                    onChange={(e) => setMultipleUrls(e.target.value)}
+                    placeholder={`https://onlylinks.cc/AQMs\nhttps://onlylinks.cc/FgRn\nhttps://onlylinks.cc/YoGa`}
+                    className="w-full p-3 pb-12 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 focus:border-[#ff5a54] transition-all font-mono custom-scrollbar resize-y"
+                  />
+                  <div className="absolute right-2.5 bottom-2.5 flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-on-surface-variant bg-surface-container-low px-2 py-1 rounded-md">
+                      {parsedMultipleUrls.length} {parsedMultipleUrls.length === 1 ? 'URL' : 'URLs'} detected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => executeShorten()}
+                      disabled={isSubmitting || parsedMultipleUrls.length === 0}
+                      className="px-4 py-1.5 bg-[#ff5a54] hover:bg-[#fa433d] text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmitting ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <span>Shorten ({parsedMultipleUrls.length || 0})</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
-              {/* Title / Label */}
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold text-on-surface text-xs">
-                  Link Title <span className="text-error">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Summer Merch Launch, Instagram Link in Bio"
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
-                />
+          {/* ─── Instant Generated Short URLs Results Section ─── */}
+          {generatedResults.length > 0 && (
+            <div className="flex flex-col gap-2 p-3.5 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-600 flex items-center justify-center font-bold">
+                    <Check className="w-3 h-3" />
+                  </div>
+                  <span className="font-bold text-xs text-on-surface">
+                    {generatedResults.length === 1 
+                      ? 'Instant Short URL Generated' 
+                      : `${generatedResults.length} Short URLs Generated`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {generatedResults.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={handleCopyAll}
+                      className="px-2.5 py-1 bg-surface-container-lowest hover:bg-surface-container text-on-surface rounded-lg text-[11px] font-semibold shadow-xs border border-outline-variant/40 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      {copiedAll ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedAll ? 'All Copied!' : 'Copy All Links'}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setGeneratedResults([])}
+                    className="text-[11px] text-on-surface-variant hover:text-red-500 font-medium transition-colors cursor-pointer"
+                  >
+                    Clear List
+                  </button>
+                </div>
               </div>
 
-              {/* Custom Domain & Back-Half Slug */}
-              <div className="flex flex-col gap-1">
-                <label className="font-semibold text-on-surface flex items-center justify-between text-xs">
-                  <span>Domain & Short Link Slug</span>
-                  {customSlug.trim() && (
-                    <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-error' : 'text-emerald-600'}`}>
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
-                    </span>
-                  )}
-                </label>
-                <div className="flex flex-col sm:flex-row rounded-lg overflow-hidden bg-surface-container-low p-1 border border-outline-variant/40 gap-1">
-                  {/* Domain Selector */}
-                  <div className="flex items-center gap-1.5 bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-outline-variant/30">
-                    <Globe className="w-3.5 h-3.5 text-primary-container shrink-0" />
-                    <select
-                      value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
-                      onChange={(e) => setSelectedDomainId(e.target.value)}
-                      className="bg-transparent font-mono text-xs text-on-surface font-semibold outline-none cursor-pointer pr-1"
-                    >
-                      {domains.map(d => (
-                        <option key={d.id} value={d.id} disabled={!d.verified}>
-                          {d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Platform)' : (d.verified ? '✓' : '(Pending DNS)')}
-                        </option>
-                      ))}
-                    </select>
+              {/* Scrollable Generated Links List */}
+              <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                {generatedResults.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:border-emerald-500/40 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-bold text-[#ff5a54] truncate">
+                          {item.shortUrl}
+                        </span>
+                        <span className="text-[10px] text-on-surface-variant px-1.5 py-0.2 rounded bg-surface-container font-mono">
+                          /{item.slug}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-on-surface-variant truncate block mt-0.5">
+                        &rarr; {item.destinationUrl}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleCopySingle(item.shortUrl, item.id)}
+                        className="px-2.5 py-1 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-md text-[11px] font-semibold border border-outline-variant/30 flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        {copiedId === item.id ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600 font-bold">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveQrModalUrl(activeQrModalUrl === item.shortUrl ? null : item.shortUrl)}
+                        title="Show QR Code"
+                        className="p-1 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-md border border-outline-variant/30 transition-colors cursor-pointer"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                      </button>
+
+                      <a
+                        href={item.shortUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-md border border-outline-variant/30 transition-colors flex items-center justify-center cursor-pointer"
+                        title="Test Short Link"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center flex-1 px-1">
-                    <span className="text-on-surface-variant font-mono text-xs select-none pr-1">/</span>
-                    <input
-                      type="text"
-                      value={customSlug}
-                      onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                      placeholder="custom-slug"
-                      className="flex-1 px-1 py-1 bg-transparent font-mono text-xs text-primary-container font-semibold focus:outline-none"
+                ))}
+              </div>
+
+              {/* Dynamic QR Code Popup if clicked */}
+              {activeQrModalUrl && (
+                <div className="mt-2 p-3 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex items-center gap-4 animate-fade-in">
+                  <div className="p-1.5 bg-white rounded-md shadow-xs border border-outline-variant/30 shrink-0">
+                    <QRCodeSVG
+                      value={activeQrModalUrl}
+                      size={64}
+                      level="M"
+                      fgColor="#141b2b"
+                      bgColor="#ffffff"
                     />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[11px] font-bold text-on-surface block">Dynamic QR Code</span>
+                    <span className="text-[10px] text-on-surface-variant font-mono truncate block">{activeQrModalUrl}</span>
+                    <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">High precision print-ready scan matrix</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveQrModalUrl(null)}
+                    className="p-1 text-on-surface-variant hover:text-on-surface rounded-md"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ─── Two-Column Options Grid (Matching Reference Image) ─── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            
+            {/* ═══ Left Column ═══ */}
+            <div className="flex flex-col gap-3.5">
+              
+              {/* 1. Domain */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                    <Globe className="w-3 h-3" />
+                  </div>
+                  <span>Domain</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
+                    onChange={(e) => setSelectedDomainId(e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 font-medium cursor-pointer appearance-none pr-8"
+                  >
+                    {domains.map(d => (
+                      <option key={d.id} value={d.id} disabled={!d.verified}>
+                        https://{d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Primary)' : (d.verified ? '' : '(Pending DNS)')}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
                 </div>
 
                 {/* Real-time Domain SSL Health Status (Single line, small text, without box) */}
                 {domainProbeStatus && (
-                  <div className="mt-1.5 px-0.5">
+                  <div className="px-0.5 pt-0.5">
                     {domainProbeStatus.checking ? (
                       <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant font-medium animate-pulse truncate">
-                        <RefreshCw className="w-3 h-3 animate-spin text-primary-container shrink-0" />
-                        <span className="truncate">Verifying Edge SSL &amp; DNS routing for <strong>{domainProbeStatus.domain}</strong>...</span>
+                        <RefreshCw className="w-3 h-3 animate-spin text-[#ff5a54] shrink-0" />
+                        <span className="truncate">Verifying Edge SSL for {domainProbeStatus.domain}...</span>
                       </div>
                     ) : domainProbeStatus.ssl_active ? (
                       <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span className="truncate">
-                          <strong>SSL Active &amp; Verified:</strong> Links created under <strong>{domainProbeStatus.domain}</strong> will load securely.
+                          <strong>SSL Active:</strong> Links created under {domainProbeStatus.domain} will load securely.
                         </span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between gap-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                          <span className="truncate">
-                            <strong>SSL Pending:</strong> {domainProbeStatus.message || 'SSL certificate is still generating.'}
-                          </span>
+                          <span className="truncate">{domainProbeStatus.message || 'SSL certificate is still generating.'}</span>
                         </div>
                         <button
                           type="button"
@@ -509,13 +768,94 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 )}
               </div>
 
-              {/* Campaign Attribution Selector */}
-              {campaigns.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  <label className="font-semibold text-on-surface text-xs flex items-center justify-between">
-                    <span>Attach to Campaign (Optional)</span>
-                    <span className="text-[11px] text-on-surface-variant font-normal">Auto-links deliverable metrics</span>
-                  </label>
+              {/* 2. Password Protection */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                    <Lock className="w-3 h-3" />
+                  </div>
+                  <span>Password Protection</span>
+                </label>
+                <p className="text-[11px] text-on-surface-variant">
+                  By adding a password, you can restrict the access.
+                </p>
+                <input
+                  type="text"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Type your password here"
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40"
+                />
+              </div>
+
+              {/* 3. Header Codes (100% Free Plan, No Pro Tag) */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center">
+                    <Code2 className="w-3 h-3" />
+                  </div>
+                  <span>Header Codes</span>
+                </label>
+                <p className="text-[11px] text-on-surface-variant">
+                  You can define custom header codes here.
+                </p>
+                <div className="relative">
+                  <select
+                    value={headerCode}
+                    onChange={(e) => setHeaderCode(Number(e.target.value) as 301 | 302 | 307 | 308)}
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 font-mono cursor-pointer appearance-none pr-8"
+                  >
+                    <option value={301}>301 - Permanent Redirect (Recommended for SEO)</option>
+                    <option value={302}>302 - Temporary Redirect (Found)</option>
+                    <option value={307}>307 - Temporary Redirect (Preserves Method)</option>
+                    <option value={308}>308 - Permanent Redirect (Preserves Method)</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 4. Shield Protection (100% Free Plan, No Starter Tag) */}
+              <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
+                <div className="flex flex-col gap-0.5">
+                  <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                      <ShieldCheck className="w-3 h-3" />
+                    </div>
+                    <span>Shield Protection</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant leading-tight">
+                    Block bots, crawlers and suspicious traffic. Filtered visitors get a neutral page instead of your destination, helping reduce shadowban risk on strict platforms.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={shieldProtection}
+                  onClick={() => setShieldProtection(!shieldProtection)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 shrink-0 ${
+                    shieldProtection ? 'bg-emerald-500' : 'bg-surface-container-highest border border-outline-variant/40'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                      shieldProtection ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 5. Campaign (100% Free Plan, No Pro Tag) */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                    <FolderKanban className="w-3 h-3" />
+                  </div>
+                  <span>Campaign</span>
+                </label>
+                <p className="text-[11px] text-on-surface-variant">
+                  Assign link to a campaign.
+                </p>
+                <div className="relative">
                   <select
                     value={selectedCampaignId}
                     onChange={(e) => {
@@ -526,268 +866,325 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                         setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
                       }
                     }}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 cursor-pointer appearance-none pr-8"
                   >
-                    <option value="">No Campaign (Direct Deliverable)</option>
+                    <option value="">None</option>
                     {campaigns.map(c => (
                       <option key={c.id} value={c.id}>{c.name} ({c.description || 'Campaign'})</option>
                     ))}
                   </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
+                </div>
+              </div>
+
+            </div>
+
+            {/* ═══ Right Column ═══ */}
+            <div className="flex flex-col gap-3.5">
+              
+              {/* 1. Redirect Type */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                    <Layers className="w-3 h-3" />
+                  </div>
+                  <span>Redirect Type</span>
+                </label>
+                <div className="relative">
+                  <select
+                    value={redirectType}
+                    onChange={(e) => setRedirectType(e.target.value as 'direct' | 'frame' | 'splash')}
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 font-medium cursor-pointer appearance-none pr-8"
+                  >
+                    <option value="direct">Direct (Standard Redirection)</option>
+                    <option value="frame">Frame / Masked (Keep domain in address bar)</option>
+                    <option value="splash">Splash / Interstitial Page</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* 2. Link Notes */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-slate-500/10 text-slate-500 flex items-center justify-center">
+                    <FileText className="w-3 h-3" />
+                  </div>
+                  <span>Link Notes</span>
+                </label>
+                <p className="text-[11px] text-on-surface-variant">
+                  This can be used to identify URLs on your account.
+                </p>
+                <input
+                  type="text"
+                  value={linkNotes}
+                  onChange={(e) => setLinkNotes(e.target.value)}
+                  placeholder="Type your description here"
+                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40"
+                />
+              </div>
+
+              {/* 3. Hide Referrer (100% Free Plan, No Starter Tag) */}
+              <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
+                <div className="flex flex-col gap-0.5">
+                  <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center">
+                      <EyeOff className="w-3 h-3" />
+                    </div>
+                    <span>Hide Referrer</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant leading-tight">
+                    Enable this option to hide the referrer.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={hideReferrer}
+                  onClick={() => setHideReferrer(!hideReferrer)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 shrink-0 ${
+                    hideReferrer ? 'bg-[#ff5a54]' : 'bg-surface-container-highest border border-outline-variant/40'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
+                      hideReferrer ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 4. Channel */}
+              <div className="flex flex-col gap-1">
+                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                    <Share2 className="w-3 h-3" />
+                  </div>
+                  <span>Channel</span>
+                </label>
+                <p className="text-[11px] text-on-surface-variant">
+                  Assign link to a channel.
+                </p>
+                <div className="relative">
+                  <select
+                    value={channel}
+                    onChange={(e) => setChannel(e.target.value)}
+                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-[#ff5a54]/40 cursor-pointer appearance-none pr-8"
+                  >
+                    <option value="None">None</option>
+                    <option value="Social Media">Social Media</option>
+                    <option value="Email">Email</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="X / Twitter">X / Twitter</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Paid Ads">Paid Ads</option>
+                    <option value="Podcast">Podcast</option>
+                    <option value="Affiliate / Influencer">Affiliate / Influencer</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* ─── Bottom Red "Advanced" Button matching screenshot ─── */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="w-full py-2.5 rounded-xl text-white font-bold bg-[#ff5a54] hover:bg-[#eb4c46] transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer text-xs"
+          >
+            <span>Advanced</span>
+            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {/* ─── Advanced Accordion Content ─── */}
+          {showAdvanced && (
+            <div className="flex flex-col gap-3.5 p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 animate-fade-in">
+              
+              {/* Custom Back-half Slug (Single Mode) */}
+              {mode === 'single' && (
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-on-surface text-xs flex items-center justify-between">
+                    <span>Custom Back-Half Slug</span>
+                    {customSlug.trim() && (
+                      <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-red-500' : 'text-emerald-600'}`}>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex items-center rounded-xl bg-surface-container-lowest px-3 py-1.5 border border-outline-variant/60">
+                    <span className="text-on-surface-variant font-mono text-xs select-none pr-1">/</span>
+                    <input
+                      type="text"
+                      value={customSlug}
+                      onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                      placeholder="custom-alias"
+                      className="flex-1 bg-transparent font-mono text-xs text-[#ff5a54] font-bold focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRandomizeSlug}
+                      className="text-[11px] text-on-surface-variant hover:text-[#ff5a54] font-medium"
+                    >
+                      Randomize
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Platform Pill Tags */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-semibold text-on-surface text-xs">
-                  Primary Placement Tag
-                </label>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('drive')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'drive'
-                        ? 'bg-blue-100 text-blue-800 shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <HardDrive className="w-3 h-3 text-blue-600" />
-                    <span>Google Drive</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('youtube')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'youtube'
-                        ? 'bg-error-container text-on-error-container shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Video className="w-3 h-3" />
-                    <span>YouTube</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('instagram')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'instagram'
-                        ? 'bg-primary-container text-on-primary shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Camera className="w-3 h-3" />
-                    <span>Instagram</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('tiktok')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'tiktok'
-                        ? 'bg-inverse-surface text-inverse-on-surface shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Music className="w-3 h-3" />
-                    <span>TikTok</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('x')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'x'
-                        ? 'bg-surface-container-highest text-on-surface font-bold shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <span className="font-bold text-[11px] leading-none">𝕏</span>
-                    <span>X</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('podcast')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'podcast'
-                        ? 'bg-emerald-100 text-emerald-800 shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Radio className="w-3 h-3" />
-                    <span>Podcast</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handlePlacementChange('direct')}
-                    className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1.5 text-xs transition-all cursor-pointer ${
-                      placementTag === 'direct'
-                        ? 'bg-surface-container-high text-primary font-bold shadow-xs'
-                        : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface'
-                    }`}
-                  >
-                    <Globe className="w-3 h-3" />
-                    <span>Direct / Web</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Two Column Extras: UTM & Instant QR Code Preview */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-0.5">
-                
-                {/* UTM Section (8 cols) */}
-                <div className="md:col-span-8 flex flex-col gap-2 bg-surface-container-low p-2.5 rounded-lg border border-outline-variant/30">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-on-surface flex items-center gap-1.5 text-[11px]">
-                      <Sliders className="w-3 h-3 text-outline" />
-                      <span>Automatic UTM Parameters</span>
-                    </span>
-                    <span className="text-[10px] font-semibold text-primary-container">Included</span>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-medium text-on-surface-variant uppercase">Source</span>
-                      <input
-                        type="text"
-                        value={utmSource}
-                        onChange={(e) => setUtmSource(e.target.value)}
-                        className="font-mono text-[10px] px-1.5 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/30 focus:outline-none"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-medium text-on-surface-variant uppercase">Medium</span>
-                      <input
-                        type="text"
-                        value={utmMedium}
-                        onChange={(e) => setUtmMedium(e.target.value)}
-                        className="font-mono text-[10px] px-1.5 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/30 focus:outline-none"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-medium text-on-surface-variant uppercase">Campaign</span>
-                      <input
-                        type="text"
-                        value={utmCampaign}
-                        onChange={(e) => setUtmCampaign(e.target.value)}
-                        className="font-mono text-[10px] px-1.5 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/30 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1 border-t border-outline-variant/20">
-                    <span className="text-[10px] text-on-surface-variant">Expiration</span>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                      <span className="text-[10px] text-outline font-medium">Never expires</span>
-                      <input
-                        type="checkbox"
-                        checked={neverExpires}
-                        onChange={(e) => setNeverExpires(e.target.checked)}
-                        className="rounded accent-primary-container w-3 h-3 cursor-pointer"
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Instant QR Code Preview (4 cols) */}
-                <div className="md:col-span-4 flex flex-col items-center justify-center p-2 bg-surface-container-low rounded-lg border border-outline-variant/30 gap-1 text-center">
-                  <div className="w-14 h-14 bg-surface-container-lowest p-1 rounded-md shadow-xs flex items-center justify-center border border-outline-variant/30">
-                    <QRCodeSVG
-                      value={previewShortUrl}
-                      size={48}
-                      level="M"
-                      fgColor="#141b2b"
-                      bgColor="#ffffff"
+              {/* Smart Device Routing */}
+              <div className="flex flex-col gap-2">
+                <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-[#ff5a54]" />
+                  <span>Smart Device Targeting (iOS &amp; Android Deep Routing)</span>
+                </span>
+                <p className="text-[11px] text-on-surface-variant">
+                  Optionally route mobile visitors to app-specific destinations while web visitors use default.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold text-[11px] text-on-surface block mb-0.5">🍎 iOS Destination</label>
+                    <input
+                      type="url"
+                      value={iosTargetUrl}
+                      onChange={(e) => setIosTargetUrl(e.target.value)}
+                      placeholder="https://apps.apple.com/app/..."
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-[#ff5a54]"
                     />
                   </div>
-                  <span className="text-[9px] text-on-surface-variant font-medium">Auto QR</span>
-                  <span className="font-mono text-[9px] text-primary-container truncate max-w-[100px]">
-                    /{previewSlug}
+                  <div>
+                    <label className="font-semibold text-[11px] text-on-surface block mb-0.5">🤖 Android Destination</label>
+                    <input
+                      type="url"
+                      value={androidTargetUrl}
+                      onChange={(e) => setAndroidTargetUrl(e.target.value)}
+                      placeholder="https://play.google.com/store/apps/..."
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-[#ff5a54]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Automatic UTM Parameters */}
+              <div className="flex flex-col gap-2 pt-1 border-t border-outline-variant/20">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-[#ff5a54]" />
+                    <span>Automatic UTM Parameters</span>
                   </span>
+                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">Free Included</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Source</span>
+                    <input
+                      type="text"
+                      value={utmSource}
+                      onChange={(e) => setUtmSource(e.target.value)}
+                      className="w-full font-mono text-[11px] px-2 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/60 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Medium</span>
+                    <input
+                      type="text"
+                      value={utmMedium}
+                      onChange={(e) => setUtmMedium(e.target.value)}
+                      className="w-full font-mono text-[11px] px-2 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/60 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Campaign</span>
+                    <input
+                      type="text"
+                      value={utmCampaign}
+                      onChange={(e) => setUtmCampaign(e.target.value)}
+                      className="w-full font-mono text-[11px] px-2 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/60 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Expiration and Limits */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-t border-outline-variant/20">
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={neverExpires}
+                      onChange={(e) => setNeverExpires(e.target.checked)}
+                      className="rounded accent-[#ff5a54] w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span className="text-[11px] font-semibold text-on-surface">Never expires</span>
+                  </label>
+                  {!neverExpires && (
+                    <input
+                      type="datetime-local"
+                      value={expiresAt}
+                      onChange={(e) => setExpiresAt(e.target.value)}
+                      className="px-2 py-1 bg-surface-container-lowest rounded-md border border-outline-variant/60 text-[11px] text-on-surface"
+                    />
+                  )}
                 </div>
 
-              </div>
-
-              {/* Smart Device Routing Accordion (iOS vs Android) */}
-              <div className="bg-surface-container-low rounded-lg border border-outline-variant/30 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setShowDeviceRouting(!showDeviceRouting)}
-                  className="w-full px-3 py-2.5 flex items-center justify-between text-left hover:bg-surface-container transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-3.5 h-3.5 text-primary-container" />
-                    <span className="font-semibold text-xs text-on-surface">Smart Device Routing (iOS &amp; Android)</span>
-                    {(iosTargetUrl.trim() || androidTargetUrl.trim()) && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                        Active
-                      </span>
-                    )}
-                  </div>
-                  {showDeviceRouting ? <ChevronUp className="w-3.5 h-3.5 text-outline" /> : <ChevronDown className="w-3.5 h-3.5 text-outline" />}
-                </button>
-
-                {showDeviceRouting && (
-                  <div className="p-3 pt-1 border-t border-outline-variant/20 space-y-2.5 text-xs">
-                    <p className="text-[11px] text-on-surface-variant">
-                      Redirect visitors automatically based on their device. Desktop &amp; web visitors will open the default destination URL above.
-                    </p>
-
-                    <div>
-                      <label className="font-semibold text-on-surface text-[11px] block mb-1">
-                        🍎 iOS Destination (iPhone &amp; iPad)
-                      </label>
-                      <input
-                        type="url"
-                        value={iosTargetUrl}
-                        onChange={(e) => setIosTargetUrl(e.target.value)}
-                        placeholder="e.g. https://apps.apple.com/app/id123456 or custom iOS link"
-                        className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="font-semibold text-on-surface text-[11px] block mb-1">
-                        🤖 Android Destination (Google Play)
-                      </label>
-                      <input
-                        type="url"
-                        value={androidTargetUrl}
-                        onChange={(e) => setAndroidTargetUrl(e.target.value)}
-                        placeholder="e.g. https://play.google.com/store/apps/details?id=com.app"
-                        className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container"
-                      />
-                    </div>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-on-surface-variant">Max Clicks Limit:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={maxClicks}
+                    onChange={(e) => setMaxClicks(e.target.value)}
+                    placeholder="Unlimited"
+                    className="w-24 px-2 py-1 bg-surface-container-lowest rounded-md border border-outline-variant/60 text-[11px] text-on-surface font-mono"
+                  />
+                </div>
               </div>
 
             </div>
+          )}
 
-            {/* Modal Actions Footer (Fixed at bottom) */}
-            <div className="px-5 py-3 flex items-center justify-end gap-2 border-t border-outline-variant/30 shrink-0 bg-surface-container-lowest">
-              <button
-                type="button"
-                onClick={resetAndClose}
-                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-1.5 rounded-lg text-xs bg-primary-container hover:bg-primary text-on-primary transition-all shadow-sm font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>{isSubmitting ? 'Creating...' : 'Create Link'}</span>
-              </button>
-            </div>
+        </div>
 
-          </form>
-        )}
+        {/* Modal Actions Footer */}
+        <div className="px-5 py-3 flex items-center justify-between border-t border-outline-variant/30 shrink-0 bg-surface-container-low/40">
+          <span className="text-[11px] text-on-surface-variant">
+            {generatedResults.length > 0 
+              ? `${generatedResults.length} short URL(s) created in this session`
+              : 'All options free & unlocked on your workspace'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="px-4 py-1.5 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+            >
+              Done
+            </button>
+            <button
+              type="button"
+              onClick={() => executeShorten()}
+              disabled={isSubmitting}
+              className="px-5 py-1.5 rounded-xl text-xs bg-[#ff5a54] hover:bg-[#fa433d] text-white transition-all shadow-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Shorten URL</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>

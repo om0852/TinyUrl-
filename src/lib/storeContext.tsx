@@ -87,6 +87,12 @@ interface StoreContextType {
     utm_content?: string;
     deep_link?: DeepLinkConfig;
     rules?: LinkRule[];
+    redirect_type?: 'direct' | 'frame' | 'splash';
+    http_status_code?: 301 | 302 | 307 | 308;
+    notes?: string;
+    shield_protection?: boolean;
+    hide_referrer?: boolean;
+    channel?: string;
   }) => { link: Link | null; error?: string };
 
 
@@ -1351,7 +1357,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utm_term: data.utm_term,
       utm_content: data.utm_content,
       deep_link: deepLinkConfig,
-      rules: data.rules || []
+      rules: data.rules || [],
+      redirect_type: data.redirect_type || 'direct',
+      http_status_code: data.http_status_code || 301,
+      notes: data.notes,
+      shield_protection: data.shield_protection || false,
+      hide_referrer: data.hide_referrer || false,
+      channel: data.channel
     };
 
     saveLinksState([newLink, ...links]);
@@ -1370,7 +1382,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           tags: newLink.tags,
           rules: newLink.rules,
           domain_id: newLink.domain_id,
-          workspace_id: newLink.workspace_id
+          workspace_id: newLink.workspace_id,
+          password: data.password,
+          expires_at: data.expires_at,
+          max_clicks: data.max_clicks,
+          campaign_id: data.campaign_id,
+          redirect_type: newLink.redirect_type,
+          http_status_code: newLink.http_status_code,
+          notes: newLink.notes,
+          shield_protection: newLink.shield_protection,
+          hide_referrer: newLink.hide_referrer,
+          channel: newLink.channel
         })
       })
       .then(res => res.json())

@@ -134,6 +134,14 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_links_custom_slug ON links (custom_slug);
     `);
 
+    // Migration: ensure new link configuration columns exist
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS redirect_type VARCHAR(32) DEFAULT 'direct';`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS http_status_code INT DEFAULT 301;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS notes TEXT;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS shield_protection BOOLEAN DEFAULT false;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS hide_referrer BOOLEAN DEFAULT false;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS channel VARCHAR(128);`).catch(() => {});
+
     // 5. Click Events table
     await sql.query(`
       CREATE TABLE IF NOT EXISTS click_events (

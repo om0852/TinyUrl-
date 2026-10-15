@@ -224,6 +224,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [abRoll, setAbRoll] = useState(50);
   const [countdown, setCountdown] = useState(4);
+  const [isFrameMode, setIsFrameMode] = useState(false);
 
   // Sticky A/B testing: read existing assignment from cookie or localStorage, or persist new assignment
   useEffect(() => {
@@ -378,7 +379,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
   // Client device and in-app browser detection
   const clientContext = useMemo(() => {
     if (typeof navigator === 'undefined') {
-      return { isIOS: false, isAndroid: false, isMobile: false, inAppInfo: { isInApp: false } };
+      return { isIOS: false, isAndroid: false, isMobile: false, inAppInfo: { isInApp: false, browserName: undefined as string | undefined }, isBot: false };
     }
     const ua = navigator.userAgent;
     const isIPad = /iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -386,7 +387,8 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
     const isAndroid = /Android/i.test(ua);
     const isMobile = isIOS || isAndroid;
     const inAppInfo = detectInAppBrowser(ua);
-    return { isIOS, isAndroid, isMobile, inAppInfo };
+    const isBot = /bot|crawler|spider|crawling|slurp|duckduckbot|baiduspider|yandex/i.test(ua);
+    return { isIOS, isAndroid, isMobile, inAppInfo, isBot };
   }, []);
 
   // Deep Link details (OpeninApp feature)
@@ -492,6 +494,25 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           console.warn('Click logging error:', err);
         }
       }
+    }
+
+    // Apply Hide Referrer policy if configured
+    if (typeof document !== 'undefined' && link?.hide_referrer) {
+      try {
+        let meta = document.querySelector('meta[name="referrer"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute('name', 'referrer');
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', 'no-referrer');
+      } catch {}
+    }
+
+    // Masked Frame Redirection
+    if (link?.redirect_type === 'frame') {
+      setIsFrameMode(true);
+      return;
     }
 
     // Standard direct redirect for plain web links (no app deep link detected)
@@ -677,6 +698,54 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           >
             Return to Homepage <ArrowRight className="w-4 h-4" />
           </button>
+        </div>
+      </PageShell>
+    );
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 2.5 Frame / Masked Redirect State
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (isFrameMode && resolvedTarget) {
+    return (
+      <div className="w-full h-screen fixed inset-0 z-50 bg-white">
+        <iframe
+          src={resolvedTarget}
+          title={link?.title || 'Masked Destination'}
+          className="w-full h-full border-none"
+        />
+      </div>
+    );
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 2.6 Shield Protection Bot Neutral Page
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (link?.shield_protection && clientContext?.isBot) {
+    return (
+      <PageShell>
+        <div
+          className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.95)',
+            boxShadow: '0 10px 40px rgba(16, 185, 129, 0.08)',
+          }}
+        >
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.2)',
+            }}
+          >
+            <Shield className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight mb-2 text-gray-900">
+            Protected Link
+          </h1>
+          <p className="text-sm text-gray-500 max-w-sm mb-4">
+            Shield verification is active for this destination. Suspicious crawlers and automated bots are filtered to ensure security and prevent platform shadowbans.
+          </p>
         </div>
       </PageShell>
     );
@@ -894,7 +963,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
             <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#d97706' }} />
             <div className="space-y-0.5 leading-snug">
               <p className="font-semibold" style={{ color: '#92400e' }}>
-                {clientContext.inAppInfo.browserName || 'In-App Browser'} detected
+                {('browserName' in clientContext.inAppInfo ? clientContext.inAppInfo.browserName : undefined) || 'In-App Browser'} detected
               </p>
               <p className="text-[11px]" style={{ color: '#a16207' }}>
                 Tap below to open directly in the native {appDeepLink?.appName || 'target'} app with your signed-in account.
