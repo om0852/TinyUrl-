@@ -144,6 +144,7 @@ export async function initializeDatabase() {
     await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS og_title VARCHAR(255);`).catch(() => {});
     await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS og_description TEXT;`).catch(() => {});
     await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS og_image_url TEXT;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS is_public_stats BOOLEAN DEFAULT true;`).catch(() => {});
 
     // 5. Click Events table
     await sql.query(`
@@ -161,14 +162,30 @@ export async function initializeDatabase() {
         os VARCHAR(64) DEFAULT 'iOS',
         browser VARCHAR(64) DEFAULT 'Safari',
         referrer VARCHAR(255) DEFAULT 'Direct / None',
+        language VARCHAR(64) DEFAULT 'en-US',
+        user_agent TEXT,
+        utm_source VARCHAR(128),
+        utm_medium VARCHAR(128),
+        utm_campaign VARCHAR(128),
+        utm_term VARCHAR(128),
+        utm_content VARCHAR(128),
+        destination_url TEXT,
         is_bot BOOLEAN DEFAULT false,
         is_unique BOOLEAN DEFAULT true,
         latency_ms INT DEFAULT 20
       );
     `);
 
-    // Migration: ensure region column exists if table was created previously
+    // Migration: ensure new columns exist if table was created previously
     await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS region VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS language VARCHAR(64) DEFAULT 'en-US';`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS user_agent TEXT;`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS utm_source VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS utm_medium VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS utm_campaign VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS utm_term VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS utm_content VARCHAR(128);`).catch(() => {});
+    await sql.query(`ALTER TABLE click_events ADD COLUMN IF NOT EXISTS destination_url TEXT;`).catch(() => {});
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_clicks_short_code ON click_events (short_code);`);
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_clicks_timestamp ON click_events (timestamp);`);
 

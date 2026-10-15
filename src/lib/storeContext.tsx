@@ -101,6 +101,7 @@ interface StoreContextType {
 
   updateLink: (id: string, updates: Partial<Link>) => void;
   deleteLink: (id: string) => void;
+  resetLinkAnalytics: (linkId?: string) => Promise<{ success: boolean; message?: string }>;
   addRuleToLink: (linkId: string, rule: { 
     rule_type?: 'geo' | 'device' | 'ab' | 'smart'; 
     condition?: string; 
@@ -1496,6 +1497,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           method: 'DELETE'
         }).catch(() => {});
       }
+    }
+  };
+
+  const resetLinkAnalytics = async (linkId?: string): Promise<{ success: boolean; message?: string }> => {
+    try {
+      const payload: { link_id?: string; workspace_id?: string } = linkId 
+        ? { link_id: linkId } 
+        : { workspace_id: currentWorkspace.id };
+
+      const res = await apiFetch('/api/v1/analytics/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (linkId) {
+          setLinks(prev => prev.map(l => (l.id === linkId || l.short_code === linkId ? { ...l, clicks_count: 0 } : l)));
+          setClicks(prev => prev.filter(c => c.link_id !== linkId && c.short_code !== linkId));
+        } else {
+          setLinks(prev => prev.map(l => ({ ...l, clicks_count: 0 })));
+          setClicks([]);
+        }
+        await refreshData();
+        return { success: true, message: data.message || 'Analytics reset successfully.' };
+      }
+      return { success: false, message: data.error || 'Failed to reset analytics.' };
+    } catch (err) {
+      return { success: false, message: (err as Error).message };
     }
   };
 
@@ -2981,6 +3011,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createShortLink,
       updateLink,
       deleteLink,
+      resetLinkAnalytics,
       addRuleToLink,
       removeRuleFromLink,
       logClick,

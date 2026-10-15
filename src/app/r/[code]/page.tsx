@@ -7,6 +7,7 @@ import { sql } from '@/lib/postgres';
 import { Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 import { RedirectClient } from './RedirectClient';
+import { PublicStatsClient } from '@/components/PublicStatsClient';
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!code) return {};
 
   try {
-    const cleanCode = code.trim().toLowerCase();
+    const cleanCode = code.replace(/\+$/, '').trim().toLowerCase();
     const rows = (await sql.query(
       `SELECT title, destination_url, short_code, custom_slug, og_title, og_description, og_image_url 
        FROM links 
@@ -76,7 +77,8 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
 
   if (code) {
     try {
-      const cleanCode = code.trim().toLowerCase();
+      const isPublicStatsRequest = code.endsWith('+') || sParams.target === 'stats';
+      const cleanCode = code.replace(/\+$/, '').trim().toLowerCase();
       const headersList = await headers();
       const rawHost = headersList.get('host') || '';
       const userAgent = headersList.get('user-agent') || '';
@@ -118,6 +120,11 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         og_title?: string;
         og_description?: string;
         og_image_url?: string;
+        utm_source?: string;
+        utm_medium?: string;
+        utm_campaign?: string;
+        utm_term?: string;
+        utm_content?: string;
       }> = [];
 
       if (!isPlatformDomain) {
@@ -171,8 +178,18 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           channel: row.channel,
           og_title: row.og_title,
           og_description: row.og_description,
-          og_image_url: row.og_image_url
+          og_image_url: row.og_image_url,
+          utm_source: row.utm_source,
+          utm_medium: row.utm_medium,
+          utm_campaign: row.utm_campaign,
+          utm_term: row.utm_term,
+          utm_content: row.utm_content
         };
+
+        // If public stats requested via '+' suffix, deliver public stats view!
+        if (isPublicStatsRequest && initialLink) {
+          return <PublicStatsClient link={initialLink} host={currentHost} />;
+        }
 
         // Server-Side Location & Device Smart Routing evaluation
         if (!isPasswordLocked && parsedRules.length > 0) {
@@ -230,23 +247,49 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
 
         // DIRECT REDIRECT: If the link is clean and safe, redirect user immediately without showing redirect page!
         if (initialTarget && !isSuspicious && !isPasswordLocked && !isSplashOrFrame) {
-          // Asynchronously log the click in the background
+          // Asynchronously log the click in the background with rich telemetry
           try {
             const ip = headersList.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
             const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
             const geo = extractGeoFromHeaders(name => headersList.get(name));
             const referrer = headersList.get('referer') || 'Direct / None';
             const ua = userAgent || '';
+            const rawLang = headersList.get('accept-language')?.split(',')[0]?.split(';')[0]?.trim() || 'en-US';
+
             const isMobile = /mobile|iphone|ipod|android/i.test(ua);
-            const isIOS = /iphone|ipad|ipod/i.test(ua);
-            const isAndroid = /android/i.test(ua);
-            const device = isMobile ? 'mobile' : 'desktop';
-            const os = isIOS ? 'iOS' : (isAndroid ? 'Android' : (ua.includes('Windows') ? 'Windows' : (ua.includes('Mac') ? 'macOS' : 'Linux')));
-            const browser = ua.includes('Chrome') ? 'Chrome' : (ua.includes('Safari') ? 'Safari' : (ua.includes('Firefox') ? 'Firefox' : 'Edge'));
+            const isTablet = /tablet|ipad/i.test(ua);
+            const device = isTablet ? 'tablet' : isMobile ? 'mobile' : 'desktop';
+
+            let os = 'Windows';
+            if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+            else if (/android/i.test(ua)) os = 'Android';
+            else if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
+            else if (/linux/i.test(ua)) os = 'Linux';
+            else if (/windows/i.test(ua)) os = 'Windows';
+
+            let browser = 'Chrome';
+            if (/edg/i.test(ua)) browser = 'Edge';
+            else if (/opr|opera/i.test(ua)) browser = 'Opera';
+            else if (/firefox|fxios/i.test(ua)) browser = 'Firefox';
+            else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
+            else if (/chrome|crios/i.test(ua)) browser = 'Chrome';
+            else if (/instagram|fbav|whatsapp|tiktok|snapchat|linkedin/i.test(ua)) browser = 'In-App';
+
+            const isBot = /bot|spider|crawl|slurp|facebookexternalhit|whatsapp|telegrambot|twitterbot|pinterest|slackbot|curl|wget|python|postman|insomnia|go-http-client|headlesschrome/i.test(ua);
 
             sql.query(
-              `INSERT INTO click_events (id, link_id, short_code, timestamp, ip_hash, country, country_code, city, region, device, os, browser, referrer, is_bot, is_unique)
-               VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+              `INSERT INTO click_events (
+                id, link_id, short_code, timestamp, ip_hash, country, country_code, city, region, 
+                device, os, browser, referrer, language, user_agent, 
+                utm_source, utm_medium, utm_campaign, utm_term, utm_content, destination_url, 
+                is_bot, is_unique
+              )
+              VALUES (
+                $1, $2, $3, NOW(), $4, $5, $6, $7, $8, 
+                $9, $10, $11, $12, $13, $14, 
+                $15, $16, $17, $18, $19, $20, 
+                $21, $22
+              )`,
               [
                 `clk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                 row.id,
@@ -260,7 +303,15 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
                 os,
                 browser,
                 referrer.slice(0, 255),
-                false,
+                rawLang.slice(0, 64),
+                ua.slice(0, 500),
+                row.utm_source || null,
+                row.utm_medium || null,
+                row.utm_campaign || null,
+                row.utm_term || null,
+                row.utm_content || null,
+                initialTarget,
+                isBot,
                 true
               ]
             ).catch(() => {});

@@ -134,6 +134,7 @@ export interface Link {
   og_title?: string;
   og_description?: string;
   og_image_url?: string;
+  is_public_stats?: boolean;
 
   // Smart routing runtime resolution
   resolved_destination_url?: string;
@@ -158,12 +159,20 @@ export interface ClickEvent {
   region?: string;
   city: string;
   device: 'mobile' | 'desktop' | 'tablet';
-  os: 'iOS' | 'Android' | 'Windows' | 'macOS' | 'Linux';
-  browser: 'Chrome' | 'Safari' | 'Firefox' | 'Edge';
+  os: 'iOS' | 'Android' | 'Windows' | 'macOS' | 'Linux' | string;
+  browser: 'Chrome' | 'Safari' | 'Firefox' | 'Edge' | 'Opera' | 'In-App' | string;
   referrer: string;
   is_bot: boolean;
   is_unique: boolean;
   latency_ms: number;
+  language?: string;
+  user_agent?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  destination_url?: string;
 }
 
 export interface Campaign {
@@ -292,10 +301,22 @@ export interface AnalyticsMetrics {
   repeat_rate?: string;
   bot_clicks_filtered: number;
   avg_latency_ms: number;
+  total_links?: number;
   top_countries: Array<{ country: string; code: string; clicks: number }>;
   top_regions?: Array<{ region: string; clicks: number }>;
   top_cities?: Array<{ city: string; region?: string; country?: string; clicks: number }>;
   devices: { mobile: string; desktop: string; tablet: string };
+  browsers?: Array<{ browser: string; clicks: number; pct: number }>;
+  operating_systems?: Array<{ os: string; clicks: number; pct: number }>;
+  languages?: Array<{ language: string; label: string; clicks: number; pct: number }>;
+  utm_breakdown?: {
+    sources: Array<{ name: string; clicks: number }>;
+    mediums: Array<{ name: string; clicks: number }>;
+    campaigns: Array<{ name: string; clicks: number }>;
+    terms: Array<{ name: string; clicks: number }>;
+    contents: Array<{ name: string; clicks: number }>;
+  };
+  hourly_activity?: Array<{ hour: number; label: string; clicks: number }>;
 }
 
 export interface AnalyticsApiResponse {

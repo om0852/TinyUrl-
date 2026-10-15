@@ -70,7 +70,8 @@ export async function POST(request: Request) {
         const realIp = request.headers.get('x-real-ip');
         const cfIp = request.headers.get('cf-connecting-ip');
         const clientIp = (cfIp || (forwarded ? forwarded.split(',')[0].trim() : '') || realIp || '127.0.0.1').trim();
-        const userAgent = (request.headers.get('user-agent') || '').slice(0, 120);
+        const userAgent = (request.headers.get('user-agent') || '').slice(0, 500);
+        const language = (request.headers.get('accept-language')?.split(',')[0]?.split(';')[0]?.trim() || 'en-US').slice(0, 64);
 
         // 2. Generate deterministic visitor IP hash (SHA-256 of IP + UA or persistent visitor ID)
         const visitorToken = (click.visitor_id || click.ip_hash || clientIp).trim();
@@ -107,9 +108,19 @@ export async function POST(request: Request) {
 
         try {
           await sql.query(
-            `INSERT INTO click_events (id, link_id, short_code, ip_hash, country, country_code, region, city, device, os, browser, referrer, is_bot, is_unique, latency_ms)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-             ON CONFLICT (id) DO NOTHING`,
+            `INSERT INTO click_events (
+              id, link_id, short_code, ip_hash, country, country_code, region, city, 
+              device, os, browser, referrer, language, user_agent, 
+              utm_source, utm_medium, utm_campaign, utm_term, utm_content, destination_url,
+              is_bot, is_unique, latency_ms
+            )
+            VALUES (
+              $1, $2, $3, $4, $5, $6, $7, $8, 
+              $9, $10, $11, $12, $13, $14, 
+              $15, $16, $17, $18, $19, $20, 
+              $21, $22, $23
+            )
+            ON CONFLICT (id) DO NOTHING`,
             [
               clickId,
               id || null,
@@ -123,6 +134,14 @@ export async function POST(request: Request) {
               click.os || 'iOS',
               click.browser || 'Safari',
               click.referrer || 'Direct / Mobile',
+              click.language || language,
+              click.user_agent || userAgent,
+              click.utm_source || null,
+              click.utm_medium || null,
+              click.utm_campaign || null,
+              click.utm_term || null,
+              click.utm_content || null,
+              click.destination_url || null,
               !!click.is_bot,
               isUniqueVisitor,
               click.latency_ms || 20
