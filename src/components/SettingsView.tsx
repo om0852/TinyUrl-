@@ -4,18 +4,18 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { Domain } from '@/lib/types';
-import { 
-  Camera, 
-  Check, 
-  Copy, 
-  Server, 
-  Globe2, 
-  Info, 
-  Mail, 
-  Plus, 
-  RefreshCw, 
-  Smartphone, 
-  Video, 
+import {
+  Camera,
+  Check,
+  Copy,
+  Server,
+  Globe2,
+  Info,
+  Mail,
+  Plus,
+  RefreshCw,
+  Smartphone,
+  Video,
   CheckCircle2,
   Trash2,
   ExternalLink,
@@ -38,18 +38,18 @@ interface SettingsViewProps {
 type SettingsTab = 'profile' | 'domains' | 'social' | 'privacy' | 'billing';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => {
-  const { 
-    currentUser, 
-    currentWorkspace, 
-    domains, 
-    links, 
+  const {
+    currentUser,
+    currentWorkspace,
+    domains,
+    links,
     teamMembers,
-    addDomain, 
-    verifyDomain, 
+    addDomain,
+    verifyDomain,
     updateDomainConfig,
     deleteDomain,
     updateWorkspace,
-    checkPermissionOrToast 
+    checkPermissionOrToast
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -110,7 +110,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
   useEffect(() => {
     if (!currentWorkspace?.id) return;
     const storageKey = `workspace_settings_${currentWorkspace.id}`;
-    
+
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -126,7 +126,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
         setVanityHandle(defaultHandle);
         setContactEmail(currentUser?.email || '');
       }
-    } catch {}
+    } catch { }
 
     setDisplayName(currentWorkspace.name || 'My Workspace');
   }, [currentWorkspace?.id, currentUser?.email]);
@@ -138,7 +138,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
   const handleCopyHandle = () => {
     const fullUrl = `https://${originDomain}/${vanityHandle}`;
-    navigator.clipboard.writeText(fullUrl).catch(() => {});
+    navigator.clipboard.writeText(fullUrl).catch(() => { });
     setCopiedHandle(true);
     showToast(`Copied vanity URL: ${fullUrl}`);
     setTimeout(() => setCopiedHandle(false), 2000);
@@ -146,7 +146,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
   const handleCopyWsId = () => {
     if (!currentWorkspace?.id) return;
-    navigator.clipboard.writeText(currentWorkspace.id).catch(() => {});
+    navigator.clipboard.writeText(currentWorkspace.id).catch(() => { });
     setCopiedWsId(true);
     showToast(`Copied Workspace ID: ${currentWorkspace.id}`);
     setTimeout(() => setCopiedWsId(false), 2000);
@@ -285,7 +285,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in text-on-surface">
-      
+
       {/* 1. PAGE HEADER */}
       <div className="flex flex-col gap-1 pt-1">
         <div className="flex items-center gap-2 text-on-surface-variant font-mono text-xs uppercase tracking-wider">
@@ -293,7 +293,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           <span>/</span>
           <span className="text-primary-container font-semibold">SETTINGS</span>
         </div>
-        
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight">
@@ -339,11 +339,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               key={tab.id}
               type="button"
               onClick={() => setActiveSettingsTab(tab.id as SettingsTab)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${
-                isActive
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap cursor-pointer ${isActive
                   ? 'bg-surface-container-lowest text-primary-container shadow-xs font-extrabold'
                   : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60'
-              }`}
+                }`}
             >
               <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
@@ -370,14 +369,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           {/* Avatar Uploader & Info */}
           <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-5 rounded-xl bg-surface-container-low border border-outline-variant/30">
             <div className="relative group shrink-0">
-              <input 
-                type="file" 
-                ref={avatarInputRef} 
-                onChange={handleAvatarFileChange} 
-                accept="image/png,image/jpeg,image/webp" 
-                className="hidden" 
+              <input
+                type="file"
+                ref={avatarInputRef}
+                onChange={handleAvatarFileChange}
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
               />
-              <div 
+              <div
                 onClick={() => avatarInputRef.current?.click()}
                 className="w-20 h-20 rounded-2xl overflow-hidden shadow-xs bg-primary-container text-on-primary flex items-center justify-center text-2xl font-bold border-2 border-surface-container-lowest cursor-pointer hover:opacity-90 transition relative"
                 title="Click to change photo"
@@ -408,7 +407,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                 </span>
               </div>
               <p className="text-xs text-on-surface-variant">Recommended size: 400&times;400px. JPG, PNG or WebP under 2MB.</p>
-              
+
               <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
                 <button
                   type="button"
@@ -432,7 +431,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
           {/* Profile Form Fields Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-            
+
             {/* Workspace Display Name */}
             <div className="flex flex-col gap-1.5">
               <label className="font-semibold text-on-surface flex items-center justify-between">
@@ -565,217 +564,221 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               </div>
             ) : (
               displayDomains.map((dom) => {
-              const isDefaultPrimary = dom.is_default || dom.id === 'dom_primary_default';
-              const isExpanded = expandedDnsDomainId === dom.id;
-              const subdomainHost = dom.hostname.includes('.') ? dom.hostname.split('.')[0] : '@';
-              const txtToken = dom.verify_token || `tinyurl-verification=tiny_${dom.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
-              const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
+                const isDefaultPrimary = dom.is_default || dom.id === 'dom_primary_default';
+                const isExpanded = expandedDnsDomainId === dom.id;
+                const subdomainHost = dom.hostname.includes('.') ? dom.hostname.split('.')[0] : '@';
+                const txtToken = dom.verify_token || `tinyurl-verification=tiny_${dom.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
+                const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
 
-              return (
-                <div 
-                  key={dom.id}
-                  className="rounded-2xl bg-surface-container-low p-4 sm:p-5 flex flex-col gap-4 border border-outline-variant/30 transition-all shadow-xs"
-                >
-                  {/* Card Header */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div className="flex items-start gap-3.5">
-                      <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary-container shrink-0 shadow-xs">
-                        <Globe className="w-5 h-5" />
+                return (
+                  <div
+                    key={dom.id}
+                    className="rounded-2xl bg-surface-container-low p-4 sm:p-5 flex flex-col gap-4 border border-outline-variant/30 transition-all shadow-xs"
+                  >
+                    {/* Card Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-primary-container shrink-0 shadow-xs">
+                          <Globe className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-mono text-sm font-bold text-on-surface">
+                              {dom.hostname}
+                            </span>
+
+                            {/* Ownership Badge */}
+                            {dom.ownership_verified || dom.verified ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Ownership Verified</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
+                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Ownership Pending (TXT)</span>
+                              </span>
+                            )}
+
+                            {/* Routing & SSL Badge */}
+                            {dom.verified ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Edge TLS 1.3 Active</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant/40 text-[11px] font-medium">
+                                <span>Routing Pending (CNAME)</span>
+                              </span>
+                            )}
+
+                            {isDefaultPrimary && (
+                              <span className="px-2 py-0.5 rounded-md bg-primary-container text-on-primary text-[10px] font-bold uppercase tracking-wider">
+                                Default Primary
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Root Redirect Info */}
+                          <div className="flex items-center gap-2 text-on-surface-variant text-xs flex-wrap">
+                            <span>Root Destination:</span>
+                            <span className="font-mono font-medium text-on-surface bg-surface-container px-2 py-0.5 rounded text-[11px]">
+                              {dom.root_redirect_url || `https://${dom.hostname} (Default)`}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-sm font-bold text-on-surface">
-                            {dom.hostname}
-                          </span>
-                          
-                          {/* Ownership Badge */}
-                          {dom.ownership_verified || dom.verified ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Ownership Verified</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
-                              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                              <span>Ownership Pending (TXT)</span>
-                            </span>
-                          )}
 
-                          {/* Routing & SSL Badge */}
-                          {dom.verified ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Edge TLS 1.3 Active</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant border border-outline-variant/40 text-[11px] font-medium">
-                              <span>Routing Pending (CNAME)</span>
-                            </span>
-                          )}
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
+                        {dom.id !== 'dom_platform' && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedDnsDomainId(isExpanded ? null : dom.id)}
+                            className="px-3 py-1.5 bg-surface-container text-on-surface text-xs font-semibold rounded-xl hover:bg-surface-container-high transition-colors shadow-xs border border-outline-variant/30 cursor-pointer"
+                          >
+                            {isExpanded ? 'Hide DNS Records' : 'View DNS Records'}
+                          </button>
+                        )}
 
-                          {isDefaultPrimary && (
-                            <span className="px-2 py-0.5 rounded-md bg-primary-container text-on-primary text-[10px] font-bold uppercase tracking-wider">
-                              Default Primary
-                            </span>
-                          )}
-                        </div>
+                        {dom.id !== 'dom_platform' && (
+                          <button
+                            type="button"
+                            disabled={verifyingDomainId === dom.id}
+                            onClick={() => handleTestDomainDns(dom.id, dom.hostname, false)}
+                            className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-xl hover:bg-primary transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                          >
+                            {verifyingDomainId === dom.id ? 'Checking DNS...' : 'Verify Live DNS'}
+                          </button>
+                        )}
 
-                        {/* Root Redirect Info */}
-                        <div className="flex items-center gap-2 text-on-surface-variant text-xs flex-wrap">
-                          <span>Root Destination:</span>
-                          <span className="font-mono font-medium text-on-surface bg-surface-container px-2 py-0.5 rounded text-[11px]">
-                            {dom.root_redirect_url || `https://${dom.hostname} (Default)`}
-                          </span>
-                        </div>
+                        {!dom.verified && dom.id !== 'dom_platform' && (
+                          <button
+                            type="button"
+                            onClick={() => handleTestDomainDns(dom.id, dom.hostname, true)}
+                            title="Simulate DNS verification instantly for testing or local demonstration"
+                            className="px-2.5 py-1.5 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold rounded-xl hover:bg-secondary-fixed-dim transition-colors shadow-xs cursor-pointer"
+                          >
+                            Demo Instant Verify
+                          </button>
+                        )}
+
+                        {!isDefaultPrimary && dom.id !== 'dom_primary_default' && dom.id !== 'dom_platform' && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryDomain(dom.id, dom.hostname)}
+                            className="px-2.5 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-medium rounded-xl hover:bg-surface-container border border-outline-variant/30 transition cursor-pointer"
+                          >
+                            Set Primary
+                          </button>
+                        )}
+
+                        {dom.id !== 'dom_primary_default' && dom.id !== 'dom_platform' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDomain(dom.id, dom.hostname)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
+                            title="Remove domain"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedDnsDomainId(isExpanded ? null : dom.id)}
-                        className="px-3 py-1.5 bg-surface-container text-on-surface text-xs font-semibold rounded-xl hover:bg-surface-container-high transition-colors shadow-xs border border-outline-variant/30 cursor-pointer"
-                      >
-                        {isExpanded ? 'Hide DNS Records' : 'View DNS Records'}
-                      </button>
+                    {/* Expandable DNS Records Drawer */}
+                    {isExpanded && (
+                      <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3 animate-fade-in bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/30">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
+                            <Server className="w-4 h-4 text-primary-container" />
+                            <span>DNS Verification &amp; Authorization Records</span>
+                          </span>
+                          <span className="text-[11px] text-on-surface-variant">Add these 2 records in your DNS dashboard (Cloudflare, GoDaddy, Route53, Namecheap)</span>
+                        </div>
 
-                      <button
-                        type="button"
-                        disabled={verifyingDomainId === dom.id}
-                        onClick={() => handleTestDomainDns(dom.id, dom.hostname, false)}
-                        className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-xl hover:bg-primary transition-all shadow-xs cursor-pointer disabled:opacity-50"
-                      >
-                        {verifyingDomainId === dom.id ? 'Checking DNS...' : 'Verify Live DNS'}
-                      </button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
 
-                      {!dom.verified && (
-                        <button
-                          type="button"
-                          onClick={() => handleTestDomainDns(dom.id, dom.hostname, true)}
-                          title="Simulate DNS verification instantly for testing or local demonstration"
-                          className="px-2.5 py-1.5 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold rounded-xl hover:bg-secondary-fixed-dim transition-colors shadow-xs cursor-pointer"
-                        >
-                          Demo Instant Verify
-                        </button>
-                      )}
+                          {/* Record 1: Ownership Challenge TXT */}
+                          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
+                                <span>1. Ownership Challenge</span>
+                                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">TXT</span>
+                              </span>
+                              <span className="text-[10px] text-on-surface-variant">Proves org authorization</span>
+                            </div>
+                            <div className="space-y-1 font-mono text-[11px]">
+                              <div className="flex items-center justify-between">
+                                <span className="text-outline">Host/Name:</span>
+                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
+                                  _tinyurl-challenge
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-outline shrink-0">Value:</span>
+                                <span className="text-primary-container font-semibold truncate bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
+                                  {txtToken}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(txtToken);
+                                    setCopiedTokenDomainId(dom.id);
+                                    setTimeout(() => setCopiedTokenDomainId(null), 2000);
+                                  }}
+                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
+                                  title="Copy TXT verification token"
+                                >
+                                  {copiedTokenDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
 
-                      {!isDefaultPrimary && dom.id !== 'dom_primary_default' && (
-                        <button
-                          type="button"
-                          onClick={() => handleSetPrimaryDomain(dom.id, dom.hostname)}
-                          className="px-2.5 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-medium rounded-xl hover:bg-surface-container border border-outline-variant/30 transition cursor-pointer"
-                        >
-                          Set Primary
-                        </button>
-                      )}
+                          {/* Record 2: Traffic Routing CNAME */}
+                          <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
+                                <span>2. Traffic Routing</span>
+                                <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 text-[10px] font-bold">CNAME</span>
+                              </span>
+                              <span className="text-[10px] text-on-surface-variant">Routes to Edge nodes</span>
+                            </div>
+                            <div className="space-y-1 font-mono text-[11px]">
+                              <div className="flex items-center justify-between">
+                                <span className="text-outline">Host/Name:</span>
+                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
+                                  {subdomainHost}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-outline shrink-0">Target:</span>
+                                <span className="text-primary-container font-semibold bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
+                                  {cnameTarget}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(cnameTarget);
+                                    setCopiedCnameDomainId(dom.id);
+                                    setTimeout(() => setCopiedCnameDomainId(null), 2000);
+                                  }}
+                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
+                                  title="Copy CNAME target"
+                                >
+                                  {copiedCnameDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
 
-                      {dom.id !== 'dom_primary_default' && (
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDomain(dom.id, dom.hostname)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-xl border border-red-200 transition cursor-pointer"
-                          title="Remove domain"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Expandable DNS Records Drawer */}
-                  {isExpanded && (
-                    <div className="pt-3 border-t border-outline-variant/20 flex flex-col gap-3 animate-fade-in bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/30">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                          <Server className="w-4 h-4 text-primary-container" />
-                          <span>DNS Verification &amp; Authorization Records</span>
-                        </span>
-                        <span className="text-[11px] text-on-surface-variant">Add these 2 records in your DNS dashboard (Cloudflare, GoDaddy, Route53, Namecheap)</span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                        
-                        {/* Record 1: Ownership Challenge TXT */}
-                        <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                              <span>1. Ownership Challenge</span>
-                              <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">TXT</span>
-                            </span>
-                            <span className="text-[10px] text-on-surface-variant">Proves org authorization</span>
-                          </div>
-                          <div className="space-y-1 font-mono text-[11px]">
-                            <div className="flex items-center justify-between">
-                              <span className="text-outline">Host/Name:</span>
-                              <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
-                                _tinyurl-challenge
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-outline shrink-0">Value:</span>
-                              <span className="text-primary-container font-semibold truncate bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                {txtToken}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(txtToken);
-                                  setCopiedTokenDomainId(dom.id);
-                                  setTimeout(() => setCopiedTokenDomainId(null), 2000);
-                                }}
-                                className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
-                                title="Copy TXT verification token"
-                              >
-                                {copiedTokenDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Record 2: Traffic Routing CNAME */}
-                        <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                              <span>2. Traffic Routing</span>
-                              <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 text-[10px] font-bold">CNAME</span>
-                            </span>
-                            <span className="text-[10px] text-on-surface-variant">Routes to Edge nodes</span>
-                          </div>
-                          <div className="space-y-1 font-mono text-[11px]">
-                            <div className="flex items-center justify-between">
-                              <span className="text-outline">Host/Name:</span>
-                              <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
-                                {subdomainHost}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-outline shrink-0">Target:</span>
-                              <span className="text-primary-container font-semibold bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                {cnameTarget}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(cnameTarget);
-                                  setCopiedCnameDomainId(dom.id);
-                                  setTimeout(() => setCopiedCnameDomainId(null), 2000);
-                                }}
-                                className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
-                                title="Copy CNAME target"
-                              >
-                                {copiedCnameDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            }))}
+                );
+              }))}
           </div>
 
           {/* Inline DNS Quick Info Notice */}
@@ -799,7 +802,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            
+
             {/* YouTube */}
             <div className="p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col justify-between gap-3">
               <div className="flex items-center justify-between">
@@ -822,7 +825,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
                 </label>
               </div>
-              <input 
+              <input
                 type="text"
                 placeholder="@yourchannel or channel URL"
                 value={socialChannels.youtube.handle}
@@ -853,7 +856,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
                 </label>
               </div>
-              <input 
+              <input
                 type="text"
                 placeholder="@instagram_handle"
                 value={socialChannels.instagram.handle}
@@ -884,7 +887,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
                 </label>
               </div>
-              <input 
+              <input
                 type="text"
                 placeholder="@tiktok_creator"
                 value={socialChannels.tiktok.handle}
@@ -915,7 +918,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                   <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
                 </label>
               </div>
-              <input 
+              <input
                 type="text"
                 placeholder="@x_handle"
                 value={socialChannels.twitter.handle}
@@ -939,7 +942,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           </div>
 
           <div className="divide-y divide-outline-variant/20 flex flex-col text-xs">
-            
+
             {/* Preference 1: Cookie-less */}
             <div className="py-4 first:pt-0 flex items-start justify-between gap-4">
               <div className="flex flex-col gap-1 max-w-xl">
@@ -1092,7 +1095,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
           >
             Reset
           </button>
-          
+
           <button
             type="button"
             disabled={isSaving}
@@ -1121,7 +1124,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 9. MODAL: ADD CUSTOM DOMAIN */}
       {addDomainModalOpen && typeof document !== 'undefined' && createPortal(
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setAddDomainModalOpen(false);
@@ -1210,7 +1213,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
       {/* 10. MODAL: UPGRADE / PLAN DETAILS */}
       {upgradeModalOpen && typeof document !== 'undefined' && createPortal(
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setUpgradeModalOpen(false);

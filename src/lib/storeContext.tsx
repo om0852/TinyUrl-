@@ -310,6 +310,27 @@ export const checkAndMarkLinkVisited = (targetKey: string): boolean => {
   }
 };
 
+export const ensurePlatformDomain = (customDomains: Domain[] = [], wsId: string = 'ws_default'): Domain[] => {
+  const currentHost = typeof window !== 'undefined' && window.location.host
+    ? window.location.host
+    : (process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd');
+
+  const cleanList = Array.isArray(customDomains) ? customDomains : [];
+  const exists = cleanList.some(d => d.hostname.toLowerCase() === currentHost.toLowerCase());
+  if (exists) return cleanList;
+
+  const hasDefault = cleanList.some(d => d.is_default);
+  const platformDom: Domain = {
+    id: 'dom_platform',
+    hostname: currentHost,
+    verified: true,
+    ssl_status: 'active',
+    is_default: !hasDefault,
+    workspace_id: wsId
+  };
+  return [platformDom, ...cleanList];
+};
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoaded, setAuthLoaded] = useState<boolean>(true);
@@ -449,13 +470,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .then(r => r.json())
         .then(d => {
           if (d?.success && Array.isArray(d.domains)) {
-            setDomains(d.domains);
+            const merged = ensurePlatformDomain(d.domains, ws.id);
+            setDomains(merged);
             try {
               if (currentUser?.email) {
                 const domKey = getUserStorageKey('url_shortener_domains', currentUser.email);
-                localStorage.setItem(domKey, JSON.stringify(d.domains));
+                localStorage.setItem(domKey, JSON.stringify(merged));
               }
-              localStorage.setItem('url_shortener_domains', JSON.stringify(d.domains));
+              localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
             } catch {}
           }
         }).catch(() => {});
@@ -524,16 +546,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshTeamMembers();
   }, [refreshIncomingInvitations, refreshTeamMembers]);
 
-  const [domains, setDomains] = useState<Domain[]>(initialDomains && initialDomains.length > 0 ? initialDomains : [
-    {
-      id: 'dom_default',
-      hostname: typeof window !== 'undefined' ? window.location.host : 'creataurus.work.gd',
-      verified: true,
-      ssl_status: 'active',
-      is_default: true,
-      workspace_id: 'ws_default'
-    }
-  ]);
+  const [domains, setDomains] = useState<Domain[]>(() => ensurePlatformDomain(initialDomains || [], 'ws_default'));
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
@@ -548,7 +561,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (savedGlobalDom) {
           const parsed = JSON.parse(savedGlobalDom);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setDomains(parsed);
+            setDomains(ensurePlatformDomain(parsed, currentWorkspace?.id || 'ws_default'));
           }
         }
       } catch {}
@@ -1024,11 +1037,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .then(r => r.json())
           .then(d => {
             if (d?.success && Array.isArray(d.domains)) {
-              setDomains(d.domains);
+              const merged = ensurePlatformDomain(d.domains, activeWs.id);
+              setDomains(merged);
               try {
                 const domKey = getUserStorageKey('url_shortener_domains', activeUser.email);
-                localStorage.setItem(domKey, JSON.stringify(d.domains));
-                localStorage.setItem('url_shortener_domains', JSON.stringify(d.domains));
+                localStorage.setItem(domKey, JSON.stringify(merged));
+                localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
               } catch {}
             }
           }).catch(() => {});
@@ -1288,7 +1302,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const secReport = scanUrlSecurity(finalDestUrl);
 
     const defaultDomain = domains.find(d => d.is_default) || domains[0];
-    const resolvedDomainId = data.domain_id || defaultDomain?.id || 'dom_default';
+    const resolvedDomainId = (data.domain_id && data.domain_id.trim()) 
+      ? data.domain_id.trim() 
+      : (defaultDomain?.id || 'dom_platform');
     const resolvedWorkspaceId = currentWorkspace?.id || 'ws_default';
 
     // Detect platform deep link (OpeninApp feature)
@@ -1809,6 +1825,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteDomain = async (idOrHostname: string): Promise<boolean> => {
+    if (idOrHostname === 'dom_platform' || idOrHostname === 'dom_default' || idOrHostname === 'dom_primary_default') {
+      showToast('error', 'Action Restricted', 'The primary platform domain cannot be deleted.');
+      return false;
+    }
     if (!checkPermissionOrToast('domains:manage', 'delete custom domains')) {
       return false;
     }

@@ -25,10 +25,15 @@ export async function middleware(request: NextRequest) {
                   request.headers.get('host') ||
                   request.nextUrl.host || '';
   const currentHost = rawHost.split(',')[0].trim().split(':')[0].toLowerCase();
+  const cnameTarget = (process.env.CUSTOM_DOMAIN_CNAME_TARGET || process.env.NEXT_PUBLIC_CNAME_TARGET || '').toLowerCase().trim();
+  const defaultDomain = (process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || '').toLowerCase().trim();
   const isPlatformDomain = currentHost === 'localhost' || 
                            currentHost === '127.0.0.1' || 
                            currentHost.includes('vercel.app') || 
-                           currentHost === 'tinyurl.dev';
+                           currentHost === 'tinyurl.dev' ||
+                           (cnameTarget !== '' && currentHost === cnameTarget) ||
+                           (defaultDomain !== '' && currentHost === defaultDomain) ||
+                           currentHost === 'creataurus.work.gd';
 
   // 1. Custom Domain Root Redirect (e.g. go.brand.com/ -> brand.com)
   if (!isPlatformDomain) {

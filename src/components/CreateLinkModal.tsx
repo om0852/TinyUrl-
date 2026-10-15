@@ -33,11 +33,18 @@ interface CreateLinkModalProps {
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
   const { createShortLink, links, campaigns, domains } = useStore();
 
+  const primaryDomain = domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified) || domains[0];
   const [destinationUrl, setDestinationUrl] = useState('');
   const [title, setTitle] = useState('');
   const [customSlug, setCustomSlug] = useState('');
-  const [selectedDomainId, setSelectedDomainId] = useState('');
+  const [selectedDomainId, setSelectedDomainId] = useState(primaryDomain?.id || 'dom_platform');
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
+
+  useEffect(() => {
+    if ((!selectedDomainId || selectedDomainId === '') && primaryDomain?.id) {
+      setSelectedDomainId(primaryDomain.id);
+    }
+  }, [domains, primaryDomain?.id, selectedDomainId]);
   const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
   
   // UTM params
@@ -400,14 +407,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   <div className="flex items-center gap-1.5 bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-outline-variant/30">
                     <Globe className="w-3.5 h-3.5 text-primary-container shrink-0" />
                     <select
-                      value={selectedDomainId}
+                      value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
                       onChange={(e) => setSelectedDomainId(e.target.value)}
                       className="bg-transparent font-mono text-xs text-on-surface font-semibold outline-none cursor-pointer pr-1"
                     >
-                      <option value="">{originDomain} (Platform)</option>
                       {domains.map(d => (
                         <option key={d.id} value={d.id} disabled={!d.verified}>
-                          {d.hostname} {d.verified ? '✓' : '(Pending DNS)'}
+                          {d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Platform)' : (d.verified ? '✓' : '(Pending DNS)')}
                         </option>
                       ))}
                     </select>
