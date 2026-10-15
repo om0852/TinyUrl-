@@ -145,6 +145,10 @@ export async function initializeDatabase() {
     await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS og_description TEXT;`).catch(() => {});
     await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS og_image_url TEXT;`).catch(() => {});
     await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS is_public_stats BOOLEAN DEFAULT true;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS broken_code INT;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS broken_reason VARCHAR(255);`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS last_health_check TIMESTAMPTZ;`).catch(() => {});
+    await sql.query(`ALTER TABLE links ADD COLUMN IF NOT EXISTS fallback_url TEXT;`).catch(() => {});
 
     // 5. Click Events table
     await sql.query(`

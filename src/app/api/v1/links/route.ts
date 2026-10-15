@@ -38,6 +38,10 @@ interface RawLinkRow {
   og_title?: string | null;
   og_description?: string | null;
   og_image_url?: string | null;
+  broken_code?: number | null;
+  broken_reason?: string | null;
+  last_health_check?: string | null;
+  fallback_url?: string | null;
 }
 
 export async function GET(request: Request) {
@@ -128,9 +132,13 @@ export async function GET(request: Request) {
           title: l.title || `Short Link /${l.short_code}`,
           tags: typeof l.tags === 'string' ? JSON.parse(l.tags) : (Array.isArray(l.tags) ? l.tags : []),
           clicks_count: exactClicksCount,
-          status: (l.status as 'active' | 'disabled' | 'expired' | 'flagged') || 'active',
+          status: (l.status as 'active' | 'disabled' | 'expired' | 'flagged' | 'broken') || 'active',
           is_flagged: !!l.is_flagged,
           risk_score: Number(l.risk_score) || 0,
+          broken_code: l.broken_code ? Number(l.broken_code) : undefined,
+          broken_reason: l.broken_reason || undefined,
+          last_health_check: l.last_health_check ? new Date(l.last_health_check).toISOString() : undefined,
+          fallback_url: l.fallback_url || undefined,
           created_by: l.created_by || 'Owner',
           created_at: l.created_at || new Date().toISOString(),
           rules: parsedRules,
@@ -215,7 +223,10 @@ export async function PATCH(request: Request) {
       password,
       password_hash,
       expires_at,
-      max_clicks
+      max_clicks,
+      broken_code,
+      broken_reason,
+      fallback_url
     } = body;
 
     const lookupId = (id || short_code || custom_slug || '').trim();
@@ -252,6 +263,9 @@ export async function PATCH(request: Request) {
     const cleanUtmCampaign = utm_campaign !== undefined ? String(utm_campaign) : null;
     const cleanUtmTerm = utm_term !== undefined ? String(utm_term) : null;
     const cleanUtmContent = utm_content !== undefined ? String(utm_content) : null;
+    const cleanFallbackUrl = fallback_url !== undefined ? (fallback_url ? String(fallback_url).trim() : '__null__') : null;
+    const cleanBrokenCode = broken_code !== undefined ? (broken_code === null || broken_code === -1 ? -1 : Number(broken_code)) : null;
+    const cleanBrokenReason = broken_reason !== undefined ? (broken_reason === null ? '__null__' : String(broken_reason).trim()) : null;
 
     const cleanPassword = (password !== undefined || password_hash !== undefined)
       ? (password || password_hash ? String(password || password_hash) : '__null__')
@@ -311,6 +325,21 @@ export async function PATCH(request: Request) {
              WHEN $29::int IS NOT NULL THEN $29::int 
              ELSE max_clicks 
            END,
+           fallback_url = CASE
+             WHEN $30 = '__null__' THEN NULL
+             WHEN $30::text IS NOT NULL THEN $30
+             ELSE fallback_url
+           END,
+           broken_code = CASE
+             WHEN $31 = -1 THEN NULL
+             WHEN $31::int IS NOT NULL THEN $31::int
+             ELSE broken_code
+           END,
+           broken_reason = CASE
+             WHEN $32 = '__null__' THEN NULL
+             WHEN $32::text IS NOT NULL THEN $32
+             ELSE broken_reason
+           END,
            updated_at = NOW()
        WHERE id = $7 
           OR LOWER(short_code) = LOWER($7) 
@@ -345,7 +374,10 @@ export async function PATCH(request: Request) {
         cleanUtmContent,
         cleanPassword,
         cleanExpiresAt,
-        cleanMaxClicks
+        cleanMaxClicks,
+        cleanFallbackUrl,
+        cleanBrokenCode,
+        cleanBrokenReason
       ]
     )) as unknown as RawLinkRow[];
 

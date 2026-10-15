@@ -904,6 +904,98 @@ async function runTestSuite() {
     if (!deleteClientRes.ok || !deleteClientData.success) fail('Client deletion failed', deleteClientData);
     pass(`Client portal account ${clientId} deleted successfully`);
 
+    // ─────────────────────────────────────────────────────────────
+    // 9. BROKEN LINKS HEALTH PROBE & REPAIR FLOW
+    // ─────────────────────────────────────────────────────────────
+    section('9. Testing Broken Links Health Probe & Automated Repair Flow');
+
+    // 9.1 Create Link with Broken Destination
+    subSection('9.1 Creating Short Link pointing to dead endpoint (404/DNS error)');
+    const brokenSlug = `broken-${timestamp}`;
+    const brokenDestUrl = 'https://this-domain-does-not-exist-xyz9999.invalid/dead-page';
+    const brokenLinkRes = await fetch(`${BASE_URL}/api/v1/shorten`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        destination_url: brokenDestUrl,
+        custom_slug: brokenSlug,
+        workspace_id: testWorkspaceId,
+        title: 'Broken Destination QA Link'
+      })
+    });
+    const brokenLinkData = await brokenLinkRes.json();
+    if (!brokenLinkRes.ok || !brokenLinkData.success) fail('Failed to create broken test link', brokenLinkData);
+    const brokenLinkId = brokenLinkData.data.id;
+    createdLinkIds.push(brokenLinkId);
+    pass(`Short link created pointing to dead URL: /${brokenSlug} -> ${brokenDestUrl}`);
+
+    // 9.2 Probe Health Check via POST /api/v1/links/health
+    subSection('9.2 Probing Link Health via POST /api/v1/links/health');
+    const probeRes = await fetch(`${BASE_URL}/api/v1/links/health`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ link_id: brokenLinkId })
+    });
+    const probeData = await probeRes.json();
+    if (!probeRes.ok || !probeData.success) fail('POST /api/v1/links/health probe failed', probeData);
+    if (probeData.broken_count < 1) fail('Expected probe to detect broken link', probeData);
+    pass(`Health probe successfully detected broken target (status code/reason: ${probeData.broken_links?.[0]?.broken_code || probeData.broken_links?.[0]?.broken_reason})`);
+
+    // 9.3 Verify GET /api/v1/links/health returns broken link summary
+    subSection('9.3 Verifying GET /api/v1/links/health summary');
+    const healthSummaryRes = await fetch(`${BASE_URL}/api/v1/links/health?workspace_id=${testWorkspaceId}`, {
+      headers: authHeaders
+    });
+    const healthSummaryData = await healthSummaryRes.json();
+    if (!healthSummaryRes.ok || !healthSummaryData.success) fail('GET /api/v1/links/health failed', healthSummaryData);
+    if (healthSummaryData.broken_count < 1) fail('Summary failed to count broken link', healthSummaryData);
+    pass(`Health summary confirmed: ${healthSummaryData.broken_count} broken link(s) detected in workspace`);
+
+    // 9.4 Verify link status updated to 'broken' in links listing
+    subSection('9.4 Verifying Link Record in Database has status = broken');
+    const listLinksRes = await fetch(`${BASE_URL}/api/v1/links?workspace_id=${testWorkspaceId}`, {
+      headers: authHeaders
+    });
+    const listLinksData = await listLinksRes.json();
+    const fetchedBrokenLink = listLinksData.links?.find(l => l.id === brokenLinkId);
+    if (!fetchedBrokenLink) fail('Broken link not found in listing', listLinksData);
+    if (fetchedBrokenLink.status !== 'broken') fail(`Expected status 'broken', got '${fetchedBrokenLink.status}'`, fetchedBrokenLink);
+    pass(`Link status in database successfully transitioned to 'broken' with code ${fetchedBrokenLink.broken_code}`);
+
+    // 9.5 Repair Link via PATCH /api/v1/links (Update destination URL)
+    subSection('9.5 Repairing Broken Link with Working Destination & Fallback URL');
+    const repairedDestUrl = 'https://example.com';
+    const fallbackUrl = 'https://example.com/fallback';
+    const repairRes = await fetch(`${BASE_URL}/api/v1/links`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({
+        id: brokenLinkId,
+        destination_url: repairedDestUrl,
+        fallback_url: fallbackUrl,
+        status: 'active',
+        broken_code: null,
+        broken_reason: null
+      })
+    });
+    const repairData = await repairRes.json();
+    if (!repairRes.ok || !repairData.success) fail('PATCH repair failed', repairData);
+    pass(`Link repaired: destination updated to ${repairedDestUrl} and fallback set to ${fallbackUrl}`);
+
+    // 9.6 Re-probe Health Check to verify resolution
+    subSection('9.6 Re-probing repaired link to confirm health recovery');
+    const reprobeRes = await fetch(`${BASE_URL}/api/v1/links/health`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ link_id: brokenLinkId })
+    });
+    const reprobeData = await reprobeRes.json();
+    if (!reprobeRes.ok || !reprobeData.success) fail('Reprobe failed', reprobeData);
+    if (reprobeData.healthy_count !== 1 || reprobeData.broken_count !== 0) {
+      fail('Expected link to be healthy after repair', reprobeData);
+    }
+    pass('Reprobe verified: Link recovered to healthy state (broken_count = 0)');
+
     console.log(`\n${colors.green}${colors.bold}======================================================================`);
     console.log(`  ALL COMBINATIONS & BOUNDARY TESTS PASSED 100% SUCCESSFULLY!        `);
     console.log(`======================================================================${colors.reset}\n`);
@@ -913,9 +1005,9 @@ async function runTestSuite() {
     process.exitCode = 1;
   } finally {
     // ─────────────────────────────────────────────────────────────
-    // 9. CLEANUP: Strictly clean test account data only!
+    // 10. CLEANUP: Strictly clean test account data only!
     // ─────────────────────────────────────────────────────────────
-    section('9. Automated Cleanup (Test Account Only)');
+    section('10. Automated Cleanup (Test Account Only)');
     if (testWorkspaceId) {
       try {
         console.log(`Cleaning up test workspace data for: ${testWorkspaceId} (${testEmail})...`);

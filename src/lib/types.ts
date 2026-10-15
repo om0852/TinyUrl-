@@ -104,10 +104,14 @@ export interface Link {
   password_hash?: string;
   expires_at?: string;
   max_clicks?: number;
-  status: 'active' | 'disabled' | 'expired' | 'flagged';
+  status: 'active' | 'disabled' | 'expired' | 'flagged' | 'broken';
   is_flagged: boolean;
   risk_score: number; // 0 - 100
   risk_reasons?: string[];
+  broken_code?: number;
+  broken_reason?: string;
+  last_health_check?: string;
+  fallback_url?: string;
   created_by: string;
   created_at: string;
   clicks_count: number;

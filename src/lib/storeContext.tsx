@@ -66,6 +66,9 @@ interface StoreContextType {
   clientMetrics: ClientPortalSummaryMetrics;
   refreshClients: () => Promise<void>;
   links: Link[];
+  brokenLinksCount: number;
+  scanBrokenLinks: (workspaceId?: string) => Promise<{ success: boolean; checked: number; broken_count: number; broken_links?: any[]; error?: string }>;
+  fixBrokenLink: (linkId: string, newDestinationUrl: string, fallbackUrl?: string) => Promise<{ success: boolean; error?: string }>;
   clicks: ClickEvent[];
   selectedAnalyticsLinkId: string | null;
   setSelectedAnalyticsLinkId: (id: string | null) => void;
@@ -1506,7 +1509,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             password: target.password_hash !== 'PROTECTED' ? target.password_hash : undefined,
             password_hash: target.password_hash !== 'PROTECTED' ? target.password_hash : undefined,
             expires_at: target.expires_at,
-            max_clicks: target.max_clicks
+            max_clicks: target.max_clicks,
+            fallback_url: target.fallback_url,
+            broken_code: target.broken_code !== undefined ? target.broken_code : undefined,
+            broken_reason: target.broken_reason !== undefined ? target.broken_reason : undefined
           })
         }).catch(err => console.warn('Failed to update link on server:', err));
       }
@@ -3066,6 +3072,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   };
 
+  const brokenLinksCount = useMemo(() => {
+    return links.filter(l => l.status === 'broken' || (typeof l.broken_code === 'number' && l.broken_code >= 400)).length;
+  }, [links]);
+
+  const scanBrokenLinks = async (workspaceId?: string) => {
+    const wsId = workspaceId || currentWorkspace?.id;
+    try {
+      const res = await apiFetch(`/api/v1/links/health${wsId ? `?workspace_id=${encodeURIComponent(wsId)}` : ''}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refreshData();
+      }
+      return data;
+    } catch (err: any) {
+      console.error('Error scanning broken links:', err);
+      return { success: false, checked: 0, broken_count: 0, error: err.message };
+    }
+  };
+
+  const fixBrokenLink = async (linkId: string, newDestinationUrl: string, fallbackUrl?: string) => {
+    try {
+      const target = links.find(l => l.id === linkId || l.short_code === linkId);
+      if (!target) return { success: false, error: 'Link not found' };
+
+      const updates: Partial<Link> = {
+        destination_url: newDestinationUrl,
+        status: 'active',
+        broken_code: undefined,
+        broken_reason: undefined,
+        ...(fallbackUrl !== undefined ? { fallback_url: fallbackUrl } : {})
+      };
+
+      updateLink(target.id, updates);
+
+      // Re-probe link immediately with the health check API to verify resolution
+      try {
+        await apiFetch('/api/v1/links/health', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link_id: target.id })
+        });
+        await refreshData();
+      } catch {
+        await refreshData();
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to repair link' };
+    }
+  };
+
   return (
     <StoreContext.Provider value={{
       currentUser,
@@ -3100,6 +3160,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       clientMetrics,
       refreshClients,
       links,
+      brokenLinksCount,
+      scanBrokenLinks,
+      fixBrokenLink,
       clicks,
       selectedAnalyticsLinkId,
       setSelectedAnalyticsLinkId,

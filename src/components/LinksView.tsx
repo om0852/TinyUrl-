@@ -26,7 +26,11 @@ import {
   BarChart2, 
   X, 
   Download,
-  Edit3
+  Edit3,
+  AlertTriangle,
+  Activity,
+  Wrench,
+  ShieldAlert
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { EditLinkModal } from '@/components/EditLinkModal';
@@ -40,9 +44,26 @@ export const LinksView: React.FC<LinksViewProps> = ({
   onOpenCreateModal,
   onNavigateTab 
 }) => {
-  const { links, clicks, domains, deleteLink, currentUserRole, setSelectedAnalyticsLinkId } = useStore();
+  const { 
+    links, 
+    clicks, 
+    domains, 
+    deleteLink, 
+    currentUserRole, 
+    setSelectedAnalyticsLinkId,
+    brokenLinksCount,
+    scanBrokenLinks,
+    fixBrokenLink
+  } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
+
+  // Health Scanning & Link Repair state
+  const [isScanningHealth, setIsScanningHealth] = useState(false);
+  const [repairingLink, setRepairingLink] = useState<typeof links[0] | null>(null);
+  const [repairNewDestUrl, setRepairNewDestUrl] = useState('');
+  const [repairFallbackUrl, setRepairFallbackUrl] = useState('');
+  const [isSubmittingRepair, setIsSubmittingRepair] = useState(false);
 
   // Helper to get true clicks for link (taking max of clicks_count and telemetry click_events)
   const getLinkClicks = useCallback((l: typeof links[0]) => {
@@ -212,7 +233,14 @@ export const LinksView: React.FC<LinksViewProps> = ({
       }
 
       // Status filter
-      if (statusFilter === 'active' && link.status !== 'active') return false;
+      if (statusFilter === 'active') {
+        const isBroken = link.status === 'broken' || (typeof link.broken_code === 'number' && link.broken_code >= 400);
+        if (link.status !== 'active' || isBroken) return false;
+      }
+      if (statusFilter === 'broken') {
+        const isBroken = link.status === 'broken' || (typeof link.broken_code === 'number' && link.broken_code >= 400);
+        if (!isBroken) return false;
+      }
       if (statusFilter === 'expired' && link.status !== 'expired') return false;
       if (statusFilter === 'disabled' && link.status !== 'disabled') return false;
       if (statusFilter === 'flagged' && link.status !== 'flagged') return false;
@@ -448,6 +476,62 @@ export const LinksView: React.FC<LinksViewProps> = ({
     }
   };
 
+  // Automated Health Check Probe Handler
+  const handleScanHealth = async () => {
+    setIsScanningHealth(true);
+    try {
+      const res = await scanBrokenLinks();
+      if (res.broken_count > 0) {
+        showToast(
+          'error',
+          'Broken Links Detected',
+          `Found ${res.broken_count} broken link${res.broken_count > 1 ? 's' : ''} out of ${res.checked} tested. Click the "Broken Links" filter to inspect & repair them.`
+        );
+      } else {
+        showToast(
+          'success',
+          'All Links Healthy',
+          `Scanned ${res.checked} destination endpoints. All targets are returning healthy HTTP 2xx/3xx response codes!`
+        );
+      }
+    } catch (err: any) {
+      showToast('error', 'Health Check Error', err.message || 'Unable to scan link endpoints.');
+    } finally {
+      setIsScanningHealth(false);
+    }
+  };
+
+  // Link Repair Submission Handler
+  const handleExecuteRepair = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repairingLink) return;
+    if (!repairNewDestUrl.trim()) {
+      showToast('error', 'Missing Destination', 'Please enter a valid destination URL to repair this link.');
+      return;
+    }
+
+    setIsSubmittingRepair(true);
+    try {
+      const res = await fixBrokenLink(
+        repairingLink.id,
+        repairNewDestUrl.trim(),
+        repairFallbackUrl.trim() || undefined
+      );
+      if (res.success) {
+        showToast('success', 'Link Repaired', `Target destination updated and verified.`);
+        setRepairingLink(null);
+        setRepairNewDestUrl('');
+        setRepairFallbackUrl('');
+      } else {
+        showToast('error', 'Repair Failed', res.error || 'Failed to update destination URL.');
+      }
+    } catch (err: any) {
+      showToast('error', 'Error', err.message || 'An error occurred during link repair.');
+    } finally {
+      setIsSubmittingRepair(false);
+    }
+  };
+
   return (
     <div className="flex flex-col w-full pb-12 animate-fade-in text-on-surface">
       
@@ -460,6 +544,24 @@ export const LinksView: React.FC<LinksViewProps> = ({
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-surface-container-high text-primary font-semibold whitespace-nowrap shrink-0">
                 {links.length} active links
               </span>
+              {brokenLinksCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatusFilter(statusFilter === 'broken' ? 'all' : 'broken');
+                    setCurrentPage(1);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold cursor-pointer transition-colors ${
+                    statusFilter === 'broken'
+                      ? 'bg-red-600 text-white shadow-xs'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 hover:bg-red-500/20'
+                  }`}
+                  title="Click to view broken links only"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusFilter === 'broken' ? 'bg-white' : 'bg-red-500 animate-pulse'}`} />
+                  <span>{brokenLinksCount} Broken {brokenLinksCount === 1 ? 'Link' : 'Links'}</span>
+                </button>
+              )}
             </div>
             <p className="text-sm text-on-surface-variant mt-0.5">
               Manage, shorten, and measure creator traffic across YouTube, Instagram, and TikTok.
@@ -468,6 +570,16 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={handleScanHealth}
+              disabled={isScanningHealth}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60"
+              title="Automated health check to detect 404s, 500s, DNS issues, and broken destination URLs"
+            >
+              <Activity className={`w-3.5 h-3.5 ${isScanningHealth ? 'animate-spin text-primary-container' : 'text-outline'}`} />
+              <span>{isScanningHealth ? 'Scanning Health...' : 'Scan Links Health'}</span>
+            </button>
             <button
               type="button"
               onClick={handleExportCsv}
@@ -535,6 +647,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
               >
                 <option value="all">Status: All</option>
                 <option value="active">Active Only</option>
+                <option value="broken">Broken ({brokenLinksCount})</option>
                 <option value="expired">Expired</option>
                 <option value="disabled">Disabled</option>
               </select>
@@ -809,6 +922,30 @@ export const LinksView: React.FC<LinksViewProps> = ({
                               <span className="truncate">{link.destination_url}</span>
                               <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
                             </a>
+
+                            {/* Broken Link Diagnostic Banner */}
+                            {(link.status === 'broken' || (typeof link.broken_code === 'number' && link.broken_code >= 400)) && (
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                  <span>Dead Link ({link.broken_code || 404}){link.broken_reason ? `: ${link.broken_reason}` : ''}</span>
+                                </span>
+                                {canEditLinks && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRepairingLink(link);
+                                      setRepairNewDestUrl(link.destination_url);
+                                      setRepairFallbackUrl(link.fallback_url || '');
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                                  >
+                                    <Wrench className="w-3 h-3" />
+                                    <span>Fix URL</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
 
                             {/* Smart Routing Rules attached to this link */}
                             {Array.isArray(link.rules) && link.rules.length > 0 && (
@@ -1135,6 +1272,116 @@ export const LinksView: React.FC<LinksViewProps> = ({
         link={editingLink}
         onClose={() => setEditingLink(null)}
       />
+
+      {/* 6. REPAIR BROKEN LINK MODAL */}
+      {mounted && repairingLink && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSubmittingRepair) setRepairingLink(null);
+          }}
+        >
+          <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+            {/* Close Button */}
+            <button
+              type="button"
+              disabled={isSubmittingRepair}
+              onClick={() => setRepairingLink(null)}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer disabled:opacity-50"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Wrench className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-on-surface">Fix Broken Link</h3>
+                <p className="text-xs text-on-surface-variant">
+                  Update the target destination URL without changing your short link or losing analytics.
+                </p>
+              </div>
+            </div>
+
+            {/* Error Diagnosis Banner */}
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-red-600 dark:text-red-400">
+                <span className="font-bold">HTTP {repairingLink.broken_code || 404} Error:</span>{' '}
+                <span>{repairingLink.broken_reason || 'Destination server returned an error or timed out.'}</span>
+                <div className="mt-1 font-mono text-[11px] opacity-80 break-all">
+                  Current Target: {repairingLink.destination_url}
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleExecuteRepair} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-on-surface mb-1.5">
+                  New Destination URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="url"
+                  required
+                  value={repairNewDestUrl}
+                  onChange={(e) => setRepairNewDestUrl(e.target.value)}
+                  placeholder="https://example.com/new-working-url"
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                />
+                <p className="text-[11px] text-on-surface-variant mt-1">
+                  When visitors click <span className="font-mono text-primary-container font-semibold">/{repairingLink.custom_slug || repairingLink.short_code}</span>, they will be seamlessly routed here.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-on-surface mb-1.5">
+                  Emergency Fallback URL <span className="text-on-surface-variant font-normal">(Optional)</span>
+                </label>
+                <input
+                  type="url"
+                  value={repairFallbackUrl}
+                  onChange={(e) => setRepairFallbackUrl(e.target.value)}
+                  placeholder="https://backup.example.com or homepage"
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                />
+                <p className="text-[11px] text-on-surface-variant mt-1">
+                  Automatic safety net: if destination fails in the future, visitors will be redirected here instead of seeing a dead error page.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  disabled={isSubmittingRepair}
+                  onClick={() => setRepairingLink(null)}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRepair}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-primary-container text-on-primary hover:bg-primary transition shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingRepair ? (
+                    <>
+                      <Activity className="w-3.5 h-3.5 animate-spin" />
+                      <span>Verifying & Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save & Verify Link</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
 
     </div>
   );
