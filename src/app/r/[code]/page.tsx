@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { Metadata } from 'next';
+import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
@@ -70,6 +72,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
   let initialTarget = sParams.target ? decodeURIComponent(sParams.target) : null;
   let initialLink: Link | null = null;
   let isSocialCrawler = false;
+  let shouldDirectRedirectUrl: string | null = null;
 
   if (code) {
     try {
@@ -106,6 +109,12 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         password_hash?: string;
         expires_at?: string;
         max_clicks?: number;
+        redirect_type?: string;
+        http_status_code?: number;
+        notes?: string;
+        shield_protection?: boolean;
+        hide_referrer?: boolean;
+        channel?: string;
         og_title?: string;
         og_description?: string;
         og_image_url?: string;
@@ -154,15 +163,15 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           expires_at: row.expires_at || undefined,
           max_clicks: row.max_clicks ? Number(row.max_clicks) : undefined,
           password_hash: row.password_hash ? 'PROTECTED' : undefined,
-          redirect_type: ((row as Record<string, unknown>).redirect_type as 'direct' | 'frame' | 'splash') || 'direct',
-          http_status_code: ((row as Record<string, unknown>).http_status_code as 301 | 302 | 307 | 308) || 301,
-          notes: (row as Record<string, unknown>).notes as string | undefined,
-          shield_protection: Boolean((row as Record<string, unknown>).shield_protection),
-          hide_referrer: Boolean((row as Record<string, unknown>).hide_referrer),
-          channel: (row as Record<string, unknown>).channel as string | undefined,
-          og_title: (row as Record<string, unknown>).og_title as string | undefined,
-          og_description: (row as Record<string, unknown>).og_description as string | undefined,
-          og_image_url: (row as Record<string, unknown>).og_image_url as string | undefined
+          redirect_type: (row.redirect_type as 'direct' | 'frame' | 'splash') || 'direct',
+          http_status_code: (row.http_status_code as 301 | 302 | 307 | 308) || 301,
+          notes: row.notes,
+          shield_protection: Boolean(row.shield_protection),
+          hide_referrer: Boolean(row.hide_referrer),
+          channel: row.channel,
+          og_title: row.og_title,
+          og_description: row.og_description,
+          og_image_url: row.og_image_url
         };
 
         // Server-Side Location & Device Smart Routing evaluation
@@ -214,12 +223,65 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
             </div>
           );
         }
+
+        // Check if link requires intermediate UI (Suspicious, Password, Splash, Masked Frame)
+        const isSuspicious = Boolean(row.is_flagged || row.status === 'flagged' || Number(row.risk_score || 0) >= 60);
+        const isSplashOrFrame = initialLink.redirect_type === 'splash' || initialLink.redirect_type === 'frame';
+
+        // DIRECT REDIRECT: If the link is clean and safe, redirect user immediately without showing redirect page!
+        if (initialTarget && !isSuspicious && !isPasswordLocked && !isSplashOrFrame) {
+          // Asynchronously log the click in the background
+          try {
+            const ip = headersList.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+            const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
+            const geo = extractGeoFromHeaders(name => headersList.get(name));
+            const referrer = headersList.get('referer') || 'Direct / None';
+            const ua = userAgent || '';
+            const isMobile = /mobile|iphone|ipod|android/i.test(ua);
+            const isIOS = /iphone|ipad|ipod/i.test(ua);
+            const isAndroid = /android/i.test(ua);
+            const device = isMobile ? 'mobile' : 'desktop';
+            const os = isIOS ? 'iOS' : (isAndroid ? 'Android' : (ua.includes('Windows') ? 'Windows' : (ua.includes('Mac') ? 'macOS' : 'Linux')));
+            const browser = ua.includes('Chrome') ? 'Chrome' : (ua.includes('Safari') ? 'Safari' : (ua.includes('Firefox') ? 'Firefox' : 'Edge'));
+
+            sql.query(
+              `INSERT INTO click_events (id, link_id, short_code, timestamp, ip_hash, country, country_code, city, region, device, os, browser, referrer, is_bot, is_unique)
+               VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+              [
+                `clk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                row.id,
+                row.short_code,
+                ipHash,
+                geo.countryName || 'United States',
+                geo.countryCode || 'US',
+                geo.city || 'San Francisco',
+                geo.regionName || geo.regionCode || 'California',
+                device,
+                os,
+                browser,
+                referrer.slice(0, 255),
+                false,
+                true
+              ]
+            ).catch(() => {});
+
+            sql.query(`UPDATE links SET clicks_count = clicks_count + 1 WHERE id = $1`, [row.id]).catch(() => {});
+          } catch {}
+
+          shouldDirectRedirectUrl = initialTarget;
+        }
       }
     } catch (err) {
       console.warn('Server redirect lookup error:', err);
     }
   }
 
+  // Direct immediate server redirect when link is safe
+  if (shouldDirectRedirectUrl) {
+    redirect(shouldDirectRedirectUrl);
+  }
+
+  // Intermediate screen only rendered when link is suspicious, password-protected, or splash/frame!
   return (
     <Suspense fallback={null}>
       <RedirectClient 

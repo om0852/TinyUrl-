@@ -515,15 +515,21 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
       return;
     }
 
-    // Standard direct redirect for plain web links (no app deep link detected)
-    if (!appDeepLink || activeNativeUri === resolvedTarget) {
-      setTimeout(() => {
-        window.location.replace(resolvedTarget);
-      }, 30);
+    // Direct redirect immediately for safe links (only show intermediate screen when suspicious, password-protected, or splash/frame)
+    const isSuspicious = Boolean(link?.is_flagged || (link?.status as string) === 'flagged' || (link?.risk_score && link.risk_score >= 60));
+    const isSplash = link?.redirect_type === 'splash';
+
+    if (!isSuspicious && !isSplash) {
+      if (appDeepLink && activeNativeUri && activeNativeUri !== resolvedTarget) {
+        try {
+          window.location.href = activeNativeUri;
+        } catch {}
+      }
+      window.location.replace(resolvedTarget);
       return;
     }
 
-    // Direct OpenInApp / System Native App Deep Link execution
+    // If splash interstitial is enabled, show the countdown
     let hasNavigatedAway = false;
     const markNavigated = () => {
       hasNavigatedAway = true;
@@ -535,26 +541,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
     window.addEventListener('pagehide', markNavigated);
     window.addEventListener('blur', markNavigated);
 
-    // 1. Attempt programmatic launch immediately
-    try {
-      window.location.href = activeNativeUri;
-    } catch (e) {
-      console.warn('Initial app launch attempt:', e);
-    }
-
-    // 2. Attach user gesture handlers for mobile: any screen interaction triggers intent
-    const handleGestureLaunch = () => {
-      if (!hasNavigatedAway) {
-        try {
-          window.location.href = activeNativeUri;
-        } catch {}
-      }
-    };
-    window.addEventListener('touchstart', handleGestureLaunch, { once: true, passive: true });
-    window.addEventListener('click', handleGestureLaunch, { once: true, passive: true });
-
-    // 3. Graceful countdown timer (4s): gives the native app sufficient time to launch
-    let remaining = 4;
+    let remaining = 3;
     const interval = setInterval(() => {
       if (hasNavigatedAway || document.hidden) {
         clearInterval(interval);
@@ -574,8 +561,6 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
       clearInterval(interval);
       window.removeEventListener('pagehide', markNavigated);
       window.removeEventListener('blur', markNavigated);
-      window.removeEventListener('touchstart', handleGestureLaunch);
-      window.removeEventListener('click', handleGestureLaunch);
     };
   }, [mounted, link, resolvedTarget, appDeepLink, activeNativeUri, clientContext, code, logClick]);
 
