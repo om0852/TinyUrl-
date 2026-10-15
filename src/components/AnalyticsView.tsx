@@ -1774,7 +1774,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                                 <span className="font-semibold text-xs text-on-surface">
                                   {detectedPlat.name}
                                 </span>
-                                <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-medium capitalize ${detectedPlat.badgeBg} ${detectedPlat.badgeText}`}>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-wide capitalize shadow-xs ${detectedPlat.badgeBg} ${detectedPlat.badgeText}`}>
                                   {detectedPlat.category}
                                 </span>
                               </div>
@@ -1935,7 +1935,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-on-surface truncate">{item.info.name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-medium capitalize ${item.info.badgeBg} ${item.info.badgeText}`}>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold tracking-wide capitalize shadow-xs ${item.info.badgeBg} ${item.info.badgeText}`}>
                             {item.info.category}
                           </span>
                         </div>

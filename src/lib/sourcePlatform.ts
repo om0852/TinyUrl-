@@ -24,8 +24,8 @@ export function detectSourcePlatform(rawReferrer?: string, destinationUrl?: stri
       name: 'Direct / Browser',
       category: 'direct',
       color: 'bg-slate-700',
-      badgeBg: 'bg-slate-100 dark:bg-slate-800',
-      badgeText: 'text-slate-800 dark:text-slate-200',
+      badgeBg: 'bg-slate-800 text-white dark:bg-slate-800',
+      badgeText: 'text-white font-semibold',
       iconType: 'globe'
     };
   }
@@ -45,8 +45,8 @@ export function detectSourcePlatform(rawReferrer?: string, destinationUrl?: stri
       name: 'Dashboard / Internal',
       category: 'direct',
       color: 'bg-indigo-600',
-      badgeBg: 'bg-indigo-50 dark:bg-indigo-950/30',
-      badgeText: 'text-indigo-700 dark:text-indigo-300',
+      badgeBg: 'bg-indigo-600 text-white dark:bg-indigo-600',
+      badgeText: 'text-white font-semibold',
       iconType: 'globe'
     };
   }
