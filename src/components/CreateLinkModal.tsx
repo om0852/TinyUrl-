@@ -17,20 +17,17 @@ import {
   CheckCircle2, 
   Smartphone, 
   Sliders, 
-  Globe, 
   ChevronDown, 
   ChevronUp, 
-  Layers, 
-  FileText, 
   EyeOff, 
-  FolderKanban, 
   Share2, 
-  Code2, 
   QrCode, 
   Sparkles, 
   Image as ImageIcon,
   MessageCircle,
-  CheckCheck
+  CheckCheck,
+  Clipboard,
+  Zap
 } from 'lucide-react';
 import { InfoTooltip } from '@/components/ui';
 import { detectAppDeepLink } from '@/lib/deepLink';
@@ -57,7 +54,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
   const primaryDomain = domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified) || domains[0];
 
-  // Mode: Single vs Multiple
+  // Mode: Single vs Batch (multiple)
   const [mode, setMode] = useState<'single' | 'multiple'>('single');
 
   // Input URLs
@@ -67,26 +64,26 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [customSlug, setCustomSlug] = useState('');
   const [selectedDomainId, setSelectedDomainId] = useState(primaryDomain?.id || 'dom_platform');
 
+  // Tab State: Channel & Routing, Social Preview (OG), Shield & Access
+  const [activeTab, setActiveTab] = useState<'targeting' | 'social' | 'security'>('targeting');
+
   // Open Graph & Social Media Preview Meta Tags
   const [ogTitle, setOgTitle] = useState('');
   const [ogDescription, setOgDescription] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
-  const [socialPreviewTab, setSocialPreviewTab] = useState<'whatsapp' | 'twitter'>('whatsapp');
-  const [showMetaSettings, setShowMetaSettings] = useState(false);
+  const [socialPreviewTab, setSocialPreviewTab] = useState<'whatsapp' | 'twitter'>('twitter');
 
-  // Two-column options matching screenshot
+  // Core redirection & protection settings
   const [redirectType, setRedirectType] = useState<'direct' | 'frame' | 'splash'>('direct');
-  const [password, setPassword] = useState('');
   const [headerCode, setHeaderCode] = useState<301 | 302 | 307 | 308>(301);
+  const [password, setPassword] = useState('');
   const [linkNotes, setLinkNotes] = useState('');
-  const [shieldProtection, setShieldProtection] = useState(false);
+  const [shieldProtection, setShieldProtection] = useState(true);
   const [hideReferrer, setHideReferrer] = useState(false);
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
-  const [channel, setChannel] = useState('None');
+  const [channel, setChannel] = useState('Direct');
 
-  // Advanced accordion state
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
+  // Advanced accordion state inside Channel & Routing
   const [showUtmBuilder, setShowUtmBuilder] = useState(false);
   const [enableUtm, setEnableUtm] = useState(false);
   const [utmSource, setUtmSource] = useState('');
@@ -94,6 +91,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [utmCampaign, setUtmCampaign] = useState('');
   const [utmTerm, setUtmTerm] = useState('');
   const [utmContent, setUtmContent] = useState('');
+  const [showAdvancedRouting, setShowAdvancedRouting] = useState(false);
   const [neverExpires, setNeverExpires] = useState(true);
   const [expiresAt, setExpiresAt] = useState('');
   const [maxClicks, setMaxClicks] = useState('');
@@ -106,6 +104,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [generatedResults, setGeneratedResults] = useState<GeneratedItem[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedPreview, setCopiedPreview] = useState(false);
   const [activeQrModalUrl, setActiveQrModalUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -119,6 +118,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   } | null>(null);
 
   const selectedDomainObj = domains.find(d => d.id === selectedDomainId) || primaryDomain;
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
+  const resolvedHost = selectedDomainObj?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
 
   const probeSelectedDomain = useCallback(async (hostname: string) => {
     if (!hostname) return;
@@ -165,22 +166,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   // Auto-detect placement tag and suggest meta title
   useEffect(() => {
     if (!destinationUrl.trim()) return;
-    const url = destinationUrl.toLowerCase();
-    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
-      setPlacementTag('drive');
-    } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
-      setPlacementTag('youtube');
-    } else if (url.includes('instagram.com')) {
-      setPlacementTag('instagram');
-    } else if (url.includes('tiktok.com')) {
-      setPlacementTag('tiktok');
-    } else if (url.includes('x.com') || url.includes('twitter.com')) {
-      setPlacementTag('x');
-    } else if (url.includes('spotify.com')) {
-      setPlacementTag('podcast');
-    } else {
-      setPlacementTag('direct');
-    }
 
     // Auto-suggest meta title if empty
     if (!ogTitle && !title) {
@@ -220,18 +205,23 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     if (preset === 'youtube') {
       setUtmSource('youtube');
       setUtmMedium('description');
+      setChannel('YouTube');
     } else if (preset === 'instagram') {
       setUtmSource('instagram');
       setUtmMedium('bio');
+      setChannel('Instagram');
     } else if (preset === 'tiktok') {
       setUtmSource('tiktok');
       setUtmMedium('profile');
+      setChannel('TikTok');
     } else if (preset === 'twitter') {
       setUtmSource('twitter');
       setUtmMedium('post');
+      setChannel('X (Twitter)');
     } else if (preset === 'whatsapp') {
       setUtmSource('whatsapp');
       setUtmMedium('chat');
+      setChannel('WhatsApp');
     } else if (preset === 'email') {
       setUtmSource('newsletter');
       setUtmMedium('email');
@@ -264,25 +254,56 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     }
   }, [password, redirectType]);
 
-  if (!isOpen) return null;
+  // Characters saved calculation
+  const livePreviewSlug = customSlug.trim() || 'launch-om';
+  const liveShortUrl = `https://${resolvedHost}/${livePreviewSlug}`;
 
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
-  const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
-  const currentDomain = domains.find(d => d.id === selectedDomainId) || primaryDomain;
-  const resolvedHost = currentDomain?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
+  const charsSaved = useMemo(() => {
+    if (!destinationUrl.trim()) return 42;
+    const destLen = destinationUrl.trim().length;
+    const shortLen = liveShortUrl.length;
+    return Math.max(0, destLen - shortLen);
+  }, [destinationUrl, liveShortUrl]);
 
   // Slug availability check
   const isSlugTaken = customSlug.trim() 
     ? links.some(l => (l.custom_slug || l.short_code).toLowerCase() === customSlug.trim().toLowerCase())
     : false;
 
-  const handleRandomizeSlug = () => {
-    const code = generateBase62Code(6);
-    setCustomSlug(code);
+  const generateMagicSlug = () => {
+    const words = ['quick', 'promo', 'drop', 'creator', 'deal', 'vip', 'boost', 'launch'];
+    const randWord = words[Math.floor(Math.random() * words.length)];
+    const randNum = Math.floor(100 + Math.random() * 900);
+    const newSlug = `${randWord}-${randNum}`;
+    setCustomSlug(newSlug);
+  };
+
+  const handlePaste = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          if (mode === 'single') {
+            setDestinationUrl(text.trim());
+          } else {
+            setMultipleUrls(prev => prev ? `${prev}\n${text.trim()}` : text.trim());
+          }
+        }
+      }
+    } catch {
+      const el = document.getElementById('destinationUrl');
+      if (el) el.focus();
+    }
+  };
+
+  const handleCopyPreview = () => {
+    navigator.clipboard?.writeText(liveShortUrl).catch(() => {});
+    setCopiedPreview(true);
+    setTimeout(() => setCopiedPreview(false), 2000);
   };
 
   const handleCopySingle = (shortUrl: string, id: string) => {
-    navigator.clipboard.writeText(shortUrl).catch(() => {});
+    navigator.clipboard?.writeText(shortUrl).catch(() => {});
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -290,7 +311,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const handleCopyAll = () => {
     if (generatedResults.length === 0) return;
     const allLinks = generatedResults.map(r => r.shortUrl).join('\n');
-    navigator.clipboard.writeText(allLinks).catch(() => {});
+    navigator.clipboard?.writeText(allLinks).catch(() => {});
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 2000);
   };
@@ -303,13 +324,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setOgTitle('');
     setOgDescription('');
     setOgImageUrl('');
-    setShowMetaSettings(false);
     setPassword('');
     setLinkNotes('');
-    setShieldProtection(false);
+    setShieldProtection(true);
     setHideReferrer(false);
     setSelectedCampaignId('');
-    setChannel('None');
+    setChannel('Direct');
     setIosTargetUrl('');
     setAndroidTargetUrl('');
     setUtmSource('');
@@ -319,7 +339,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setUtmContent('');
     setEnableUtm(false);
     setShowUtmBuilder(false);
-    setShowAdvanced(false);
+    setShowAdvancedRouting(false);
     setErrorMsg('');
     setGeneratedResults([]);
     setActiveQrModalUrl(null);
@@ -330,6 +350,29 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     const fallbackTitle = ogTitle.trim() || title.trim() || 'Exclusive Short Link';
     const dynamicOgUrl = `/api/og?title=${encodeURIComponent(fallbackTitle)}&slug=${encodeURIComponent(resolvedHost)}&theme=purple`;
     setOgImageUrl(dynamicOgUrl);
+  };
+
+  // Map redirection engine value to backend settings
+  const currentRedirectionValue = redirectType === 'frame' 
+    ? 'mask' 
+    : redirectType === 'splash' 
+      ? 'splash' 
+      : headerCode === 302 
+        ? '302' 
+        : '301';
+
+  const handleRedirectionEngineChange = (val: string) => {
+    if (val === '301') {
+      setRedirectType('direct');
+      setHeaderCode(301);
+    } else if (val === '302') {
+      setRedirectType('direct');
+      setHeaderCode(302);
+    } else if (val === 'mask') {
+      setRedirectType('frame');
+    } else if (val === 'splash') {
+      setRedirectType('splash');
+    }
   };
 
   const executeShorten = async (e?: React.FormEvent) => {
@@ -381,8 +424,10 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       setIsSubmitting(true);
       try {
         const app = detectAppDeepLink(dest);
-        const tags = [placementTag === 'drive' ? 'google_drive' : placementTag];
-        if (channel && channel !== 'None') tags.push(channel.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+        const tags = [];
+        if (channel && channel !== 'Direct' && channel !== 'None') {
+          tags.push(channel.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+        }
 
         const res = createShortLink({
           destination_url: dest,
@@ -471,7 +516,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
         }
 
         const tags = ['batch'];
-        if (channel && channel !== 'None') tags.push(channel.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+        if (channel && channel !== 'Direct' && channel !== 'None') {
+          tags.push(channel.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+        }
 
         const res = createShortLink({
           destination_url: rawUrl,
@@ -531,43 +578,79 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     }
   };
 
-  // Preview computed values
-  const previewOgTitle = ogTitle.trim() || title.trim() || 'Exclusive Short Link Preview';
-  const previewOgDescription = ogDescription.trim() || 'Click to view the verified destination link. Fast, safe and secure routing.';
-  const previewOgImage = ogImageUrl.trim() || '';
+  const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
+  const previewOgTitle = ogTitle.trim() || title.trim() || 'Launch Om — Creator Growth Kit & Masterclass';
+  const previewOgDescription = ogDescription.trim() || 'Get 20+ automated conversion workflows, custom link analytics, and dedicated support.';
+  const previewOgImage = ogImageUrl.trim() || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80';
+
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs transition-all duration-200 animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-on-surface/40 backdrop-blur-sm transition-all duration-200 animate-fade-in">
       <div 
         className="fixed inset-0"
         onClick={resetAndClose}
       />
 
-      <div className="relative bg-surface-container-lowest rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-outline-variant/40 z-10 text-on-surface">
+      <div className="relative w-full max-w-2xl mx-auto bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden transition-all duration-200 border border-outline-variant/30 flex flex-col max-h-[92vh] z-10 text-on-surface">
         
+        {/* Top Decorative Subtle Accent */}
+        <div className="h-1 w-full bg-gradient-to-r from-primary to-secondary shrink-0" />
+
         {/* Modal Header */}
-        <div className="px-5 py-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0 bg-surface-container-low/50">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shadow-xs shrink-0 font-bold">
-              <Link2 className="w-4 h-4" />
+        <div className="p-4 sm:p-5 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface-container-lowest shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shadow-sm shrink-0">
+              <Link2 className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-on-surface">Create Short Links</h2>
-              <p className="text-[11px] text-on-surface-variant">Single &amp; multi-link batch generator with social meta previews</p>
+            <div className="min-w-0">
+              <h2 className="font-bold text-lg text-on-surface tracking-tight">Create Short Link</h2>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={resetAndClose}
-            className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
+
+          {/* Mode Switcher Pill & Close */}
+          <div className="flex items-center justify-between md:justify-end gap-2">
+            <div className="inline-flex bg-surface-container rounded-lg text-xs font-semibold py-0.5 px-1" id="modeSelector">
+              <button
+                type="button"
+                onClick={() => setMode('single')}
+                className={`px-3 py-1 rounded-md transition-all duration-150 cursor-pointer ${
+                  mode === 'single'
+                    ? 'bg-primary text-white shadow-sm font-bold'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                Single Link
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('multiple')}
+                className={`px-3 py-1 rounded-md transition-all duration-150 cursor-pointer ${
+                  mode === 'multiple'
+                    ? 'bg-primary text-white shadow-sm font-bold'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                Batch Mode
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={resetAndClose}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+              title="Close Dialog"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="px-5 py-4 flex flex-col gap-4 text-xs overflow-y-auto custom-scrollbar flex-1">
-          
+        <form 
+          onSubmit={(e) => { e.preventDefault(); executeShorten(); }}
+          className="p-4 sm:p-5 pt-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1"
+        >
           {errorMsg && (
             <div className="p-2.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2 font-medium text-xs border border-red-200 dark:border-red-900/40">
               <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
@@ -575,169 +658,753 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
           )}
 
-          {/* ─── Top Section: URL Input / Textarea & Shorten Action ─── */}
-          <div className="flex flex-col gap-2">
-            
-            {/* Top Bar with Mode Switcher Pills */}
-            <div className="flex items-center justify-between">
-              <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                <span>{mode === 'single' ? 'Destination URL' : 'Multiple Destination URLs (One per line)'}</span>
-                <span className="text-primary font-bold">*</span>
-              </label>
-
-              {/* Single / Multiple Pills matching theme */}
-              <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant/40">
-                <button
-                  type="button"
-                  onClick={() => setMode('single')}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    mode === 'single'
-                      ? 'bg-primary text-white shadow-xs font-bold'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <Link2 className="w-3.5 h-3.5" />
-                  <span>Single</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('multiple')}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    mode === 'multiple'
-                      ? 'bg-primary text-white shadow-xs font-bold'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Multiple</span>
-                </button>
+          {/* HERO ZONE (80/20 Rule: Main Destination URL & Slug) */}
+          <div className="bg-surface-container-low p-4 rounded-xl space-y-3.5 border border-outline-variant/30">
+            {/* Destination URL */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="font-semibold text-xs text-on-surface flex items-center gap-1.5" htmlFor="destinationUrl">
+                  <span>Destination URL</span>
+                  <span className="text-red-500 font-bold">*</span>
+                  <InfoTooltip text="The target web address where visitors will be routed" />
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-on-surface-variant flex items-center gap-1" id="urlValidationStatus">
+                    <ShieldCheck className="w-3.5 h-3.5 text-secondary" />
+                    <span>SSL Autodetect</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handlePaste}
+                    className="text-xs font-semibold text-primary hover:text-secondary flex items-center gap-0.5 cursor-pointer"
+                  >
+                    <Clipboard className="w-3.5 h-3.5" />
+                    <span>Paste</span>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {/* Input Element based on Mode */}
-            {mode === 'single' ? (
-              <div className="flex flex-col gap-2">
+              {mode === 'single' ? (
                 <div className="relative flex items-center">
+                  <div className="absolute left-3.5 flex items-center pointer-events-none text-on-surface-variant">
+                    <Link2 className="w-4 h-4" />
+                  </div>
                   <input
+                    id="destinationUrl"
                     type="url"
+                    required
                     value={destinationUrl}
                     onChange={(e) => setDestinationUrl(e.target.value)}
-                    placeholder="https://example.com/your-destination-page"
-                    className="w-full pl-3 pr-28 py-2.5 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono"
+                    placeholder="https://yourbrand.com/products/summer-sale-2025"
+                    className="w-full pl-10 pr-24 py-2.5 bg-surface-container-lowest text-on-surface text-xs rounded-lg shadow-sm border border-outline-variant/40 placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono"
                   />
-                  <div className="absolute right-1.5 flex items-center gap-1">
+                  <div className="absolute right-2 flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={handleRandomizeSlug}
-                      title="Generate random custom slug"
-                      className="p-1.5 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
+                      onClick={generateMagicSlug}
+                      title="Auto-generate AI magic slug"
+                      className="px-2.5 py-1 bg-surface-container text-primary hover:bg-surface-container-high rounded-md text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                     >
-                      <Sparkles className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => executeShorten()}
-                      disabled={isSubmitting}
-                      className="px-4 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                      {isSubmitting ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <span>Shorten</span>
-                      )}
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Auto</span>
                     </button>
                   </div>
                 </div>
-
-                {detectedApp && (
-                  <div className="flex items-center gap-1.5 p-1.5 bg-surface-container-low rounded-lg text-[11px] font-medium text-on-surface">
-                    <Smartphone className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span>OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
-                  </div>
-                )}
-
-                {/* Single Mode: Title & Custom Slug Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-xs flex items-center">
-                      <span>Link Title (Optional)</span>
-                      <InfoTooltip text="Optional friendly name to identify this link across dashboards and reports." />
-                    </label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. My Website, Campaign Landing"
-                      className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-xs flex items-center justify-between">
-                      <span className="flex items-center">
-                        <span>Custom Slug (Optional)</span>
-                        <InfoTooltip text="Choose a custom back-half alias (e.g. /summer-sale) instead of a random string." />
-                      </span>
-                      {customSlug.trim() && (
-                        <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-red-500' : 'text-emerald-600'}`}>
-                          <CheckCircle2 className="w-3 h-3" />
-                          <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
-                        </span>
-                      )}
-                    </label>
-                    <div className="flex items-center rounded-xl bg-surface-container-lowest px-3 py-1.5 border border-outline-variant/60">
-                      <span className="text-on-surface-variant font-mono text-xs select-none pr-1">/{resolvedHost.split(':')[0]}/</span>
-                      <input
-                        type="text"
-                        value={customSlug}
-                        onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                        placeholder="custom-slug"
-                        className="flex-1 bg-transparent font-mono text-xs text-primary font-bold focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleRandomizeSlug}
-                        className="text-[11px] text-on-surface-variant hover:text-primary font-medium"
-                      >
-                        Random
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
+              ) : (
                 <div className="relative">
                   <textarea
+                    id="destinationUrl"
                     rows={4}
                     value={multipleUrls}
                     onChange={(e) => setMultipleUrls(e.target.value)}
-                    placeholder={`https://example.com/page-1\nhttps://example.com/page-2\nhttps://example.com/page-3`}
-                    className="w-full p-3 pb-12 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all font-mono custom-scrollbar resize-y"
+                    placeholder="Paste multiple links separated by comma or new lines..."
+                    className="w-full p-3 pb-8 bg-surface-container-lowest text-on-surface text-xs rounded-lg shadow-sm border border-outline-variant/40 placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono custom-scrollbar resize-y"
                   />
-                  <div className="absolute right-2.5 bottom-2.5 flex items-center gap-2">
-                    <span className="text-[11px] font-medium text-on-surface-variant bg-surface-container-low px-2 py-1 rounded-md">
+                  <div className="absolute right-2.5 bottom-2 flex items-center gap-2">
+                    <span className="text-[11px] font-medium text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md border border-outline-variant/30">
                       {parsedMultipleUrls.length} {parsedMultipleUrls.length === 1 ? 'URL' : 'URLs'} detected
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {detectedApp && (
+                <div className="flex items-center gap-1.5 p-1.5 mt-2 bg-surface-container-lowest rounded-lg text-xs font-medium text-on-surface border border-outline-variant/30">
+                  <Smartphone className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Domain + Slug Assembly */}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-on-surface mb-1.5">
+                <span>Shortened Routing Link</span>
+                <InfoTooltip text="Your custom branded domain and vanity slug" />
+              </label>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
+                {/* Domain Selector */}
+                <div className="md:col-span-5 relative">
+                  <select
+                    id="domainSelect"
+                    value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
+                    onChange={(e) => setSelectedDomainId(e.target.value)}
+                    className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-lowest text-on-surface font-mono text-xs rounded-lg shadow-sm border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer font-medium"
+                  >
+                    {domains.map(d => (
+                      <option key={d.id} value={d.id} disabled={!d.verified}>
+                        {d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Primary)' : (d.verified ? '' : '(Pending DNS)')}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* Custom Slug Input */}
+                <div className="md:col-span-7 relative flex items-center">
+                  <div className="absolute left-3 text-on-surface-variant font-mono text-xs pointer-events-none select-none">/</div>
+                  <input
+                    id="slugInput"
+                    type="text"
+                    value={customSlug}
+                    onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                    placeholder="custom-slug"
+                    className="w-full pl-6 pr-20 py-2 bg-surface-container-lowest text-primary font-mono text-xs font-bold rounded-lg shadow-sm border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  />
+                  <div className="absolute right-2.5 flex items-center gap-1">
+                    {customSlug.trim() ? (
+                      isSlugTaken ? (
+                        <>
+                          <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                          <span className="text-[11px] font-semibold text-red-500 font-mono">Taken</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="text-[11px] font-semibold text-emerald-600 font-mono">Valid</span>
+                        </>
+                      )
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={generateMagicSlug}
+                        className="text-[11px] text-on-surface-variant hover:text-primary font-medium"
+                      >
+                        Auto
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-bar: SSL edge note + chars saved */}
+              <div className="flex items-center justify-between mt-1.5 text-xs text-on-surface-variant">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span>SSL verified on custom edge network</span>
+                </span>
+                <span className="font-mono text-xs text-on-surface-variant font-medium">
+                  {charsSaved} chars saved
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Progressive Disclosure: Segmented Settings Tabs */}
+          <div className="space-y-3">
+            {/* Tab Navigation Bar */}
+            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30">
+              <button
+                type="button"
+                onClick={() => setActiveTab('targeting')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'targeting'
+                    ? 'bg-surface-container-lowest text-primary shadow-sm font-bold'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Channel &amp; Routing</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('social')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'social'
+                    ? 'bg-surface-container-lowest text-primary shadow-sm font-bold'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Social Preview (OG)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('security')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  activeTab === 'security'
+                    ? 'bg-surface-container-lowest text-primary shadow-sm font-bold'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Shield &amp; Access</span>
+              </button>
+            </div>
+
+            {/* TAB CONTENT 1: Channel & Routing */}
+            {activeTab === 'targeting' && (
+              <div className="space-y-3.5 animate-fade-in">
+                {/* Target Platform Channel Pills */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-semibold text-xs text-on-surface flex items-center gap-1.5">
+                      <span>Target Platform Channel</span>
+                      <InfoTooltip text="Select target channel for deep-linking and attribution" />
+                    </label>
+                    <span className="text-xs text-on-surface-variant">App deep-links enabled</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: 'General', val: 'Direct' },
+                      { label: 'YouTube', val: 'YouTube' },
+                      { label: 'TikTok', val: 'TikTok' },
+                      { label: 'Instagram', val: 'Instagram' },
+                      { label: 'X (Twitter)', val: 'X (Twitter)' },
+                      { label: 'WhatsApp', val: 'WhatsApp' },
+                      { label: 'Affiliate / Bio', val: 'Affiliate' },
+                    ].map((item) => (
+                      <button
+                        key={item.val}
+                        type="button"
+                        onClick={() => setChannel(item.val)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          channel === item.val
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2-Column: Campaign Tag & Redirection Engine */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {/* Campaign Tag */}
+                  <div>
+                    <label className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1" htmlFor="campaignSelect">
+                      <span>Campaign Tag</span>
+                      <InfoTooltip text="Assign this link to an active marketing campaign or sponsor" />
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="campaignSelect"
+                        value={selectedCampaignId}
+                        onChange={(e) => {
+                          const newId = e.target.value;
+                          setSelectedCampaignId(newId);
+                          const camp = campaigns.find(c => c.id === newId);
+                          if (camp) {
+                            setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+                          }
+                        }}
+                        className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-low text-on-surface text-xs rounded-lg shadow-sm border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer font-medium"
+                      >
+                        <option value="">None (General Link)</option>
+                        {campaigns.map(c => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.description || 'Campaign'})</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
+                        <ChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Redirection Engine */}
+                  <div>
+                    <label className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1" htmlFor="redirectType">
+                      <span>Redirection Engine</span>
+                      <InfoTooltip text="Choose HTTP redirect status code: 301 permanent or 302/307 temporary" />
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="redirectType"
+                        value={currentRedirectionValue}
+                        onChange={(e) => handleRedirectionEngineChange(e.target.value)}
+                        className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-low text-on-surface text-xs rounded-lg shadow-sm border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer font-medium"
+                      >
+                        <option value="301" disabled={!!password.trim()}>
+                          Direct (301 Permanent - Fast) {password.trim() ? '(Disabled with Password)' : ''}
+                        </option>
+                        <option value="302" disabled={!!password.trim()}>
+                          Temporary (302 Found) {password.trim() ? '(Disabled with Password)' : ''}
+                        </option>
+                        <option value="mask">iFrame / Masked Title</option>
+                        <option value="splash">Branded Splash Screen (2s)</option>
+                      </select>
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
+                        <ChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {password.trim() && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                    🔒 Direct redirection is disabled because a password is set. Choose Splash or Frame to prompt visitors for the password.
+                  </p>
+                )}
+                {redirectType === 'frame' && (destinationUrl.toLowerCase().includes('google.com') || destinationUrl.toLowerCase().includes('youtube.com') || destinationUrl.toLowerCase().includes('twitter.com') || destinationUrl.toLowerCase().includes('x.com')) && (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                    ⚠️ Note: Google Docs/Drive and social sites block iframe embedding (X-Frame-Options: SAMEORIGIN) and will show a 403 error. Splash or Direct redirect is recommended for this domain.
+                  </p>
+                )}
+
+                {/* Internal Search Note */}
+                <div>
+                  <label className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1" htmlFor="linkNotes">
+                    <span>Internal Reference Note</span>
+                    <InfoTooltip text="Internal private note for your team or organization" />
+                  </label>
+                  <input
+                    id="linkNotes"
+                    type="text"
+                    value={linkNotes}
+                    onChange={(e) => setLinkNotes(e.target.value)}
+                    placeholder="e.g. Bio link placement for Sarah's vlog series"
+                    className="w-full px-3 py-2 bg-surface-container-low text-on-surface text-xs rounded-lg shadow-sm border border-outline-variant/30 placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+
+                {/* Campaign UTM Builder Accordion */}
+                <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sliders className="w-3.5 h-3.5 text-primary" />
+                      <span className="font-semibold text-xs text-on-surface">Campaign UTM Builder &amp; Tracking</span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => executeShorten()}
-                      disabled={isSubmitting || parsedMultipleUrls.length === 0}
-                      className="px-4 py-1.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      onClick={() => {
+                        setShowUtmBuilder(!showUtmBuilder);
+                        if (!enableUtm && !showUtmBuilder) setEnableUtm(true);
+                      }}
+                      className="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                     >
-                      {isSubmitting ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <span>Shorten ({parsedMultipleUrls.length || 0})</span>
-                      )}
+                      <span>{showUtmBuilder ? 'Hide UTMs' : 'Customize UTMs'}</span>
+                      {showUtmBuilder ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+
+                  {/* Quick Presets */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-outline-variant/20">
+                    <span className="text-[11px] text-on-surface-variant font-medium mr-1">Presets:</span>
+                    {[
+                      { key: 'youtube', label: 'YouTube' },
+                      { key: 'instagram', label: 'Instagram' },
+                      { key: 'tiktok', label: 'TikTok' },
+                      { key: 'twitter', label: 'X / Twitter' },
+                      { key: 'whatsapp', label: 'WhatsApp' },
+                      { key: 'email', label: 'Email' },
+                      { key: 'google_ads', label: 'Google Ads' }
+                    ].map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => applyUtmPreset(p.key as any)}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-all cursor-pointer ${
+                          utmSource === (p.key === 'twitter' ? 'twitter' : p.key === 'email' ? 'newsletter' : p.key === 'google_ads' ? 'google' : p.key)
+                            ? 'bg-primary text-white border-primary shadow-xs'
+                            : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                    {(utmSource || utmMedium || utmCampaign) && (
+                      <button
+                        type="button"
+                        onClick={() => applyUtmPreset('clear')}
+                        className="text-[10px] text-red-500 font-semibold hover:underline ml-auto cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+
+                  {showUtmBuilder && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 animate-fade-in">
+                      <div>
+                        <label className="text-[11px] font-semibold text-on-surface block mb-0.5">UTM Source</label>
+                        <input
+                          type="text"
+                          value={utmSource}
+                          onChange={(e) => { setUtmSource(e.target.value); setEnableUtm(true); }}
+                          placeholder="google, youtube"
+                          className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-on-surface block mb-0.5">UTM Medium</label>
+                        <input
+                          type="text"
+                          value={utmMedium}
+                          onChange={(e) => { setUtmMedium(e.target.value); setEnableUtm(true); }}
+                          placeholder="cpc, bio, social"
+                          className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-semibold text-on-surface block mb-0.5">UTM Campaign</label>
+                        <input
+                          type="text"
+                          value={utmCampaign}
+                          onChange={(e) => { setUtmCampaign(e.target.value); setEnableUtm(true); }}
+                          placeholder="summer_sale"
+                          className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                      {previewWithUtm && (
+                        <div className="col-span-1 sm:col-span-3 p-1.5 bg-surface-container-lowest rounded-md border border-outline-variant/30 text-[10px] font-mono text-primary truncate">
+                          Final Target: {previewWithUtm}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Smart Device Targeting & Limits Accordion */}
+                <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="w-3.5 h-3.5 text-primary" />
+                      <span className="font-semibold text-xs text-on-surface">Smart Device Targeting &amp; Limits</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedRouting(!showAdvancedRouting)}
+                      className="text-xs text-primary font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{showAdvancedRouting ? 'Hide Details' : 'Configure'}</span>
+                      {showAdvancedRouting ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
+                  {showAdvancedRouting && (
+                    <div className="space-y-2.5 pt-1 border-t border-outline-variant/20 animate-fade-in">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] font-semibold text-on-surface block mb-0.5">🍎 iOS Destination</label>
+                          <input
+                            type="url"
+                            value={iosTargetUrl}
+                            onChange={(e) => setIosTargetUrl(e.target.value)}
+                            placeholder="https://apps.apple.com/app/..."
+                            className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-semibold text-on-surface block mb-0.5">🤖 Android Destination</label>
+                          <input
+                            type="url"
+                            value={androidTargetUrl}
+                            onChange={(e) => setAndroidTargetUrl(e.target.value)}
+                            placeholder="https://play.google.com/store/apps/..."
+                            className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border border-outline-variant/40 font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-t border-outline-variant/20">
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={neverExpires}
+                              onChange={(e) => setNeverExpires(e.target.checked)}
+                              className="rounded accent-primary w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <span className="text-xs font-semibold text-on-surface">Never expires</span>
+                          </label>
+                          {!neverExpires && (
+                            <input
+                              type="datetime-local"
+                              value={expiresAt}
+                              onChange={(e) => setExpiresAt(e.target.value)}
+                              className="px-2 py-1 bg-surface-container-lowest rounded-md border border-outline-variant/40 text-xs text-on-surface"
+                            />
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-on-surface-variant">Max Clicks Limit:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={maxClicks}
+                            onChange={(e) => setMaxClicks(e.target.value)}
+                            placeholder="Unlimited"
+                            className="w-24 px-2 py-1 bg-surface-container-lowest rounded-md border border-outline-variant/40 text-xs text-on-surface font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 2: Social Media Meta (OG) Preview */}
+            {activeTab === 'social' && (
+              <div className="space-y-3.5 animate-fade-in">
+                <div className="bg-surface-container-low p-4 rounded-xl space-y-3.5 border border-outline-variant/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-sm text-on-surface">Interactive Open Graph Preview</h3>
+                      <p className="text-xs text-on-surface-variant">Customize how your link looks when shared on Twitter, WhatsApp, iMessage, and Slack.</p>
+                    </div>
+                    <span className="text-xs font-semibold text-primary bg-surface-container px-2.5 py-1 rounded-md">Live Sync</span>
+                  </div>
+
+                  {/* Platform Switcher */}
+                  <div className="flex items-center justify-center gap-1 bg-surface-container-lowest p-1 rounded-lg border border-outline-variant/30 max-w-xs mx-auto">
+                    <button
+                      type="button"
+                      onClick={() => setSocialPreviewTab('twitter')}
+                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                        socialPreviewTab === 'twitter'
+                          ? 'bg-primary text-white shadow-xs font-bold'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      X / Facebook / Slack
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSocialPreviewTab('whatsapp')}
+                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                        socialPreviewTab === 'whatsapp'
+                          ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                          : 'text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      <MessageCircle className="w-3 h-3" />
+                      <span>WhatsApp</span>
+                    </button>
+                  </div>
+
+                  {/* Social Card Mockup */}
+                  {socialPreviewTab === 'twitter' ? (
+                    <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm max-w-lg mx-auto border border-outline-variant/40">
+                      <div className="relative h-36 bg-surface-container-high overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          className="w-full h-full object-cover" 
+                          src={previewOgImage} 
+                          alt="Open Graph preview" 
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        <button 
+                          type="button"
+                          onClick={handleGenerateDynamicOg}
+                          className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/70 hover:bg-black text-white rounded text-xs font-medium flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-primary-fixed" />
+                          <span>Auto-Generate Card</span>
+                        </button>
+                      </div>
+                      <div className="p-3 bg-surface-container-lowest space-y-1">
+                        <span className="font-mono text-xs text-on-surface-variant uppercase tracking-wider block font-medium">
+                          {resolvedHost}
+                        </span>
+                        <input
+                          type="text"
+                          value={ogTitle || title}
+                          onChange={(e) => setOgTitle(e.target.value)}
+                          placeholder="Card Title"
+                          className="font-bold text-sm text-on-surface w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                        />
+                        <input
+                          type="text"
+                          value={ogDescription}
+                          onChange={(e) => setOgDescription(e.target.value)}
+                          placeholder="Card Description"
+                          className="text-xs text-on-surface-variant w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    /* WhatsApp Chat Bubble Mockup */
+                    <div className="bg-[#e7fedb] dark:bg-[#005c4b]/30 p-3 rounded-xl border border-emerald-500/20 shadow-xs flex flex-col gap-1.5 text-left max-w-lg mx-auto">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={previewOgImage}
+                        alt="Thumbnail preview"
+                        className="w-full h-28 object-cover rounded-lg border border-emerald-500/20"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={ogTitle || title}
+                        onChange={(e) => setOgTitle(e.target.value)}
+                        placeholder="Card Title"
+                        className="font-bold text-xs text-gray-900 dark:text-gray-100 w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                      />
+                      <input
+                        type="text"
+                        value={ogDescription}
+                        onChange={(e) => setOgDescription(e.target.value)}
+                        placeholder="Card Description"
+                        className="text-[11px] text-gray-600 dark:text-gray-300 w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-emerald-800 dark:text-emerald-400 font-mono pt-1 border-t border-emerald-600/15">
+                        <span className="truncate">https://{resolvedHost}/{livePreviewSlug}</span>
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Direct Image URL input */}
+                  <div>
+                    <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5 mb-1">
+                      <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                      <span>Custom Image URL (og:image)</span>
+                      <InfoTooltip text="Card thumbnail image shown on messaging apps and feeds (1200x630px recommended)" />
+                    </label>
+                    <input
+                      type="url"
+                      value={ogImageUrl}
+                      onChange={(e) => setOgImageUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/... or /api/og?title=..."
+                      className="w-full px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs rounded-lg border border-outline-variant/40 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1.5 text-xs text-on-surface-variant">
+                    <InfoTooltip text="Edge CDN caches generated cards for fast delivery" />
+                    <span>Rich previews are cached at edge nodes for 48 hours</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT 3: Shield & Security */}
+            {activeTab === 'security' && (
+              <div className="space-y-3 animate-fade-in">
+                {/* Bot Shield Crawlers Toggle */}
+                <div className="p-4 bg-surface-container-low rounded-xl flex items-center justify-between gap-4 border border-outline-variant/30">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0 mt-0.5">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-on-surface">Bot Shield &amp; Cloaking</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400">
+                          Recommended
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant">Bypass malicious scrapers, verify real humans, and safeguard your ad accounts.</p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={shieldProtection}
+                      onChange={(e) => setShieldProtection(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
+                  </label>
+                </div>
+
+                {/* Hide Referrer */}
+                <div className="p-4 bg-surface-container-low rounded-xl flex items-center justify-between gap-4 border border-outline-variant/30">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-surface-container text-secondary flex items-center justify-center shrink-0 mt-0.5">
+                      <EyeOff className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-sm text-on-surface">Anonymize Referrer Header</span>
+                      <p className="text-xs text-on-surface-variant">Strips outbound document.referrer metadata to keep origin sources confidential.</p>
+                    </div>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={hideReferrer}
+                      onChange={(e) => setHideReferrer(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
+                  </label>
+                </div>
+
+                {/* Password Protection Field */}
+                <div className="p-4 bg-surface-container-low rounded-xl space-y-2 border border-outline-variant/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-on-surface-variant" />
+                      <label className="font-bold text-sm text-on-surface flex items-center gap-1.5" htmlFor="linkPassword">
+                        <span>Passcode Gate (Optional)</span>
+                        <InfoTooltip text="Require visitors to enter a secret password before redirecting" />
+                      </label>
+                    </div>
+                    <span className="text-xs text-on-surface-variant">Only visitors with this password can redirect</span>
+                  </div>
+                  <input
+                    id="linkPassword"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Leave blank for public access"
+                    className="w-full px-3 py-2 bg-surface-container-lowest text-on-surface text-xs rounded-lg shadow-sm border border-outline-variant/40 placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  {password.trim() && (
+                    <p className="text-[11px] text-primary font-medium">
+                      🔒 Passcode gate enabled: Visitors will be prompted to enter this passcode on a secure interstitial gate before redirecting.
+                    </p>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* ─── Instant Generated Short URLs Results Section ─── */}
+          {/* Live Generated Preview Bar */}
+          <div className="p-2.5 px-3.5 bg-surface-container rounded-lg flex items-center justify-between text-xs font-medium border border-outline-variant/20">
+            <div className="flex items-center gap-2 min-w-0">
+              <Link2 className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-on-surface-variant shrink-0">Ready URL:</span>
+              <span className="font-mono text-primary font-bold truncate" id="liveUrlPreview">
+                {liveShortUrl}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyPreview}
+              className="text-xs text-on-surface-variant hover:text-on-surface flex items-center gap-1 shrink-0 font-medium cursor-pointer transition-colors"
+            >
+              {copiedPreview ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedPreview ? 'Copied!' : 'Copy'}</span>
+            </button>
+          </div>
+
+          {/* Instant Generated Short URLs Results Section */}
           {generatedResults.length > 0 && (
             <div className="flex flex-col gap-2 p-3.5 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/30">
               <div className="flex items-center justify-between">
@@ -774,11 +1441,11 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               </div>
 
               {/* Scrollable Generated Links List */}
-              <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                 {generatedResults.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:border-primary/40 transition-colors"
+                    className="p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:border-primary/40 transition-colors"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -791,7 +1458,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                         {item.ogTitle && (
                           <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
                             <Share2 className="w-2.5 h-2.5" />
-                            <span>OG Meta Active</span>
+                            <span>OG Meta</span>
                           </span>
                         )}
                       </div>
@@ -855,14 +1522,14 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="text-[11px] font-bold text-on-surface block">Dynamic QR Code</span>
-                    <span className="text-[10px] text-on-surface-variant font-mono truncate block">{activeQrModalUrl}</span>
+                    <span className="text-xs font-bold text-on-surface block">Dynamic QR Code</span>
+                    <span className="text-[11px] text-on-surface-variant font-mono truncate block">{activeQrModalUrl}</span>
                     <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">High precision print-ready scan matrix</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setActiveQrModalUrl(null)}
-                    className="p-1 text-on-surface-variant hover:text-on-surface rounded-md"
+                    className="p-1 text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -871,869 +1538,44 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
             </div>
           )}
 
-          {/* ─── Campaign UTM Builder & Tracking Section (Elevated to Form) ─── */}
-          <div className="p-3.5 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 rounded-2xl border border-primary/20 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
-                  <Sliders className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-on-surface">Campaign UTM Builder &amp; Tracking</span>
-                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.2 rounded-full">100% Free Included</span>
-                  </div>
-                  <span className="text-[10px] text-on-surface-variant">
-                    Add Google Analytics &amp; campaign tracking parameters to measure ROI across channels
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUtmBuilder(!showUtmBuilder);
-                  if (!enableUtm && !showUtmBuilder) {
-                    setEnableUtm(true);
-                  }
-                }}
-                className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1 shrink-0"
-              >
-                <span>{showUtmBuilder ? 'Hide UTMs' : 'Customize UTMs'}</span>
-                {showUtmBuilder ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
+          {/* Modal Footer */}
+          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest border-t border-outline-variant/30 shrink-0">
+            {/* Status Indicator */}
+            <div className="flex items-center gap-1.5 text-on-surface-variant">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="text-xs">All workspace links auto-synced with analytics</span>
             </div>
 
-            {/* Quick Platform Presets Chips */}
-            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-primary/15">
-              <span className="text-[10px] text-on-surface-variant font-semibold mr-1">Quick Presets:</span>
+            {/* Action Controls */}
+            <div className="flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => applyUtmPreset('youtube')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'youtube'
-                    ? 'bg-red-500 text-white border-red-500 shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
+                onClick={resetAndClose}
+                className="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >
-                YouTube
+                Cancel
               </button>
               <button
                 type="button"
-                onClick={() => applyUtmPreset('instagram')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'instagram'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-transparent shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
+                onClick={() => executeShorten()}
+                disabled={isSubmitting}
+                className="px-5 py-2 bg-primary hover:bg-secondary active:scale-[0.99] text-white rounded-lg text-xs font-semibold shadow-md flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
               >
-                Instagram
-              </button>
-              <button
-                type="button"
-                onClick={() => applyUtmPreset('tiktok')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'tiktok'
-                    ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-neutral-900 shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
-              >
-                TikTok
-              </button>
-              <button
-                type="button"
-                onClick={() => applyUtmPreset('twitter')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'twitter'
-                    ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
-              >
-                X / Twitter
-              </button>
-              <button
-                type="button"
-                onClick={() => applyUtmPreset('whatsapp')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'whatsapp'
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
-              >
-                WhatsApp
-              </button>
-              <button
-                type="button"
-                onClick={() => applyUtmPreset('email')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'newsletter'
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
-              >
-                Email
-              </button>
-              <button
-                type="button"
-                onClick={() => applyUtmPreset('google_ads')}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
-                  utmSource === 'google'
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
-                }`}
-              >
-                Google Ads
-              </button>
-              {(utmSource || utmMedium || utmCampaign || utmTerm || utmContent) && (
-                <button
-                  type="button"
-                  onClick={() => applyUtmPreset('clear')}
-                  className="px-2 py-0.5 rounded-md text-[10px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer ml-auto"
-                >
-                  Clear UTMs
-                </button>
-              )}
-            </div>
-
-            {/* UTM Input Fields */}
-            {showUtmBuilder && (
-              <div className="flex flex-col gap-2.5 pt-1 animate-fade-in">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px] flex items-center">
-                      <span>UTM Source <span className="text-primary">*</span></span>
-                      <InfoTooltip text="Identify the advertiser, platform, or publication sending traffic (e.g. google, youtube, newsletter)." />
-                    </label>
-                    <input
-                      type="text"
-                      value={utmSource}
-                      onChange={(e) => {
-                        setUtmSource(e.target.value);
-                        setEnableUtm(true);
-                      }}
-                      placeholder="e.g. google, youtube, newsletter"
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px] flex items-center">
-                      <span>UTM Medium <span className="text-primary">*</span></span>
-                      <InfoTooltip text="Identify the marketing medium (e.g. cpc, bio, social, email, banner)." />
-                    </label>
-                    <input
-                      type="text"
-                      value={utmMedium}
-                      onChange={(e) => {
-                        setUtmMedium(e.target.value);
-                        setEnableUtm(true);
-                      }}
-                      placeholder="e.g. cpc, bio, social, email"
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px] flex items-center">
-                      <span>UTM Campaign</span>
-                      <InfoTooltip text="Identify the specific promotion or product campaign (e.g. summer_sale, promo_launch)." />
-                    </label>
-                    <input
-                      type="text"
-                      value={utmCampaign}
-                      onChange={(e) => {
-                        setUtmCampaign(e.target.value);
-                        setEnableUtm(true);
-                      }}
-                      placeholder="e.g. summer_sale, promo_launch"
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px] flex items-center">
-                      <span>UTM Term (Keywords)</span>
-                      <InfoTooltip text="Note paid search terms and keywords (e.g. running+shoes, software+deal)." />
-                    </label>
-                    <input
-                      type="text"
-                      value={utmTerm}
-                      onChange={(e) => {
-                        setUtmTerm(e.target.value);
-                        setEnableUtm(true);
-                      }}
-                      placeholder="e.g. running+shoes, software+deal"
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px] flex items-center">
-                      <span>UTM Content (Ad / Placement)</span>
-                      <InfoTooltip text="Differentiate ads or buttons pointing to the same URL (e.g. header_banner, cta_blue)." />
-                    </label>
-                    <input
-                      type="text"
-                      value={utmContent}
-                      onChange={(e) => {
-                        setUtmContent(e.target.value);
-                        setEnableUtm(true);
-                      }}
-                      placeholder="e.g. header_banner, cta_blue"
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-                </div>
-
-                {/* Live Preview of Destination URL with UTM Parameters */}
-                {previewWithUtm && (
-                  <div className="p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col gap-0.5">
-                    <span className="text-[10px] text-on-surface-variant font-semibold">Final Destination URL with UTM Tracking:</span>
-                    <span className="font-mono text-[11px] text-primary break-all select-all">{previewWithUtm}</span>
-                  </div>
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    <span>{mode === 'single' ? 'Shorten Link' : `Shorten Links (${parsedMultipleUrls.length || 0})`}</span>
+                  </>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* ─── Social Media Meta Tags & WhatsApp/Twitter Live Preview (Requested Feature) ─── */}
-          <div className="p-3.5 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-2xl border border-primary/20 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
-                  <Share2 className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <span className="font-bold text-xs text-on-surface block">Social Media Meta Tags &amp; WhatsApp Card</span>
-                  <span className="text-[10px] text-on-surface-variant">Customize title, description, and thumbnail shown on WhatsApp, Twitter/X, Facebook &amp; LinkedIn</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowMetaSettings(!showMetaSettings)}
-                className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1"
-              >
-                <span>{showMetaSettings ? 'Hide Settings' : 'Customize Preview'}</span>
-                {showMetaSettings ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               </button>
             </div>
-
-            {/* Meta Tags Inputs (Toggled or inline) */}
-            {showMetaSettings && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-primary/15 animate-fade-in">
-                
-                {/* Left: Input Fields */}
-                <div className="flex flex-col gap-2.5">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-on-surface text-[11px] flex items-center">
-                        <span>Meta Title (og:title)</span>
-                        <InfoTooltip text="Custom title displayed when this short link is shared on WhatsApp, Twitter, Facebook, or iMessage." />
-                      </label>
-                      {title && !ogTitle && (
-                        <button
-                          type="button"
-                          onClick={() => setOgTitle(title)}
-                          className="text-[10px] text-primary hover:underline font-semibold"
-                        >
-                          Use Link Title
-                        </button>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      value={ogTitle}
-                      onChange={(e) => setOgTitle(e.target.value)}
-                      placeholder="e.g. 50% Off Launch Deal - Exclusive Access"
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-on-surface text-[11px] flex items-center">
-                      <span>Meta Description (og:description)</span>
-                      <InfoTooltip text="Summary text snippet shown under the preview card on messaging apps." />
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={ogDescription}
-                      onChange={(e) => setOgDescription(e.target.value)}
-                      placeholder="e.g. Discover our top collection and redeem special discounts today."
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <label className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                        <ImageIcon className="w-3 h-3 text-primary" />
-                        <span>Thumbnail Image URL (og:image)</span>
-                        <InfoTooltip text="Card thumbnail image shown on WhatsApp and social feeds (1200x630px recommended)." />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handleGenerateDynamicOg}
-                        className="text-[10px] text-primary hover:underline font-semibold flex items-center gap-0.5"
-                      >
-                        <Sparkles className="w-3 h-3" />
-                        <span>Auto-Generate Card</span>
-                      </button>
-                    </div>
-                    <input
-                      type="url"
-                      value={ogImageUrl}
-                      onChange={(e) => setOgImageUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/... or /api/og?title=..."
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono text-[11px]"
-                    />
-                  </div>
-                </div>
-
-                {/* Right: Live Interactive Card Preview */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-on-surface">Live Social Share Preview</span>
-                    <div className="flex items-center gap-1 bg-surface-container-low p-0.5 rounded-lg border border-outline-variant/30">
-                      <button
-                        type="button"
-                        onClick={() => setSocialPreviewTab('whatsapp')}
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-all ${
-                          socialPreviewTab === 'whatsapp'
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
-                      >
-                        <MessageCircle className="w-2.5 h-2.5" />
-                        <span>WhatsApp</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSocialPreviewTab('twitter')}
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 transition-all ${
-                          socialPreviewTab === 'twitter'
-                            ? 'bg-neutral-900 text-white dark:bg-white dark:text-black shadow-xs'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
-                      >
-                        <span>X / Facebook</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {socialPreviewTab === 'whatsapp' ? (
-                    /* WhatsApp Chat Bubble Mockup */
-                    <div className="bg-[#e7fedb] dark:bg-[#005c4b]/30 p-2.5 rounded-xl border border-emerald-500/20 shadow-xs flex flex-col gap-1.5 text-left">
-                      {previewOgImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={previewOgImage}
-                          alt="Thumbnail preview"
-                          className="w-full h-28 object-cover rounded-lg border border-emerald-500/20"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-20 bg-emerald-500/10 rounded-lg border border-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-300 gap-1.5 text-[11px] font-medium">
-                          <ImageIcon className="w-4 h-4 opacity-60" />
-                          <span>Thumbnail Image Preview</span>
-                        </div>
-                      )}
-                      <div>
-                        <span className="font-bold text-xs text-gray-900 dark:text-gray-100 line-clamp-1 block">
-                          {previewOgTitle}
-                        </span>
-                        <p className="text-[10px] text-gray-600 dark:text-gray-300 line-clamp-2 mt-0.5 leading-snug">
-                          {previewOgDescription}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-emerald-800 dark:text-emerald-400 font-mono pt-1 border-t border-emerald-600/15">
-                        <span className="truncate">https://{resolvedHost}/{customSlug || 'link'}</span>
-                        <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      </div>
-                    </div>
-                  ) : (
-                    /* Twitter / Facebook Large Summary Card Mockup */
-                    <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 overflow-hidden shadow-xs text-left">
-                      {previewOgImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={previewOgImage}
-                          alt="Twitter card thumbnail"
-                          className="w-full h-28 object-cover"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-24 bg-primary/10 flex items-center justify-center text-primary gap-1.5 text-[11px] font-medium">
-                          <ImageIcon className="w-4 h-4 opacity-60" />
-                          <span>Twitter 16:9 Large Image Preview</span>
-                        </div>
-                      )}
-                      <div className="p-2.5 flex flex-col gap-0.5">
-                        <span className="text-[10px] text-on-surface-variant font-mono uppercase">
-                          {resolvedHost}
-                        </span>
-                        <span className="font-bold text-xs text-on-surface line-clamp-1">
-                          {previewOgTitle}
-                        </span>
-                        <p className="text-[10px] text-on-surface-variant line-clamp-2 leading-snug">
-                          {previewOgDescription}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            )}
           </div>
-
-          {/* ─── Two-Column Options Grid (Matching Screenshot Layout) ─── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            
-            {/* ═══ Left Column ═══ */}
-            <div className="flex flex-col gap-3.5">
-              
-              {/* 1. Domain */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                    <Globe className="w-3 h-3" />
-                  </div>
-                  <span>Domain</span>
-                  <InfoTooltip text="Choose the base domain for your short link. Connect custom branded domains in workspace settings." />
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
-                    onChange={(e) => setSelectedDomainId(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium cursor-pointer appearance-none pr-8"
-                  >
-                    {domains.map(d => (
-                      <option key={d.id} value={d.id} disabled={!d.verified}>
-                        https://{d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Primary)' : (d.verified ? '' : '(Pending DNS)')}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
-                </div>
-
-                {/* Real-time Domain SSL Health Status (Single line, small text, without box) */}
-                {domainProbeStatus && (
-                  <div className="px-0.5 pt-0.5">
-                    {domainProbeStatus.checking ? (
-                      <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant font-medium animate-pulse truncate">
-                        <RefreshCw className="w-3 h-3 animate-spin text-primary shrink-0" />
-                        <span className="truncate">Verifying Edge SSL for {domainProbeStatus.domain}...</span>
-                      </div>
-                    ) : domainProbeStatus.ssl_active ? (
-                      <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span className="truncate">
-                          <strong>SSL Active:</strong> Links created under {domainProbeStatus.domain} will load securely.
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                          <span className="truncate">{domainProbeStatus.message || 'SSL certificate is still generating.'}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => probeSelectedDomain(selectedDomainObj?.hostname || '')}
-                          className="hover:underline font-bold text-amber-700 dark:text-amber-300 cursor-pointer shrink-0 transition"
-                        >
-                          Re-check
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* 2. Password Protection */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                    <Lock className="w-3 h-3" />
-                  </div>
-                  <span>Password Protection</span>
-                  <InfoTooltip text="By adding a password, you can restrict access. Visitors must enter the correct password to proceed." />
-                </label>
-                <input
-                  type="text"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Type your password here"
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-
-              {/* 3. Header Codes (100% Free Plan, No Pro Tag) */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center">
-                    <Code2 className="w-3 h-3" />
-                  </div>
-                  <span>Header Codes</span>
-                  <InfoTooltip text="You can define custom header codes here. 301 is permanent redirect (recommended for SEO); 302/307 are temporary redirects." />
-                </label>
-                <div className="relative">
-                  <select
-                    value={headerCode}
-                    onChange={(e) => setHeaderCode(Number(e.target.value) as 301 | 302 | 307 | 308)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono cursor-pointer appearance-none pr-8"
-                  >
-                    <option value={301}>301 - Permanent Redirect (Recommended for SEO)</option>
-                    <option value={302}>302 - Temporary Redirect (Found)</option>
-                    <option value={307}>307 - Temporary Redirect (Preserves Method)</option>
-                    <option value={308}>308 - Permanent Redirect (Preserves Method)</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* 4. Shield Protection (100% Free Plan, No Starter Tag) */}
-              <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
-                <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                    <ShieldCheck className="w-3 h-3" />
-                  </div>
-                  <span>Shield Protection</span>
-                  <InfoTooltip text="Block bots, crawlers and suspicious traffic. Filtered visitors get a neutral page instead of your destination, helping reduce shadowban risk on strict platforms." />
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={shieldProtection}
-                  onClick={() => setShieldProtection(!shieldProtection)}
-                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 shrink-0 ${
-                    shieldProtection ? 'bg-emerald-500' : 'bg-surface-container-highest border border-outline-variant/40'
-                  }`}
-                >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                      shieldProtection ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* 5. Campaign (100% Free Plan, No Pro Tag) */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                    <FolderKanban className="w-3 h-3" />
-                  </div>
-                  <span>Campaign</span>
-                  <InfoTooltip text="Assign this link to a marketing campaign for organized tracking and multi-link reporting." />
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedCampaignId}
-                    onChange={(e) => {
-                      const newId = e.target.value;
-                      setSelectedCampaignId(newId);
-                      const camp = campaigns.find(c => c.id === newId);
-                      if (camp) {
-                        setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer appearance-none pr-8"
-                  >
-                    <option value="">None</option>
-                    {campaigns.map(c => (
-                      <option key={c.id} value={c.id}>{c.name} ({c.description || 'Campaign'})</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
-                </div>
-              </div>
-
-            </div>
-
-            {/* ═══ Right Column ═══ */}
-            <div className="flex flex-col gap-3.5">
-              
-              {/* 1. Redirect Type */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-                    <Layers className="w-3 h-3" />
-                  </div>
-                  <span>Redirect Type</span>
-                  <InfoTooltip text="Direct sends visitors straight to target. Frame masks your short domain in the address bar. Splash presents a customizable interstitial page." />
-                </label>
-                <div className="relative">
-                  <select
-                    value={redirectType}
-                    onChange={(e) => setRedirectType(e.target.value as 'direct' | 'frame' | 'splash')}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium cursor-pointer appearance-none pr-8"
-                  >
-                    <option value="direct" disabled={!!password.trim()}>
-                      Direct {password.trim() ? '(Disabled: Password Protected)' : '(Standard Redirection)'}
-                    </option>
-                    <option value="frame">Frame / Masked (Keep domain in address bar)</option>
-                    <option value="splash">Splash / Interstitial Page</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
-                </div>
-                {password.trim() && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium pt-0.5">
-                    🔒 Direct redirection is disabled because a password is set. Choose Splash or Frame to prompt visitors for the password.
-                  </p>
-                )}
-                {redirectType === 'frame' && (destinationUrl.toLowerCase().includes('google.com') || destinationUrl.toLowerCase().includes('youtube.com') || destinationUrl.toLowerCase().includes('twitter.com') || destinationUrl.toLowerCase().includes('x.com')) && (
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium pt-0.5">
-                    ⚠️ Note: Google Docs/Drive and social sites block iframe embedding (X-Frame-Options: SAMEORIGIN) and will show a 403 error. Splash or Direct redirect is recommended for this domain.
-                  </p>
-                )}
-              </div>
-
-              {/* 2. Link Notes */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-slate-500/10 text-slate-500 flex items-center justify-center">
-                    <FileText className="w-3 h-3" />
-                  </div>
-                  <span>Link Notes</span>
-                  <InfoTooltip text="This can be used to identify and organize URLs on your account." />
-                </label>
-                <input
-                  type="text"
-                  value={linkNotes}
-                  onChange={(e) => setLinkNotes(e.target.value)}
-                  placeholder="Type your description here"
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-
-              {/* 3. Hide Referrer (100% Free Plan, No Starter Tag) */}
-              <div className="flex items-center justify-between gap-3 p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/30">
-                <div className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                    <EyeOff className="w-3 h-3" />
-                  </div>
-                  <span>Hide Referrer</span>
-                  <InfoTooltip text="Enable this option to hide the referrer header on destination redirect." />
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={hideReferrer}
-                  onClick={() => setHideReferrer(!hideReferrer)}
-                  className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-200 shrink-0 ${
-                    hideReferrer ? 'bg-primary' : 'bg-surface-container-highest border border-outline-variant/40'
-                  }`}
-                >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${
-                      hideReferrer ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* 4. Channel */}
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <Share2 className="w-3 h-3" />
-                  </div>
-                  <span>Channel</span>
-                  <InfoTooltip text="Assign this link to a channel (e.g. Social, Email, Paid Ads) for segmented analytics." />
-                </label>
-                <div className="relative">
-                  <select
-                    value={channel}
-                    onChange={(e) => setChannel(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer appearance-none pr-8"
-                  >
-                    <option value="None">None</option>
-                    <option value="Social Media">Social Media</option>
-                    <option value="Email">Email</option>
-                    <option value="YouTube">YouTube</option>
-                    <option value="TikTok">TikTok</option>
-                    <option value="Instagram">Instagram</option>
-                    <option value="X / Twitter">X / Twitter</option>
-                    <option value="WhatsApp">WhatsApp</option>
-                    <option value="Paid Ads">Paid Ads</option>
-                    <option value="Podcast">Podcast</option>
-                    <option value="Affiliate / Influencer">Affiliate / Influencer</option>
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* ─── Bottom Purple "Advanced" Button matching Theme ─── */}
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full py-2.5 rounded-xl text-white font-bold bg-primary hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer text-xs"
-          >
-            <span>Advanced Settings</span>
-            {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-
-          {/* ─── Advanced Accordion Content ─── */}
-          {showAdvanced && (
-            <div className="flex flex-col gap-3.5 p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 animate-fade-in">
-              
-              {/* Custom Back-half Slug (Single Mode) */}
-              {mode === 'single' && (
-                <div className="flex flex-col gap-1">
-                  <label className="font-bold text-on-surface text-xs flex items-center justify-between">
-                    <span>Custom Back-Half Slug</span>
-                    {customSlug.trim() && (
-                      <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-red-500' : 'text-emerald-600'}`}>
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
-                      </span>
-                    )}
-                  </label>
-                  <div className="flex items-center rounded-xl bg-surface-container-lowest px-3 py-1.5 border border-outline-variant/60">
-                    <span className="text-on-surface-variant font-mono text-xs select-none pr-1">/</span>
-                    <input
-                      type="text"
-                      value={customSlug}
-                      onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                      placeholder="custom-alias"
-                      className="flex-1 bg-transparent font-mono text-xs text-primary font-bold focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRandomizeSlug}
-                      className="text-[11px] text-on-surface-variant hover:text-primary font-medium"
-                    >
-                      Randomize
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Smart Device Routing */}
-              <div className="flex flex-col gap-2">
-                <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-primary" />
-                  <span>Smart Device Targeting (iOS &amp; Android Deep Routing)</span>
-                  <InfoTooltip text="Optionally route mobile visitors to app-specific destinations while web visitors use default." />
-                </span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <label className="font-semibold text-[11px] text-on-surface block mb-0.5">🍎 iOS Destination</label>
-                    <input
-                      type="url"
-                      value={iosTargetUrl}
-                      onChange={(e) => setIosTargetUrl(e.target.value)}
-                      placeholder="https://apps.apple.com/app/..."
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="font-semibold text-[11px] text-on-surface block mb-0.5">🤖 Android Destination</label>
-                    <input
-                      type="url"
-                      value={androidTargetUrl}
-                      onChange={(e) => setAndroidTargetUrl(e.target.value)}
-                      placeholder="https://play.google.com/store/apps/..."
-                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-[11px] text-on-surface focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-
-
-              {/* Expiration and Limits */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-t border-outline-variant/20">
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={neverExpires}
-                      onChange={(e) => setNeverExpires(e.target.checked)}
-                      className="rounded accent-primary w-3.5 h-3.5 cursor-pointer"
-                    />
-                    <span className="text-[11px] font-semibold text-on-surface flex items-center">
-                      <span>Never expires</span>
-                      <InfoTooltip text="Set an expiration date and time after which this short link will automatically stop redirecting." />
-                    </span>
-                  </label>
-                  {!neverExpires && (
-                    <input
-                      type="datetime-local"
-                      value={expiresAt}
-                      onChange={(e) => setExpiresAt(e.target.value)}
-                      className="px-2 py-1 bg-surface-container-lowest rounded-md border border-outline-variant/60 text-[11px] text-on-surface"
-                    />
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-on-surface-variant flex items-center">
-                    <span>Max Clicks Limit:</span>
-                    <InfoTooltip text="Automatically expire this link when the total clicks reach this threshold." />
-                  </span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={maxClicks}
-                    onChange={(e) => setMaxClicks(e.target.value)}
-                    placeholder="Unlimited"
-                    className="w-24 px-2 py-1 bg-surface-container-lowest rounded-md border border-outline-variant/60 text-[11px] text-on-surface font-mono"
-                  />
-                </div>
-              </div>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* Modal Actions Footer */}
-        <div className="px-5 py-3 flex items-center justify-between border-t border-outline-variant/30 shrink-0 bg-surface-container-low/40">
-          <span className="text-[11px] text-on-surface-variant">
-            {generatedResults.length > 0 
-              ? `${generatedResults.length} short URL(s) created in this session`
-              : 'All options free & unlocked on your workspace'}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={resetAndClose}
-              className="px-4 py-1.5 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
-            >
-              Done
-            </button>
-            <button
-              type="button"
-              onClick={() => executeShorten()}
-              disabled={isSubmitting}
-              className="px-5 py-1.5 rounded-xl text-xs bg-primary hover:bg-primary/90 text-white transition-all shadow-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            >
-              {isSubmitting ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Shorten URL</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        </form>
 
       </div>
     </div>
