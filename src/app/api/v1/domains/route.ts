@@ -4,7 +4,19 @@ import dns from 'dns';
 import { sql } from '@/lib/postgres';
 import { Domain } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
-import { addDomainToVercel, verifyDomainOnVercel, removeDomainFromVercel, isVercelConfigured } from '@/lib/vercel';
+import { 
+  addCustomHostnameToCloudflare, 
+  getCustomHostnameFromCloudflare, 
+  removeCustomHostnameFromCloudflare, 
+  isCloudflareConfigured,
+  getCloudflareCnameTarget 
+} from '@/lib/cloudflare';
+import { 
+  addDomainToVercel, 
+  verifyDomainOnVercel, 
+  removeDomainFromVercel, 
+  isVercelConfigured 
+} from '@/lib/vercel';
 
 interface RawDomainRow {
   id: string;
@@ -168,8 +180,31 @@ export async function POST(request: Request) {
 
     const saved = rows && rows.length > 0 ? rows[0] : null;
 
-    // Automatically register domain with Vercel Edge API if credentials configured
-    if (isVercelConfigured()) {
+    // Automatically register domain with Cloudflare for SaaS if configured
+    let cfOwnershipDetails: { type: string; name: string; value: string } | undefined;
+    if (isCloudflareConfigured()) {
+      try {
+        const cfRes = await addCustomHostnameToCloudflare(cleanHost);
+        if (cfRes.ownership_verification) {
+          cfOwnershipDetails = cfRes.ownership_verification;
+        }
+        if (cfRes.verified) {
+          await sql.query(
+            `UPDATE domains SET verified = true, ssl_status = 'active', routing_verified = true, ownership_verified = true WHERE id = $1`,
+            [cleanId]
+          ).catch(() => {});
+          if (saved) {
+            saved.verified = true;
+            saved.ssl_status = 'active';
+            saved.routing_verified = true;
+            saved.ownership_verified = true;
+          }
+        }
+      } catch (err) {
+        console.warn('Cloudflare domain auto-registration notice:', err);
+      }
+    } else if (isVercelConfigured()) {
+      // Legacy fallback: Vercel Project registration
       try {
         const vRes = await addDomainToVercel(cleanHost);
         if (vRes.verified) {
@@ -187,6 +222,8 @@ export async function POST(request: Request) {
         console.warn('Vercel domain auto-registration notice:', err);
       }
     }
+
+    const cnameTarget = getCloudflareCnameTarget();
 
     return NextResponse.json({
       success: true,
@@ -211,10 +248,16 @@ export async function POST(request: Request) {
           value: verifyToken,
           purpose: 'Authorizes and proves organization ownership of this domain'
         },
+        cloudflare_verification: cfOwnershipDetails ? {
+          type: cfOwnershipDetails.type.toUpperCase(),
+          host: cfOwnershipDetails.name,
+          value: cfOwnershipDetails.value,
+          purpose: 'Cloudflare Edge SSL Certificate pre-validation'
+        } : undefined,
         routing: {
           type: 'CNAME',
           host: cleanHost.includes('.') ? cleanHost.split('.')[0] : '@',
-          target: 'cname.tinyurl.dev',
+          target: cnameTarget,
           purpose: 'Routes shortlink traffic to high-performance Edge nodes'
         }
       }
@@ -314,7 +357,14 @@ export async function PATCH(request: Request) {
       resolvedIps = await dns.promises.resolve4(cleanHost);
     } catch {}
 
-    const EXPECTED_CNAMES = ['cname.tinyurl.dev', 'cname.vercel-dns.com', 'tiny-url-self.vercel.app', 'cname.tinyurl.com'];
+    const configuredTarget = getCloudflareCnameTarget();
+    const EXPECTED_CNAMES = [
+      configuredTarget,
+      'cname.tinyurl.dev', 
+      'cname.vercel-dns.com', 
+      'tiny-url-self.vercel.app', 
+      'cname.tinyurl.com'
+    ];
     const isCnameMatched = resolvedCnames.some(c => 
       EXPECTED_CNAMES.some(exp => c.toLowerCase().includes(exp.toLowerCase()))
     );
@@ -324,8 +374,20 @@ export async function PATCH(request: Request) {
       routingVerified = true;
     }
 
-    // Check with Vercel Edge verification if configured
-    if (isVercelConfigured()) {
+    // Check with Cloudflare Edge verification if configured
+    if (isCloudflareConfigured()) {
+      try {
+        const cfCheck = await getCustomHostnameFromCloudflare(cleanHost);
+        if (cfCheck.verified) {
+          routingVerified = true;
+          ownershipVerified = true;
+        } else {
+          if (cfCheck.status === 'active') routingVerified = true;
+          if (cfCheck.ssl_status === 'active') ownershipVerified = true;
+        }
+      } catch {}
+    } else if (isVercelConfigured()) {
+      // Legacy Vercel Edge verification check
       try {
         const vVerify = await verifyDomainOnVercel(cleanHost);
         if (vVerify.verified) {
@@ -334,6 +396,20 @@ export async function PATCH(request: Request) {
         }
       } catch {}
     }
+
+    // Live HTTPS TLS Handshake Probe (Active verification)
+    try {
+      const probeController = new AbortController();
+      const probeTimeout = setTimeout(() => probeController.abort(), 2500);
+      const probeRes = await fetch(`https://${cleanHost}`, {
+        method: 'HEAD',
+        signal: probeController.signal
+      }).catch(() => null);
+      clearTimeout(probeTimeout);
+      if (probeRes) {
+        routingVerified = true;
+      }
+    } catch {}
 
     // C. Developer Demo / Localhost / DuckDNS bypass
     const isDuckDns = cleanHost.endsWith('.duckdns.org') && (resolvedIps.length > 0 || isIpMatched);
@@ -356,11 +432,11 @@ export async function PATCH(request: Request) {
     if (isFullyVerified) {
       diagnosticMessage = `Domain verified successfully! Organization ownership confirmed (TXT) and Edge routing active (CNAME).`;
     } else if (!ownershipVerified && !routingVerified) {
-      diagnosticMessage = `DNS pending: Add TXT challenge "_tinyurl-challenge.${cleanHost}" and CNAME pointing to "cname.tinyurl.dev".`;
+      diagnosticMessage = `DNS pending: Add TXT challenge "_tinyurl-challenge.${cleanHost}" and CNAME pointing to "${configuredTarget}".`;
     } else if (!ownershipVerified) {
       diagnosticMessage = `Routing is connected, but domain ownership is unverified. Add TXT record "${tokenToMatch}" to authorize your organization.`;
     } else {
-      diagnosticMessage = `Ownership confirmed! Waiting for CNAME record pointing to "cname.tinyurl.dev" to route traffic.`;
+      diagnosticMessage = `Ownership confirmed! Waiting for CNAME record pointing to "${configuredTarget}" to route traffic.`;
     }
 
     // 3. Persist verification state
@@ -396,7 +472,7 @@ export async function PATCH(request: Request) {
         hostname: cleanHost,
         expected_txt: tokenToMatch,
         resolved_txt: flatTxt || 'No TXT record found',
-        expected_cname: 'cname.tinyurl.dev',
+        expected_cname: configuredTarget,
         resolved_cnames: resolvedCnames,
         resolved_ips: resolvedIps,
         is_demo_bypass: isLocalOrTest && !isCnameMatched
@@ -444,8 +520,13 @@ export async function DELETE(request: Request) {
       [cleanId]
     )) as unknown as RawDomainRow[];
 
-    if (rows && rows.length > 0 && rows[0].hostname && isVercelConfigured()) {
-      removeDomainFromVercel(rows[0].hostname).catch(() => {});
+    if (rows && rows.length > 0 && rows[0].hostname) {
+      const deletedHost = rows[0].hostname;
+      if (isCloudflareConfigured()) {
+        removeCustomHostnameFromCloudflare(deletedHost).catch(() => {});
+      } else if (isVercelConfigured()) {
+        removeDomainFromVercel(deletedHost).catch(() => {});
+      }
     }
 
     return NextResponse.json({

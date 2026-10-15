@@ -569,6 +569,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
               const isExpanded = expandedDnsDomainId === dom.id;
               const subdomainHost = dom.hostname.includes('.') ? dom.hostname.split('.')[0] : '@';
               const txtToken = dom.verify_token || `tinyurl-verification=tiny_${dom.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
+              const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
 
               return (
                 <div 
@@ -751,12 +752,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                             <div className="flex items-center justify-between gap-1">
                               <span className="text-outline shrink-0">Target:</span>
                               <span className="text-primary-container font-semibold bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                cname.tinyurl.dev
+                                {cnameTarget}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  navigator.clipboard.writeText('cname.tinyurl.dev');
+                                  navigator.clipboard.writeText(cnameTarget);
                                   setCopiedCnameDomainId(dom.id);
                                   setTimeout(() => setCopiedCnameDomainId(null), 2000);
                                 }}

@@ -20,8 +20,11 @@ const EXCLUDED_PREFIXES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const rawHost = request.headers.get('host') || request.nextUrl.host || '';
-  const currentHost = rawHost.split(':')[0].toLowerCase();
+  const rawHost = request.headers.get('x-forwarded-host') ||
+                  request.headers.get('x-original-host') ||
+                  request.headers.get('host') ||
+                  request.nextUrl.host || '';
+  const currentHost = rawHost.split(',')[0].trim().split(':')[0].toLowerCase();
   const isPlatformDomain = currentHost === 'localhost' || 
                            currentHost === '127.0.0.1' || 
                            currentHost.includes('vercel.app') || 
