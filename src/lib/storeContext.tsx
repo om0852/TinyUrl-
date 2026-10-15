@@ -1361,7 +1361,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       utm_content: data.utm_content,
       deep_link: deepLinkConfig,
       rules: data.rules || [],
-      redirect_type: data.redirect_type || 'direct',
+      redirect_type: data.password ? (data.redirect_type === 'direct' ? 'splash' : (data.redirect_type || 'splash')) : (data.redirect_type || 'direct'),
       http_status_code: data.http_status_code || 301,
       notes: data.notes,
       shield_protection: data.shield_protection || false,

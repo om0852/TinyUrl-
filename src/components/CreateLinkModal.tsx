@@ -256,6 +256,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     });
   }, [destinationUrl, enableUtm, utmSource, utmMedium, utmCampaign, utmTerm, utmContent]);
 
+  // Auto-switch away from 'direct' if password is set
+  useEffect(() => {
+    if (password.trim() && redirectType === 'direct') {
+      setRedirectType('splash');
+    }
+  }, [password, redirectType]);
+
   if (!isOpen) return null;
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
@@ -1458,12 +1465,24 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     onChange={(e) => setRedirectType(e.target.value as 'direct' | 'frame' | 'splash')}
                     className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium cursor-pointer appearance-none pr-8"
                   >
-                    <option value="direct">Direct (Standard Redirection)</option>
+                    <option value="direct" disabled={!!password.trim()}>
+                      Direct {password.trim() ? '(Disabled: Password Protected)' : '(Standard Redirection)'}
+                    </option>
                     <option value="frame">Frame / Masked (Keep domain in address bar)</option>
                     <option value="splash">Splash / Interstitial Page</option>
                   </select>
                   <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant absolute right-3 top-3 pointer-events-none" />
                 </div>
+                {password.trim() && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium pt-0.5">
+                    🔒 Direct redirection is disabled because a password is set. Choose Splash or Frame to prompt visitors for the password.
+                  </p>
+                )}
+                {redirectType === 'frame' && (destinationUrl.toLowerCase().includes('google.com') || destinationUrl.toLowerCase().includes('youtube.com') || destinationUrl.toLowerCase().includes('twitter.com') || destinationUrl.toLowerCase().includes('x.com')) && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium pt-0.5">
+                    ⚠️ Note: Google Docs/Drive and social sites block iframe embedding (X-Frame-Options: SAMEORIGIN) and will show a 403 error. Splash or Direct redirect is recommended for this domain.
+                  </p>
+                )}
               </div>
 
               {/* 2. Link Notes */}

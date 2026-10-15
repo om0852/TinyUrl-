@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const rows = await sql.query(
       `SELECT id, short_code, destination_url, password_hash, rules, status, expires_at, max_clicks, clicks_count 
        FROM links 
-       WHERE LOWER(short_code) = $1 LIMIT 1`,
+       WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
       [cleanCode]
     );
 

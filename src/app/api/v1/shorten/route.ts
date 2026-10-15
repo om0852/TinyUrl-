@@ -160,7 +160,7 @@ export async function POST(request: Request) {
       password_hash: password ? String(password) : undefined,
       expires_at: expires_at ? new Date(expires_at).toISOString() : undefined,
       max_clicks: max_clicks ? Number(max_clicks) : undefined,
-      redirect_type: redirect_type || 'direct',
+      redirect_type: password ? (redirect_type === 'direct' ? 'splash' : (redirect_type || 'splash')) : (redirect_type || 'direct'),
       http_status_code: http_status_code || 301,
       notes: notes && typeof notes === 'string' ? notes.slice(0, 1000) : undefined,
       shield_protection: Boolean(shield_protection),
@@ -175,25 +175,33 @@ export async function POST(request: Request) {
     // Save to PostgreSQL with collision guard
     try {
       const insertResult = await sql.query(
-        `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, redirect_type, http_status_code, notes, shield_protection, hide_referrer, channel, og_title, og_description, og_image_url, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
-         ON CONFLICT (short_code) DO UPDATE SET
-           destination_url = EXCLUDED.destination_url,
-           custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
-           domain_id = COALESCE(EXCLUDED.domain_id, links.domain_id),
-           rules = COALESCE(EXCLUDED.rules, links.rules),
-           title = COALESCE(EXCLUDED.title, links.title),
-           campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id),
-           redirect_type = COALESCE(EXCLUDED.redirect_type, links.redirect_type),
-           http_status_code = COALESCE(EXCLUDED.http_status_code, links.http_status_code),
-           notes = COALESCE(EXCLUDED.notes, links.notes),
-           shield_protection = COALESCE(EXCLUDED.shield_protection, links.shield_protection),
-           hide_referrer = COALESCE(EXCLUDED.hide_referrer, links.hide_referrer),
-           channel = COALESCE(EXCLUDED.channel, links.channel),
-           og_title = COALESCE(EXCLUDED.og_title, links.og_title),
-           og_description = COALESCE(EXCLUDED.og_description, links.og_description),
-           og_image_url = COALESCE(EXCLUDED.og_image_url, links.og_image_url)
-         RETURNING id`,
+        `INSERT INTO links (
+          id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, 
+          tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, redirect_type, http_status_code, 
+          notes, shield_protection, hide_referrer, channel, og_title, og_description, og_image_url, 
+          password_hash, expires_at, max_clicks, created_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+        ON CONFLICT (short_code) DO UPDATE SET
+          destination_url = EXCLUDED.destination_url,
+          custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
+          domain_id = COALESCE(EXCLUDED.domain_id, links.domain_id),
+          rules = COALESCE(EXCLUDED.rules, links.rules),
+          title = COALESCE(EXCLUDED.title, links.title),
+          campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id),
+          redirect_type = COALESCE(EXCLUDED.redirect_type, links.redirect_type),
+          http_status_code = COALESCE(EXCLUDED.http_status_code, links.http_status_code),
+          notes = COALESCE(EXCLUDED.notes, links.notes),
+          shield_protection = COALESCE(EXCLUDED.shield_protection, links.shield_protection),
+          hide_referrer = COALESCE(EXCLUDED.hide_referrer, links.hide_referrer),
+          channel = COALESCE(EXCLUDED.channel, links.channel),
+          og_title = COALESCE(EXCLUDED.og_title, links.og_title),
+          og_description = COALESCE(EXCLUDED.og_description, links.og_description),
+          og_image_url = COALESCE(EXCLUDED.og_image_url, links.og_image_url),
+          password_hash = COALESCE(EXCLUDED.password_hash, links.password_hash),
+          expires_at = COALESCE(EXCLUDED.expires_at, links.expires_at),
+          max_clicks = COALESCE(EXCLUDED.max_clicks, links.max_clicks)
+        RETURNING id`,
         [
           newLink.id,
           newLink.workspace_id,
@@ -219,6 +227,9 @@ export async function POST(request: Request) {
           newLink.og_title || null,
           newLink.og_description || null,
           newLink.og_image_url || null,
+          newLink.password_hash || null,
+          newLink.expires_at || null,
+          newLink.max_clicks || null,
           newLink.created_at
         ]
       );

@@ -692,13 +692,49 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
   // 2.5 Frame / Masked Redirect State
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   if (isFrameMode && resolvedTarget) {
+    const isFramingBlocked = /google\.com|youtube\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|github\.com/i.test(resolvedTarget);
+
     return (
-      <div className="w-full h-screen fixed inset-0 z-50 bg-white">
-        <iframe
-          src={resolvedTarget}
-          title={link?.title || 'Masked Destination'}
-          className="w-full h-full border-none"
-        />
+      <div className="w-full h-screen fixed inset-0 z-50 flex flex-col bg-slate-900">
+        {/* Sticky Header Bar for Masked Frame */}
+        <div className="h-11 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 px-4 flex items-center justify-between z-10 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate">
+              {link?.title || 'Masked Destination'}
+            </span>
+            <span className="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full font-mono shrink-0">
+              /{code} (Masked Frame)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isFramingBlocked && (
+              <span className="hidden sm:inline-block text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                ⚠️ Site blocks iframe embedding (403):
+              </span>
+            )}
+            <a
+              href={resolvedTarget}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Open in Full Tab</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
+          </div>
+        </div>
+
+        {/* Masked iFrame */}
+        <div className="flex-1 w-full relative bg-white">
+          <iframe
+            src={resolvedTarget}
+            title={link?.title || 'Masked Destination'}
+            className="w-full h-full border-none"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals"
+          />
+        </div>
       </div>
     );
   }
