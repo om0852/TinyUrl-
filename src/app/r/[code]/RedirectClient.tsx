@@ -586,6 +586,18 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
         setIsUnlocked(true);
         setPasswordError(false);
         const unlockedUrl = data.destination_url;
+        setResolvedTarget(unlockedUrl);
+
+        // Frame + Password combination: render the masked frame upon unlock
+        if (link?.redirect_type === 'frame') {
+          setIsFrameMode(true);
+          return;
+        }
+
+        // Splash + Password combination: render the interstitial countdown upon unlock
+        if (link?.redirect_type === 'splash') {
+          return;
+        }
 
         if (appDeepLink && (clientContext.isMobile || clientContext.inAppInfo.isInApp)) {
           tryRedirectToApp();

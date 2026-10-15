@@ -30,6 +30,8 @@ export async function POST(request: Request) {
       utm_source, 
       utm_medium, 
       utm_campaign, 
+      utm_term,
+      utm_content,
       rules,
       password,
       expires_at,
@@ -76,6 +78,17 @@ export async function POST(request: Request) {
     });
     if (!authResult.success) {
       return authResult.response;
+    }
+
+    const cleanPassword = password && typeof password === 'string' && password.trim().length > 0 
+      ? password.trim() 
+      : undefined;
+
+    if (cleanPassword && cleanPassword.length > 255) {
+      return NextResponse.json<ShortenApiResponse>({ 
+        success: false, 
+        error: 'Password cannot exceed 255 characters.' 
+      }, { status: 400 });
     }
 
     // 3. Custom Slug Validation & Collision Protection
@@ -132,7 +145,9 @@ export async function POST(request: Request) {
     const finalUrl = buildUtmUrl(normUrl, {
       source: utm_source,
       medium: utm_medium,
-      campaign: utm_campaign
+      campaign: utm_campaign,
+      term: utm_term,
+      content: utm_content
     });
 
     const uniqueId = body.id || `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
@@ -156,11 +171,16 @@ export async function POST(request: Request) {
       risk_score: 0,
       created_by: 'Owner',
       clicks_count: 0,
+      utm_source: utm_source && typeof utm_source === 'string' ? utm_source.slice(0, 128) : undefined,
+      utm_medium: utm_medium && typeof utm_medium === 'string' ? utm_medium.slice(0, 128) : undefined,
+      utm_campaign: utm_campaign && typeof utm_campaign === 'string' ? utm_campaign.slice(0, 128) : undefined,
+      utm_term: utm_term && typeof utm_term === 'string' ? utm_term.slice(0, 128) : undefined,
+      utm_content: utm_content && typeof utm_content === 'string' ? utm_content.slice(0, 128) : undefined,
       rules: Array.isArray(rules) ? rules : [],
-      password_hash: password ? String(password) : undefined,
+      password_hash: cleanPassword,
       expires_at: expires_at ? new Date(expires_at).toISOString() : undefined,
       max_clicks: max_clicks ? Number(max_clicks) : undefined,
-      redirect_type: password ? (redirect_type === 'direct' ? 'splash' : (redirect_type || 'splash')) : (redirect_type || 'direct'),
+      redirect_type: cleanPassword ? (redirect_type === 'direct' ? 'splash' : (redirect_type || 'splash')) : (redirect_type || 'direct'),
       http_status_code: http_status_code || 301,
       notes: notes && typeof notes === 'string' ? notes.slice(0, 1000) : undefined,
       shield_protection: Boolean(shield_protection),
@@ -177,11 +197,11 @@ export async function POST(request: Request) {
       const insertResult = await sql.query(
         `INSERT INTO links (
           id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, 
-          tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, redirect_type, http_status_code, 
+          tags, rules, utm_source, utm_medium, utm_campaign, utm_term, utm_content, campaign_id, redirect_type, http_status_code, 
           notes, shield_protection, hide_referrer, channel, og_title, og_description, og_image_url, 
           password_hash, expires_at, max_clicks, created_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
         ON CONFLICT (short_code) DO UPDATE SET
           destination_url = EXCLUDED.destination_url,
           custom_slug = COALESCE(EXCLUDED.custom_slug, links.custom_slug),
@@ -200,7 +220,12 @@ export async function POST(request: Request) {
           og_image_url = COALESCE(EXCLUDED.og_image_url, links.og_image_url),
           password_hash = COALESCE(EXCLUDED.password_hash, links.password_hash),
           expires_at = COALESCE(EXCLUDED.expires_at, links.expires_at),
-          max_clicks = COALESCE(EXCLUDED.max_clicks, links.max_clicks)
+          max_clicks = COALESCE(EXCLUDED.max_clicks, links.max_clicks),
+          utm_source = COALESCE(EXCLUDED.utm_source, links.utm_source),
+          utm_medium = COALESCE(EXCLUDED.utm_medium, links.utm_medium),
+          utm_campaign = COALESCE(EXCLUDED.utm_campaign, links.utm_campaign),
+          utm_term = COALESCE(EXCLUDED.utm_term, links.utm_term),
+          utm_content = COALESCE(EXCLUDED.utm_content, links.utm_content)
         RETURNING id`,
         [
           newLink.id,
@@ -217,6 +242,8 @@ export async function POST(request: Request) {
           utm_source || null,
           utm_medium || null,
           utm_campaign || null,
+          utm_term || null,
+          utm_content || null,
           cleanCampaignId || null,
           newLink.redirect_type || 'direct',
           newLink.http_status_code || 301,
