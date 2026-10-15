@@ -524,7 +524,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshTeamMembers();
   }, [refreshIncomingInvitations, refreshTeamMembers]);
 
-  const [domains, setDomains] = useState<Domain[]>([]);
+  const [domains, setDomains] = useState<Domain[]>(initialDomains && initialDomains.length > 0 ? initialDomains : [
+    {
+      id: 'dom_default',
+      hostname: typeof window !== 'undefined' ? window.location.host : 'creataurus.work.gd',
+      verified: true,
+      ssl_status: 'active',
+      is_default: true,
+      workspace_id: 'ws_default'
+    }
+  ]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
@@ -1279,6 +1288,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const secReport = scanUrlSecurity(finalDestUrl);
 
     const defaultDomain = domains.find(d => d.is_default) || domains[0];
+    const resolvedDomainId = data.domain_id || defaultDomain?.id || 'dom_default';
+    const resolvedWorkspaceId = currentWorkspace?.id || 'ws_default';
 
     // Detect platform deep link (OpeninApp feature)
     const appDetection = detectAppDeepLink(finalDestUrl);
@@ -1296,8 +1307,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       id: generateId('link'),
       short_code: code,
       custom_slug: data.custom_slug ? code : undefined,
-      domain_id: data.domain_id || defaultDomain.id,
-      workspace_id: currentWorkspace.id,
+      domain_id: resolvedDomainId,
+      workspace_id: resolvedWorkspaceId,
       destination_url: finalDestUrl,
       title: data.title || (data.custom_slug ? `Link /${code}` : `Short Link ${code}`),
       tags: data.tags || ['marketing'],
