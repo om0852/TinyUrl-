@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { 
@@ -10,6 +10,10 @@ import {
   Check, 
   ExternalLink, 
   ShieldAlert, 
+  ShieldCheck,
+  AlertCircle,
+  RefreshCw,
+  Lock,
   CheckCircle2, 
   Smartphone, 
   Sliders, 
@@ -39,6 +43,44 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [customSlug, setCustomSlug] = useState('');
   const [selectedDomainId, setSelectedDomainId] = useState(primaryDomain?.id || 'dom_platform');
   const [selectedCampaignId, setSelectedCampaignId] = useState('');
+
+  // Domain SSL & Edge health check
+  const [domainProbeStatus, setDomainProbeStatus] = useState<{
+    domain: string;
+    checking: boolean;
+    ssl_active?: boolean;
+    message?: string;
+  } | null>(null);
+
+  const selectedDomainObj = domains.find(d => d.id === selectedDomainId) || primaryDomain;
+
+  const probeSelectedDomain = useCallback(async (hostname: string) => {
+    if (!hostname) return;
+    setDomainProbeStatus({ domain: hostname, checking: true });
+    try {
+      const res = await fetch(`/api/v1/domains/probe?domain=${encodeURIComponent(hostname)}`);
+      const data = await res.json();
+      setDomainProbeStatus({
+        domain: hostname,
+        checking: false,
+        ssl_active: !!data.ssl_active,
+        message: data.message
+      });
+    } catch {
+      setDomainProbeStatus({
+        domain: hostname,
+        checking: false,
+        ssl_active: false,
+        message: 'Unable to check SSL status'
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedDomainObj?.hostname) {
+      probeSelectedDomain(selectedDomainObj.hostname);
+    }
+  }, [selectedDomainObj?.hostname, probeSelectedDomain]);
 
   useEffect(() => {
     if ((!selectedDomainId || selectedDomainId === '') && primaryDomain?.id) {
@@ -430,6 +472,39 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     />
                   </div>
                 </div>
+
+                {/* Real-time Domain SSL Health Badge */}
+                {domainProbeStatus && (
+                  <div className="mt-1">
+                    {domainProbeStatus.checking ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-surface-container-low text-[11px] text-on-surface-variant font-medium animate-pulse border border-outline-variant/20">
+                        <RefreshCw className="w-3 h-3 animate-spin text-primary-container shrink-0" />
+                        <span>Verifying Edge SSL &amp; DNS routing for <strong>{domainProbeStatus.domain}</strong>...</span>
+                      </div>
+                    ) : domainProbeStatus.ssl_active ? (
+                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span>🔒 <strong>SSL Active &amp; Verified:</strong> Links created under <strong>{domainProbeStatus.domain}</strong> will load securely.</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-300">
+                        <div className="flex items-start gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <span>
+                            <strong>SSL Still Issuing / DNS Pending:</strong> {domainProbeStatus.message || 'SSL certificate is still generating.'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => probeSelectedDomain(selectedDomainObj?.hostname || '')}
+                          className="px-2 py-0.5 rounded bg-amber-200/60 hover:bg-amber-200 text-amber-900 font-semibold cursor-pointer shrink-0 transition"
+                        >
+                          Re-check
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Campaign Attribution Selector */}
