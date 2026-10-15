@@ -62,6 +62,8 @@ interface StoreContextType {
   campaigns: Campaign[];
   links: Link[];
   clicks: ClickEvent[];
+  selectedAnalyticsLinkId: string | null;
+  setSelectedAnalyticsLinkId: (id: string | null) => void;
   apiKeys: ApiKey[];
   webhooks: Webhook[];
   
@@ -550,6 +552,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [links, setLinks] = useState<Link[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
+  const [selectedAnalyticsLinkId, setSelectedAnalyticsLinkId] = useState<string | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
 
@@ -2916,6 +2919,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       campaigns,
       links,
       clicks,
+      selectedAnalyticsLinkId,
+      setSelectedAnalyticsLinkId,
       apiKeys,
       webhooks,
       createShortLink,

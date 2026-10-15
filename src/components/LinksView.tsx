@@ -38,7 +38,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
   onOpenCreateModal,
   onNavigateTab 
 }) => {
-  const { links, clicks, domains, deleteLink, currentUserRole } = useStore();
+  const { links, clicks, domains, deleteLink, currentUserRole, setSelectedAnalyticsLinkId } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
 
@@ -864,7 +864,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={() => onNavigateTab && onNavigateTab('analytics')}
+                              onClick={() => {
+                                setSelectedAnalyticsLinkId(link.id);
+                                onNavigateTab && onNavigateTab('analytics');
+                              }}
                               title="Quick Analytics"
                               className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
                             >
@@ -979,7 +982,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
               <span className="text-on-surface-variant">Real-time click tracking on</span>
               <button
                 type="button"
-                onClick={() => onNavigateTab && onNavigateTab('analytics')}
+                onClick={() => {
+                  setSelectedAnalyticsLinkId(null);
+                  onNavigateTab && onNavigateTab('analytics');
+                }}
                 className="text-primary-container font-semibold hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>Full analytics</span>

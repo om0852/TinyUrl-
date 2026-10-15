@@ -31,8 +31,11 @@ import {
   Search,
   X,
   ChevronRight,
+  ChevronLeft,
+  ChevronDown,
   Filter,
-  ExternalLink
+  ExternalLink,
+  Link2
 } from 'lucide-react';
 
 interface AnalyticsViewProps {
@@ -40,12 +43,24 @@ interface AnalyticsViewProps {
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) => {
-  const { links, clicks } = useStore();
+  const { links, clicks, selectedAnalyticsLinkId, setSelectedAnalyticsLinkId } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Selected link filter state
+  const [selectedLinkId, setSelectedLinkId] = useState<string>(() => selectedAnalyticsLinkId || 'all');
+  const [linkFilterOpen, setLinkFilterOpen] = useState(false);
+  const [linkSearchQuery, setLinkSearchQuery] = useState('');
+
+  // Sync when store value changes (e.g. from LinksView navigation)
+  useEffect(() => {
+    if (selectedAnalyticsLinkId) {
+      setSelectedLinkId(selectedAnalyticsLinkId);
+    }
+  }, [selectedAnalyticsLinkId]);
 
   const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h' | 'custom'>('30d');
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
@@ -60,10 +75,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const [geoLevel, setGeoLevel] = useState<'countries' | 'regions' | 'cities'>('countries');
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
+  // Pagination states
+  const [telemetryPage, setTelemetryPage] = useState(1);
+  const TELEMETRY_PAGE_SIZE = 10;
+  const [geoPage, setGeoPage] = useState(1);
+  const GEO_PAGE_SIZE = 5;
+  const [linksPage, setLinksPage] = useState(1);
+  const LINKS_PAGE_SIZE = 5;
+
   // Platform Details Modal states
   const [platformDetailsModalOpen, setPlatformDetailsModalOpen] = useState(false);
   const [platformSearchQuery, setPlatformSearchQuery] = useState('');
   const [platformCategoryFilter, setPlatformCategoryFilter] = useState<string>('all');
+  const [platformModalPage, setPlatformModalPage] = useState(1);
+  const PLATFORM_PAGE_SIZE = 8;
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
 
@@ -74,21 +99,61 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     setTimeout(() => setCopiedSlug(null), 2000);
   };
 
-  // Dynamic calculations from links and clicks
+  // Find currently selected link object (if filtered)
+  const selectedLink = useMemo(() => {
+    if (selectedLinkId === 'all') return null;
+    return links.find(l => l.id === selectedLinkId || l.short_code === selectedLinkId || l.custom_slug === selectedLinkId) || null;
+  }, [links, selectedLinkId]);
+
+  // Handle switching link filter
+  const handleSelectLink = (linkId: string) => {
+    setSelectedLinkId(linkId);
+    setSelectedAnalyticsLinkId(linkId === 'all' ? null : linkId);
+    setLinkFilterOpen(false);
+    setTelemetryPage(1);
+    setGeoPage(1);
+  };
+
+  // Active links list
+  const activeLinks = useMemo(() => {
+    if (!selectedLink) return links;
+    return [selectedLink];
+  }, [links, selectedLink]);
+
+  // Active clicks matching the selected link filter
+  const activeClicks = useMemo(() => {
+    if (!selectedLink) return clicks;
+    const sId = selectedLink.id;
+    const sCode = (selectedLink.short_code || '').toLowerCase();
+    const sSlug = (selectedLink.custom_slug || '').toLowerCase();
+    return clicks.filter(c => {
+      if (c.link_id && c.link_id === sId) return true;
+      const cShort = (c.short_code || '').toLowerCase();
+      if (sCode && cShort === sCode) return true;
+      if (sSlug && cShort === sSlug) return true;
+      return false;
+    });
+  }, [clicks, selectedLink]);
+
+  // Dynamic calculations from active links and active clicks
   const totalClicks = useMemo(() => {
+    if (selectedLink) {
+      const linkClicks = selectedLink.clicks_count || 0;
+      return Math.max(linkClicks, activeClicks.length);
+    }
     const fromLinks = links.reduce((acc, curr) => acc + (curr.clicks_count || 0), 0);
-    return Math.max(fromLinks, clicks.length);
-  }, [links, clicks]);
+    return Math.max(fromLinks, activeClicks.length);
+  }, [selectedLink, links, activeClicks]);
 
   const uniqueVisitors = useMemo(() => {
     if (totalClicks === 0) return 0;
-    if (clicks.length > 0) {
-      const distinctVisitors = new Set(clicks.map(c => c.ip_hash || (c as { visitor_id?: string }).visitor_id || c.id));
-      const explicitUniques = clicks.filter(c => c.is_unique).length;
+    if (activeClicks.length > 0) {
+      const distinctVisitors = new Set(activeClicks.map(c => c.ip_hash || (c as { visitor_id?: string }).visitor_id || c.id));
+      const explicitUniques = activeClicks.filter(c => c.is_unique).length;
       return Math.min(totalClicks, distinctVisitors.size, explicitUniques > 0 ? explicitUniques : distinctVisitors.size);
     }
-    return Math.min(totalClicks, links.length > 0 ? 1 : 0);
-  }, [totalClicks, clicks, links]);
+    return Math.min(totalClicks, activeLinks.length > 0 ? 1 : 0);
+  }, [totalClicks, activeClicks, activeLinks]);
 
   const repeatClicks = useMemo(() => {
     return Math.max(0, totalClicks - uniqueVisitors);
@@ -133,8 +198,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     const hasClicks = totalClicks > 0;
     const clicksByBucket = new Array(pointsCount).fill(0);
 
-    if (clicks.length > 0) {
-      clicks.forEach(c => {
+    if (activeClicks.length > 0) {
+      activeClicks.forEach(c => {
         const t = new Date(c.timestamp || (c as { created_at?: string }).created_at || now).getTime();
         const b = Math.floor((t - startTime) / msPerBucket);
         if (b >= 0 && b < pointsCount) {
@@ -167,7 +232,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       }
 
       let clickVal = clicksByBucket[i];
-      if (clickVal === 0 && hasClicks && links.length > 0) {
+      if (clickVal === 0 && hasClicks && activeLinks.length > 0) {
         const curveFactor = Math.sin((i / (pointsCount - 1)) * Math.PI) * 0.5 + 0.5;
         clickVal = Math.max(0, Math.round((totalClicks / pointsCount) * curveFactor));
       }
@@ -196,7 +261,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     }
 
     return data;
-  }, [dateRange, totalClicks, clicks, links, customStartDate, customEndDate]);
+  }, [dateRange, totalClicks, activeClicks, activeLinks, customStartDate, customEndDate]);
 
   // Compute smooth cubic bezier path strings
   const svgPaths = useMemo(() => {
@@ -226,7 +291,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   // Comprehensive Source Platforms Breakdown (supporting 300+ platforms & in-app webviews)
   const allPlatformsBreakdown = useMemo(() => {
     const linkDestMap = new Map<string, string>();
-    links.forEach(l => {
+    activeLinks.forEach(l => {
       if (l.id) linkDestMap.set(l.id.toLowerCase(), l.destination_url);
       if (l.short_code) linkDestMap.set(l.short_code.toLowerCase(), l.destination_url);
       if (l.custom_slug) linkDestMap.set(l.custom_slug.toLowerCase(), l.destination_url);
@@ -234,8 +299,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
     const platformCounts = new Map<string, { info: SourcePlatformInfo; count: number }>();
 
-    if (clicks.length > 0) {
-      clicks.forEach(c => {
+    if (activeClicks.length > 0) {
+      activeClicks.forEach(c => {
         const linkKey = (c.link_id || c.short_code || '').toLowerCase();
         const dest = linkKey ? linkDestMap.get(linkKey) : undefined;
         const platform = detectSourcePlatform(c.referrer, dest);
@@ -247,7 +312,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     }
 
     if (platformCounts.size === 0 && totalClicks > 0) {
-      links.forEach(l => {
+      activeLinks.forEach(l => {
         const platform = detectSourcePlatform(undefined, l.destination_url);
         const count = l.clicks_count || 0;
         const existing = platformCounts.get(platform.id) || { info: platform, count: 0 };
@@ -274,7 +339,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         pct: Math.round((p.count / effectiveTotal) * 100)
       }))
       .sort((a, b) => b.count - a.count);
-  }, [totalClicks, clicks, links]);
+  }, [totalClicks, activeClicks, activeLinks]);
 
   // Top 5 platforms for the main dashboard overview card
   const channelBreakdown = useMemo(() => {
@@ -309,8 +374,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     });
   }, [allPlatformsBreakdown, platformSearchQuery, platformCategoryFilter]);
 
-  // Top Markets from real clicks with country normalization
-  const topMarkets = useMemo(() => {
+  const totalPlatformPages = Math.max(1, Math.ceil(filteredModalPlatforms.length / PLATFORM_PAGE_SIZE));
+  const paginatedModalPlatforms = useMemo(() => {
+    return filteredModalPlatforms.slice((platformModalPage - 1) * PLATFORM_PAGE_SIZE, platformModalPage * PLATFORM_PAGE_SIZE);
+  }, [filteredModalPlatforms, platformModalPage]);
+
+  // All Markets with country normalization
+  const allMarkets = useMemo(() => {
     const normalizeCountryName = (rawCountry: string): string => {
       const c = (rawCountry || '').trim();
       if (!c || c.toLowerCase() === 'unknown') return 'India';
@@ -329,54 +399,52 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       return c;
     };
 
-    if (clicks.length === 0) {
+    if (activeClicks.length === 0) {
       if (totalClicks > 0) {
         return [{ country: 'India', count: totalClicks, pct: 100 }];
       }
       return [];
     }
     const map = new Map<string, number>();
-    clicks.forEach(c => {
+    activeClicks.forEach(c => {
       const country = normalizeCountryName(c.country || c.country_code || 'India');
       map.set(country, (map.get(country) || 0) + 1);
     });
-    const total = clicks.length;
+    const total = activeClicks.length;
     return Array.from(map.entries())
       .map(([country, count]) => ({ country, count, pct: Math.round((count / total) * 100) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [clicks, totalClicks]);
+      .sort((a, b) => b.count - a.count);
+  }, [activeClicks, totalClicks]);
 
-  // Top States / Regions
-  const topRegions = useMemo(() => {
-    if (clicks.length === 0) {
+  // All States / Regions
+  const allRegions = useMemo(() => {
+    if (activeClicks.length === 0) {
       if (totalClicks > 0) {
         return [{ region: 'Maharashtra', count: totalClicks, pct: 100 }];
       }
       return [];
     }
     const map = new Map<string, number>();
-    clicks.forEach(c => {
+    activeClicks.forEach(c => {
       const reg = c.region || (c.city && (c.city.toLowerCase().includes('mumbai') || c.city.toLowerCase().includes('pune')) ? 'Maharashtra' : c.city && c.city.toLowerCase().includes('delhi') ? 'Delhi' : c.city && c.city.toLowerCase().includes('bengaluru') ? 'Karnataka' : 'Maharashtra');
       map.set(reg, (map.get(reg) || 0) + 1);
     });
-    const total = clicks.length;
+    const total = activeClicks.length;
     return Array.from(map.entries())
       .map(([region, count]) => ({ region, count, pct: Math.round((count / total) * 100) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [clicks, totalClicks]);
+      .sort((a, b) => b.count - a.count);
+  }, [activeClicks, totalClicks]);
 
-  // Top Cities
-  const topCities = useMemo(() => {
-    if (clicks.length === 0) {
+  // All Cities
+  const allCities = useMemo(() => {
+    if (activeClicks.length === 0) {
       if (totalClicks > 0) {
         return [{ city: 'Mumbai', region: 'Maharashtra', count: totalClicks, pct: 100 }];
       }
       return [];
     }
     const map = new Map<string, { city: string; region?: string; count: number }>();
-    clicks.forEach(c => {
+    activeClicks.forEach(c => {
       const city = c.city || 'Mumbai';
       const reg = c.region || 'Maharashtra';
       const key = `${city}_${reg}`;
@@ -384,42 +452,76 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       existing.count += 1;
       map.set(key, existing);
     });
-    const total = clicks.length;
+    const total = activeClicks.length;
     return Array.from(map.values())
       .map(item => ({ ...item, pct: Math.round((item.count / total) * 100) }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [clicks, totalClicks]);
+      .sort((a, b) => b.count - a.count);
+  }, [activeClicks, totalClicks]);
 
-  // Device Breakdown from real clicks
+  // Paginated active Geo List
+  const currentGeoItems = useMemo(() => {
+    if (geoLevel === 'countries') return allMarkets;
+    if (geoLevel === 'regions') return allRegions;
+    return allCities;
+  }, [geoLevel, allMarkets, allRegions, allCities]);
+
+  const totalGeoPages = Math.max(1, Math.ceil(currentGeoItems.length / GEO_PAGE_SIZE));
+  const paginatedGeoItems = useMemo(() => {
+    return currentGeoItems.slice((geoPage - 1) * GEO_PAGE_SIZE, geoPage * GEO_PAGE_SIZE);
+  }, [currentGeoItems, geoPage]);
+
+  // Device Breakdown from active clicks
   const deviceBreakdown = useMemo(() => {
-    if (clicks.length === 0) return { mobile: 0, desktop: 0, tablet: 0 };
+    if (activeClicks.length === 0) return { mobile: 0, desktop: 0, tablet: 0 };
     let mob = 0, desk = 0, tab = 0;
-    clicks.forEach(c => {
+    activeClicks.forEach(c => {
       const dev = (c.device || '').toLowerCase();
       if (dev.includes('mobile') || dev.includes('phone') || dev.includes('ios') || dev.includes('android')) mob++;
       else if (dev.includes('tablet') || dev.includes('ipad')) tab++;
       else desk++;
     });
-    const total = clicks.length;
+    const total = activeClicks.length;
     return {
       mobile: Math.round((mob / total) * 100),
       desktop: Math.round((desk / total) * 100),
       tablet: Math.round((tab / total) * 100),
     };
-  }, [clicks]);
+  }, [activeClicks]);
 
-  // Top Links sorted by clicks
-  const topLinks = useMemo(() => {
-    return [...links]
-      .sort((a, b) => (b.clicks_count || 0) - (a.clicks_count || 0))
-      .slice(0, 5);
-  }, [links]);
+  // All Links sorted by clicks (supporting pagination & filtering)
+  const sortedLinks = useMemo(() => {
+    const list = selectedLink ? [selectedLink] : links;
+    return [...list].sort((a, b) => (b.clicks_count || 0) - (a.clicks_count || 0));
+  }, [links, selectedLink]);
+
+  const totalLinksPages = Math.max(1, Math.ceil(sortedLinks.length / LINKS_PAGE_SIZE));
+  const paginatedLinks = useMemo(() => {
+    return sortedLinks.slice((linksPage - 1) * LINKS_PAGE_SIZE, linksPage * LINKS_PAGE_SIZE);
+  }, [sortedLinks, linksPage]);
+
+  // Dropdown filtered links for the Link Selector
+  const filteredDropdownLinks = useMemo(() => {
+    const q = linkSearchQuery.trim().toLowerCase();
+    if (!q) return links;
+    return links.filter(l => 
+      (l.title && l.title.toLowerCase().includes(q)) ||
+      (l.short_code && l.short_code.toLowerCase().includes(q)) ||
+      (l.custom_slug && l.custom_slug.toLowerCase().includes(q)) ||
+      (l.destination_url && l.destination_url.toLowerCase().includes(q))
+    );
+  }, [links, linkSearchQuery]);
+
+  // Telemetry Pagination
+  const totalTelemetryPages = Math.max(1, Math.ceil(activeClicks.length / TELEMETRY_PAGE_SIZE));
+  const paginatedTelemetry = useMemo(() => {
+    return activeClicks.slice((telemetryPage - 1) * TELEMETRY_PAGE_SIZE, telemetryPage * TELEMETRY_PAGE_SIZE);
+  }, [activeClicks, telemetryPage]);
 
   // Export Analytics Report
   const handleExportReport = () => {
+    const targetLinks = selectedLink ? [selectedLink] : sortedLinks;
     const headers = ['Rank', 'Title', 'Short Slug', 'Destination URL', 'Clicks (30d)', 'Bounce Rate', 'Status'];
-    const rows = topLinks.map((l, idx) => [
+    const rows = targetLinks.map((l, idx) => [
       idx + 1,
       `"${(l.title || '').replace(/"/g, '""')}"`,
       l.custom_slug || l.short_code,
@@ -433,7 +535,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `snip_analytics_report_${new Date().toISOString().split('T')[0]}.csv`);
+    const filenamePrefix = selectedLink ? `link_${selectedLink.custom_slug || selectedLink.short_code}` : 'all_links';
+    link.setAttribute('download', `${filenamePrefix}_analytics_report_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -460,6 +563,113 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 flex-wrap">
+          
+          {/* Link / URL Filter Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              id="analytics-link-filter-btn"
+              onClick={() => setLinkFilterOpen(!linkFilterOpen)}
+              className={`inline-flex items-center gap-2 text-xs font-semibold px-3.5 py-2 rounded-lg shadow-xs border transition-colors cursor-pointer max-w-[240px] truncate ${
+                selectedLinkId !== 'all'
+                  ? 'bg-primary-container text-on-primary border-primary-container font-bold'
+                  : 'bg-surface-container-lowest text-on-surface border-outline-variant/40 hover:bg-surface-container-low'
+              }`}
+              title={selectedLink ? (selectedLink.title || selectedLink.short_code) : 'All Links'}
+            >
+              <Filter className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">
+                {selectedLink 
+                  ? `${selectedLink.title || selectedLink.short_code} (/${selectedLink.custom_slug || selectedLink.short_code})` 
+                  : `All Links (${links.length})`}
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 shrink-0 opacity-70" />
+            </button>
+
+            {linkFilterOpen && (
+              <div className="absolute left-0 md:left-auto md:right-0 top-full mt-2 w-80 bg-card border border-border/80 shadow-2xl rounded-xl p-3 z-30 animate-fade-in text-foreground">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50">
+                  <div className="flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs font-bold text-foreground">Filter by Specific URL</span>
+                  </div>
+                  {selectedLinkId !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSelectLink('all')}
+                      className="text-[11px] text-primary hover:underline font-semibold cursor-pointer"
+                    >
+                      Clear Filter
+                    </button>
+                  )}
+                </div>
+
+                {/* Search Links */}
+                {links.length > 3 && (
+                  <div className="relative mb-2">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search by slug or title..."
+                      value={linkSearchQuery}
+                      onChange={(e) => setLinkSearchQuery(e.target.value)}
+                      className="w-full bg-background border border-border/70 rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground outline-none focus:border-primary"
+                    />
+                  </div>
+                )}
+
+                <div className="max-h-60 overflow-y-auto custom-scrollbar flex flex-col gap-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectLink('all')}
+                    className={`text-left px-3 py-2 rounded-lg font-medium transition cursor-pointer flex items-center justify-between ${
+                      selectedLinkId === 'all'
+                        ? 'bg-primary text-primary-foreground font-bold'
+                        : 'hover:bg-muted text-foreground'
+                    }`}
+                  >
+                    <span>🌐 All Links Combined</span>
+                    <span className="text-[10px] opacity-80">{links.length} total</span>
+                  </button>
+
+                  {filteredDropdownLinks.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-muted-foreground">
+                      No matching links found.
+                    </div>
+                  ) : (
+                    filteredDropdownLinks.map(l => {
+                      const slug = l.custom_slug || l.short_code;
+                      const isSelected = selectedLinkId === l.id;
+                      const count = l.clicks_count || 0;
+                      return (
+                        <button
+                          key={l.id}
+                          type="button"
+                          onClick={() => handleSelectLink(l.id)}
+                          className={`text-left px-3 py-2 rounded-lg font-medium transition cursor-pointer flex items-center justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground font-bold'
+                              : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0 pr-1">
+                            <span className="truncate font-semibold">{l.title || `/${slug}`}</span>
+                            <span className={`text-[10px] font-mono truncate ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                              /{slug}
+                            </span>
+                          </div>
+                          <span className={`text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded ${isSelected ? 'bg-primary-foreground/20' : 'bg-muted'}`}>
+                            {count} clicks
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="relative">
             <button
               type="button"
@@ -541,6 +751,67 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </button>
         </div>
       </div>
+
+      {/* Active URL Filter Context Banner */}
+      {selectedLink && (
+        <div className="bg-primary-container/10 border border-primary-container/30 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-on-surface animate-fade-in shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-primary-container text-on-primary flex items-center justify-center shrink-0 shadow-xs">
+              <Link2 className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary-container font-mono px-2 py-0.5 rounded-md bg-surface-container-high">
+                  URL Filter Active
+                </span>
+                <span className="font-bold text-sm text-on-surface truncate">
+                  {selectedLink.title || 'Untitled Link'}
+                </span>
+                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-primary-container">
+                  /{selectedLink.custom_slug || selectedLink.short_code}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-on-surface-variant mt-1 truncate">
+                <span className="truncate">
+                  Target: <a href={selectedLink.destination_url} target="_blank" rel="noreferrer" className="underline hover:text-primary-container truncate">{selectedLink.destination_url}</a>
+                </span>
+                <span>•</span>
+                <span className="shrink-0 font-medium font-mono">
+                  {totalClicks.toLocaleString()} clicks
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => handleCopy(selectedLink.custom_slug || selectedLink.short_code)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface text-xs font-semibold hover:bg-surface-container border border-outline-variant/30 transition shadow-xs cursor-pointer"
+            >
+              {copiedSlug === (selectedLink.custom_slug || selectedLink.short_code) ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-outline" />
+                  <span>Copy Link</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectLink('all')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface text-xs font-semibold hover:bg-surface-container border border-outline-variant/30 transition shadow-xs cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5 text-outline" />
+              <span>Clear Filter (View All)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. 4-METRIC STATS STRIP */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1026,74 +1297,113 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
                 <div className="flex flex-col gap-3">
                   {geoLevel === 'countries' ? (
-                    topMarkets.length > 0 ? (
-                      topMarkets.map((m) => (
-                        <div key={m.country} className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-on-surface font-medium flex items-center gap-1.5">
-                              <MapPin className="w-3 h-3 text-primary-container shrink-0" />
-                              <span className="truncate">{m.country}</span>
-                            </span>
-                            <span className="font-mono font-bold text-on-surface whitespace-nowrap">
-                              {m.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({m.count})</span>
-                            </span>
+                    paginatedGeoItems.length > 0 ? (
+                      paginatedGeoItems.map((item) => {
+                        const m = item as { country: string; count: number; pct: number };
+                        return (
+                          <div key={m.country} className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-on-surface font-medium flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3 text-primary-container shrink-0" />
+                                <span className="truncate">{m.country}</span>
+                              </span>
+                              <span className="font-mono font-bold text-on-surface whitespace-nowrap">
+                                {m.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({m.count})</span>
+                              </span>
+                            </div>
+                            <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-primary-container h-full rounded-full transition-all duration-500" style={{ width: `${m.pct}%` }} />
+                            </div>
                           </div>
-                          <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-primary-container h-full rounded-full transition-all duration-500" style={{ width: `${m.pct}%` }} />
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="py-6 text-center text-on-surface-variant text-xs">
                         No country telemetry recorded yet
                       </div>
                     )
                   ) : geoLevel === 'regions' ? (
-                    topRegions.length > 0 ? (
-                      topRegions.map((r) => (
-                        <div key={r.region} className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-on-surface font-medium flex items-center gap-1.5">
-                              <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                              <span className="truncate">{r.region}</span>
-                            </span>
-                            <span className="font-mono font-bold text-on-surface whitespace-nowrap">
-                              {r.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({r.count})</span>
-                            </span>
+                    paginatedGeoItems.length > 0 ? (
+                      paginatedGeoItems.map((item) => {
+                        const r = item as { region: string; count: number; pct: number };
+                        return (
+                          <div key={r.region} className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-on-surface font-medium flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="truncate">{r.region}</span>
+                              </span>
+                              <span className="font-mono font-bold text-on-surface whitespace-nowrap">
+                                {r.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({r.count})</span>
+                              </span>
+                            </div>
+                            <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${r.pct}%` }} />
+                            </div>
                           </div>
-                          <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-emerald-600 h-full rounded-full transition-all duration-500" style={{ width: `${r.pct}%` }} />
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="py-6 text-center text-on-surface-variant text-xs">
                         No state telemetry recorded yet
                       </div>
                     )
                   ) : (
-                    topCities.length > 0 ? (
-                      topCities.map((c) => (
-                        <div key={`${c.city}_${c.region}`} className="flex flex-col gap-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-on-surface font-medium flex items-center gap-1.5">
-                              <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
-                              <span className="truncate">{c.city}{c.region ? `, ${c.region}` : ''}</span>
-                            </span>
-                            <span className="font-mono font-bold text-on-surface whitespace-nowrap">
-                              {c.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({c.count})</span>
-                            </span>
+                    paginatedGeoItems.length > 0 ? (
+                      paginatedGeoItems.map((item) => {
+                        const c = item as { city: string; region?: string; count: number; pct: number };
+                        return (
+                          <div key={`${c.city}_${c.region}`} className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-on-surface font-medium flex items-center gap-1.5">
+                                <MapPin className="w-3 h-3 text-blue-600 shrink-0" />
+                                <span className="truncate">{c.city}{c.region ? `, ${c.region}` : ''}</span>
+                              </span>
+                              <span className="font-mono font-bold text-on-surface whitespace-nowrap">
+                                {c.pct}% <span className="text-[10px] text-on-surface-variant font-normal">({c.count})</span>
+                              </span>
+                            </div>
+                            <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
+                              <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${c.pct}%` }} />
+                            </div>
                           </div>
-                          <div className="w-full bg-surface-container-low h-1.5 rounded-full overflow-hidden">
-                            <div className="bg-blue-600 h-full rounded-full transition-all duration-500" style={{ width: `${c.pct}%` }} />
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="py-6 text-center text-on-surface-variant text-xs">
                         No city telemetry recorded yet
                       </div>
                     )
+                  )}
+
+                  {/* Geo Pagination Controls */}
+                  {currentGeoItems.length > GEO_PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-3 border-t border-outline-variant/20 text-[11px] text-on-surface-variant mt-1">
+                      <span>
+                        Showing {(geoPage - 1) * GEO_PAGE_SIZE + 1}-{Math.min(geoPage * GEO_PAGE_SIZE, currentGeoItems.length)} of {currentGeoItems.length}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={geoPage <= 1}
+                          onClick={() => setGeoPage(p => Math.max(1, p - 1))}
+                          className="px-2 py-0.5 rounded bg-surface-container-low hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-xs font-semibold flex items-center gap-0.5"
+                        >
+                          <ChevronLeft className="w-3 h-3" /> Prev
+                        </button>
+                        <span className="text-[10px] px-1 font-mono">
+                          {geoPage}/{totalGeoPages}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={geoPage >= totalGeoPages}
+                          onClick={() => setGeoPage(p => Math.min(totalGeoPages, p + 1))}
+                          className="px-2 py-0.5 rounded bg-surface-container-low hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer text-xs font-semibold flex items-center gap-0.5"
+                        >
+                          Next <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1158,18 +1468,29 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               Recent High-Performing Links
             </h3>
             <p className="text-xs text-on-surface-variant">
-              Top 5 conversion drivers ranked by absolute click volume
+              Links ranked by click volume · Click &ldquo;Filter&rdquo; on any link to focus analytics
             </p>
           </div>
           
-          <button
-            type="button"
-            onClick={() => onNavigateTab && onNavigateTab('links')}
-            className="inline-flex items-center gap-1 text-xs font-bold text-primary-container hover:underline cursor-pointer self-start sm:self-auto"
-          >
-            <span>View all {links.length} links</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            {selectedLinkId !== 'all' && (
+              <button
+                type="button"
+                onClick={() => handleSelectLink('all')}
+                className="text-xs font-semibold text-primary-container hover:underline cursor-pointer"
+              >
+                Clear Filter (View All)
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => onNavigateTab && onNavigateTab('links')}
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary-container hover:underline cursor-pointer self-start sm:self-auto"
+            >
+              <span>Manage all {links.length} links</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Table Container */}
@@ -1182,18 +1503,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <th className="py-3 px-4">Primary Platform</th>
                 <th className="py-3 px-4 text-right">30d Clicks</th>
                 <th className="py-3 px-4 text-right">Bounce Rate</th>
-                <th className="py-3 px-4 text-right rounded-r-lg">Trend</th>
+                <th className="py-3 px-4 text-right">Trend</th>
+                <th className="py-3 px-4 text-right rounded-r-lg">Action</th>
               </tr>
             </thead>
             <tbody className="text-xs divide-y divide-outline-variant/20">
-              {topLinks.length === 0 ? (
+              {paginatedLinks.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-on-surface-variant">
-                    No links created yet. Create a short link to begin tracking real-time performance.
+                  <td colSpan={7} className="py-8 text-center text-on-surface-variant">
+                    No links found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                topLinks.map((link, idx) => {
+                paginatedLinks.map((link, idx) => {
                   const slug = link.custom_slug || link.short_code;
                   const isCopied = copiedSlug === slug;
                   const isYoutube = link.destination_url.includes('youtube.com') || link.destination_url.includes('youtu.be');
@@ -1203,14 +1525,17 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
                   const platformLabel = isDrive ? 'Google Drive' : isYoutube ? 'YouTube' : isInstagram ? 'Instagram' : isTiktok ? 'TikTok' : 'Direct / Web';
                   const platformDot = isDrive ? 'bg-blue-600' : isYoutube ? 'bg-red-600' : isInstagram ? 'bg-pink-500' : isTiktok ? 'bg-neutral-900' : 'bg-outline';
+                  const isFiltered = selectedLinkId === link.id;
 
                   return (
-                    <tr key={link.id} className="hover:bg-surface-container-low/50 transition-colors">
-                      
+                    <tr 
+                      key={link.id} 
+                      className={`transition-colors ${isFiltered ? 'bg-primary-container/10' : 'hover:bg-surface-container-low/50'}`}
+                    >
                       {/* Title & Target */}
                       <td className="py-4 px-4 max-w-[260px]">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-primary-container">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isFiltered ? 'bg-primary-container text-on-primary' : 'bg-surface-container text-primary-container'}`}>
                             {isDrive ? <HardDrive className="w-4 h-4 text-blue-600" /> : idx === 0 ? <Palette className="w-4 h-4" /> : idx === 1 ? <Layers className="w-4 h-4" /> : <Video className="w-4 h-4" />}
                           </div>
                           <div className="flex flex-col min-w-0">
@@ -1249,21 +1574,35 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
                       {/* 30d Clicks */}
                       <td className="py-4 px-4 text-right font-mono text-xs font-bold text-on-surface whitespace-nowrap">
-                        {(link.clicks_count || (42810 - idx * 8000)).toLocaleString()}
+                        {(link.clicks_count || 0).toLocaleString()}
                       </td>
 
                       {/* Bounce Rate */}
                       <td className="py-4 px-4 text-right font-mono text-xs text-on-surface-variant whitespace-nowrap">
-                        {(21.4 + idx * 3.2).toFixed(1)}%
+                        {(21.4 + (idx % 5) * 3.2).toFixed(1)}%
                       </td>
 
                       {/* Trend */}
                       <td className="py-4 px-4 text-right whitespace-nowrap">
                         <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 text-emerald-700">
-                          <TrendingUp className="w-3 h-3" /> +{24 - idx * 5}%
+                          <TrendingUp className="w-3 h-3" /> +{24 - (idx % 4) * 5}%
                         </span>
                       </td>
 
+                      {/* Action */}
+                      <td className="py-4 px-4 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectLink(isFiltered ? 'all' : link.id)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer border ${
+                            isFiltered
+                              ? 'bg-primary-container text-on-primary border-primary-container shadow-xs'
+                              : 'bg-surface-container-low hover:bg-surface-container text-primary-container border-outline-variant/30'
+                          }`}
+                        >
+                          {isFiltered ? 'Filtered ✕' : 'Filter'}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -1272,19 +1611,33 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </table>
         </div>
 
-        {/* Footer info bar */}
-        <div className="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 bg-surface-container-low px-4 py-3 rounded-lg border border-outline-variant/30 text-xs">
-          <div className="flex items-center gap-1.5 text-on-surface-variant">
-            <Verified className="w-4 h-4 text-primary-container" />
-            <span>All click events verified against automated bot filtering protocols</span>
+        {/* Links Table Pagination Footer */}
+        {sortedLinks.length > LINKS_PAGE_SIZE && (
+          <div className="mt-4 px-4 py-3 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-on-surface-variant text-xs border border-outline-variant/30 rounded-lg">
+            <span>
+              Showing <strong className="text-on-surface font-semibold">{(linksPage - 1) * LINKS_PAGE_SIZE + 1} to {Math.min(linksPage * LINKS_PAGE_SIZE, sortedLinks.length)}</strong> of {sortedLinks.length} links
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={linksPage <= 1}
+                onClick={() => setLinksPage(p => Math.max(1, p - 1))}
+                className="px-3 py-1 rounded-md bg-surface-container-lowest text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant/30"
+              >
+                Previous
+              </button>
+              <span className="text-xs px-2 font-medium">Page {linksPage} of {totalLinksPages}</span>
+              <button
+                type="button"
+                disabled={linksPage >= totalLinksPages}
+                onClick={() => setLinksPage(p => Math.min(totalLinksPages, p + 1))}
+                className="px-3 py-1 rounded-md bg-surface-container-lowest text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant/30"
+              >
+                Next
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-on-surface-variant font-medium">
-            <span>Rows per page: <strong>5</strong></span>
-            <span>&bull;</span>
-            <span>Showing 1-5 of {links.length}</span>
-          </div>
-        </div>
-
+        )}
       </div>
 
       {/* 6. LIVE GEO-LOCATION TELEMETRY & CLICK STREAM */}
@@ -1308,7 +1661,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </div>
           </div>
           <span className="text-xs font-mono font-medium text-on-surface-variant self-start sm:self-auto">
-            {clicks.length} total events logged
+            {activeClicks.length} total events logged {selectedLink ? `(filtered)` : ''}
           </span>
         </div>
 
@@ -1324,14 +1677,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               </tr>
             </thead>
             <tbody className="text-xs divide-y divide-outline-variant/20">
-              {clicks.length === 0 ? (
+              {paginatedTelemetry.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-on-surface-variant">
-                    No click telemetry events captured yet. Click a short link to see live city and state resolution.
+                    {selectedLink 
+                      ? `No click telemetry events captured yet for "${selectedLink.title || selectedLink.short_code}".`
+                      : 'No click telemetry events captured yet. Click a short link to see live city and state resolution.'}
                   </td>
                 </tr>
               ) : (
-                clicks.slice(0, 10).map((c, idx) => {
+                paginatedTelemetry.map((c, idx) => {
                   const targetLink = links.find(l => l.id === c.link_id);
                   const dest = targetLink?.destination_url || '';
                   const isDrive = dest.includes('drive.google.com') || dest.includes('docs.google.com');
@@ -1401,18 +1756,30 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       <td className="py-3 px-4 whitespace-nowrap">
                         {(() => {
                           const detectedPlat = detectSourcePlatform(c.referrer);
+                          const isInternalRef = (c.referrer || '').toLowerCase().includes('creataurus') ||
+                            (c.referrer || '').toLowerCase().includes('creaturus') ||
+                            (c.referrer || '').toLowerCase().includes('tinyurl') ||
+                            (c.referrer || '').toLowerCase().includes('trimlink') ||
+                            (c.referrer || '').toLowerCase().includes('bankai') ||
+                            (c.referrer || '').toLowerCase().includes('xtrafusion') ||
+                            (typeof window !== 'undefined' && (c.referrer || '').toLowerCase().includes(window.location.hostname.toLowerCase()));
+
+                          const displayReferrer = isInternalRef 
+                            ? 'Internal Dashboard'
+                            : (c.referrer || 'Direct / None');
+
                           return (
                             <div className="flex flex-col">
                               <div className="flex items-center gap-1.5">
                                 <span className="font-semibold text-xs text-on-surface">
                                   {detectedPlat.name}
                                 </span>
-                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-medium capitalize ${detectedPlat.badgeBg} ${detectedPlat.badgeText}`}>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-medium capitalize ${detectedPlat.badgeBg} ${detectedPlat.badgeText}`}>
                                   {detectedPlat.category}
                                 </span>
                               </div>
-                              <span className="text-[10px] text-on-surface-variant truncate max-w-[150px]" title={c.referrer || 'Direct'}>
-                                {c.browser || 'Browser'} &bull; {c.referrer || 'Direct'}
+                              <span className="text-[10px] text-on-surface-variant truncate max-w-[170px]" title={c.referrer || 'Direct'}>
+                                {c.browser || 'Browser'} &bull; {displayReferrer}
                               </span>
                             </div>
                           );
@@ -1430,6 +1797,34 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             </tbody>
           </table>
         </div>
+
+        {/* Telemetry Pagination Footer */}
+        {activeClicks.length > TELEMETRY_PAGE_SIZE && (
+          <div className="mt-4 px-4 py-3 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-on-surface-variant text-xs border border-outline-variant/30 rounded-lg">
+            <span>
+              Showing <strong className="text-on-surface font-semibold">{(telemetryPage - 1) * TELEMETRY_PAGE_SIZE + 1} to {Math.min(telemetryPage * TELEMETRY_PAGE_SIZE, activeClicks.length)}</strong> of {activeClicks.length} events
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={telemetryPage <= 1}
+                onClick={() => setTelemetryPage(p => Math.max(1, p - 1))}
+                className="px-3 py-1 rounded-md bg-surface-container-lowest text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant/30"
+              >
+                Previous
+              </button>
+              <span className="text-xs px-2 font-medium">Page {telemetryPage} of {totalTelemetryPages}</span>
+              <button
+                type="button"
+                disabled={telemetryPage >= totalTelemetryPages}
+                onClick={() => setTelemetryPage(p => Math.min(totalTelemetryPages, p + 1))}
+                className="px-3 py-1 rounded-md bg-surface-container-lowest text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant/30"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 300+ Platform Breakdown Details Modal Popup */}
@@ -1472,13 +1867,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   type="text"
                   placeholder="Search 300+ platforms (e.g. Instagram, Facebook, TikTok, WhatsApp, Google)..."
                   value={platformSearchQuery}
-                  onChange={(e) => setPlatformSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setPlatformSearchQuery(e.target.value);
+                    setPlatformModalPage(1);
+                  }}
                   className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
                 />
                 {platformSearchQuery && (
                   <button
                     type="button"
-                    onClick={() => setPlatformSearchQuery('')}
+                    onClick={() => {
+                      setPlatformSearchQuery('');
+                      setPlatformModalPage(1);
+                    }}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface p-1"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1499,7 +1900,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setPlatformCategoryFilter(tab.id)}
+                    onClick={() => {
+                      setPlatformCategoryFilter(tab.id);
+                      setPlatformModalPage(1);
+                    }}
                     className={`px-3 py-1 rounded-md font-semibold text-xs transition cursor-pointer whitespace-nowrap shrink-0 ${
                       platformCategoryFilter === tab.id
                         ? 'bg-primary-container text-on-primary shadow-xs'
@@ -1514,12 +1918,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
             {/* Platform List */}
             <div className="flex-1 overflow-y-auto space-y-2.5 max-h-[45vh] pr-1">
-              {filteredModalPlatforms.length === 0 ? (
+              {paginatedModalPlatforms.length === 0 ? (
                 <div className="p-8 text-center bg-surface-container-low rounded-lg border border-dashed border-outline-variant/30 text-xs text-on-surface-variant">
                   No source platforms found matching &ldquo;{platformSearchQuery}&rdquo;.
                 </div>
               ) : (
-                filteredModalPlatforms.map((item) => (
+                paginatedModalPlatforms.map((item) => (
                   <div
                     key={item.info.id}
                     className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg border border-outline-variant/20 flex items-center justify-between transition-colors gap-3"
@@ -1554,18 +1958,45 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div className="pt-4 border-t border-outline-variant/20 mt-4 flex items-center justify-between text-xs">
+            {/* Modal Footer with Pagination Controls */}
+            <div className="pt-4 border-t border-outline-variant/20 mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
               <span className="text-on-surface-variant">
-                Showing {filteredModalPlatforms.length} of {allPlatformsBreakdown.length} active platforms
+                Showing {filteredModalPlatforms.length > 0 ? (platformModalPage - 1) * PLATFORM_PAGE_SIZE + 1 : 0} to {Math.min(platformModalPage * PLATFORM_PAGE_SIZE, filteredModalPlatforms.length)} of {filteredModalPlatforms.length} active platforms
               </span>
-              <button
-                type="button"
-                onClick={() => setPlatformDetailsModalOpen(false)}
-                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-lg text-xs hover:bg-primary transition cursor-pointer shadow-xs"
-              >
-                Done
-              </button>
+
+              <div className="flex items-center gap-3">
+                {totalPlatformPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={platformModalPage <= 1}
+                      onClick={() => setPlatformModalPage(p => Math.max(1, p - 1))}
+                      className="px-2.5 py-1 rounded bg-surface-container-low text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container font-semibold border border-outline-variant/30 text-xs cursor-pointer"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-[11px] font-medium text-on-surface-variant px-1">
+                      {platformModalPage} / {totalPlatformPages}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={platformModalPage >= totalPlatformPages}
+                      onClick={() => setPlatformModalPage(p => Math.min(totalPlatformPages, p + 1))}
+                      className="px-2.5 py-1 rounded bg-surface-container-low text-on-surface disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-container font-semibold border border-outline-variant/30 text-xs cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPlatformDetailsModalOpen(false)}
+                  className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-lg text-xs hover:bg-primary transition cursor-pointer shadow-xs"
+                >
+                  Done
+                </button>
+              </div>
             </div>
 
           </div>

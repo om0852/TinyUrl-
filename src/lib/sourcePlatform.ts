@@ -30,6 +30,27 @@ export function detectSourcePlatform(rawReferrer?: string, destinationUrl?: stri
     };
   }
 
+  // 1b. Internal / Platform Dashboard Referrer (e.g. testing from within the shortener app)
+  if (
+    ref.includes('creataurus') ||
+    ref.includes('creaturus') ||
+    ref.includes('tinyurl') ||
+    ref.includes('trimlink') ||
+    ref.includes('bankai') ||
+    ref.includes('xtrafusion') ||
+    (typeof window !== 'undefined' && window.location.hostname && ref.includes(window.location.hostname.toLowerCase()))
+  ) {
+    return {
+      id: 'internal',
+      name: 'Dashboard / Internal',
+      category: 'direct',
+      color: 'bg-indigo-600',
+      badgeBg: 'bg-indigo-50 dark:bg-indigo-950/30',
+      badgeText: 'text-indigo-700 dark:text-indigo-300',
+      iconType: 'globe'
+    };
+  }
+
   // 2. Instagram
   if (
     ref.includes('instagram') ||
