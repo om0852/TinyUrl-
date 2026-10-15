@@ -473,31 +473,33 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   </div>
                 </div>
 
-                {/* Real-time Domain SSL Health Badge */}
+                {/* Real-time Domain SSL Health Status (Single line, small text, without box) */}
                 {domainProbeStatus && (
-                  <div className="mt-1">
+                  <div className="mt-1.5 px-0.5">
                     {domainProbeStatus.checking ? (
-                      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-surface-container-low text-[11px] text-on-surface-variant font-medium animate-pulse border border-outline-variant/20">
+                      <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant font-medium animate-pulse truncate">
                         <RefreshCw className="w-3 h-3 animate-spin text-primary-container shrink-0" />
-                        <span>Verifying Edge SSL &amp; DNS routing for <strong>{domainProbeStatus.domain}</strong>...</span>
+                        <span className="truncate">Verifying Edge SSL &amp; DNS routing for <strong>{domainProbeStatus.domain}</strong>...</span>
                       </div>
                     ) : domainProbeStatus.ssl_active ? (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                      <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium truncate">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span>🔒 <strong>SSL Active &amp; Verified:</strong> Links created under <strong>{domainProbeStatus.domain}</strong> will load securely.</span>
+                        <span className="truncate">
+                          <strong>SSL Active &amp; Verified:</strong> Links created under <strong>{domainProbeStatus.domain}</strong> will load securely.
+                        </span>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-300">
-                        <div className="flex items-start gap-1.5">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                          <span>
-                            <strong>SSL Still Issuing / DNS Pending:</strong> {domainProbeStatus.message || 'SSL certificate is still generating.'}
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span className="truncate">
+                            <strong>SSL Pending:</strong> {domainProbeStatus.message || 'SSL certificate is still generating.'}
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => probeSelectedDomain(selectedDomainObj?.hostname || '')}
-                          className="px-2 py-0.5 rounded bg-amber-200/60 hover:bg-amber-200 text-amber-900 font-semibold cursor-pointer shrink-0 transition"
+                          className="hover:underline font-bold text-amber-700 dark:text-amber-300 cursor-pointer shrink-0 transition"
                         >
                           Re-check
                         </button>
