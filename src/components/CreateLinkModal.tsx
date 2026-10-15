@@ -33,7 +33,7 @@ import {
   CheckCheck
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
-import { generateId, generateBase62Code } from '@/lib/db';
+import { generateId, generateBase62Code, buildUtmUrl, normalizeUrl } from '@/lib/db';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -86,9 +86,11 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   // Advanced accordion state
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [placementTag, setPlacementTag] = useState<'youtube' | 'drive' | 'instagram' | 'tiktok' | 'x' | 'podcast' | 'direct'>('direct');
-  const [utmSource, setUtmSource] = useState('direct');
-  const [utmMedium, setUtmMedium] = useState('web');
-  const [utmCampaign, setUtmCampaign] = useState('summer_launch');
+  const [showUtmBuilder, setShowUtmBuilder] = useState(false);
+  const [enableUtm, setEnableUtm] = useState(false);
+  const [utmSource, setUtmSource] = useState('');
+  const [utmMedium, setUtmMedium] = useState('');
+  const [utmCampaign, setUtmCampaign] = useState('');
   const [utmTerm, setUtmTerm] = useState('');
   const [utmContent, setUtmContent] = useState('');
   const [neverExpires, setNeverExpires] = useState(true);
@@ -197,17 +199,62 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     }
   }, [destinationUrl, ogTitle, title]);
 
-  // Sync UTM Source with placement tag
-  useEffect(() => {
-    setUtmSource(placementTag === 'drive' ? 'google_drive' : placementTag);
-    if (placementTag === 'youtube') setUtmMedium('description');
-    else if (placementTag === 'drive') setUtmMedium('cloud_share');
-    else if (placementTag === 'instagram') setUtmMedium('bio');
-    else if (placementTag === 'tiktok') setUtmMedium('profile');
-    else if (placementTag === 'x') setUtmMedium('post');
-    else if (placementTag === 'podcast') setUtmMedium('show_notes');
-    else setUtmMedium('web');
-  }, [placementTag]);
+  // Quick 1-click UTM preset application
+  const applyUtmPreset = (preset: 'youtube' | 'instagram' | 'tiktok' | 'twitter' | 'whatsapp' | 'email' | 'google_ads' | 'clear') => {
+    if (preset === 'clear') {
+      setUtmSource('');
+      setUtmMedium('');
+      setUtmCampaign('');
+      setUtmTerm('');
+      setUtmContent('');
+      setEnableUtm(false);
+      return;
+    }
+    setEnableUtm(true);
+    setShowUtmBuilder(true);
+    const campObj = campaigns.find(c => c.id === selectedCampaignId);
+    const campName = campObj ? campObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') : (utmCampaign || 'promo');
+    setUtmCampaign(campName);
+
+    if (preset === 'youtube') {
+      setUtmSource('youtube');
+      setUtmMedium('description');
+    } else if (preset === 'instagram') {
+      setUtmSource('instagram');
+      setUtmMedium('bio');
+    } else if (preset === 'tiktok') {
+      setUtmSource('tiktok');
+      setUtmMedium('profile');
+    } else if (preset === 'twitter') {
+      setUtmSource('twitter');
+      setUtmMedium('post');
+    } else if (preset === 'whatsapp') {
+      setUtmSource('whatsapp');
+      setUtmMedium('chat');
+    } else if (preset === 'email') {
+      setUtmSource('newsletter');
+      setUtmMedium('email');
+    } else if (preset === 'google_ads') {
+      setUtmSource('google');
+      setUtmMedium('cpc');
+    }
+  };
+
+  // Real-time preview of Destination URL with UTM Parameters
+  const previewWithUtm = useMemo(() => {
+    if (!destinationUrl.trim()) return '';
+    const norm = normalizeUrl(destinationUrl.trim());
+    if (!enableUtm && !utmSource.trim() && !utmMedium.trim() && !utmCampaign.trim()) {
+      return norm;
+    }
+    return buildUtmUrl(norm, {
+      source: utmSource.trim() || undefined,
+      medium: utmMedium.trim() || undefined,
+      campaign: utmCampaign.trim() || undefined,
+      term: utmTerm.trim() || undefined,
+      content: utmContent.trim() || undefined
+    });
+  }, [destinationUrl, enableUtm, utmSource, utmMedium, utmCampaign, utmTerm, utmContent]);
 
   if (!isOpen) return null;
 
@@ -257,6 +304,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setChannel('None');
     setIosTargetUrl('');
     setAndroidTargetUrl('');
+    setUtmSource('');
+    setUtmMedium('');
+    setUtmCampaign('');
+    setUtmTerm('');
+    setUtmContent('');
+    setEnableUtm(false);
+    setShowUtmBuilder(false);
     setShowAdvanced(false);
     setErrorMsg('');
     setGeneratedResults([]);
@@ -341,9 +395,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           og_image_url: ogImageUrl.trim() || undefined,
           expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
           max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
-          utm_source: utmSource,
-          utm_medium: utmMedium,
-          utm_campaign: utmCampaign,
+          utm_source: (enableUtm || utmSource.trim()) ? utmSource.trim() || undefined : undefined,
+          utm_medium: (enableUtm || utmMedium.trim()) ? utmMedium.trim() || undefined : undefined,
+          utm_campaign: (enableUtm || utmCampaign.trim()) ? utmCampaign.trim() || undefined : undefined,
           utm_term: utmTerm.trim() || undefined,
           utm_content: utmContent.trim() || undefined,
           rules: linkRules.length > 0 ? linkRules : undefined,
@@ -593,6 +647,49 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     <span>OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
                   </div>
                 )}
+
+                {/* Single Mode: Title & Custom Slug Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-xs">Link Title (Optional)</label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="e.g. My Website, Campaign Landing"
+                      className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-xs flex items-center justify-between">
+                      <span>Custom Slug (Optional)</span>
+                      {customSlug.trim() && (
+                        <span className={`text-[11px] font-semibold flex items-center gap-1 ${isSlugTaken ? 'text-red-500' : 'text-emerald-600'}`}>
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>{isSlugTaken ? 'Slug taken' : 'Available'}</span>
+                        </span>
+                      )}
+                    </label>
+                    <div className="flex items-center rounded-xl bg-surface-container-lowest px-3 py-1.5 border border-outline-variant/60">
+                      <span className="text-on-surface-variant font-mono text-xs select-none pr-1">/{resolvedHost.split(':')[0]}/</span>
+                      <input
+                        type="text"
+                        value={customSlug}
+                        onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                        placeholder="custom-slug"
+                        className="flex-1 bg-transparent font-mono text-xs text-primary font-bold focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRandomizeSlug}
+                        className="text-[11px] text-on-surface-variant hover:text-primary font-medium"
+                      >
+                        Random
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -759,6 +856,228 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
               )}
             </div>
           )}
+
+          {/* ─── Campaign UTM Builder & Tracking Section (Elevated to Form) ─── */}
+          <div className="p-3.5 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 rounded-2xl border border-primary/20 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                  <Sliders className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-on-surface">Campaign UTM Builder &amp; Tracking</span>
+                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.2 rounded-full">100% Free Included</span>
+                  </div>
+                  <span className="text-[10px] text-on-surface-variant">
+                    Add Google Analytics &amp; campaign tracking parameters to measure ROI across channels
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowUtmBuilder(!showUtmBuilder);
+                  if (!enableUtm && !showUtmBuilder) {
+                    setEnableUtm(true);
+                  }
+                }}
+                className="px-2.5 py-1 bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-xs rounded-lg transition-colors cursor-pointer flex items-center gap-1 shrink-0"
+              >
+                <span>{showUtmBuilder ? 'Hide UTMs' : 'Customize UTMs'}</span>
+                {showUtmBuilder ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            {/* Quick Platform Presets Chips */}
+            <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-primary/15">
+              <span className="text-[10px] text-on-surface-variant font-semibold mr-1">Quick Presets:</span>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('youtube')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'youtube'
+                    ? 'bg-red-500 text-white border-red-500 shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                YouTube
+              </button>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('instagram')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'instagram'
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-transparent shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                Instagram
+              </button>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('tiktok')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'tiktok'
+                    ? 'bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-neutral-900 shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                TikTok
+              </button>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('twitter')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'twitter'
+                    ? 'bg-sky-500 text-white border-sky-500 shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                X / Twitter
+              </button>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('whatsapp')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'whatsapp'
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('email')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'newsletter'
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                Email
+              </button>
+              <button
+                type="button"
+                onClick={() => applyUtmPreset('google_ads')}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-all cursor-pointer ${
+                  utmSource === 'google'
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                    : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant/40'
+                }`}
+              >
+                Google Ads
+              </button>
+              {(utmSource || utmMedium || utmCampaign || utmTerm || utmContent) && (
+                <button
+                  type="button"
+                  onClick={() => applyUtmPreset('clear')}
+                  className="px-2 py-0.5 rounded-md text-[10px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all cursor-pointer ml-auto"
+                >
+                  Clear UTMs
+                </button>
+              )}
+            </div>
+
+            {/* UTM Input Fields */}
+            {showUtmBuilder && (
+              <div className="flex flex-col gap-2.5 pt-1 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-[11px]">
+                      UTM Source <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={utmSource}
+                      onChange={(e) => {
+                        setUtmSource(e.target.value);
+                        setEnableUtm(true);
+                      }}
+                      placeholder="e.g. google, youtube, newsletter"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-[11px]">
+                      UTM Medium <span className="text-primary">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={utmMedium}
+                      onChange={(e) => {
+                        setUtmMedium(e.target.value);
+                        setEnableUtm(true);
+                      }}
+                      placeholder="e.g. cpc, bio, social, email"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-[11px]">
+                      UTM Campaign
+                    </label>
+                    <input
+                      type="text"
+                      value={utmCampaign}
+                      onChange={(e) => {
+                        setUtmCampaign(e.target.value);
+                        setEnableUtm(true);
+                      }}
+                      placeholder="e.g. summer_sale, promo_launch"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-[11px]">
+                      UTM Term (Keywords)
+                    </label>
+                    <input
+                      type="text"
+                      value={utmTerm}
+                      onChange={(e) => {
+                        setUtmTerm(e.target.value);
+                        setEnableUtm(true);
+                      }}
+                      placeholder="e.g. running+shoes, software+deal"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-on-surface text-[11px]">
+                      UTM Content (Ad / Placement)
+                    </label>
+                    <input
+                      type="text"
+                      value={utmContent}
+                      onChange={(e) => {
+                        setUtmContent(e.target.value);
+                        setEnableUtm(true);
+                      }}
+                      placeholder="e.g. header_banner, cta_blue"
+                      className="w-full px-2.5 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/60 font-mono text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Preview of Destination URL with UTM Parameters */}
+                {previewWithUtm && (
+                  <div className="p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/40 flex flex-col gap-0.5">
+                    <span className="text-[10px] text-on-surface-variant font-semibold">Final Destination URL with UTM Tracking:</span>
+                    <span className="font-mono text-[11px] text-primary break-all select-all">{previewWithUtm}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* ─── Social Media Meta Tags & WhatsApp/Twitter Live Preview (Requested Feature) ─── */}
           <div className="p-3.5 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-2xl border border-primary/20 flex flex-col gap-3">
@@ -1313,45 +1632,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 </div>
               </div>
 
-              {/* Automatic UTM Parameters */}
-              <div className="flex flex-col gap-2 pt-1 border-t border-outline-variant/20">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-primary" />
-                    <span>Automatic UTM Parameters</span>
-                  </span>
-                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">Free Included</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Source</span>
-                    <input
-                      type="text"
-                      value={utmSource}
-                      onChange={(e) => setUtmSource(e.target.value)}
-                      className="w-full font-mono text-[11px] px-2 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/60 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Medium</span>
-                    <input
-                      type="text"
-                      value={utmMedium}
-                      onChange={(e) => setUtmMedium(e.target.value)}
-                      className="w-full font-mono text-[11px] px-2 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/60 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-medium text-on-surface-variant uppercase">Campaign</span>
-                    <input
-                      type="text"
-                      value={utmCampaign}
-                      onChange={(e) => setUtmCampaign(e.target.value)}
-                      className="w-full font-mono text-[11px] px-2 py-1 bg-surface-container-lowest rounded-md text-on-surface border border-outline-variant/60 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* Expiration and Limits */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-t border-outline-variant/20">
