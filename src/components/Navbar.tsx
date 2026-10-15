@@ -50,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
         <div className="flex items-center space-x-3">
           
           {/* Secondary Action: Health status pill */}
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-surface-container text-tertiary border border-outline-variant/30">
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-surface-container text-tertiary border border-outline-variant/30">
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-ping"></span>
             <span className="font-label-sm text-label-sm font-semibold">
               System Healthy: 42 domains

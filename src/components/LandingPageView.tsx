@@ -265,7 +265,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
         {/* Top Notification Announcement Bar */}
         <section className="w-full bg-surface-container-low py-2 text-center border-b border-outline-variant/30">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-2 text-xs">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary-container text-on-primary">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary-container text-on-primary">
               New
             </span>
             <span className="text-on-surface font-medium">Dynamic QR Code generator 2.0 & OpeninApp routing are now live</span>
@@ -280,7 +280,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
             
             {/* Creator Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-high mb-6 shadow-xs border border-outline-variant/30">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-surface-container-high mb-6 shadow-xs border border-outline-variant/30">
               <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
               <span className="text-xs text-on-surface-variant font-semibold">Built for modern creators & influencers</span>
             </div>
@@ -294,7 +294,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </p>
 
             {/* Interactive Shorten Card */}
-            <div className="w-full max-w-3xl bg-surface-container-lowest rounded-2xl shadow-xl border border-outline-variant/40 p-4 sm:p-6 text-left">
+            <div className="w-full max-w-3xl bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-4 sm:p-6 text-left">
               <form onSubmit={handleShorten} className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-outline">
@@ -317,7 +317,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                       }
                     }}
                     placeholder={currentUser ? "Paste a long URL (e.g. https://yourcompany.com/product-launch)" : "Sign in to shorten & brand links (Click to sign in)"}
-                    className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest rounded-xl text-sm font-medium text-on-surface placeholder:text-outline border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container shadow-inner transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest rounded-lg text-sm font-medium text-on-surface placeholder:text-outline border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container shadow-inner transition-all"
                   />
                 </div>
                 <button
@@ -329,7 +329,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     }
                   }}
                   disabled={isShortening}
-                  className="inline-flex items-center justify-center px-6 py-3 bg-primary-container hover:bg-primary text-on-primary text-sm font-semibold rounded-xl transition-all shadow-sm whitespace-nowrap cursor-pointer active:scale-95 disabled:opacity-50"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-primary-container hover:bg-primary text-on-primary text-sm font-semibold rounded-lg transition-all shadow-sm whitespace-nowrap cursor-pointer active:scale-95 disabled:opacity-50"
                 >
                   <Wand2 className="w-4 h-4 mr-2" />
                   <span>{isShortening ? 'Shortening...' : 'Shorten Link'}</span>
@@ -353,7 +353,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
               {/* Instant Output Result Card */}
               {currentLink && (
-                <div className="mt-4 p-4 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-3 transition-all">
+                <div className="mt-4 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col gap-3 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
@@ -407,7 +407,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
                   {/* Edit Alias Drawer */}
                   {aliasDrawerOpen && (
-                    <div className="pt-3 bg-surface-container-lowest p-3.5 rounded-xl border border-outline-variant/40 mt-1">
+                    <div className="pt-3 bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant/40 mt-1">
                       <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                         Customize URL Back-half:
                       </label>
@@ -434,7 +434,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
               {/* Copy Toast Banner */}
               {showToast && (
-                <div className="mt-3 px-3.5 py-2.5 bg-inverse-surface text-inverse-on-surface rounded-xl text-xs font-medium flex items-center justify-between shadow-lg animate-fade-in">
+                <div className="mt-3 px-3.5 py-2.5 bg-inverse-surface text-inverse-on-surface rounded-lg text-xs font-medium flex items-center justify-between shadow-lg animate-fade-in">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span>Copied to clipboard! Ready to paste into your bio.</span>
@@ -452,45 +452,45 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 max-w-4xl">
                 
                 {/* YouTube */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
                   <span className="text-xs text-on-surface font-semibold">YouTube</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">1.2M+</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">1.2M+</span>
                 </div>
 
                 {/* Instagram */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-pink-600"></span>
                   <span className="text-xs text-on-surface font-semibold">Instagram</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Bio & Stories</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Bio & Stories</span>
                 </div>
 
                 {/* TikTok */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white"></span>
                   <span className="text-xs text-on-surface font-semibold">TikTok</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Profile</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Profile</span>
                 </div>
 
                 {/* X / Twitter */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
                   <span className="text-xs font-bold text-on-surface">𝕏</span>
                   <span className="text-xs text-on-surface font-semibold">X / Twitter</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Posts</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Posts</span>
                 </div>
 
                 {/* Twitch */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
                   <span className="text-xs text-on-surface font-semibold">Twitch</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Panels</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Panels</span>
                 </div>
 
                 {/* Substack */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
                   <span className="text-xs text-on-surface font-semibold">Substack</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Newsletters</span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Newsletters</span>
                 </div>
 
               </div>
@@ -517,9 +517,9 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               
               {/* Feature 1 */}
-              <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
                 <div>
-                  <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
                     <Globe2 className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -537,9 +537,9 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Feature 2 */}
-              <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
                 <div>
-                  <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
                     <BarChart3 className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -557,9 +557,9 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Feature 3 */}
-              <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
                 <div>
-                  <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
                     <QrCode className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -577,9 +577,9 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Feature 4 */}
-              <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
                 <div>
-                  <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
                     <Smartphone className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -617,8 +617,8 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
               {/* Screenshot 1 */}
-              <div className="group rounded-3xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
-                <div className="overflow-hidden rounded-2xl bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
+              <div className="group rounded-xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
+                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
                   <img 
                     src="/official_app_store_marketing_screenshot_1_title_card_the_hook_for_snip_creator.png"
                     alt="Snip Creator - The Hook Title Card"
@@ -633,8 +633,8 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Screenshot 2 */}
-              <div className="group rounded-3xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
-                <div className="overflow-hidden rounded-2xl bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
+              <div className="group rounded-xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
+                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
                   <img 
                     src="/official_app_store_marketing_screenshot_2_key_feature_for_snip_creator_app..png"
                     alt="Key Feature Deep Dive"
@@ -649,8 +649,8 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Screenshot 3 */}
-              <div className="group rounded-3xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
-                <div className="overflow-hidden rounded-2xl bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
+              <div className="group rounded-xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
+                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
                   <img 
                     src="/official_app_store_marketing_screenshot_3_visual_polish_utilities_for_snip.png"
                     alt="Visual Polish & Utilities"
@@ -673,7 +673,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             
             {/* Section Header */}
             <div className="max-w-3xl mb-12">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container text-primary-container text-xs font-bold mb-3 border border-outline-variant/30">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface-container text-primary-container text-xs font-bold mb-3 border border-outline-variant/30">
                 <BarChart3 className="w-3.5 h-3.5" />
                 <span>Zero Guesswork</span>
               </div>
@@ -686,7 +686,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </div>
 
             {/* Dashboard Mockup Card */}
-            <div className="bg-surface-container-lowest rounded-3xl shadow-xl border border-outline-variant/40 p-6 lg:p-8 overflow-hidden">
+            <div className="bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-6 lg:p-8 overflow-hidden">
               
               {/* Mockup Top Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 gap-4 border-b border-outline-variant/20">
@@ -697,7 +697,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-on-surface">Sarah Connor Media</h4>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-container text-primary-container">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-primary-container">
                         Pro Creator
                       </span>
                     </div>
@@ -706,11 +706,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1.5 rounded-xl bg-surface-container-low text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30">
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     Live Tracking
                   </span>
-                  <div className="px-3 py-1.5 rounded-xl bg-surface-container-lowest text-on-surface-variant text-xs font-semibold border border-outline-variant/40 shadow-xs">
+                  <div className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant text-xs font-semibold border border-outline-variant/40 shadow-xs">
                     Last 14 Days
                   </div>
                 </div>
@@ -718,7 +718,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
               {/* 4 Metric Cards Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 my-8">
-                <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
                   <span className="text-xs text-on-surface-variant font-semibold">Total Clicks</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold font-mono text-on-surface">48,250</span>
@@ -729,7 +729,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <span className="text-[11px] text-outline mt-1 block">vs. previous period</span>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
                   <span className="text-xs text-on-surface-variant font-semibold">Top Traffic Origin</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold text-on-surface">YouTube</span>
@@ -738,7 +738,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <span className="text-[11px] text-outline mt-1 block">Main video description</span>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
                   <span className="text-xs text-on-surface-variant font-semibold">Mobile Device Ratio</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold font-mono text-on-surface">84.0%</span>
@@ -747,7 +747,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <span className="text-[11px] text-outline mt-1 block">iOS: 62% • Android: 22%</span>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
                   <span className="text-xs text-on-surface-variant font-semibold">Conversion Rate</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold font-mono text-on-surface">18.6%</span>
@@ -761,13 +761,13 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
                 {/* Main Timeline Chart (7 cols) */}
-                <div className="lg:col-span-7 bg-surface-container-low p-5 rounded-2xl border border-outline-variant/20">
+                <div className="lg:col-span-7 bg-surface-container-low p-5 rounded-lg border border-outline-variant/20">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h5 className="text-sm font-bold text-on-surface">Click Velocity (14-Day Timeline)</h5>
                       <p className="text-xs text-on-surface-variant">Aggregated direct and in-app referrals</p>
                     </div>
-                    <span className="font-mono text-xs text-primary-container font-bold bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-outline-variant/30 shadow-xs">
+                    <span className="font-mono text-xs text-primary-container font-bold bg-surface-container-lowest px-2.5 py-1 rounded-md border border-outline-variant/30 shadow-xs">
                       Peak: 4,920 clicks / day
                     </span>
                   </div>
@@ -803,7 +803,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     </svg>
 
                     {/* Tooltip Pill */}
-                    <div className="absolute left-[78%] top-1 -translate-x-1/2 bg-on-surface text-surface-container-lowest px-2.5 py-1.5 rounded-lg text-xs font-mono shadow-md">
+                    <div className="absolute left-[78%] top-1 -translate-x-1/2 bg-on-surface text-surface-container-lowest px-2.5 py-1.5 rounded-md text-xs font-mono shadow-md">
                       Day 12: 4,920 clicks
                     </div>
                   </div>
@@ -821,7 +821,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
                 {/* Breakdown by Platform Column (5 cols) */}
                 <div className="lg:col-span-5 flex flex-col gap-6">
-                  <div className="bg-surface-container-low p-5 rounded-2xl border border-outline-variant/20">
+                  <div className="bg-surface-container-low p-5 rounded-lg border border-outline-variant/20">
                     <h5 className="text-sm font-bold text-on-surface mb-4">Traffic by Channel</h5>
                     <div className="space-y-4">
                       
@@ -881,7 +881,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   </div>
 
                   {/* Geography Pill */}
-                  <div className="bg-surface-container-low p-5 rounded-2xl flex items-center justify-between border border-outline-variant/20">
+                  <div className="bg-surface-container-low p-5 rounded-lg flex items-center justify-between border border-outline-variant/20">
                     <div>
                       <span className="text-xs text-on-surface-variant font-medium">Top Countries</span>
                       <p className="text-xs sm:text-sm font-bold text-on-surface mt-0.5">🇺🇸 US 46% • 🇬🇧 UK 24% • 🇨🇦 CA 14%</p>
@@ -920,7 +920,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
               
               {/* Free Tier */}
-              <div className="bg-surface-container-lowest rounded-2xl p-8 shadow-xs border border-outline-variant/40 flex flex-col justify-between">
+              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xs border border-outline-variant/40 flex flex-col justify-between">
                 <div>
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-on-surface">Free</h3>
@@ -956,15 +956,15 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signup')}
-                  className="w-full py-3 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold text-center transition-colors cursor-pointer"
+                  className="w-full py-3 px-4 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold text-center transition-colors cursor-pointer"
                 >
                   Get started free
                 </button>
               </div>
 
               {/* Creator Tier (Featured) */}
-              <div className="bg-surface-container-lowest rounded-2xl p-8 shadow-xl border-2 border-primary-container flex flex-col justify-between relative transform lg:-translate-y-2">
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary-container text-on-primary rounded-full text-[11px] font-bold tracking-wide uppercase shadow-sm">
+              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xl border-2 border-primary-container flex flex-col justify-between relative transform lg:-translate-y-2">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary-container text-on-primary rounded-md text-[11px] font-bold tracking-wide uppercase shadow-sm">
                   Most popular
                 </div>
                 <div>
@@ -1006,14 +1006,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signup')}
-                  className="w-full py-3.5 px-4 rounded-xl bg-primary-container hover:bg-primary text-on-primary text-xs font-bold text-center shadow-md transition-colors cursor-pointer"
+                  className="w-full py-3.5 px-4 rounded-lg bg-primary-container hover:bg-primary text-on-primary text-xs font-bold text-center shadow-md transition-colors cursor-pointer"
                 >
                   Start 14-day free trial
                 </button>
               </div>
 
               {/* Business Tier */}
-              <div className="bg-surface-container-lowest rounded-2xl p-8 shadow-xs border border-outline-variant/40 flex flex-col justify-between">
+              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xs border border-outline-variant/40 flex flex-col justify-between">
                 <div>
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-on-surface">Business</h3>
@@ -1053,7 +1053,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signup')}
-                  className="w-full py-3 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold text-center transition-colors cursor-pointer"
+                  className="w-full py-3 px-4 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold text-center transition-colors cursor-pointer"
                 >
                   Contact sales
                 </button>
@@ -1081,7 +1081,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="space-y-4">
               
               {/* Item 1 */}
-              <div className="rounded-2xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(1)}
@@ -1098,7 +1098,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Item 2 */}
-              <div className="rounded-2xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(2)}
@@ -1115,7 +1115,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Item 3 */}
-              <div className="rounded-2xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(3)}
@@ -1132,7 +1132,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Item 4 */}
-              <div className="rounded-2xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(4)}
@@ -1157,7 +1157,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
             
             {/* Testimonial Card */}
-            <div className="w-full bg-surface-container-lowest rounded-3xl p-8 sm:p-12 shadow-sm border border-outline-variant/40 mb-16 text-center max-w-3xl">
+            <div className="w-full bg-surface-container-lowest rounded-xl p-8 sm:p-12 shadow-sm border border-outline-variant/40 mb-16 text-center max-w-3xl">
               <div className="flex justify-center mb-6 gap-1 text-amber-500">
                 {'★'.repeat(5)}
               </div>
@@ -1180,7 +1180,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </div>
 
             {/* Final CTA Banner */}
-            <div className="w-full bg-primary-container text-on-primary rounded-3xl p-8 sm:p-12 text-center shadow-xl">
+            <div className="w-full bg-primary-container text-on-primary rounded-xl p-8 sm:p-12 text-center shadow-xl">
               <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">
                 Ready to simplify your links?
               </h3>
@@ -1191,13 +1191,13 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signup')}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-surface-container-lowest text-primary-container hover:bg-surface-container-low text-xs font-bold shadow-md transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-lg bg-surface-container-lowest text-primary-container hover:bg-surface-container-low text-xs font-bold shadow-md transition-all cursor-pointer"
                 >
                   Sign up free
                 </button>
                 <a
                   href="#features"
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-primary text-on-primary hover:bg-opacity-80 text-xs font-semibold transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-lg bg-primary text-on-primary hover:bg-opacity-80 text-xs font-semibold transition-all cursor-pointer"
                 >
                   Explore features
                 </a>
@@ -1245,7 +1245,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
       {/* 10. QR CODE MODAL */}
       {qrModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-surface-container-lowest rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-outline-variant/40 relative">
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-6 shadow-2xl border border-outline-variant/40 relative">
             <button
               type="button"
               onClick={() => setQrModalOpen(false)}
@@ -1259,7 +1259,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </p>
 
             {/* Dynamic QR Code Graphic */}
-            <div className="w-48 h-48 mx-auto p-4 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center mb-5">
+            <div className="w-48 h-48 mx-auto p-4 bg-surface-container-lowest rounded-lg shadow-xs border border-outline-variant/30 flex items-center justify-center mb-5">
               <QRCodeSVG
                 id="landing-qr-code"
                 value={currentLink?.fullUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://tiny-url-self.vercel.app')}
@@ -1274,14 +1274,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <button
                 type="button"
                 onClick={() => downloadQr('svg')}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-primary-container text-on-primary text-xs font-semibold hover:bg-primary transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                className="flex-1 py-2.5 px-3 rounded-lg bg-primary-container text-on-primary text-xs font-semibold hover:bg-primary transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
               >
                 <Download className="w-4 h-4" /> Download SVG
               </button>
               <button
                 type="button"
                 onClick={() => downloadQr('png')}
-                className="py-2.5 px-3 rounded-xl bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer border border-outline-variant/30"
+                className="py-2.5 px-3 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer border border-outline-variant/30"
               >
                 PNG (Hi-Res)
               </button>
