@@ -338,3 +338,40 @@ export interface TrackApiResponse {
   error?: string;
 }
 
+// ─── White-Label Client Portal Contracts ───
+
+export interface ClientPortalAccount {
+  id: string;
+  workspace_id: string;
+  name: string;
+  email: string;
+  company_name: string;
+  password_hash?: string;
+  status: 'active' | 'suspended' | 'invited';
+  custom_domain?: string;
+  brand_logo_url?: string;
+  brand_color?: string;
+  can_view_analytics: boolean;
+  can_edit_destination_url: boolean;
+  can_create_links: boolean;
+  max_links_quota: number;
+  assigned_link_ids: string[];
+  assigned_campaign_ids: string[];
+  assigned_channel?: string;
+  total_logins: number;
+  last_login_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientPortalSummaryMetrics {
+  total_clients: number;
+  active_this_month: number;
+  total_logins: number;
+  most_used_domain: string;
+  client_quota: {
+    created: number;
+    limit: number;
+  };
+}
+

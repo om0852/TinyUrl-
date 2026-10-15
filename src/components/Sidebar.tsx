@@ -18,7 +18,8 @@ import {
   Check, 
   Settings, 
   LogOut,
-  Users
+  Users,
+  Building2
 } from 'lucide-react';
 import { CreateTeamModal } from './CreateTeamModal';
 
@@ -30,6 +31,7 @@ export type TabType =
   | 'qr' 
   | 'security' 
   | 'campaigns' 
+  | 'clients'
   | 'teams'
   | 'ai' 
   | 'api' 
@@ -51,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   className = '',
   onCloseMobile
 }) => {
-  const { currentWorkspace, workspaces, setCurrentWorkspace, links, currentUser, incomingInvitations, logout } = useStore();
+  const { currentWorkspace, workspaces, setCurrentWorkspace, links, clients, currentUser, incomingInvitations, logout } = useStore();
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
 
@@ -79,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'qr', label: 'QR Codes', icon: QrCode },
     { id: 'routing', label: 'Routing', icon: Smartphone, badge: 'Smart' },
     { id: 'campaigns', label: 'Campaigns', icon: FolderKanban },
+    { id: 'clients', label: 'Clients', icon: Building2, badge: clients.length > 0 ? clients.length : undefined },
     { id: 'teams', label: 'Teams & Workspaces', icon: Users, badge: incomingInvitations.length > 0 ? `${incomingInvitations.length} new` : undefined },
     { id: 'bulk', label: 'Bulk Tools', icon: Layers },
     { id: 'security', label: 'Security', icon: ShieldCheck },

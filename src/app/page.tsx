@@ -19,6 +19,7 @@ import { TeamsView } from '@/components/TeamsView';
 import { AiSuiteView } from '@/components/AiSuiteView';
 import { ApiDocsView } from '@/components/ApiDocsView';
 import { BulkToolsView } from '@/components/BulkToolsView';
+import { ClientsView } from '@/components/ClientsView';
 import { SettingsView } from '@/components/SettingsView';
 import { CreateLinkModal } from '@/components/CreateLinkModal';
 import { CommandPaletteModal } from '@/components/CommandPaletteModal';
@@ -31,6 +32,7 @@ const TAB_TITLES: Record<TabType, string> = {
   qr: 'QR Code Studio',
   security: 'Security Scanner & Zero-Trust',
   campaigns: 'Campaigns & UTM Tagging',
+  clients: 'Clients Portal',
   teams: 'Teams & Workspaces',
   ai: 'AI Slug & Traffic Insights',
   api: 'API & Developer Keys',
@@ -209,6 +211,7 @@ export default function Home() {
           )}
           {activeTab === 'security' && <SecurityView />}
           {activeTab === 'campaigns' && <CampaignsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
+          {activeTab === 'clients' && <ClientsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
           {activeTab === 'teams' && <TeamsView onNavigateTab={(tab) => setActiveTab(tab as TabType)} />}
           {activeTab === 'ai' && <AiSuiteView />}
           {activeTab === 'api' && <ApiDocsView />}

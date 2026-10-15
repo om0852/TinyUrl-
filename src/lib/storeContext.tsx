@@ -15,7 +15,9 @@ import {
   TeamMember,
   WorkspaceInvitation,
   WorkspaceRole,
-  DeepLinkConfig
+  DeepLinkConfig,
+  ClientPortalAccount,
+  ClientPortalSummaryMetrics
 } from './types';
 import {
   initialDomains,
@@ -60,6 +62,9 @@ interface StoreContextType {
 
   domains: Domain[];
   campaigns: Campaign[];
+  clients: ClientPortalAccount[];
+  clientMetrics: ClientPortalSummaryMetrics;
+  refreshClients: () => Promise<void>;
   links: Link[];
   clicks: ClickEvent[];
   selectedAnalyticsLinkId: string | null;
@@ -124,6 +129,12 @@ interface StoreContextType {
   addCampaign: (name: string, description: string, tags: string[], target_clicks?: number) => Campaign;
   updateCampaign: (id: string, updates: Partial<Campaign>) => void;
   deleteCampaign: (id: string) => void;
+  
+  // White-Label Client Portal Actions
+  addClient: (data: Partial<ClientPortalAccount> & { password?: string }) => Promise<{ success: boolean; client?: ClientPortalAccount; error?: string }>;
+  updateClient: (id: string, updates: Partial<ClientPortalAccount> & { password?: string }) => Promise<{ success: boolean; error?: string }>;
+  deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
+
   addApiKey: (name: string, permissions: string[]) => ApiKey;
   deleteApiKey: (id: string) => void;
   addWebhook: (url: string, events: string[]) => Webhook;
@@ -562,12 +573,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [domains, setDomains] = useState<Domain[]>(() => ensurePlatformDomain(initialDomains || [], 'ws_default'));
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [clients, setClients] = useState<ClientPortalAccount[]>([]);
+  const [clientMetrics, setClientMetrics] = useState<ClientPortalSummaryMetrics>({
+    total_clients: 0,
+    active_this_month: 0,
+    total_logins: 0,
+    most_used_domain: 'portal.tinyurl.internal',
+    client_quota: { created: 0, limit: -1 }
+  });
   const [links, setLinks] = useState<Link[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
   const [selectedAnalyticsLinkId, setSelectedAnalyticsLinkId] = useState<string | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const refreshClients = useCallback(async () => {
+    if (!currentWorkspace?.id) return;
+    try {
+      const res = await fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(currentWorkspace.id)}`);
+      const data = await res.json();
+      if (data?.success) {
+        if (Array.isArray(data.clients)) setClients(data.clients);
+        if (data.summary) setClientMetrics(data.summary);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch client portals:', err);
+    }
+  }, [currentWorkspace?.id]);
+
+  useEffect(() => {
+    refreshClients();
+  }, [refreshClients]);
 
   // Live Server Telemetry Synchronizer (Fetches latest links and click events from PostgreSQL)
   const syncFromBackend = useCallback(async () => {
@@ -1772,6 +1809,65 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveCampaignsState(updated);
     if (typeof window !== 'undefined') {
       apiFetch(`/api/v1/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+    }
+  };
+
+  // Client Portal Actions
+  const addClient = async (data: Partial<ClientPortalAccount> & { password?: string }) => {
+    try {
+      const res = await apiFetch('/api/v1/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          workspace_id: currentWorkspace.id
+        })
+      });
+      const resData = await res.json();
+      if (resData.success && resData.client) {
+        setClients(prev => [resData.client, ...prev]);
+        refreshClients();
+        return { success: true, client: resData.client };
+      }
+      return { success: false, error: resData.error || 'Failed to create client account.' };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  };
+
+  const updateClient = async (id: string, updates: Partial<ClientPortalAccount> & { password?: string }) => {
+    try {
+      const res = await apiFetch(`/api/v1/clients/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates, updated_at: new Date().toISOString() } : c));
+        refreshClients();
+        return { success: true };
+      }
+      return { success: false, error: resData.error || 'Failed to update client account.' };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  };
+
+  const deleteClient = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/v1/clients/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        setClients(prev => prev.filter(c => c.id !== id));
+        refreshClients();
+        return { success: true };
+      }
+      return { success: false, error: resData.error || 'Failed to delete client account.' };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
     }
   };
 
@@ -3000,6 +3096,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateDomainConfig,
       deleteDomain,
       campaigns,
+      clients,
+      clientMetrics,
+      refreshClients,
       links,
       clicks,
       selectedAnalyticsLinkId,
@@ -3018,6 +3117,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addCampaign,
       updateCampaign,
       deleteCampaign,
+      addClient,
+      updateClient,
+      deleteClient,
       addApiKey,
       deleteApiKey,
       addWebhook,

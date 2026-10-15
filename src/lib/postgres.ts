@@ -272,6 +272,37 @@ export async function initializeDatabase() {
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_bulk_jobs_workspace ON bulk_jobs (workspace_id);`);
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_bulk_jobs_created ON bulk_jobs (created_at DESC);`);
 
+    // 11. Client Portals (White-Label Client Accounts)
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS client_portals (
+        id VARCHAR(64) PRIMARY KEY,
+        workspace_id VARCHAR(64) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        company_name VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255),
+        status VARCHAR(32) DEFAULT 'active',
+        custom_domain VARCHAR(255),
+        brand_logo_url TEXT,
+        brand_color VARCHAR(32) DEFAULT '#4f46e5',
+        can_view_analytics BOOLEAN DEFAULT true,
+        can_edit_destination_url BOOLEAN DEFAULT false,
+        can_create_links BOOLEAN DEFAULT false,
+        max_links_quota INT DEFAULT 10,
+        assigned_link_ids JSONB DEFAULT '[]'::jsonb,
+        assigned_campaign_ids JSONB DEFAULT '[]'::jsonb,
+        assigned_channel VARCHAR(64),
+        total_logins INT DEFAULT 0,
+        last_login_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(workspace_id, email)
+      );
+    `);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_client_portals_ws ON client_portals (workspace_id);`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_client_portals_email ON client_portals (email);`);
+    await sql.query(`CREATE INDEX IF NOT EXISTS idx_client_portals_domain ON client_portals (custom_domain);`);
+
     return { success: true };
   } catch (error) {
     console.error('Failed to initialize database tables:', error);

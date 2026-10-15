@@ -711,6 +711,199 @@ async function runTestSuite() {
     if (!whRes.ok || !whData.success) fail('Webhook creation failed', whData);
     pass(`Webhook registered: ${whData.webhook.id}`);
 
+    // ─────────────────────────────────────────────────────────────
+    // 8. CLIENT PORTAL: White-Label, Isolation & Destination Editing
+    // ─────────────────────────────────────────────────────────────
+    section('8. Testing White-Label Client Portal & Resource Scoping');
+
+    // 8.1 Create two links: one assigned to client, one unassigned
+    const clientAssignedSlug = `client_target_${timestamp.toString(36)}`;
+    const clientAssignedRes = await fetch(`${BASE_URL}/api/v1/shorten`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        workspace_id: testWorkspaceId,
+        destination_url: 'https://brand-partner.com/original-landing',
+        custom_slug: clientAssignedSlug,
+        title: 'Brand Assigned Campaign Link'
+      })
+    });
+    const clientAssignedData = await clientAssignedRes.json();
+    if (!clientAssignedRes.ok || !clientAssignedData.success) fail('Assigned link creation failed', clientAssignedData);
+    const assignedLinkId = clientAssignedData.data.id;
+    pass(`Created assigned link: ${clientAssignedSlug} (ID: ${assignedLinkId})`);
+
+    const unassignedSlug = `internal_secret_${timestamp.toString(36)}`;
+    const unassignedRes = await fetch(`${BASE_URL}/api/v1/shorten`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        workspace_id: testWorkspaceId,
+        destination_url: 'https://internal-agency.com/confidential',
+        custom_slug: unassignedSlug,
+        title: 'Agency Confidential Internal Link'
+      })
+    });
+    const unassignedData = await unassignedRes.json();
+    if (!unassignedRes.ok || !unassignedData.success) fail('Unassigned link creation failed', unassignedData);
+    pass(`Created agency unassigned link: ${unassignedSlug} (ID: ${unassignedData.data.id})`);
+
+    // 8.2 Create Client Portal Account
+    const clientEmail = `client_${timestamp}@acme-corp.internal`;
+    const clientPassword = `ClientSecretPass!_${timestamp}`;
+    subSection('8.2 Creating Client Portal Account via Admin API');
+    const createClientRes = await fetch(`${BASE_URL}/api/v1/clients`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        workspace_id: testWorkspaceId,
+        name: 'Jane Doe',
+        email: clientEmail,
+        password: clientPassword,
+        company_name: 'Acme Corporation',
+        assigned_link_ids: [assignedLinkId],
+        assigned_campaign_ids: [],
+        can_view_analytics: true,
+        can_edit_destination_url: true,
+        can_create_links: false,
+        max_links_quota: 20,
+        brand_color: '#4f46e5',
+        custom_domain: 'links.acmecorp.com'
+      })
+    });
+    const createClientData = await createClientRes.json();
+    if (!createClientRes.ok || !createClientData.success || !createClientData.client?.id) {
+      fail('Client portal creation failed', createClientData);
+    }
+    const clientId = createClientData.client.id;
+    pass(`Client portal account created: ${clientId} (${createClientData.client.company_name})`);
+
+    // 8.3 Check Admin Metrics Calculation
+    subSection('8.3 Verifying Admin Client Portal KPI Summary Metrics');
+    const adminClientsRes = await fetch(`${BASE_URL}/api/v1/clients?workspace_id=${testWorkspaceId}`, {
+      headers: authHeaders
+    });
+    const adminClientsData = await adminClientsRes.json();
+    if (!adminClientsRes.ok || !adminClientsData.success) fail('Admin clients fetch failed', adminClientsData);
+    const adminMetrics = adminClientsData.metrics || adminClientsData.summary;
+    if (!adminMetrics || adminMetrics.total_clients < 1) fail('Total clients metric mismatch', adminClientsData);
+    if (adminMetrics.most_used_domain !== 'links.acmecorp.com') {
+      fail('Most used domain metric mismatch', adminClientsData);
+    }
+    pass(`Admin KPIs verified: Total Clients = ${adminMetrics.total_clients}, Most Used Domain = ${adminMetrics.most_used_domain}`);
+
+    // 8.4 Test Client Portal Authentication
+    subSection('8.4 Testing Client Portal Auth (/api/v1/portal/auth)');
+    // Test wrong password
+    const badAuthRes = await fetch(`${BASE_URL}/api/v1/portal/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: clientEmail, password: 'WrongPassword123' })
+    });
+    if (badAuthRes.status !== 401) fail('Client auth did not reject bad password', await badAuthRes.text());
+    pass('Client auth correctly rejected invalid password with 401');
+
+    // Test correct credentials
+    const goodAuthRes = await fetch(`${BASE_URL}/api/v1/portal/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: clientEmail, password: clientPassword })
+    });
+    const goodAuthData = await goodAuthRes.json();
+    if (!goodAuthRes.ok || !goodAuthData.success || !goodAuthData.client) {
+      fail('Client auth failed with valid credentials', goodAuthData);
+    }
+    if (goodAuthData.client.total_logins !== 1) {
+      fail(`Expected total_logins to be 1, got ${goodAuthData.client.total_logins}`);
+    }
+    pass(`Client authenticated successfully: total_logins incremented to ${goodAuthData.client.total_logins}`);
+
+    // 8.5 Test Scoped Resource Isolation
+    subSection('8.5 Verifying Strict Scoped Resource Isolation');
+    const resourcesRes = await fetch(`${BASE_URL}/api/v1/portal/resources?client_id=${clientId}`);
+    const resourcesData = await resourcesRes.json();
+    if (!resourcesRes.ok || !resourcesData.success) fail('Failed to fetch portal resources', resourcesData);
+    
+    // Assert client can only see assigned link
+    const scopedLinkIds = resourcesData.links.map(l => l.id);
+    if (!scopedLinkIds.includes(assignedLinkId)) fail('Assigned link missing from client view');
+    if (scopedLinkIds.includes(unassignedData.data.id)) fail('CRITICAL SECURITY: Unassigned agency link leaked into client portal!');
+    pass(`Data isolation verified: Client sees only assigned link (${scopedLinkIds.length} link), secret agency link is hidden.`);
+
+    // 8.6 Test Client Destination URL Editing
+    subSection('8.6 Testing Destination URL Update by Client');
+    const updatedUrl = 'https://brand-partner.com/autumn-sale-special';
+    const updateDestRes = await fetch(`${BASE_URL}/api/v1/portal/links/${assignedLinkId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: clientId,
+        destination_url: updatedUrl
+      })
+    });
+    const updateDestData = await updateDestRes.json();
+    if (!updateDestRes.ok || !updateDestData.success) fail('Destination update failed', updateDestData);
+    const resolvedUrl = updateDestData.link?.destination_url || updateDestData.destination_url;
+    if (resolvedUrl !== updatedUrl) {
+      fail('Destination URL was not updated correctly', updateDestData);
+    }
+    pass(`Client updated destination URL to: ${resolvedUrl}`);
+
+    // 8.7 Test Permission Denial when can_edit_destination_url is disabled
+    subSection('8.7 Testing Permission Denial (can_edit_destination_url: false)');
+    const revokePermRes = await fetch(`${BASE_URL}/api/v1/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({
+        workspace_id: testWorkspaceId,
+        can_edit_destination_url: false
+      })
+    });
+    const revokePermData = await revokePermRes.json();
+    if (!revokePermRes.ok || !revokePermData.success) fail('Failed to revoke permission', revokePermData);
+
+    const deniedUpdateRes = await fetch(`${BASE_URL}/api/v1/portal/links/${assignedLinkId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: clientId,
+        destination_url: 'https://hacker.com/should-be-blocked'
+      })
+    });
+    if (deniedUpdateRes.status !== 403) fail('Expected 403 when updating URL without permission', await deniedUpdateRes.text());
+    pass('Permission enforcement verified: 403 Forbidden returned when client attempts unauthorized edit');
+
+    // 8.8 Test Suspension
+    subSection('8.8 Testing Client Account Suspension');
+    const suspendRes = await fetch(`${BASE_URL}/api/v1/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({
+        workspace_id: testWorkspaceId,
+        status: 'suspended'
+      })
+    });
+    const suspendData = await suspendRes.json();
+    if (!suspendRes.ok || !suspendData.success) fail('Failed to suspend client', suspendData);
+
+    const suspendedAuthRes = await fetch(`${BASE_URL}/api/v1/portal/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: clientEmail, password: clientPassword })
+    });
+    if (suspendedAuthRes.status !== 403) fail('Suspended client was able to authenticate', await suspendedAuthRes.text());
+    pass('Account suspension verified: Suspended client login blocked with 403');
+
+    // 8.9 Delete Client Account
+    subSection('8.9 Testing Client Portal Deletion via Admin API');
+    const deleteClientRes = await fetch(`${BASE_URL}/api/v1/clients/${clientId}?workspace_id=${testWorkspaceId}`, {
+      method: 'DELETE',
+      headers: authHeaders
+    });
+    const deleteClientData = await deleteClientRes.json();
+    if (!deleteClientRes.ok || !deleteClientData.success) fail('Client deletion failed', deleteClientData);
+    pass(`Client portal account ${clientId} deleted successfully`);
+
     console.log(`\n${colors.green}${colors.bold}======================================================================`);
     console.log(`  ALL COMBINATIONS & BOUNDARY TESTS PASSED 100% SUCCESSFULLY!        `);
     console.log(`======================================================================${colors.reset}\n`);
@@ -720,12 +913,15 @@ async function runTestSuite() {
     process.exitCode = 1;
   } finally {
     // ─────────────────────────────────────────────────────────────
-    // 8. CLEANUP: Strictly clean test account data only!
+    // 9. CLEANUP: Strictly clean test account data only!
     // ─────────────────────────────────────────────────────────────
-    section('8. Automated Cleanup (Test Account Only)');
+    section('9. Automated Cleanup (Test Account Only)');
     if (testWorkspaceId) {
       try {
         console.log(`Cleaning up test workspace data for: ${testWorkspaceId} (${testEmail})...`);
+
+        // Delete all client portal accounts in this workspace
+        await sql.query(`DELETE FROM client_portals WHERE workspace_id = $1`, [testWorkspaceId]);
 
         // Delete all click events belonging to links in this workspace
         await sql.query(`
@@ -748,7 +944,7 @@ async function runTestSuite() {
           await sql.query(`DELETE FROM users WHERE id = $1 OR email = $2`, [testUserId, testEmail]);
         }
 
-        pass(`Cleaned up ${count} combinatorial test link(s), clicks, campaigns, webhooks, and test user (${testEmail}).`);
+        pass(`Cleaned up ${count} combinatorial test link(s), clicks, client portals, campaigns, webhooks, and test user (${testEmail}).`);
         pass(`Strict isolation verified: No other user or workspace data was touched.`);
       } catch (cleanErr) {
         console.error('Cleanup error:', cleanErr);
