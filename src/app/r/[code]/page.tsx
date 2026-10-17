@@ -257,7 +257,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
                 <img 
                   src={displayImg} 
                   alt={ogTitle} 
-                  style={{ width: '100%', maxHeight: '315px', objectFit: 'cover', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }} 
+                  style={{ width: '100%', maxHeight: '315px', objectFit: 'contain', backgroundColor: '#020617', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }} 
                 />
               )}
               <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e293b', marginBottom: '10px' }}>{ogTitle}</h1>

@@ -1277,17 +1277,22 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   {/* Social Card Mockup */}
                   {socialPreviewTab === 'twitter' ? (
                     <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm max-w-lg mx-auto border border-outline-variant/40">
-                      <div className="relative h-36 bg-surface-container-high overflow-hidden">
+                      <div className="relative h-44 bg-slate-950 overflow-hidden flex items-center justify-center">
+                        {/* Ambient blurred backdrop so any aspect ratio is displayed in full */}
+                        <div 
+                          className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-40 scale-110 pointer-events-none"
+                          style={{ backgroundImage: `url(${previewOgImage})` }}
+                        />
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
-                          className="w-full h-full object-cover" 
+                          className="relative z-10 max-w-full max-h-full object-contain" 
                           src={previewOgImage} 
                           alt="Open Graph preview" 
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
-                        <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                        <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-20">
                           <button 
                             type="button"
                             onClick={() => ogFileInputRef.current?.click()}
@@ -1329,12 +1334,16 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   ) : (
                     /* WhatsApp Chat Bubble Mockup */
                     <div className="bg-[#e7fedb] dark:bg-[#005c4b]/30 p-3 rounded-xl border border-emerald-500/20 shadow-xs flex flex-col gap-1.5 text-left max-w-lg mx-auto">
-                      <div className="relative group overflow-hidden rounded-lg">
+                      <div className="relative group overflow-hidden rounded-lg bg-emerald-950/20 flex items-center justify-center h-36">
+                        <div 
+                          className="absolute inset-0 bg-cover bg-center filter blur-lg opacity-40 scale-110 pointer-events-none"
+                          style={{ backgroundImage: `url(${previewOgImage})` }}
+                        />
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={previewOgImage}
                           alt="Thumbnail preview"
-                          className="w-full h-28 object-cover rounded-lg border border-emerald-500/20"
+                          className="relative z-10 max-w-full max-h-full object-contain rounded-lg"
                           onError={(e) => {
                             (e.target as HTMLElement).style.display = 'none';
                           }}
@@ -1431,7 +1440,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                             <img
                               src={resolveDisplayImageUrl(ogImageUrl)}
                               alt="Thumbnail"
-                              className="w-12 h-9 object-cover rounded-md border border-outline-variant/40 shrink-0"
+                              className="w-12 h-9 object-contain bg-surface-container-high rounded-md border border-outline-variant/40 shrink-0"
                             />
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">

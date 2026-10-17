@@ -10,16 +10,36 @@ export const runtime = 'nodejs';
  */
 async function optimizeBuffer(inputBuffer: Buffer): Promise<Buffer> {
   try {
-    return await sharp(inputBuffer)
+    const meta = await sharp(inputBuffer).metadata();
+    const width = meta.width || 1200;
+    const height = meta.height || 630;
+    const aspectRatio = width / height;
+
+    // If the image is already close to 1.91:1 (between 1.88 and 1.93), resize directly
+    if (Math.abs(aspectRatio - 1.905) < 0.03) {
+      return await sharp(inputBuffer)
+        .resize(1200, 630, { fit: 'fill' })
+        .jpeg({ quality: 84, progressive: true, mozjpeg: true })
+        .toBuffer();
+    }
+
+    // NEVER CROP! Fit the full uncropped image inside 1200x630 over a matching ambient blurred background
+    const background = await sharp(inputBuffer)
+      .resize(1200, 630, { fit: 'cover' })
+      .blur(30)
+      .modulate({ brightness: 0.6 })
+      .toBuffer();
+
+    const foreground = await sharp(inputBuffer)
       .resize(1200, 630, {
-        fit: 'cover',
-        position: 'center'
+        fit: 'inside',
+        withoutEnlargement: true
       })
-      .jpeg({
-        quality: 82,
-        progressive: true,
-        mozjpeg: true
-      })
+      .toBuffer();
+
+    return await sharp(background)
+      .composite([{ input: foreground, gravity: 'center' }])
+      .jpeg({ quality: 84, progressive: true, mozjpeg: true })
       .toBuffer();
   } catch (err) {
     console.warn('Sharp compression fallback:', err);
