@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { get } from '@vercel/blob';
+import { getVercelBlobStream } from '@/lib/blobStorage';
 
 export const runtime = 'nodejs';
 
@@ -11,16 +11,10 @@ export async function GET(request: Request) {
     return new NextResponse('URL parameter is required', { status: 400 });
   }
 
-  const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
-
   // If this is a Vercel Blob storage URL
   if (imageUrl.includes('blob.vercel-storage.com')) {
     try {
-      const accessMode = (imageUrl.includes('.private.') ? 'private' : 'public') as 'private' | 'public';
-      const blobResponse = await get(imageUrl, {
-        token: token || undefined,
-        access: accessMode
-      });
+      const blobResponse = await getVercelBlobStream(imageUrl);
 
       if (blobResponse && blobResponse.statusCode === 200 && blobResponse.stream) {
         const contentType = blobResponse.headers.get('content-type') || 'image/jpeg';

@@ -36,6 +36,7 @@ import {
 import { InfoTooltip } from '@/components/ui';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { generateId, generateBase62Code, buildUtmUrl, normalizeUrl } from '@/lib/db';
+import { resolveDisplayImageUrl, isVercelBlobUrl } from '@/lib/blobStorage';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -640,7 +641,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
   const previewOgTitle = ogTitle.trim() || title.trim() || 'Launch Om — Creator Growth Kit & Masterclass';
   const previewOgDescription = ogDescription.trim() || 'Get 20+ automated conversion workflows, custom link analytics, and dedicated support.';
-  const previewOgImage = ogImageUrl.trim() || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80';
+  const previewOgImage = resolveDisplayImageUrl(ogImageUrl) || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80';
 
   if (!isOpen) return null;
 
@@ -1426,14 +1427,14 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                           <div className="flex items-center gap-2.5 min-w-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={ogImageUrl}
+                              src={resolveDisplayImageUrl(ogImageUrl)}
                               alt="Thumbnail"
                               className="w-12 h-9 object-cover rounded-md border border-outline-variant/40 shrink-0"
                             />
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs font-bold text-on-surface">Image Ready</span>
-                                {ogImageUrl.includes('vercel-storage.com') || uploadStorageType === 'vercel_blob' ? (
+                                {isVercelBlobUrl(ogImageUrl) || uploadStorageType === 'vercel_blob' ? (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
                                     <Cloud className="w-2.5 h-2.5" />
                                     <span>Vercel Blob</span>

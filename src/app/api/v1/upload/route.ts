@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
 import crypto from 'crypto';
+import { getBlobToken, getBlobStoreId, isBlobConfigured, uploadToVercelBlob } from '@/lib/blobStorage';
 
 export const runtime = 'nodejs';
 
@@ -120,34 +120,13 @@ export async function POST(request: Request) {
     const uniqueHash = crypto.randomBytes(6).toString('hex');
     const blobPathname = `og-images/${Date.now()}-${uniqueHash}-${baseSlug}.${ext}`;
 
-    const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
+    const blobToken = getBlobToken();
 
     // Strategy 1: Upload to Vercel Blob Storage
     if (blobToken) {
       try {
-        let blobResult;
-        let isPrivate = false;
-
-        try {
-          blobResult = await put(blobPathname, fileBuffer, {
-            access: 'public',
-            token: blobToken,
-            contentType: mimeType,
-            addRandomSuffix: false
-          });
-        } catch (accessErr: any) {
-          if (accessErr?.message?.includes('Cannot use public access on a private store') || accessErr?.message?.includes('private')) {
-            isPrivate = true;
-            blobResult = await put(blobPathname, fileBuffer, {
-              access: 'private',
-              token: blobToken,
-              contentType: mimeType,
-              addRandomSuffix: false
-            });
-          } else {
-            throw accessErr;
-          }
-        }
+        const blobResult = await uploadToVercelBlob(blobPathname, fileBuffer, mimeType);
+        const isPrivate = blobResult.access === 'private';
 
         const reqUrl = new URL(request.url);
         const rawHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || reqUrl.host;
@@ -172,11 +151,11 @@ export async function POST(request: Request) {
         });
       } catch (blobError: any) {
         console.error('Vercel Blob API error:', blobError?.message || blobError);
-        // If Vercel Blob fails (token expired, permission issue), fall back gracefully
+        // If Vercel Blob fails, fall back gracefully to inline image
       }
     }
 
-    // Strategy 2: Graceful fallback when BLOB_READ_WRITE_TOKEN is not configured
+    // Strategy 2: Graceful fallback when Vercel Blob upload is unavailable
     const base64DataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
 
     return NextResponse.json({
@@ -186,7 +165,7 @@ export async function POST(request: Request) {
       contentType: mimeType,
       storage: 'inline_data_uri',
       warning: blobToken 
-        ? 'Vercel Blob failed. Stored as inline image fallback.' 
+        ? 'Vercel Blob upload failed. Stored as inline image fallback.' 
         : 'BLOB_READ_WRITE_TOKEN is not configured in environment. Stored as high-res inline image.',
       message: 'Image uploaded successfully'
     });
@@ -201,8 +180,8 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const isConfigured = Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
-  const storeId = process.env.BLOB_STORE_ID?.trim() || null;
+  const isConfigured = isBlobConfigured();
+  const storeId = getBlobStoreId();
   return NextResponse.json({
     service: 'Vercel Blob Image Upload Service',
     configured: isConfigured,
@@ -213,3 +192,4 @@ export async function GET() {
     endpoint: '/api/v1/upload'
   });
 }
+

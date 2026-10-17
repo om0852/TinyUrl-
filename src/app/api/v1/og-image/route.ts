@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
-import { get } from '@vercel/blob';
+import { getVercelBlobStream } from '@/lib/blobStorage';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,13 +38,8 @@ export async function GET(request: Request) {
 
     // 1. If stored in Vercel Blob (public or private)
     if (rawImage && rawImage.includes('blob.vercel-storage.com')) {
-      const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
       try {
-        const accessMode = (rawImage.includes('.private.') ? 'private' : 'public') as 'private' | 'public';
-        const blobRes = await get(rawImage, {
-          token: token || undefined,
-          access: accessMode
-        });
+        const blobRes = await getVercelBlobStream(rawImage);
 
         if (blobRes && blobRes.statusCode === 200 && blobRes.stream) {
           const contentType = blobRes.headers.get('content-type') || 'image/jpeg';
