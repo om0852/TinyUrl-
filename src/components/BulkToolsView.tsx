@@ -86,6 +86,7 @@ function parseCsvLine(line: string, delimiter: string = ','): string[] {
 export const BulkToolsView: React.FC = () => {
   const { 
     currentWorkspace, 
+    currentUser,
     links, 
     clicks, 
     campaigns, 
@@ -156,7 +157,11 @@ export const BulkToolsView: React.FC = () => {
     if (!currentWorkspace?.id) return;
     setLoadingJobs(true);
     try {
-      const res = await fetch(`/api/v1/bulk/jobs?workspace_id=${encodeURIComponent(currentWorkspace.id)}`);
+      const headers: Record<string, string> = {};
+      if (currentUser?.email) headers['x-user-email'] = currentUser.email;
+      if (currentWorkspace.id) headers['x-workspace-id'] = currentWorkspace.id;
+
+      const res = await fetch(`/api/v1/bulk/jobs?workspace_id=${encodeURIComponent(currentWorkspace.id)}`, { headers });
       const data = await res.json();
       if (res.ok && data.success && Array.isArray(data.jobs)) {
         setJobs(data.jobs);
@@ -166,7 +171,7 @@ export const BulkToolsView: React.FC = () => {
     } finally {
       setLoadingJobs(false);
     }
-  }, [currentWorkspace?.id]);
+  }, [currentWorkspace?.id, currentUser?.email]);
 
   useEffect(() => {
     fetchJobs();

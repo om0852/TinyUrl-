@@ -3153,7 +3153,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      const res = await fetch('/api/v1/links/bulk', {
+      const res = await apiFetch('/api/v1/links/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3203,7 +3203,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logExportJob = async (batchName: string, totalRows: number) => {
     try {
-      await fetch('/api/v1/bulk/jobs', {
+      await apiFetch('/api/v1/bulk/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
