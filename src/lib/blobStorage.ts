@@ -137,3 +137,77 @@ export async function getVercelBlobStream(blobUrl: string) {
     access: accessMode
   });
 }
+
+/**
+ * Browser-side image optimizer:
+ * Scales large images to 1200x630 max dimensions and encodes as JPEG (~50-150 KB)
+ * to strictly satisfy WhatsApp's 300KB limit before uploading.
+ */
+export async function compressImageForUpload(file: File): Promise<File> {
+  // If not running in a browser environment, return file as is
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return file;
+  }
+
+  // If already a small JPEG under 200KB, keep it
+  if (file.type === 'image/jpeg' && file.size < 200 * 1024) {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        try {
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 630;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+            const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(file);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob && blob.size < file.size) {
+                const cleanName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+                const optimizedFile = new File([blob], cleanName, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now()
+                });
+                resolve(optimizedFile);
+              } else {
+                resolve(file);
+              }
+            },
+            'image/jpeg',
+            0.85
+          );
+        } catch {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+    };
+
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+

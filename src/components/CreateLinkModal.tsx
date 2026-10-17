@@ -36,7 +36,7 @@ import {
 import { InfoTooltip } from '@/components/ui';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { generateId, generateBase62Code, buildUtmUrl, normalizeUrl } from '@/lib/db';
-import { resolveDisplayImageUrl, isVercelBlobUrl } from '@/lib/blobStorage';
+import { resolveDisplayImageUrl, isVercelBlobUrl, compressImageForUpload } from '@/lib/blobStorage';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
@@ -99,15 +99,17 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [uploadStorageType, setUploadStorageType] = useState<'vercel_blob' | 'inline' | null>(null);
   const ogFileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleOgImageUpload = async (file: File) => {
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
+  const handleOgImageUpload = async (rawFile: File) => {
+    if (!rawFile) return;
+    if (rawFile.size > 10 * 1024 * 1024) {
       alert('File size exceeds the 10MB limit.');
       return;
     }
 
     setIsUploadingOgImage(true);
     try {
+      // Compress to high-res 1200x630 JPEG under 200KB for instant upload and WhatsApp compatibility
+      const file = await compressImageForUpload(rawFile);
       const formData = new FormData();
       formData.append('file', file);
 

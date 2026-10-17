@@ -48,19 +48,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       const baseUrl = `${proto}://${host}`;
       const canonicalUrl = `${baseUrl}/${link.custom_slug || link.short_code}`;
 
-      // Open Graph image MUST be an absolute HTTP/HTTPS URL (never a data: URI for WhatsApp/Facebook/Twitter)
-      let imageUrl = `${baseUrl}/api/v1/links/${link.short_code}/og-image`;
-      const rawImg = link.og_image_url?.trim();
-      if (rawImg) {
-        if (rawImg.startsWith('data:')) {
-          // Base64 data URI converted to binary image endpoint
-          imageUrl = `${baseUrl}/api/v1/links/${link.short_code}/og-image`;
-        } else if (/^https?:\/\//i.test(rawImg)) {
-          imageUrl = rawImg;
-        } else if (rawImg.startsWith('/')) {
-          imageUrl = `${baseUrl}${rawImg}`;
-        }
-      }
+      // Open Graph image for social platforms (WhatsApp, Twitter, Facebook, LinkedIn)
+      // Always served through our optimized /og-image route which authenticates private blobs,
+      // resizes to 1200x630, and compresses to progressive JPEG strictly under 300KB.
+      const ogCode = link.custom_slug || link.short_code;
+      const imageUrl = `${baseUrl}/api/v1/links/${ogCode}/og-image`;
 
       return {
         title,
@@ -256,11 +248,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           const ogTitle = initialLink.og_title || initialLink.title;
           const ogDesc = initialLink.og_description || `Click to open link on ${currentHost}`;
           const proto = headersList.get('x-forwarded-proto') || (rawHost.includes('localhost') ? 'http' : 'https');
-          const cleanHost = rawHost.split(',')[0].trim().split(':')[0];
-          let displayImg = initialLink.og_image_url;
-          if (displayImg && displayImg.startsWith('data:')) {
-            displayImg = `${proto}://${cleanHost}/api/v1/links/${initialLink.short_code}/og-image`;
-          }
+          const displayImg = `${proto}://${currentHost}/api/v1/links/${initialLink.custom_slug || initialLink.short_code}/og-image`;
 
           return (
             <div style={{ padding: '40px', fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>

@@ -1,7 +1,31 @@
 import { NextResponse } from 'next/server';
 import { getVercelBlobStream } from '@/lib/blobStorage';
+import sharp from 'sharp';
 
 export const runtime = 'nodejs';
+
+/**
+ * Optimizes an image buffer to a 1200x630 progressive JPEG < 300KB
+ * for WhatsApp, Twitter, LinkedIn, and social media crawlers.
+ */
+async function optimizeBuffer(inputBuffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(inputBuffer)
+      .resize(1200, 630, {
+        fit: 'cover',
+        position: 'center'
+      })
+      .jpeg({
+        quality: 82,
+        progressive: true,
+        mozjpeg: true
+      })
+      .toBuffer();
+  } catch (err) {
+    console.warn('Sharp compression fallback:', err);
+    return inputBuffer;
+  }
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -11,54 +35,56 @@ export async function GET(request: Request) {
     return new NextResponse('URL parameter is required', { status: 400 });
   }
 
-  // If this is a Vercel Blob storage URL
+  let rawBuffer: Buffer | null = null;
+
+  // 1. If this is a Vercel Blob storage URL
   if (imageUrl.includes('blob.vercel-storage.com')) {
     try {
       const blobResponse = await getVercelBlobStream(imageUrl);
 
       if (blobResponse && blobResponse.statusCode === 200 && blobResponse.stream) {
-        const contentType = blobResponse.headers.get('content-type') || 'image/jpeg';
-        const contentLength = blobResponse.headers.get('content-length');
-
-        const headers: Record<string, string> = {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
-          'Access-Control-Allow-Origin': '*'
-        };
-        if (contentLength) {
-          headers['Content-Length'] = contentLength;
+        const chunks: Uint8Array[] = [];
+        const reader = (blobResponse.stream as any).getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) chunks.push(value);
         }
-
-        return new Response(blobResponse.stream, {
-          status: 200,
-          headers
-        });
+        rawBuffer = Buffer.concat(chunks);
       }
     } catch (err) {
       console.error('Error streaming Vercel Blob:', err);
     }
   }
 
-  // Fallback for public external images: proxy them
-  try {
-    const fetched = await fetch(imageUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TinyUrl-Bot/1.0)' },
-      signal: AbortSignal.timeout(6000)
-    });
-    if (fetched.ok) {
-      const arrayBuffer = await fetched.arrayBuffer();
-      const contentType = fetched.headers.get('content-type') || 'image/jpeg';
-      return new Response(arrayBuffer, {
-        status: 200,
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=86400, s-maxage=604800',
-          'Access-Control-Allow-Origin': '*'
-        }
+  // 2. Fallback for public external images: proxy them
+  if (!rawBuffer) {
+    try {
+      const fetched = await fetch(imageUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TinyUrl-Bot/1.0)' },
+        signal: AbortSignal.timeout(6000)
       });
+      if (fetched.ok) {
+        const arrayBuffer = await fetched.arrayBuffer();
+        rawBuffer = Buffer.from(arrayBuffer);
+      }
+    } catch (proxyErr) {
+      console.error('Proxy fetch failed:', proxyErr);
     }
-  } catch (proxyErr) {
-    console.error('Proxy fetch failed:', proxyErr);
+  }
+
+  if (rawBuffer && rawBuffer.length > 0) {
+    const optimized = await optimizeBuffer(rawBuffer);
+
+    return new Response(new Uint8Array(optimized), {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': String(optimized.length),
+        'Cache-Control': 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400',
+        'Access-Control-Allow-Origin': '*'
+      }
+    });
   }
 
   return NextResponse.redirect(new URL(imageUrl), 302);
