@@ -1,6 +1,10 @@
+import { Redis } from '@upstash/redis';
+
 /**
- * High-speed caching layer with in-memory LRU fallback and Redis support.
- * Designed for sub-millisecond edge link resolution.
+ * Two-Tiered Hybrid Caching Engine:
+ * - L1: In-memory Edge LRU Map (sub-millisecond reads for hot links on local worker)
+ * - L2: Upstash Redis (distributed cluster across all edge nodes & serverless containers)
+ * - L3: Neon PostgreSQL (persistent source of truth)
  */
 
 interface CacheEntry<T> {
@@ -26,7 +30,6 @@ class EdgeMemoryCache {
 
   set<T>(key: string, value: T, ttlSeconds: number = 300): void {
     if (this.store.size >= this.maxItems) {
-      // Evict oldest item
       const firstKey = this.store.keys().next().value;
       if (firstKey) this.store.delete(firstKey);
     }
@@ -46,12 +49,176 @@ class EdgeMemoryCache {
   }
 }
 
-// Global singleton cache across Next.js invocations
-const globalCache = new EdgeMemoryCache();
+// Global in-memory singleton
+const l1Cache = new EdgeMemoryCache();
+
+// Initialize Upstash Redis client with graceful fallback
+let redisInstance: Redis | null = null;
+
+function getRedis(): Redis | null {
+  if (redisInstance) return redisInstance;
+
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (url && token) {
+    try {
+      redisInstance = new Redis({
+        url: url.trim(),
+        token: token.trim(),
+        retry: {
+          retries: 2,
+          backoff: (retryCount) => Math.exp(retryCount) * 50
+        }
+      });
+    } catch (err) {
+      console.warn('Failed to initialize Upstash Redis client, falling back to L1 in-memory cache:', err);
+    }
+  }
+
+  return redisInstance;
+}
+
+function prefixKey(key: string): string {
+  return key.startsWith('snip:') ? key : `snip:${key}`;
+}
 
 export const linkCache = {
-  get: <T>(key: string): T | null => globalCache.get<T>(key),
-  set: <T>(key: string, value: T, ttlSeconds = 300): void => globalCache.set(key, value, ttlSeconds),
-  delete: (key: string): void => globalCache.delete(key),
-  clear: (): void => globalCache.clear()
+  /**
+   * Synchronous L1 in-memory lookup.
+   * Returns immediately without async overhead.
+   */
+  getSync: <T>(key: string): T | null => {
+    return l1Cache.get<T>(key);
+  },
+
+  /**
+   * Two-tier lookup:
+   * 1. Check L1 in-memory cache (instant < 0.5ms).
+   * 2. If missed, query L2 Upstash Redis (5-15ms).
+   * 3. If found in Redis, backfill L1 cache.
+   */
+  get: async <T>(key: string): Promise<T | null> => {
+    // 1. Check L1 (local process memory)
+    const local = l1Cache.get<T>(key);
+    if (local !== null) {
+      return local;
+    }
+
+    // 2. Check L2 (Upstash Redis)
+    const redis = getRedis();
+    if (!redis) return null;
+
+    try {
+      const pKey = prefixKey(key);
+      const val = await redis.get<T>(pKey);
+      if (val !== null && val !== undefined) {
+        // Backfill L1 with conservative TTL (120s)
+        l1Cache.set(key, val, 120);
+        return val;
+      }
+    } catch (err) {
+      // Non-blocking: fail gracefully to return null so caller queries PostgreSQL
+      console.warn(`[Redis Cache] Get failed for "${key}", falling back:`, err);
+    }
+
+    return null;
+  },
+
+  /**
+   * Two-tier write:
+   * 1. Immediately populates L1 in-memory cache.
+   * 2. Asynchronously sets in Upstash Redis with expiration.
+   */
+  set: async <T>(key: string, value: T, ttlSeconds: number = 300): Promise<void> => {
+    // 1. Set L1 memory immediately
+    l1Cache.set(key, value, ttlSeconds);
+
+    // 2. Set L2 Upstash Redis
+    const redis = getRedis();
+    if (!redis) return;
+
+    try {
+      const pKey = prefixKey(key);
+      await redis.set(pKey, value, { ex: Math.max(1, ttlSeconds) });
+    } catch (err) {
+      console.warn(`[Redis Cache] Set failed for "${key}":`, err);
+    }
+  },
+
+  /**
+   * Two-tier delete:
+   * Invalidates both local L1 memory and distributed Redis key globally.
+   */
+  delete: async (key: string): Promise<void> => {
+    l1Cache.delete(key);
+
+    const redis = getRedis();
+    if (!redis) return;
+
+    try {
+      const pKey = prefixKey(key);
+      await redis.del(pKey);
+    } catch (err) {
+      console.warn(`[Redis Cache] Delete failed for "${key}":`, err);
+    }
+  },
+
+  /**
+   * Atomic SETNX for distributed deduplication (e.g. click beacon deduplication).
+   * Returns true if the key was set (new event), false if it already existed within ttlSeconds.
+   */
+  setNx: async (key: string, value: unknown = '1', ttlSeconds: number = 60): Promise<boolean> => {
+    // Check L1 first for local speed
+    if (l1Cache.get(key) !== null) {
+      return false;
+    }
+    l1Cache.set(key, value, ttlSeconds);
+
+    const redis = getRedis();
+    if (!redis) return true; // fallback to true if Redis is unavailable
+
+    try {
+      const pKey = prefixKey(key);
+      const res = await redis.set(pKey, value, { ex: Math.max(1, ttlSeconds), nx: true });
+      return res === 'OK';
+    } catch (err) {
+      console.warn(`[Redis Cache] setNx failed for "${key}":`, err);
+      return true;
+    }
+  },
+
+  /**
+   * Clears L1 local memory.
+   */
+  clear: (): void => {
+    l1Cache.clear();
+  },
+
+  /**
+   * Pings Redis to check connectivity and latency.
+   */
+  ping: async (): Promise<{ ok: boolean; latencyMs: number; error?: string }> => {
+    const redis = getRedis();
+    if (!redis) {
+      return { ok: false, latencyMs: 0, error: 'Redis client not configured (missing URL/Token)' };
+    }
+    const start = Date.now();
+    try {
+      const pong = await redis.ping();
+      const latencyMs = Date.now() - start;
+      return { ok: pong === 'PONG', latencyMs };
+    } catch (err) {
+      return {
+        ok: false,
+        latencyMs: Date.now() - start,
+        error: err instanceof Error ? err.message : String(err)
+      };
+    }
+  },
+
+  /**
+   * Direct access to Upstash Redis client.
+   */
+  getRedisClient: (): Redis | null => getRedis()
 };

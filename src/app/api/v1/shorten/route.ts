@@ -272,8 +272,11 @@ export async function POST(request: Request) {
       console.warn('PostgreSQL write fallback:', dbErr);
     }
 
-    // Cache in Edge cache for instant lookup
-    linkCache.set(`link_${code.toLowerCase()}`, newLink, 300);
+    // Cache in Edge & Redis cache for instant distributed lookup
+    await linkCache.set(`link_${code.toLowerCase()}`, newLink, 300);
+    if (newLink.custom_slug && newLink.custom_slug.toLowerCase() !== code.toLowerCase()) {
+      await linkCache.set(`link_${newLink.custom_slug.toLowerCase()}`, newLink, 300);
+    }
 
     // Asynchronously dispatch webhook event
     dispatchWorkspaceWebhooks(newLink.workspace_id, {

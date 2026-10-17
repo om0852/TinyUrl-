@@ -383,18 +383,18 @@ export async function PATCH(request: Request) {
 
     if (rows && rows.length > 0) {
       const updatedRow = rows[0];
-      linkCache.delete(`link_${lookupId.toLowerCase()}`);
+      await linkCache.delete(`link_${lookupId.toLowerCase()}`);
       if (updatedRow.short_code) {
-        linkCache.delete(`link_${updatedRow.short_code.toLowerCase()}`);
+        await linkCache.delete(`link_${updatedRow.short_code.toLowerCase()}`);
       }
       if (updatedRow.custom_slug) {
-        linkCache.delete(`link_${updatedRow.custom_slug.toLowerCase()}`);
+        await linkCache.delete(`link_${updatedRow.custom_slug.toLowerCase()}`);
       }
       if (newShortCode) {
-        linkCache.delete(`link_${newShortCode.toLowerCase()}`);
+        await linkCache.delete(`link_${newShortCode.toLowerCase()}`);
       }
       if (newCustomSlug) {
-        linkCache.delete(`link_${newCustomSlug.toLowerCase()}`);
+        await linkCache.delete(`link_${newCustomSlug.toLowerCase()}`);
       }
 
       const formatted: Link = {
@@ -485,10 +485,10 @@ export async function DELETE(request: Request) {
     if (rows && rows.length > 0) {
       const deletedRow = rows[0];
       if (deletedRow.short_code) {
-        linkCache.delete(`link_${deletedRow.short_code.toLowerCase()}`);
+        await linkCache.delete(`link_${deletedRow.short_code.toLowerCase()}`);
       }
       if (deletedRow.custom_slug) {
-        linkCache.delete(`link_${deletedRow.custom_slug.toLowerCase()}`);
+        await linkCache.delete(`link_${deletedRow.custom_slug.toLowerCase()}`);
       }
     }
 

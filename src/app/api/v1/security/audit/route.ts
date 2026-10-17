@@ -162,7 +162,7 @@ export async function POST(request: Request) {
              WHERE id = $3`,
             [riskScore, isFlagged, l.id]
           );
-          linkCache.delete(`link_${l.short_code.toLowerCase()}`);
+          await linkCache.delete(`link_${l.short_code.toLowerCase()}`);
         } catch (dbErr) {
           console.warn('DB update failed for audit row:', dbErr);
         }

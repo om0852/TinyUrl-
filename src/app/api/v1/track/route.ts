@@ -30,16 +30,16 @@ export async function POST(request: Request) {
     const code = (short_code || '').trim().toLowerCase();
     const id = (link_id || '').trim();
 
-    // Deduplication guard: ignore repeated beacons with the same click.id within 60 seconds
+    // Deduplication guard: ignore repeated beacons with the same click.id within 60 seconds using atomic Redis SETNX
     if (click && typeof click === 'object' && click.id) {
       const dedupKey = `tracked_clk_${click.id}`;
-      if (linkCache.get(dedupKey)) {
+      const isNew = await linkCache.setNx(dedupKey, true, 60);
+      if (!isNew) {
         return NextResponse.json<TrackApiResponse>({ 
           success: true, 
           message: 'Click telemetry already recorded.' 
         }, { status: 200 });
       }
-      linkCache.set(dedupKey, true, 60);
     }
 
     // 1. Update PostgreSQL counters
@@ -176,12 +176,12 @@ export async function POST(request: Request) {
       console.warn('DB tracking warning:', dbErr);
     }
 
-    // 2. Update Edge cache
+    // 2. Update Edge & Redis cache
     if (code) {
-      const cached = linkCache.get<Link>(`link_${code}`);
+      const cached = await linkCache.get<Link>(`link_${code}`);
       if (cached && typeof cached === 'object') {
         cached.clicks_count = (cached.clicks_count || 0) + 1;
-        linkCache.set(`link_${code}`, cached, 180);
+        await linkCache.set(`link_${code}`, cached, 180);
       }
     }
 

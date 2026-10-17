@@ -8,6 +8,7 @@ import { Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 import { RedirectClient } from './RedirectClient';
 import { PublicStatsClient } from '@/components/PublicStatsClient';
+import { linkCache } from '@/lib/cache';
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -20,13 +21,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   try {
     const cleanCode = code.replace(/\+$/, '').trim().toLowerCase();
-    const rows = (await sql.query(
-      `SELECT title, destination_url, short_code, custom_slug, og_title, og_description, og_image_url 
-       FROM links 
-       WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 
-       LIMIT 1`,
-      [cleanCode]
-    )) as Array<{
+
+    // Check Redis & Edge memory cache first
+    let link: {
       title?: string;
       destination_url?: string;
       short_code?: string;
@@ -34,10 +31,42 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       og_title?: string;
       og_description?: string;
       og_image_url?: string;
-    }>;
+    } | null = null;
 
-    if (rows && rows.length > 0) {
-      const link = rows[0];
+    const cachedLink = await linkCache.get<any>(`link_${cleanCode}`);
+    if (cachedLink) {
+      link = {
+        title: cachedLink.title,
+        destination_url: cachedLink.destination_url,
+        short_code: cachedLink.short_code,
+        custom_slug: cachedLink.custom_slug,
+        og_title: cachedLink.og_title,
+        og_description: cachedLink.og_description,
+        og_image_url: cachedLink.og_image_url
+      };
+    } else {
+      const rows = (await sql.query(
+        `SELECT title, destination_url, short_code, custom_slug, og_title, og_description, og_image_url 
+         FROM links 
+         WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 
+         LIMIT 1`,
+        [cleanCode]
+      )) as Array<{
+        title?: string;
+        destination_url?: string;
+        short_code?: string;
+        custom_slug?: string;
+        og_title?: string;
+        og_description?: string;
+        og_image_url?: string;
+      }>;
+
+      if (rows && rows.length > 0) {
+        link = rows[0];
+      }
+    }
+
+    if (link) {
       const title = link.og_title?.trim() || link.title?.trim() || `Link /${link.short_code}`;
       const description = link.og_description?.trim() || `Open link: ${link.destination_url || 'destination'}`;
       
@@ -157,21 +186,32 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         utm_content?: string;
       }> = [];
 
-      if (!isPlatformDomain) {
-        rows = (await sql.query(
-          `SELECT l.* FROM links l
-           LEFT JOIN domains d ON d.id = l.domain_id
-           WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
-             AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
-           ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
-           LIMIT 1`,
-          [currentHost, cleanCode]
-        )) as unknown as typeof rows;
+      const cacheKey = !isPlatformDomain ? `link_${currentHost}_${cleanCode}` : `link_${cleanCode}`;
+      const cached = await linkCache.get<any>(cacheKey);
+
+      if (cached && typeof cached === 'object') {
+        rows = [cached];
       } else {
-        rows = (await sql.query(
-          `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
-          [cleanCode]
-        )) as unknown as typeof rows;
+        if (!isPlatformDomain) {
+          rows = (await sql.query(
+            `SELECT l.* FROM links l
+             LEFT JOIN domains d ON d.id = l.domain_id
+             WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
+               AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
+             ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
+             LIMIT 1`,
+            [currentHost, cleanCode]
+          )) as unknown as typeof rows;
+        } else {
+          rows = (await sql.query(
+            `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
+            [cleanCode]
+          )) as unknown as typeof rows;
+        }
+
+        if (rows && rows.length > 0) {
+          await linkCache.set(cacheKey, rows[0], 180);
+        }
       }
 
       if (rows && rows.length > 0) {

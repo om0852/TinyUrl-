@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
   // 1. Custom Domain Root Redirect (e.g. go.brand.com/ -> brand.com)
   if (!isPlatformDomain) {
     try {
-      let customDomain = linkCache.get<{ id: string; hostname: string; root_redirect_url?: string }>(`domain_${currentHost}`);
+      let customDomain = await linkCache.get<{ id: string; hostname: string; root_redirect_url?: string }>(`domain_${currentHost}`);
       if (!customDomain) {
         const domainRows = (await sql.query(
           `SELECT id, hostname, root_redirect_url, verified FROM domains WHERE LOWER(hostname) = $1 AND verified = true LIMIT 1`,
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
         )) as unknown as Array<{ id: string; hostname: string; root_redirect_url?: string; verified: boolean }>;
         if (domainRows && domainRows.length > 0) {
           customDomain = domainRows[0];
-          linkCache.set(`domain_${currentHost}`, customDomain, 300);
+          await linkCache.set(`domain_${currentHost}`, customDomain, 300);
         }
       }
 
@@ -80,9 +80,9 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // 4. Fast Cache Lookup (Edge LRU Cache)
+    // 4. Fast Cache Lookup (Edge LRU + Redis Cache)
     const cacheKey = !isPlatformDomain ? `link_${currentHost}_${code}` : `link_${code}`;
-    let linkData = linkCache.get<Link & { rules?: string | LinkRule[] }>(cacheKey);
+    let linkData = await linkCache.get<Link & { rules?: string | LinkRule[] }>(cacheKey);
 
     if (!linkData) {
       // Query Neon PostgreSQL
@@ -108,7 +108,7 @@ export async function middleware(request: NextRequest) {
 
       if (rows && rows.length > 0) {
         linkData = rows[0];
-        linkCache.set(cacheKey, linkData, 180); // Cache for 3 minutes
+        await linkCache.set(cacheKey, linkData, 180); // Cache for 3 minutes
       }
     }
 

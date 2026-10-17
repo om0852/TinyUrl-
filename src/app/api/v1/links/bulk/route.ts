@@ -232,7 +232,7 @@ export async function POST(request: Request) {
           ]
         );
 
-        linkCache.set(`link_${slug.toLowerCase()}`, newLink, 300);
+        await linkCache.set(`link_${slug.toLowerCase()}`, newLink, 300);
         createdLinks.push(newLink);
       } catch (insertErr) {
         errors.push({ row: rowNum, url: rawUrl, error: `Database insert failed: ${insertErr instanceof Error ? insertErr.message : 'Unknown DB error'}` });

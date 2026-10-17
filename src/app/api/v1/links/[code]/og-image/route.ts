@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { getVercelBlobStream } from '@/lib/blobStorage';
+import { linkCache } from '@/lib/cache';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
@@ -63,27 +64,45 @@ export async function GET(
   const cleanCode = code.replace(/\+$/, '').trim().toLowerCase();
 
   try {
-    const rows = (await sql.query(
-      `SELECT id, short_code, custom_slug, title, og_title, og_description, og_image_url 
-       FROM links 
-       WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 
-       LIMIT 1`,
-      [cleanCode]
-    )) as Array<{
-      id: string;
+    let link: {
+      id?: string;
       short_code: string;
       custom_slug?: string;
       title?: string;
       og_title?: string;
       og_description?: string;
       og_image_url?: string;
-    }>;
+    } | null = null;
 
-    if (!rows || rows.length === 0) {
+    const cached = await linkCache.get<any>(`link_${cleanCode}`);
+    if (cached && typeof cached === 'object') {
+      link = cached;
+    } else {
+      const rows = (await sql.query(
+        `SELECT id, short_code, custom_slug, title, og_title, og_description, og_image_url 
+         FROM links 
+         WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 
+         LIMIT 1`,
+        [cleanCode]
+      )) as Array<{
+        id: string;
+        short_code: string;
+        custom_slug?: string;
+        title?: string;
+        og_title?: string;
+        og_description?: string;
+        og_image_url?: string;
+      }>;
+
+      if (rows && rows.length > 0) {
+        link = rows[0];
+      }
+    }
+
+    if (!link) {
       return new NextResponse('Link not found', { status: 404 });
     }
 
-    const link = rows[0];
     let rawImage = link.og_image_url?.trim();
 
     // If the image was wrapped in a proxy URL (/api/v1/blob-image?url=...), unwrap the inner URL
