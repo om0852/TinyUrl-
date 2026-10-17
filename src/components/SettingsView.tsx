@@ -356,7 +356,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
       </div>
 
       {/* 2. SETTINGS HORIZONTAL TABS */}
-      <div className="bg-surface-container-low p-1 rounded-xl flex items-center gap-1 overflow-x-auto shadow-xs border border-outline-variant/30 text-xs font-bold">
+      <div className="bg-surface-container-low p-1 rounded-xl flex items-center gap-1 overflow-x-auto scrollbar-none max-w-full shadow-xs border border-outline-variant/30 text-xs font-bold">
         {[
           { id: 'profile', label: 'Workspace Profile', icon: User },
           { id: 'domains', label: `Branded Domains (${domains.length})`, icon: Globe },
@@ -1165,13 +1165,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
       )}
 
       {/* 8. PERSISTENT STICKY BOTTOM ACTION BAR */}
-      <div className="sticky bottom-4 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-3.5 sm:p-4 rounded-xl shadow-xl border border-outline-variant/40 flex items-center justify-between">
+      <div className="sticky bottom-4 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-3 sm:p-4 rounded-xl shadow-xl border border-outline-variant/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2 text-on-surface-variant text-xs">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Workspace: <strong className="text-on-surface">{currentWorkspace?.name || 'My Workspace'}</strong></span>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-end gap-2.5 self-end sm:self-auto">
           <button
             type="button"
             onClick={() => {

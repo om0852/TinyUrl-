@@ -605,7 +605,7 @@ print(response.status_code, response.json())`;
       </div>
 
       {/* 3. NAVIGATION TAB BAR */}
-      <div className="flex items-center gap-1.5 p-1 bg-surface-container-low rounded-xl border border-outline-variant/30 w-fit text-xs font-bold">
+      <div className="flex items-center gap-1.5 p-1 bg-surface-container-low rounded-xl border border-outline-variant/30 max-w-full overflow-x-auto scrollbar-none whitespace-nowrap text-xs font-bold">
         {[
           { id: 'console', label: 'Interactive Console', icon: Play },
           { id: 'keys', label: `API Keys (${apiKeys.length})`, icon: Key },

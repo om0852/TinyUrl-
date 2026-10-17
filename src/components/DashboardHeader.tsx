@@ -79,10 +79,11 @@ export function DashboardHeader({
         <button
           onClick={onOpenCreateModal}
           type="button"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-3 sm:px-3.5 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-2.5 sm:px-3.5 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span>Create link</span>
+          <span className="hidden sm:inline">Create link</span>
+          <span className="inline sm:hidden">Create</span>
         </button>
 
         {/* User Profile Avatar with Interactive Dropdown */}

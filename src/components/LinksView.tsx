@@ -805,8 +805,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
             </div>
           </div>
 
-          {/* Links Data Table */}
-          <div className="overflow-x-auto">
+          {/* Links Data Table (Desktop & Tablets >= 768px) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
                 <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/30">
@@ -1077,6 +1077,211 @@ export const LinksView: React.FC<LinksViewProps> = ({
             </table>
           </div>
 
+          {/* Mobile Card List (Screens < 768px) */}
+          <div className="block md:hidden divide-y divide-outline-variant/20">
+            {paginatedLinks.length === 0 ? (
+              <div className="py-12 px-4 text-center text-on-surface-variant flex flex-col items-center justify-center gap-2">
+                <Link2 className="w-8 h-8 text-outline/60" />
+                <span className="font-semibold text-sm text-on-surface">No links found</span>
+                <p className="text-xs text-outline max-w-xs">
+                  {searchTerm ? 'No results matched your search query.' : 'Create your first branded short link to start tracking creator clicks.'}
+                </p>
+                {canCreateLinks && (
+                  <button
+                    type="button"
+                    onClick={onOpenCreateModal}
+                    className="mt-2 px-3.5 py-1.5 bg-primary-container text-on-primary rounded-lg text-xs font-semibold shadow-xs cursor-pointer"
+                  >
+                    Create Link
+                  </button>
+                )}
+              </div>
+            ) : (
+              paginatedLinks.map((link) => {
+                const placement = getPlacementTag(link);
+                const shortSlug = link.custom_slug || link.short_code;
+                const linkedDomain = domains.find(d => d.id === link.domain_id);
+                const displayHost = linkedDomain?.hostname || originDomain;
+                const fullShortUrl = getFullShortUrl(link.short_code, link.custom_slug, link.domain_id);
+                const isCopied = copiedId === link.id;
+                const isSelected = selectedLinkIds.has(link.id);
+
+                return (
+                  <div key={link.id} className={`p-4 flex flex-col gap-3 transition-colors ${isSelected ? 'bg-primary/5' : 'hover:bg-surface-container-low/50'}`}>
+                    {/* Header: Select Checkbox, Title & Placement */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            setSelectedLinkIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(link.id)) next.delete(link.id);
+                              else next.add(link.id);
+                              return next;
+                            });
+                          }}
+                          className="rounded border-outline-variant/60 text-primary-container focus:ring-primary-container cursor-pointer w-4 h-4 mt-0.5 shrink-0"
+                          aria-label={`Select ${link.title || link.short_code}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-sm font-semibold text-on-surface truncate">
+                            {link.title || 'Untitled Short Link'}
+                          </h4>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <span className="font-mono text-xs font-semibold text-primary-container">
+                              {displayHost}/{shortSlug}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(link.id, link.short_code, link.custom_slug, link.domain_id)}
+                              title="Copy short link"
+                              className="text-outline hover:text-primary-container transition-colors cursor-pointer p-0.5"
+                            >
+                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                            {linkedDomain && (
+                              <span className="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-container font-medium text-[10px]">
+                                Branded
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${placement.bg}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${placement.dot}`} />
+                        <span>{placement.label}</span>
+                      </span>
+                    </div>
+
+                    {/* Destination URL */}
+                    <a
+                      href={link.destination_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-on-surface-variant truncate hover:text-primary-container flex items-center gap-1"
+                    >
+                      <span className="truncate">{link.destination_url}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                    </a>
+
+                    {/* Broken Link Diagnostic Warning */}
+                    {(link.status === 'broken' || (typeof link.broken_code === 'number' && link.broken_code >= 400)) && (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                          <span>Dead Link ({link.broken_code || 404})</span>
+                        </span>
+                        {canEditLinks && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRepairingLink(link);
+                              setRepairNewDestUrl(link.destination_url);
+                              setRepairFallbackUrl(link.fallback_url || '');
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
+                          >
+                            <Wrench className="w-3 h-3" />
+                            <span>Fix URL</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Smart Routing Rules */}
+                    {Array.isArray(link.rules) && link.rules.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {link.rules.map(r => (
+                          <span 
+                            key={r.id} 
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant/30"
+                          >
+                            <span>{r.condition === 'android' ? '🤖 Android' : r.condition === 'ios' ? '🍏 iOS' : `${r.rule_type}: ${r.condition}`}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bottom Row: Clicks, Date & Action Toolbar */}
+                    <div className="flex items-center justify-between pt-2 border-t border-outline-variant/20 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono text-xs font-bold text-on-surface">
+                          {getLinkClicks(link).toLocaleString()} clicks
+                        </span>
+                        <span className="text-[11px] text-on-surface-variant">
+                          {link.created_at ? new Date(link.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!canEditLinks) {
+                              const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+                              showToast('error', 'Permission Denied', `Your role (${roleName}) does not have permission to edit links.`);
+                              return;
+                            }
+                            setEditingLink(link);
+                          }}
+                          className="p-1.5 text-outline hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                          title="Edit Link"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedQrLink({
+                            id: link.id,
+                            slug: shortSlug,
+                            fullUrl: fullShortUrl,
+                            title: link.title || shortSlug
+                          })}
+                          className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
+                          title="QR Code"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedAnalyticsLinkId(link.id);
+                            onNavigateTab && onNavigateTab('analytics');
+                          }}
+                          className="p-1.5 text-outline hover:text-on-surface hover:bg-surface-container rounded-lg transition-colors cursor-pointer"
+                          title="Analytics"
+                        >
+                          <BarChart2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!canDeleteLinks) {
+                              const roleName = ROLE_DESCRIPTIONS[currentUserRole]?.title || currentUserRole;
+                              showToast('error', 'Permission Denied', `Your role (${roleName}) does not have permission to delete links.`);
+                              return;
+                            }
+                            if (confirm(`Delete short link "/${shortSlug}"?`)) {
+                              deleteLink(link.id);
+                            }
+                          }}
+                          className="p-1.5 text-outline hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Link"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })
+            )}
+          </div>
+
           {/* Pagination Footer */}
           <div className="px-5 py-3.5 bg-surface-container-low flex items-center justify-between text-on-surface-variant text-xs border-t border-outline-variant/30">
             <span>
@@ -1237,19 +1442,19 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
       {/* Floating Batch Selection Bar */}
       {selectedLinkIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border border-border/80 shadow-2xl rounded-xl px-5 py-3 flex items-center gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md">
-          <div className="flex items-center gap-2 text-foreground font-bold">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border border-border/80 shadow-2xl rounded-xl px-4 sm:px-5 py-2.5 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md w-[calc(100vw-2rem)] max-w-lg">
+          <div className="flex items-center gap-2 text-foreground font-bold shrink-0">
             <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]">
               {selectedLinkIds.size}
             </span>
             <span>Link{selectedLinkIds.size > 1 ? 's' : ''} Selected</span>
           </div>
-          <div className="h-4 w-px bg-border/60" />
-          <div className="flex items-center gap-2">
+          <div className="hidden sm:block h-4 w-px bg-border/60" />
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
               type="button"
               onClick={handleBulkExportSelected}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border border-border/60"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border border-border/60 text-xs"
             >
               <FileDown className="w-3.5 h-3.5 text-primary" />
               <span>Export CSV</span>
@@ -1257,15 +1462,15 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <button
               type="button"
               onClick={handleBulkDelete}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive/15 hover:bg-destructive/25 text-destructive font-semibold cursor-pointer transition shadow-xs border border-destructive/20"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-destructive/15 hover:bg-destructive/25 text-destructive font-semibold cursor-pointer transition shadow-xs border border-destructive/20 text-xs"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete Selected</span>
+              <span>Delete</span>
             </button>
             <button
               type="button"
               onClick={() => setSelectedLinkIds(new Set())}
-              className="text-muted-foreground hover:text-foreground px-2 py-1 cursor-pointer transition"
+              className="text-muted-foreground hover:text-foreground px-2 py-1 cursor-pointer transition text-xs"
             >
               Deselect
             </button>

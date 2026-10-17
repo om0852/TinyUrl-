@@ -890,12 +890,12 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
             </div>
 
             {/* Framed QR Code Stage */}
-            <div className="w-full flex items-center justify-center py-4">
+            <div className="w-full flex items-center justify-center py-4 overflow-hidden">
               
               {/* Card Container based on selected Frame */}
               <div 
                 id="qr-preview-container"
-                className={`transition-all relative flex flex-col items-center justify-center ${
+                className={`transition-all relative flex flex-col items-center justify-center max-w-full ${
                   frameStyle === 'none'
                     ? 'p-5 rounded-xl shadow-lg border border-border/60'
                     : frameStyle === 'bottom-badge'
@@ -922,7 +922,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 {/* Top Header CTA Banner */}
                 {frameStyle === 'top-header' && (
                   <div 
-                    className="text-xs font-black uppercase tracking-wider px-4 py-1 rounded-full shadow-xs"
+                    className="text-xs font-black uppercase tracking-wider px-4 py-1 rounded-full shadow-xs max-w-full truncate"
                     style={{ backgroundColor: fgColor, color: bgColor }}
                   >
                     {frameCtaText || 'SCAN WITH CAMERA'}
@@ -930,7 +930,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 )}
 
                 {/* SVG Rendered QR Code */}
-                <div className="relative inline-block">
+                <div className="relative inline-block max-w-full overflow-hidden [&>svg]:max-w-full [&>svg]:h-auto">
                   <QRCodeSVG
                     id="qr-code-svg"
                     value={activeQrValue}

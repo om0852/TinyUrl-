@@ -19,7 +19,8 @@ import {
   Settings, 
   LogOut,
   Users,
-  Building2
+  Building2,
+  X
 } from 'lucide-react';
 import { CreateTeamModal } from './CreateTeamModal';
 
@@ -91,27 +92,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className={`fixed left-0 top-0 h-full w-64 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-r border-outline-variant/30 z-50 flex flex-col justify-between py-4 select-none ${className}`}>
+    <aside className={`fixed left-0 top-0 h-full w-64 max-w-[85vw] bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-r border-outline-variant/30 z-50 flex flex-col justify-between py-4 select-none ${className}`}>
       
       {/* Top Section */}
       <div className="flex flex-col flex-1 min-h-0">
         
         {/* Brand Bar matching reference HTML */}
-        <div 
-          onClick={() => handleNavClick('overview')}
-          className="h-14 px-6 flex items-center gap-3 cursor-pointer group shrink-0"
-        >
-          <img 
-            alt="Snip Creator Logo" 
-            className="h-8 w-8 rounded-lg object-contain transition-transform group-hover:scale-105 shadow-2xs" 
-            src="/senior_brand_identity_designer._1024x1024_production_app_store_icon_for_snip.png"
-          />
-          <span className="text-xl font-bold tracking-tight text-on-surface">
-            Snip
-          </span>
-          <span className="ml-auto text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-surface-container-high text-primary-container">
-            Pro
-          </span>
+        <div className="h-14 px-5 sm:px-6 flex items-center justify-between gap-3 shrink-0">
+          <div 
+            onClick={() => handleNavClick('overview')}
+            className="flex items-center gap-3 cursor-pointer group min-w-0"
+          >
+            <img 
+              alt="Snip Creator Logo" 
+              className="h-8 w-8 rounded-lg object-contain transition-transform group-hover:scale-105 shadow-2xs" 
+              src="/senior_brand_identity_designer._1024x1024_production_app_store_icon_for_snip.png"
+            />
+            <span className="text-xl font-bold tracking-tight text-on-surface truncate">
+              Snip
+            </span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-surface-container-high text-primary-container shrink-0">
+              Pro
+            </span>
+          </div>
+
+          {onCloseMobile && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              className="lg:hidden p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition cursor-pointer shrink-0"
+              title="Close navigation drawer"
+              aria-label="Close navigation drawer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         {/* Workspace Switcher */}

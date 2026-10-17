@@ -337,7 +337,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">
@@ -535,6 +536,157 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View (Phones & Small Tablets) */}
+        <div className="block md:hidden divide-y divide-outline-variant/20 rounded-lg border border-outline-variant/20 bg-surface-container-lowest overflow-hidden">
+          {filteredClients.length === 0 ? (
+            <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
+              <Building2 className="w-8 h-8 text-outline mx-auto mb-2 opacity-50" />
+              <p className="font-semibold text-on-surface">No client accounts found</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setClientToEdit(null);
+                  setCreateModalOpen(true);
+                }}
+                className="mt-3 px-3.5 py-1.5 rounded-lg bg-primary-container text-on-primary text-xs font-bold hover:bg-primary transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Create Client</span>
+              </button>
+            </div>
+          ) : (
+            filteredClients.map((client) => {
+              const directLinkIds = client.assigned_link_ids || [];
+              const assignedCampIds = client.assigned_campaign_ids || [];
+              const campaignAssociatedLinks = links.filter(l => 
+                l.campaign_id && assignedCampIds.includes(l.campaign_id)
+              );
+              const allResolvedLinkIds = Array.from(new Set([...directLinkIds, ...campaignAssociatedLinks.map(l => l.id)]));
+              const assignedLinksCount = Math.max(directLinkIds.length, allResolvedLinkIds.length);
+              const assignedCampaignsCount = assignedCampIds.length;
+              const isCopied = copiedClientId === client.id;
+              const portalDomain = client.custom_domain || originDomain;
+              const portalUrl = `https://${portalDomain}/portal/login?email=${encodeURIComponent(client.email)}`;
+
+              const avatarInitials = client.company_name
+                ? client.company_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                : client.name.slice(0, 2).toUpperCase();
+
+              return (
+                <div key={client.id} className="p-4 flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs"
+                        style={{ backgroundColor: client.brand_color || '#4f46e5' }}
+                      >
+                        {avatarInitials}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-sm text-on-surface truncate">{client.company_name}</span>
+                        <span className="text-xs text-on-surface-variant truncate">{client.name} &bull; {client.email}</span>
+                      </div>
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                      client.status === 'active' 
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' 
+                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
+                    }`}>
+                      {client.status}
+                    </span>
+                  </div>
+
+                  {/* Badges / Scoping */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-container font-mono">
+                      <Link2 className="w-3 h-3" />
+                      {assignedLinksCount} link{assignedLinksCount === 1 ? '' : 's'}
+                    </span>
+                    {assignedCampaignsCount > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 font-mono">
+                        <Target className="w-3 h-3" />
+                        {assignedCampaignsCount} campaign{assignedCampaignsCount === 1 ? '' : 's'}
+                      </span>
+                    )}
+                    {client.can_view_analytics && (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-surface-container text-on-surface">
+                        Analytics
+                      </span>
+                    )}
+                    {client.can_edit_destination_url && (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Edit URLs
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Portal Login Link */}
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-xs">
+                    <span className="font-mono text-primary font-semibold truncate" title={portalUrl}>
+                      {portalDomain}/portal
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPortalLink(client)}
+                        className="p-1 hover:bg-surface-container rounded transition text-outline hover:text-on-surface cursor-pointer"
+                        title="Copy URL"
+                      >
+                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                      <a
+                        href={`/portal/dashboard?client_id=${client.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1 hover:bg-surface-container rounded transition text-outline hover:text-primary cursor-pointer"
+                        title="Open Portal"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Footer actions */}
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 text-xs">
+                    <span className="text-[11px] text-on-surface-variant font-mono">
+                      Logins: <strong className="text-on-surface">{client.total_logins || 0}</strong> &bull; {client.last_login_at ? new Date(client.last_login_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never active'}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientToEdit(client);
+                          setCreateModalOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-surface-container text-outline hover:text-on-surface transition cursor-pointer"
+                        title="Edit"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(client)}
+                        className="p-1.5 rounded-lg hover:bg-surface-container text-outline hover:text-on-surface transition cursor-pointer"
+                        title="Lock/Unlock"
+                      >
+                        {client.status === 'active' ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setClientToDelete(client)}
+                        className="p-1.5 rounded-lg hover:bg-rose-50 text-outline hover:text-rose-700 transition cursor-pointer"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

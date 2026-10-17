@@ -943,8 +943,8 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="overflow-x-auto rounded-lg border border-outline-variant/20">
+        {/* Desktop Data Table */}
+        <div className="hidden md:block overflow-x-auto rounded-lg border border-outline-variant/20">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/20">
@@ -1028,6 +1028,75 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View (Phones & Small Tablets) */}
+        <div className="block md:hidden divide-y divide-outline-variant/20 rounded-lg border border-outline-variant/20 bg-surface-container-lowest overflow-hidden">
+          {paginatedJobs.map((job) => (
+            <div key={job.id} className="p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="font-mono text-xs font-bold text-primary">#{job.id.slice(0, 14)}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider ${
+                    job.operation === 'import' 
+                      ? 'bg-primary/10 text-primary border border-primary/20'
+                      : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
+                  }`}>
+                    {job.operation === 'import' ? <Upload className="w-2.5 h-2.5" /> : <Download className="w-2.5 h-2.5" />}
+                    <span>{job.operation}</span>
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                    job.status === 'completed' 
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' 
+                      : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${job.status === 'completed' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                    <span className="capitalize">{job.status}</span>
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-sm font-bold text-on-surface block break-words">{job.batch_name}</span>
+                <span className="text-[11px] text-on-surface-variant font-mono mt-0.5 block">
+                  {new Date(job.created_at).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 flex-wrap">
+                <div className="flex items-center gap-3 text-xs font-mono">
+                  <span className="text-on-surface-variant font-medium">
+                    Rows: <strong className="text-on-surface">{job.total_rows.toLocaleString()}</strong>
+                  </span>
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">{job.success_count} ok</span>
+                  {job.error_count > 0 && (
+                    <span className="text-red-600 dark:text-red-400 font-bold">{job.error_count} err</span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportLinks}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer ml-auto"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {filteredJobs.length === 0 && (
+            <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
+              {loadingJobs 
+                ? 'Loading job audit history...' 
+                : 'No bulk import or export operations recorded yet. Upload a CSV to get started.'}
+            </div>
+          )}
         </div>
 
         {/* Real Table Pagination */}

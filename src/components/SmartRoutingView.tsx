@@ -334,8 +334,8 @@ export const SmartRoutingView: React.FC = () => {
           </div>
         </div>
 
-        {/* Table Container */}
-        <div className="overflow-x-auto mt-4">
+        {/* Table Container (Desktop & Tablets >= 768px) */}
+        <div className="hidden md:block overflow-x-auto mt-4">
           <table className="w-full text-left text-xs text-on-surface">
             <thead>
               <tr className="bg-surface-container-low text-on-surface-variant font-bold text-[11px] uppercase tracking-wider">
@@ -453,6 +453,93 @@ export const SmartRoutingView: React.FC = () => {
               )))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card List (Screens < 768px) */}
+        <div className="block md:hidden divide-y divide-outline-variant/20 mt-4">
+          {filteredRules.length === 0 ? (
+            <div className="py-8 px-4 text-center text-on-surface-variant flex flex-col items-center justify-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-outline">
+                <Smartphone className="w-6 h-6" />
+              </div>
+              <p className="font-bold text-sm text-on-surface">No Smart Routing Rules Found</p>
+              <button
+                type="button"
+                onClick={() => setNewRuleModalOpen(true)}
+                className="mt-1 inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary font-semibold text-xs rounded-lg shadow-xs hover:bg-primary transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create First Routing Rule</span>
+              </button>
+            </div>
+          ) : (
+            filteredRules.map((rule) => (
+              <div key={rule.id} className="p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${rule.badgeBg}`}>
+                      {rule.badge}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-on-surface truncate">{rule.title}</div>
+                      <div className="font-mono text-primary-container text-xs font-semibold">/{rule.code}</div>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
+                    {rule.status}
+                  </span>
+                </div>
+
+                <div className="bg-surface-container-low p-2.5 rounded-lg border border-outline-variant/20 space-y-1 text-xs">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-on-surface-variant">Target App Scheme:</span>
+                    <span className="text-emerald-600 font-semibold">{rule.openRate}</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-on-surface truncate">{rule.scheme}</div>
+                </div>
+
+                {rule.filters.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {rule.filters.map(f => (
+                      <span key={f} className="px-2 py-0.5 rounded-md bg-surface-container text-on-surface font-semibold text-[10px]">
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-outline-variant/20 text-xs">
+                  <span className="font-mono text-xs font-bold text-on-surface">
+                    {rule.clicks} clicks
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      type="button"
+                      onClick={() => window.open(rule.scheme, '_blank', 'noopener,noreferrer')}
+                      className="p-1.5 rounded-lg hover:bg-surface-container hover:text-on-surface cursor-pointer text-on-surface-variant" 
+                      title="Open Target URL"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                    {rule.isCustom && (
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          if (rule.linkId && rule.id) {
+                            removeRuleFromLink(rule.linkId, rule.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/20 cursor-pointer transition-colors" 
+                        title="Delete Rule"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Table Pagination / Footer */}

@@ -158,11 +158,11 @@ export default function Home() {
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden animate-fade-in"
           onClick={() => setMobileMenuOpen(false)}
         >
           <div 
-            className="w-64 h-full bg-surface-container-lowest shadow-2xl"
+            className="w-64 max-w-[85vw] h-full bg-surface-container-lowest shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <Sidebar 

@@ -793,8 +793,8 @@ export const SecurityView: React.FC = () => {
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="w-full overflow-x-auto">
+        {/* Desktop Data Table */}
+        <div className="hidden md:block w-full overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs min-w-[780px]">
             <thead>
               <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/20">
@@ -982,6 +982,126 @@ export const SecurityView: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards View (Phones & Small Tablets) */}
+        <div className="block md:hidden divide-y divide-outline-variant/20">
+          {paginatedRows.length === 0 ? (
+            <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
+              <ShieldAlert className="w-8 h-8 text-outline mx-auto mb-2 opacity-50" />
+              <p className="font-semibold text-on-surface">No Destination Links Match Filter</p>
+            </div>
+          ) : (
+            paginatedRows.map((row) => (
+              <div 
+                key={row.id} 
+                className={`p-4 flex flex-col gap-2.5 text-xs ${
+                  row.isDead 
+                    ? 'bg-amber-50/70' 
+                    : row.status === 'expired' 
+                    ? 'bg-surface-container-low/30 opacity-80' 
+                    : ''
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-mono font-bold text-sm ${row.isDead ? 'text-amber-900' : 'text-primary-container'}`}>
+                      {row.shortLink}
+                    </span>
+                    <button 
+                      type="button"
+                      onClick={() => handleCopy(`https://${row.shortLink}`)}
+                      className="text-outline hover:text-primary-container"
+                    >
+                      {copiedLink === `https://${row.shortLink}` ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {row.isDead ? (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-mono text-[10px] font-bold">
+                        {row.httpStatus}
+                      </span>
+                    ) : row.status === 'expired' ? (
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-[10px] font-bold">
+                        Paused
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[10px] font-bold">
+                        {row.httpStatus}
+                      </span>
+                    )}
+
+                    <div className="flex items-center gap-0.5 font-semibold text-[11px]">
+                      {row.isSslValid ? (
+                        <Lock className="w-3 h-3 text-primary-container" />
+                      ) : (
+                        <LockOpen className="w-3 h-3 text-amber-600" />
+                      )}
+                      <span className={row.isSslValid ? 'text-primary' : 'text-amber-800'}>{row.sslStatus}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className={`font-medium truncate ${row.isDead ? 'line-through text-on-surface/70' : 'text-on-surface'}`} title={row.destinationUrl}>
+                    {row.destinationUrl}
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-on-surface-variant mt-0.5">
+                    <span>{row.targetHost}</span>
+                    <span>&bull;</span>
+                    <span className="font-mono">{row.latency}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 flex-wrap">
+                  <div className="flex items-center gap-1">
+                    {row.engines.map((eng, idx) => (
+                      <span key={idx} className="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant text-[9px] font-bold">
+                        {eng}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    {row.isDead ? (
+                      <button 
+                        type="button"
+                        onClick={() => handleOpenSwapModal(row.id)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                      >
+                        <ArrowRight className="w-3 h-3" />
+                        <span>Swap</span>
+                      </button>
+                    ) : (
+                      <button 
+                        type="button"
+                        disabled={scanningRowId === row.id}
+                        onClick={() => handleScanSingleLink(row)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold border border-outline-variant/30 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3 h-3 text-outline ${scanningRowId === row.id ? 'animate-spin' : ''}`} />
+                        <span>Scan</span>
+                      </button>
+                    )}
+
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePause(row)}
+                      className="p-1 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-outline-variant/30 cursor-pointer"
+                      title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
+                    >
+                      {row.status === 'expired' ? <PlayCircle className="w-3.5 h-3.5 text-emerald-600" /> : <PauseCircle className="w-3.5 h-3.5 text-amber-700" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Table Footer with Real Pagination */}

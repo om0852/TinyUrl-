@@ -24,7 +24,8 @@ import {
   ShieldCheck,
   TrendingUp,
   LayoutDashboard,
-  Lock
+  Lock,
+  Menu
 } from 'lucide-react';
 
 interface LandingPageViewProps {
@@ -51,6 +52,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   const [showToast, setShowToast] = useState(false);
   const [aliasDrawerOpen, setAliasDrawerOpen] = useState(false);
   const [aliasInput, setAliasInput] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Clear unauthenticated results on logout
   React.useEffect(() => {
@@ -197,7 +199,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
     <div className="min-h-screen bg-surface-container-lowest text-on-surface antialiased font-sans selection:bg-primary-container/20 selection:text-primary-container">
       
       {/* 1. FIXED TOP NAVBAR */}
-      <header className="fixed top-0 w-full z-50 bg-surface-container-lowest/90 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/30">
+      <header className="fixed top-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/30">
         <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           
           {/* Logo & Navigation */}
@@ -219,44 +221,137 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <a href="#analytics" className="hover:text-on-surface transition-colors">Analytics</a>
               <a href="#pricing" className="hover:text-on-surface transition-colors">Pricing</a>
               <a href="#faq" className="hover:text-on-surface transition-colors">FAQ</a>
+              <Link href="/portal/login" className="hover:text-on-surface transition-colors">Client Portal</Link>
             </nav>
           </div>
 
-          {/* User Status / Auth Actions */}
-          <div className="flex items-center gap-3">
+          {/* User Status / Auth Actions & Mobile Hamburger */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {currentUser ? (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="hidden sm:flex flex-col text-right">
                   <span className="text-xs font-semibold text-on-surface">{currentUser.name}</span>
                   <span className="text-[11px] text-outline">{currentUser.email}</span>
                 </div>
                 <button
                   onClick={onGoToDashboard}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-container hover:bg-primary text-on-primary rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-primary-container hover:bg-primary text-on-primary rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer whitespace-nowrap"
                 >
                   <LayoutDashboard className="w-3.5 h-3.5" />
                   <span>Go to Console</span>
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   onClick={() => onOpenAuth('login')}
-                  className="px-3.5 py-2 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+                  className="px-2.5 sm:px-3.5 py-2 text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
                 >
                   Log in
                 </button>
                 <button
                   onClick={() => onOpenAuth('signup')}
-                  className="inline-flex items-center justify-center text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-4 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer"
+                  className="inline-flex items-center justify-center text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-3 sm:px-4 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer whitespace-nowrap"
                 >
                   Sign up free
                 </button>
               </div>
             )}
+
+            {/* Mobile Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="md:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low transition cursor-pointer shrink-0"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
 
         </div>
+
+        {/* Mobile Navigation Dropdown Menu */}
+        {mobileNavOpen && (
+          <div className="md:hidden bg-surface-container-lowest border-t border-outline-variant/30 px-4 py-4 space-y-3 animate-fade-in shadow-xl">
+            <nav className="flex flex-col space-y-1 text-sm font-semibold text-on-surface-variant">
+              <a 
+                href="#features" 
+                onClick={() => setMobileNavOpen(false)}
+                className="py-2.5 px-3 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition"
+              >
+                Features
+              </a>
+              <a 
+                href="#analytics" 
+                onClick={() => setMobileNavOpen(false)}
+                className="py-2.5 px-3 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition"
+              >
+                Analytics
+              </a>
+              <a 
+                href="#pricing" 
+                onClick={() => setMobileNavOpen(false)}
+                className="py-2.5 px-3 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition"
+              >
+                Pricing
+              </a>
+              <a 
+                href="#faq" 
+                onClick={() => setMobileNavOpen(false)}
+                className="py-2.5 px-3 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition"
+              >
+                FAQ
+              </a>
+              <Link 
+                href="/portal/login" 
+                onClick={() => setMobileNavOpen(false)}
+                className="py-2.5 px-3 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition flex items-center justify-between"
+              >
+                <span>Client Portal</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container-high text-primary-container">Agency</span>
+              </Link>
+            </nav>
+
+            <div className="pt-2 border-t border-outline-variant/20 flex flex-col gap-2">
+              {currentUser ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileNavOpen(false);
+                    if (onGoToDashboard) onGoToDashboard();
+                  }}
+                  className="w-full py-2.5 rounded-lg bg-primary-container text-on-primary text-xs font-bold text-center shadow-xs cursor-pointer"
+                >
+                  Open Workspace Console
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileNavOpen(false);
+                      onOpenAuth('login');
+                    }}
+                    className="py-2 px-3 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold text-center border border-outline-variant/30 cursor-pointer"
+                  >
+                    Log In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileNavOpen(false);
+                      onOpenAuth('signup');
+                    }}
+                    className="py-2 px-3 rounded-lg bg-primary-container text-on-primary text-xs font-bold text-center shadow-xs cursor-pointer"
+                  >
+                    Sign Up Free
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* 2. MAIN CONTENT WRAPPER */}

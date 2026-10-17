@@ -731,7 +731,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* ─── 5 KPI Cards: Geometric Rhythm (Square 0px-rounded Architectural Cards) ─── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
           {/* Card 1: Total Links */}
           <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
@@ -1440,45 +1440,73 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               No recent click events recorded within the selected date horizon.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-surface-container-low text-on-surface-variant uppercase tracking-wider font-semibold">
-                    <th className="py-3 px-4">Link</th>
-                    <th className="py-3 px-4">Location</th>
-                    <th className="py-3 px-4">Device &amp; OS</th>
-                    <th className="py-3 px-4">Source</th>
-                    <th className="py-3 px-4 text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-outline-variant/20">
-                  {recentClicksStream.map(click => {
-                    return (
-                      <tr key={click.id} className="hover:bg-surface-container-low/50 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-primary">
-                          /{click.short_code}
-                        </td>
-                        <td className="py-3 px-4 text-on-surface font-medium">
-                          {click.city ? `${click.city}, ` : ''}{click.country || 'Global'}
-                        </td>
-                        <td className="py-3 px-4 text-on-surface">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Laptop className="w-3.5 h-3.5 text-on-surface-variant" />
-                            <span>{click.device || 'Desktop'} ({click.os || 'Windows'})</span>
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-on-surface-variant">
-                          {click.referrer || 'Direct'}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono text-[11px] text-on-surface-variant">
-                          {formatRelativeTime(click.timestamp)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              {/* Desktop Activity Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-surface-container-low text-on-surface-variant uppercase tracking-wider font-semibold">
+                      <th className="py-3 px-4">Link</th>
+                      <th className="py-3 px-4">Location</th>
+                      <th className="py-3 px-4">Device &amp; OS</th>
+                      <th className="py-3 px-4">Source</th>
+                      <th className="py-3 px-4 text-right">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/20">
+                    {recentClicksStream.map(click => {
+                      return (
+                        <tr key={click.id} className="hover:bg-surface-container-low/50 transition-colors">
+                          <td className="py-3 px-4 font-mono font-bold text-primary">
+                            /{click.short_code}
+                          </td>
+                          <td className="py-3 px-4 text-on-surface font-medium">
+                            {click.city ? `${click.city}, ` : ''}{click.country || 'Global'}
+                          </td>
+                          <td className="py-3 px-4 text-on-surface">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Laptop className="w-3.5 h-3.5 text-on-surface-variant" />
+                              <span>{click.device || 'Desktop'} ({click.os || 'Windows'})</span>
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-on-surface-variant">
+                            {click.referrer || 'Direct'}
+                          </td>
+                          <td className="py-3 px-4 text-right font-mono text-[11px] text-on-surface-variant">
+                            {formatRelativeTime(click.timestamp)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Stream Cards (Phones) */}
+              <div className="block md:hidden divide-y divide-outline-variant/20">
+                {recentClicksStream.map(click => (
+                  <div key={click.id} className="p-3.5 flex flex-col gap-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-bold text-primary text-sm">/{click.short_code}</span>
+                      <span className="font-mono text-[11px] text-on-surface-variant">{formatRelativeTime(click.timestamp)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-on-surface gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <Globe2 className="w-3.5 h-3.5 text-on-surface-variant" />
+                        <span>{click.city ? `${click.city}, ` : ''}{click.country || 'Global'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-on-surface-variant">
+                        <Laptop className="w-3.5 h-3.5" />
+                        <span>{click.device || 'Desktop'} &bull; {click.os || 'Windows'}</span>
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-on-surface-variant">
+                      Source: <span className="font-medium text-on-surface">{click.referrer || 'Direct'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
 

@@ -476,8 +476,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
       )}
 
       {/* ── Section 3: Tab Navigation ── */}
-      <div className="border-b border-surface-container-highest">
-        <nav className="flex space-x-8 -mb-px">
+      <div className="border-b border-surface-container-highest max-w-full overflow-x-auto scrollbar-none">
+        <nav className="flex space-x-8 -mb-px min-w-max">
           <button
             type="button"
             onClick={() => setActiveSubTab('members')}
@@ -648,8 +648,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
           </div>
 
-          {/* Collaborator Table */}
-          <div className="overflow-x-auto w-full">
+          {/* Desktop Collaborator Table */}
+          <div className="hidden md:block overflow-x-auto w-full">
             <table className="w-full text-left text-sm border-collapse" id="teamTable">
               <thead>
                 <tr className="bg-surface-container-low text-on-surface-variant text-xs uppercase tracking-wider font-semibold">
@@ -841,6 +841,133 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             </table>
           </div>
 
+          {/* Mobile Cards View (Phones & Small Tablets) */}
+          <div className="block md:hidden divide-y divide-surface-container-low">
+            {/* Current Active User Card */}
+            <div className="p-4 flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                    {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'U'}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-sm text-on-surface truncate">
+                        {currentUser?.name || 'Workspace User'}
+                      </span>
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                        You
+                      </span>
+                    </div>
+                    <span className="font-mono text-xs text-on-surface-variant truncate">
+                      {currentUser?.email || 'user@workspace.com'}
+                    </span>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span>Active</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 text-xs">
+                <span>{renderRoleBadge(userRole)}</span>
+                <span className="text-[11px] text-on-surface-variant font-medium">
+                  {userRole === 'owner' ? 'Workspace Owner' : userRole === 'admin' ? 'Workspace Admin' : 'Collaborator'}
+                </span>
+              </div>
+            </div>
+
+            {/* Other Members Cards */}
+            {filteredMembers
+              .filter(m => !currentUser?.email || m.email.toLowerCase().trim() !== currentUser.email.toLowerCase().trim())
+              .map((m) => {
+                const isMemberOwner = m.role === 'owner';
+                const isPending = m.status === 'invited' && !isMemberOwner;
+                const inviteLink = m.invite_url || (m.token ? `${originUrl}/invite/${m.token}` : '');
+
+                return (
+                  <div key={m.id} className="p-4 flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                          {m.avatar || m.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-sm text-on-surface truncate">{m.name}</span>
+                          <span className="font-mono text-xs text-on-surface-variant truncate">{m.email}</span>
+                        </div>
+                      </div>
+                      {isPending ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          <span>Pending</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          <span>Active</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 text-xs flex-wrap">
+                      <div className="flex items-center gap-2">
+                        {isMemberOwner ? (
+                          renderRoleBadge('owner')
+                        ) : isOwnerOrAdmin && !isPending ? (
+                          <select
+                            value={m.role}
+                            onChange={(e) => updateMemberRole(m.id, e.target.value as WorkspaceRole)}
+                            className="px-2 py-1 rounded text-xs font-semibold capitalize border border-outline-variant/40 bg-surface-container-lowest text-on-surface"
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="editor">Editor</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+                        ) : (
+                          renderRoleBadge(m.role)
+                        )}
+
+                        {isPending && inviteLink && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyLink(inviteLink, m.id)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-surface-container-high text-primary-container"
+                          >
+                            {copiedToken === m.id ? (
+                              <span className="text-emerald-600 font-bold">Copied</span>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy Link</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {!isMemberOwner && hasPermission(userRole, 'members:remove') && (
+                        <button
+                          type="button"
+                          onClick={() => removeTeamMember(m.id)}
+                          className="p-1 rounded text-red-600 hover:bg-red-500/10 transition"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+            {filteredMembers.length === 0 && (
+              <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
+                No collaborators found matching the current search query or role filter.
+              </div>
+            )}
+          </div>
+
           {/* Table Footer / Roster Count */}
           <div className="px-5 py-3.5 bg-surface-container-low/30 border-t border-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-2 text-on-surface-variant text-xs">
             <span>Showing {displayRosterCount} of {totalRosterCount} registered workspace members</span>
@@ -864,7 +991,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             {loadingHistory && <RefreshCw className="w-4 h-4 animate-spin text-primary-container" />}
           </div>
 
-          <div className="overflow-x-auto w-full">
+          {/* Desktop Audit Log Table */}
+          <div className="hidden md:block overflow-x-auto w-full">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-outline-variant/30 bg-surface-container-low text-on-surface-variant uppercase tracking-wider font-semibold">
@@ -917,6 +1045,42 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile Cards for Audit Log */}
+          <div className="block md:hidden divide-y divide-surface-container-low rounded-lg border border-outline-variant/30 overflow-hidden">
+            {historyLogs.map((log) => (
+              <div key={log.id} className="p-3.5 flex flex-col gap-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-bold text-xs text-on-surface block truncate">{log.name}</span>
+                    <span className="font-mono text-[11px] text-on-surface-variant truncate block">{log.email}</span>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize border shrink-0 ${
+                    log.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' :
+                    log.status === 'pending' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' :
+                    'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      log.status === 'accepted' ? 'bg-emerald-500' :
+                      log.status === 'pending' ? 'bg-amber-500' :
+                      'bg-rose-500'
+                    }`} />
+                    <span>{log.status}</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-on-surface-variant pt-1 border-t border-outline-variant/15 flex-wrap gap-1">
+                  <span>Role: {renderRoleBadge(log.role)}</span>
+                  <span>Sent {new Date(log.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+
+            {historyLogs.length === 0 && !loadingHistory && (
+              <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
+                No past invitations found for this workspace.
+              </div>
+            )}
           </div>
         </div>
       )}
