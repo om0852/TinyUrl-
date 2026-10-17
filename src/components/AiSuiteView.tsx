@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { 
   Sparkles, 
@@ -27,7 +27,11 @@ interface AiSlugResult {
 }
 
 export const AiSuiteView: React.FC = () => {
-  const { links, clicks, aiSuggestSlugs, aiSummarizePerformance, createShortLink } = useStore();
+  const { links, clicks, aiSuggestSlugs, aiSummarizePerformance, createShortLink, refreshData } = useStore();
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const [inputUrl, setInputUrl] = useState('');
   const [inputTitle, setInputTitle] = useState('');

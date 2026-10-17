@@ -91,7 +91,8 @@ export const BulkToolsView: React.FC = () => {
     campaigns, 
     exportLinksCsv, 
     importLinksBatch, 
-    logExportJob 
+    logExportJob,
+    refreshData 
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -140,7 +141,8 @@ export const BulkToolsView: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    refreshData();
+  }, [refreshData]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
 import { InfoTooltip } from '@/components/ui';
@@ -37,7 +37,7 @@ interface ClientsViewProps {
 }
 
 export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
-  const { clients, clientMetrics, refreshClients, deleteClient, updateClient, links, campaigns } = useStore();
+  const { clients, clientMetrics, refreshClients, deleteClient, updateClient, links, campaigns, refreshData } = useStore();
   const { showToast } = useToast();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -46,6 +46,11 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [copiedClientId, setCopiedClientId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    refreshClients();
+    refreshData();
+  }, [refreshClients, refreshData]);
 
   // Delete Confirm Modal
   const [clientToDelete, setClientToDelete] = useState<ClientPortalAccount | null>(null);
@@ -373,8 +378,14 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                 </tr>
               ) : (
                 filteredClients.map((client) => {
-                  const assignedLinksCount = (client.assigned_link_ids || []).length;
-                  const assignedCampaignsCount = (client.assigned_campaign_ids || []).length;
+                  const directLinkIds = client.assigned_link_ids || [];
+                  const assignedCampIds = client.assigned_campaign_ids || [];
+                  const campaignAssociatedLinks = links.filter(l => 
+                    l.campaign_id && assignedCampIds.includes(l.campaign_id)
+                  );
+                  const allResolvedLinkIds = Array.from(new Set([...directLinkIds, ...campaignAssociatedLinks.map(l => l.id)]));
+                  const assignedLinksCount = Math.max(directLinkIds.length, allResolvedLinkIds.length);
+                  const assignedCampaignsCount = assignedCampIds.length;
                   const isCopied = copiedClientId === client.id;
                   const portalDomain = client.custom_domain || originDomain;
                   const portalUrl = `https://${portalDomain}/portal/login?email=${encodeURIComponent(client.email)}`;

@@ -50,7 +50,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
     updateDomainConfig,
     deleteDomain,
     updateWorkspace,
-    checkPermissionOrToast
+    checkPermissionOrToast,
+    refreshData
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -114,7 +115,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    refreshData();
+  }, [refreshData]);
 
   // Load workspace-isolated settings from localStorage or defaults
   useEffect(() => {

@@ -374,6 +374,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [workspaces, setWorkspaces] = useState<Workspace[]>([defaultWs]);
   const [currentWorkspace, setCurrentWorkspaceState] = useState<Workspace>(defaultWs);
+  const currentWorkspaceRef = React.useRef(currentWorkspace);
+  useEffect(() => { currentWorkspaceRef.current = currentWorkspace; }, [currentWorkspace]);
+
+  const currentUserRef = React.useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
   const { showToast } = useToast();
@@ -434,6 +440,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setCurrentWorkspace = useCallback((ws: Workspace) => {
     if (!ws) return;
     setCurrentWorkspaceState(ws);
+    currentWorkspaceRef.current = ws;
     try {
       localStorage.setItem('url_shortener_current_workspace_id', ws.id);
       if (currentUser?.email) {
@@ -443,25 +450,89 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (typeof window !== 'undefined') {
       // 1. Fetch links for newly selected workspace
-      fetch(`/api/v1/links?workspace_id=${encodeURIComponent(ws.id)}`)
+      fetch(`/api/v1/links?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(d => {
           if (d?.success && Array.isArray(d.links)) {
-            setLinks(sanitizeUserLinks(d.links, ws.id));
+            const valid = sanitizeUserLinks(d.links, ws.id);
+            setLinks(valid);
+            try {
+              if (currentUser?.email) {
+                const linksKey = getUserStorageKey('url_shortener_links', currentUser.email);
+                localStorage.setItem(linksKey, JSON.stringify(valid));
+              }
+              localStorage.setItem('url_shortener_links', JSON.stringify(valid));
+            } catch {}
           }
         }).catch(() => {});
 
       // 2. Fetch campaigns for newly selected workspace
-      fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(ws.id)}`)
+      fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(d => {
           if (d?.success && Array.isArray(d.campaigns)) {
             setCampaigns(d.campaigns);
+            try {
+              if (currentUser?.email) {
+                const campKey = getUserStorageKey('url_shortener_campaigns', currentUser.email);
+                localStorage.setItem(campKey, JSON.stringify(d.campaigns));
+              }
+              localStorage.setItem('url_shortener_campaigns', JSON.stringify(d.campaigns));
+            } catch {}
           }
         }).catch(() => {});
 
-      // 3. Fetch team members and pending invitations for newly selected workspace (deduplicated)
-      fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(ws.id)}`)
+      // 3. Fetch analytics telemetry (clicks) for newly selected workspace
+      fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success && Array.isArray(d.recent_clicks)) {
+            const formattedClicks = d.recent_clicks.map((rc: ClickEvent) => {
+              const norm = normalizeCountryName(rc.country, rc.country_code);
+              return {
+                id: rc.id,
+                link_id: rc.link_id || '',
+                short_code: rc.short_code || '',
+                timestamp: rc.timestamp || new Date().toISOString(),
+                ip_hash: rc.ip_hash || 'ip_anon',
+                country: norm.country,
+                country_code: norm.country_code,
+                region: rc.region || undefined,
+                city: rc.city || 'Direct',
+                device: rc.device || 'mobile',
+                os: rc.os || 'iOS',
+                browser: rc.browser || 'Safari',
+                referrer: rc.referrer || 'Direct / Mobile',
+                is_bot: !!rc.is_bot,
+                is_unique: rc.is_unique ?? true,
+                latency_ms: rc.latency_ms || 20
+              };
+            });
+            setClicks(formattedClicks);
+            try {
+              if (currentUser?.email) {
+                const clicksKey = getUserStorageKey('url_shortener_clicks', currentUser.email);
+                localStorage.setItem(clicksKey, JSON.stringify(formattedClicks));
+              }
+              localStorage.setItem('url_shortener_clicks', JSON.stringify(formattedClicks));
+            } catch {}
+          } else if (d?.success && (!d.recent_clicks || d.recent_clicks.length === 0)) {
+            setClicks([]);
+          }
+        }).catch(() => {});
+
+      // 4. Fetch clients for newly selected workspace
+      fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success) {
+            if (Array.isArray(d.clients)) setClients(d.clients);
+            if (d.summary) setClientMetrics(d.summary);
+          }
+        }).catch(() => {});
+
+      // 5. Fetch team members and pending invitations for newly selected workspace (deduplicated)
+      fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(d => {
           if (d?.success) {
@@ -493,8 +564,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }).catch(() => {});
 
-      // 4. Fetch custom domains for newly selected workspace
-      fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(ws.id)}`)
+      // 6. Fetch custom domains for newly selected workspace
+      fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
         .then(r => r.json())
         .then(d => {
           if (d?.success && Array.isArray(d.domains)) {
@@ -609,72 +680,75 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshClients();
   }, [refreshClients]);
 
-  // Live Server Telemetry Synchronizer (Fetches latest links and click events from PostgreSQL)
+  const inFlightSyncRef = React.useRef<Promise<void> | null>(null);
+
+  // Live Server Telemetry Synchronizer (Fetches latest links, clicks, campaigns, and clients from PostgreSQL)
   const syncFromBackend = useCallback(async () => {
-    try {
-      if (typeof window === 'undefined') return;
-      const rawUser = localStorage.getItem('url_shortener_user');
-      const activeUser: User | null = rawUser ? JSON.parse(rawUser) : null;
-      if (!activeUser?.email) return;
+    if (inFlightSyncRef.current) {
+      return inFlightSyncRef.current;
+    }
 
-      const wsKey = getUserStorageKey('url_shortener_workspaces', activeUser.email);
-      const rawWs = localStorage.getItem(wsKey);
-      const parsedWs: Workspace[] = rawWs ? JSON.parse(rawWs) : [];
-      const wsIdKey = getUserStorageKey('url_shortener_current_workspace_id', activeUser.email);
-      const savedWsId = localStorage.getItem(wsIdKey) || 
-                        localStorage.getItem(`url_shortener_current_workspace_id_${activeUser.email}`) || 
-                        localStorage.getItem('url_shortener_current_workspace_id');
-      const activeWs = (savedWsId ? parsedWs.find(w => w.id === savedWsId) : null) || parsedWs[0];
-      if (!activeWs?.id) return;
+    const doSync = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const activeUser = currentUserRef.current || (() => {
+          try {
+            const raw = localStorage.getItem('url_shortener_user');
+            return raw ? JSON.parse(raw) : null;
+          } catch { return null; }
+        })();
+        if (!activeUser?.email) return;
 
-      // 1. Fetch newest link counters from PostgreSQL
-      const linksRes = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWs.id)}`);
-      const linksData = await linksRes.json();
-      if (linksData?.success && Array.isArray(linksData.links)) {
-        const remoteValid = sanitizeUserLinks(linksData.links, activeWs.id);
-        if (remoteValid.length > 0) {
-          setLinks(currentActive => {
-            const remoteMap = new Map(remoteValid.map(r => [r.short_code.toLowerCase(), r]));
-            let hasChanges = false;
-            const updated = currentActive.map(local => {
-              const remote = remoteMap.get(local.short_code.toLowerCase());
-              const remoteCount = remote ? (Number(remote.clicks_count) || 0) : 0;
-              const localCount = Number(local.clicks_count) || 0;
-              if (remoteCount > localCount) {
-                hasChanges = true;
-                return {
-                  ...local,
-                  clicks_count: remoteCount
-                };
-              }
-              return local;
+        const wsIdKey = getUserStorageKey('url_shortener_current_workspace_id', activeUser.email);
+        const savedWsId = localStorage.getItem(wsIdKey) || 
+                          localStorage.getItem(`url_shortener_current_workspace_id_${activeUser.email}`) || 
+                          localStorage.getItem('url_shortener_current_workspace_id');
+        const activeWsId = currentWorkspaceRef.current?.id || savedWsId || 'ws_default';
+        if (!activeWsId) return;
+
+        // Run fetches in parallel for top speed
+        const [linksRes, analyticsRes, campaignsRes, clientsRes, apiKeysRes, webhooksRes] = await Promise.all([
+          fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
+          fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
+          fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
+          fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
+          fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
+          fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
+        ]);
+
+        // 1. Process Links
+        if (linksRes && linksRes.ok) {
+          const linksData = await linksRes.json().catch(() => null);
+          if (linksData?.success && Array.isArray(linksData.links)) {
+            const remoteValid = sanitizeUserLinks(linksData.links, activeWsId);
+            setLinks(currentActive => {
+              const remoteCodes = new Set(remoteValid.map(r => r.short_code.toLowerCase()));
+              // Keep very recently created local links that might not have hit DB yet (< 15 seconds)
+              const recentLocals = currentActive.filter(l => 
+                l.workspace_id === activeWsId && 
+                !remoteCodes.has(l.short_code.toLowerCase()) && 
+                (Date.now() - new Date(l.created_at).getTime() < 15000)
+              );
+              const latestLinks = [...recentLocals, ...remoteValid];
+              try {
+                if (activeUser?.email) {
+                  const linksKey = getUserStorageKey('url_shortener_links', activeUser.email);
+                  localStorage.setItem(linksKey, JSON.stringify(latestLinks));
+                }
+                localStorage.setItem('url_shortener_links', JSON.stringify(latestLinks));
+              } catch {}
+              return latestLinks;
             });
-            const localKeys = new Set(currentActive.map(l => l.short_code.toLowerCase()));
-            remoteValid.forEach(r => {
-              if (!localKeys.has(r.short_code.toLowerCase())) {
-                updated.push(r);
-                hasChanges = true;
-              }
-            });
-            return hasChanges ? updated : currentActive;
-          });
+          }
         }
-      }
 
-      // 2. Fetch newest click events from PostgreSQL (kept in memory, NOT writing to localStorage)
-      const analyticsRes = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWs.id)}`, {
-        cache: 'no-store'
-      });
-      const analyticsData = await analyticsRes.json();
-      if (analyticsData?.success && Array.isArray(analyticsData.recent_clicks) && analyticsData.recent_clicks.length > 0) {
-        setClicks(currentClicks => {
-          const clickMap = new Map(currentClicks.map(c => [c.id, c]));
-          let hasNewClicks = false;
-          analyticsData.recent_clicks.forEach((rc: ClickEvent) => {
-            if (!clickMap.has(rc.id)) {
-              hasNewClicks = true;
+        // 2. Process Telemetry Clicks
+        if (analyticsRes && analyticsRes.ok) {
+          const analyticsData = await analyticsRes.json().catch(() => null);
+          if (analyticsData?.success && Array.isArray(analyticsData.recent_clicks)) {
+            const formattedRemote = analyticsData.recent_clicks.map((rc: ClickEvent) => {
               const norm = normalizeCountryName(rc.country, rc.country_code);
-              clickMap.set(rc.id, {
+              return {
                 id: rc.id,
                 link_id: rc.link_id || '',
                 short_code: rc.short_code || '',
@@ -691,38 +765,101 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 is_bot: !!rc.is_bot,
                 is_unique: rc.is_unique ?? true,
                 latency_ms: rc.latency_ms || 20
-              });
-            }
-          });
-
-          if (hasNewClicks || clickMap.size > currentClicks.length) {
-            const sorted = Array.from(clickMap.values()).sort(
-              (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            );
-
-            // Synchronize links clicks_count immediately with the verified telemetry events count
-            setLinks(currentLinks => {
-              let linksChanged = false;
-              const synchronizedLinks = currentLinks.map(l => {
-                const eventsForL = sorted.filter(c => 
-                  (c.link_id && c.link_id === l.id) || 
-                  (c.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())
-                ).length;
-                if (eventsForL > (l.clicks_count || 0)) {
-                  linksChanged = true;
-                  return { ...l, clicks_count: eventsForL };
-                }
-                return l;
-              });
-              return linksChanged ? synchronizedLinks : currentLinks;
+              };
             });
 
-            return sorted;
+            setClicks(currentClicks => {
+              const clickMap = new Map<string, ClickEvent>();
+              formattedRemote.forEach((c: ClickEvent) => clickMap.set(c.id, c));
+              // Also keep any local clicks in memory
+              currentClicks.forEach((c: ClickEvent) => {
+                if (!clickMap.has(c.id)) {
+                  clickMap.set(c.id, c);
+                }
+              });
+
+              const sorted = Array.from(clickMap.values()).sort(
+                (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              );
+
+              try {
+                if (activeUser?.email) {
+                  const clicksKey = getUserStorageKey('url_shortener_clicks', activeUser.email);
+                  localStorage.setItem(clicksKey, JSON.stringify(sorted));
+                }
+                localStorage.setItem('url_shortener_clicks', JSON.stringify(sorted));
+              } catch {}
+
+              // Synchronize links clicks_count immediately with the verified telemetry events count
+              setLinks(currentLinks => {
+                let linksChanged = false;
+                const synchronizedLinks = currentLinks.map(l => {
+                  const eventsForL = sorted.filter(c => 
+                    (c.link_id && c.link_id === l.id) || 
+                    (c.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())
+                  ).length;
+                  if (eventsForL > (l.clicks_count || 0)) {
+                    linksChanged = true;
+                    return { ...l, clicks_count: eventsForL };
+                  }
+                  return l;
+                });
+                return linksChanged ? synchronizedLinks : currentLinks;
+              });
+
+              return sorted;
+            });
           }
-          return currentClicks;
-        });
+        }
+
+        // 3. Process Campaigns
+        if (campaignsRes && campaignsRes.ok) {
+          const campData = await campaignsRes.json().catch(() => null);
+          if (campData?.success && Array.isArray(campData.campaigns)) {
+            setCampaigns(campData.campaigns);
+            try {
+              if (activeUser?.email) {
+                const campKey = getUserStorageKey('url_shortener_campaigns', activeUser.email);
+                localStorage.setItem(campKey, JSON.stringify(campData.campaigns));
+              }
+              localStorage.setItem('url_shortener_campaigns', JSON.stringify(campData.campaigns));
+            } catch {}
+          }
+        }
+
+        // 4. Process Clients
+        if (clientsRes && clientsRes.ok) {
+          const clientsData = await clientsRes.json().catch(() => null);
+          if (clientsData?.success) {
+            if (Array.isArray(clientsData.clients)) setClients(clientsData.clients);
+            if (clientsData.summary) setClientMetrics(clientsData.summary);
+          }
+        }
+
+        // 5. Process API Keys
+        if (apiKeysRes && apiKeysRes.ok) {
+          const keysData = await apiKeysRes.json().catch(() => null);
+          if (keysData?.success && Array.isArray(keysData.keys)) {
+            setApiKeys(keysData.keys);
+          }
+        }
+
+        // 6. Process Webhooks
+        if (webhooksRes && webhooksRes.ok) {
+          const whData = await webhooksRes.json().catch(() => null);
+          if (whData?.success && Array.isArray(whData.webhooks)) {
+            setWebhooks(whData.webhooks);
+          }
+        }
+      } catch (err) {
+        console.warn('syncFromBackend error:', err);
+      } finally {
+        inFlightSyncRef.current = null;
       }
-    } catch {}
+    };
+
+    inFlightSyncRef.current = doSync();
+    return inFlightSyncRef.current;
   }, []);
 
   const refreshData = useCallback(async () => {
@@ -954,11 +1091,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             .then(res => res.json())
             .then(data => {
               if (data && data.success && Array.isArray(data.domains)) {
-                setDomains(data.domains);
+                const merged = ensurePlatformDomain(data.domains, activeWsId);
+                setDomains(merged);
                 try {
                   const domKey = getUserStorageKey('url_shortener_domains', user.email);
-                  localStorage.setItem(domKey, JSON.stringify(data.domains));
-                  localStorage.setItem('url_shortener_domains', JSON.stringify(data.domains));
+                  localStorage.setItem(domKey, JSON.stringify(merged));
+                  localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
                 } catch {}
               }
             })
@@ -1023,7 +1161,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setTeamMembers([]);
         setApiKeys([]);
         setWebhooks([]);
-        setDomains([]);
+        setDomains(ensurePlatformDomain([], guestWs.id));
       }
     } catch {
       setLinks([]);
@@ -1447,11 +1585,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .then(res => res.json())
       .then(data => {
-        if (data?.data?.id) {
-          setLinks(prev => prev.map(l => l.id === newLink.id ? { ...l, id: data.data.id } : l));
+        if (data?.data?.id && data.data.id !== newLink.id) {
+          setLinks(prev => {
+            const updated = prev.map(l => l.id === newLink.id ? { ...l, id: data.data.id } : l);
+            saveLinksState(updated);
+            return updated;
+          });
         }
       })
-      .catch(() => {});
+      .catch(err => {
+        console.warn('Background link sync warning:', err);
+      });
     }
 
     return { link: newLink };
@@ -2447,10 +2591,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .then(r => r.json())
         .then(d => {
           if (d?.success && Array.isArray(d.domains)) {
-            setDomains(d.domains);
+            const merged = ensurePlatformDomain(d.domains, userWorkspaces[0]?.id || 'ws_default');
+            setDomains(merged);
             try {
-              localStorage.setItem(domKey, JSON.stringify(d.domains));
-              localStorage.setItem('url_shortener_domains', JSON.stringify(d.domains));
+              localStorage.setItem(domKey, JSON.stringify(merged));
+              localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
             } catch {}
           }
         }).catch(() => {});

@@ -41,7 +41,7 @@ const TAB_TITLES: Record<TabType, string> = {
 };
 
 export default function Home() {
-  const { currentUser, currentUserRole } = useStore();
+  const { currentUser, currentUserRole, refreshData } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
@@ -95,6 +95,13 @@ export default function Home() {
       setViewMode('landing');
     }
   }, [currentUser]);
+
+  // Whenever activeTab changes or dashboard is viewed, dynamically sync latest workspace data from PostgreSQL
+  useEffect(() => {
+    if (mounted && currentUser && viewMode === 'dashboard') {
+      refreshData();
+    }
+  }, [activeTab, mounted, currentUser, viewMode, refreshData]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {

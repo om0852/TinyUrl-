@@ -53,7 +53,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
     setSelectedAnalyticsLinkId,
     brokenLinksCount,
     scanBrokenLinks,
-    fixBrokenLink
+    fixBrokenLink,
+    refreshData,
+    isRefreshing
   } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
@@ -79,7 +81,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    refreshData();
+  }, [refreshData]);
 
   // Filters & Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -781,11 +784,15 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <div className="flex items-center gap-1 text-outline">
               <button
                 type="button"
-                onClick={() => setSearchTerm('')}
+                onClick={() => {
+                  setSearchTerm('');
+                  refreshData();
+                }}
+                disabled={isRefreshing}
                 className="p-1.5 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"
                 title="Refresh Table"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
               </button>
               <button
                 type="button"

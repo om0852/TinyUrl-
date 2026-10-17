@@ -194,10 +194,10 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     return matchesSearch && matchesRole;
   });
 
-  const activeMembersCount = teamMembers.filter(m => m.status === 'active').length + 1; // +1 for current user / owner
+  const activeMembersCount = Math.max(1, teamMembers.filter(m => m.status === 'active').length);
   const pendingMembersCount = teamMembers.filter(m => m.status === 'invited').length;
-  const totalRosterCount = teamMembers.length + 1;
-  const displayRosterCount = filteredMembers.length + 1;
+  const totalRosterCount = Math.max(1, teamMembers.length);
+  const displayRosterCount = Math.max(1, filteredMembers.length);
 
   const renderRoleBadge = (role: WorkspaceRole | string) => {
     const normRole = (role || 'editor').toLowerCase();

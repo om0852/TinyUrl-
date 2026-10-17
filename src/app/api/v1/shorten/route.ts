@@ -65,7 +65,8 @@ export async function POST(request: Request) {
     }
 
     // 2. Strict Workspace ID Validation
-    if (!workspace_id || typeof workspace_id !== 'string' || !workspace_id.trim()) {
+    const resolvedWorkspaceId = (workspace_id || request.headers.get('x-workspace-id') || 'ws_default').trim();
+    if (!resolvedWorkspaceId) {
       return NextResponse.json<ShortenApiResponse>({ 
         success: false, 
         error: 'Field "workspace_id" is required for multi-tenant link attribution.' 
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
     // 2.5 RBAC Permission Verification
     const authResult = await verifyWorkspacePermission(request, 'links:create', {
-      workspaceId: workspace_id.trim()
+      workspaceId: resolvedWorkspaceId
     });
     if (!authResult.success) {
       return authResult.response;
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
 
     const newLink: Link = {
       id: uniqueId,
-      workspace_id: workspace_id.trim(),
+      workspace_id: resolvedWorkspaceId,
       short_code: code,
       custom_slug: custom_slug ? code : undefined,
       domain_id: cleanDomainId,
@@ -188,7 +189,7 @@ export async function POST(request: Request) {
       channel: channel && typeof channel === 'string' ? channel.slice(0, 100) : undefined,
       og_title: og_title && typeof og_title === 'string' ? og_title.slice(0, 255) : undefined,
       og_description: og_description && typeof og_description === 'string' ? og_description.slice(0, 1000) : undefined,
-      og_image_url: og_image_url && typeof og_image_url === 'string' ? og_image_url.slice(0, 1000) : undefined,
+      og_image_url: og_image_url && typeof og_image_url === 'string' ? og_image_url.trim() : undefined,
       created_at: new Date().toISOString()
     };
 

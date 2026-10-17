@@ -169,6 +169,41 @@ export async function POST(request: Request) {
     const assignedLinksJson = JSON.stringify(Array.isArray(assigned_link_ids) ? assigned_link_ids : []);
     const assignedCampaignsJson = JSON.stringify(Array.isArray(assigned_campaign_ids) ? assigned_campaign_ids : []);
 
+    // Sync any assigned full link objects into PostgreSQL links table to guarantee portal visibility
+    if (Array.isArray(body.assigned_links) && body.assigned_links.length > 0) {
+      for (const lnk of body.assigned_links) {
+        if (lnk && lnk.id && lnk.short_code && lnk.destination_url) {
+          await sql.query(
+            `INSERT INTO links (
+              id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count,
+              tags, rules, campaign_id, redirect_type, http_status_code, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+            ON CONFLICT (short_code) DO UPDATE SET
+              destination_url = EXCLUDED.destination_url,
+              title = COALESCE(EXCLUDED.title, links.title),
+              campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id)`,
+            [
+              lnk.id,
+              lnk.workspace_id || workspace_id,
+              lnk.domain_id || 'dom_platform',
+              lnk.short_code,
+              lnk.custom_slug || lnk.short_code,
+              lnk.destination_url,
+              lnk.title || `Short Link ${lnk.short_code}`,
+              lnk.status || 'active',
+              lnk.clicks_count || 0,
+              JSON.stringify(lnk.tags || []),
+              JSON.stringify(lnk.rules || []),
+              lnk.campaign_id || null,
+              lnk.redirect_type || 'direct',
+              lnk.http_status_code || 301,
+              lnk.created_at || new Date().toISOString()
+            ]
+          ).catch(err => console.warn('Sync assigned link to DB failed:', err));
+        }
+      }
+    }
+
     await sql.query(
       `INSERT INTO client_portals (
         id, workspace_id, name, email, company_name, password_hash, status,

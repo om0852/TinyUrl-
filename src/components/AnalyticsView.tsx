@@ -59,7 +59,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
-  }, []);
+    refreshData();
+  }, [refreshData]);
 
   // Filter States
   const [selectedLinkId, setSelectedLinkId] = useState<string>(() => selectedAnalyticsLinkId || 'all');
@@ -75,6 +76,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       setSelectedLinkId(selectedAnalyticsLinkId);
     }
   }, [selectedAnalyticsLinkId]);
+
+  // Automatically reset filter to 'all' if the selected link or campaign does not exist in active workspace
+  useEffect(() => {
+    if (selectedLinkId !== 'all' && links.length > 0 && !links.some(l => l.id === selectedLinkId)) {
+      setSelectedLinkId('all');
+      setSelectedAnalyticsLinkId(null);
+    }
+  }, [links, selectedLinkId, setSelectedAnalyticsLinkId]);
+
+  useEffect(() => {
+    if (selectedCampaignId !== 'all' && campaigns.length > 0 && !campaigns.some(c => c.id === selectedCampaignId)) {
+      setSelectedCampaignId('all');
+    }
+  }, [campaigns, selectedCampaignId]);
 
   // Date Range State
   const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h' | 'custom'>('30d');

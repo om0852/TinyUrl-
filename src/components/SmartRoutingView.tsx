@@ -22,12 +22,13 @@ import {
 } from 'lucide-react';
 
 export const SmartRoutingView: React.FC = () => {
-  const { links, addRuleToLink, removeRuleFromLink, createShortLink } = useStore();
+  const { links, addRuleToLink, removeRuleFromLink, createShortLink, refreshData } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    refreshData();
+  }, [refreshData]);
 
   // New Rule Modal
   const [newRuleModalOpen, setNewRuleModalOpen] = useState(false);

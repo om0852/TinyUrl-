@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
@@ -22,7 +22,8 @@ import {
   Sparkles,
   Lock,
   Layers,
-  Search
+  Search,
+  ChevronDown
 } from 'lucide-react';
 
 interface CreateClientModalProps {
@@ -67,14 +68,39 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
   const [activeTab, setActiveTab] = useState<'info' | 'scoping' | 'permissions' | 'branding'>('info');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const currentHost = typeof window !== 'undefined' && window.location.host 
+    ? window.location.host 
+    : (process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd');
+
+  // Ensure current host domain (localhost in dev or deployed domain in prod) is always present
+  const availableDomains = useMemo(() => {
+    const list = Array.isArray(domains) ? [...domains] : [];
+    const hasHost = list.some(d => d.hostname && d.hostname.toLowerCase() === currentHost.toLowerCase());
+    if (!hasHost) {
+      list.unshift({
+        id: 'dom_platform_host',
+        workspace_id: 'ws_default',
+        hostname: currentHost,
+        verified: true,
+        ssl_status: 'active',
+        is_default: true,
+        created_at: new Date().toISOString()
+      });
+    }
+    return list;
+  }, [domains, currentHost]);
+
+  const primaryDomain = availableDomains.find(d => d.is_default || d.id === 'dom_platform' || d.id === 'dom_platform_host') || availableDomains[0];
+
   // Populate when editing
   useEffect(() => {
+    const defaultHost = availableDomains.find(d => d.is_default)?.hostname || availableDomains[0]?.hostname || currentHost;
     if (clientToEdit) {
       setName(clientToEdit.name || '');
       setEmail(clientToEdit.email || '');
       setCompanyName(clientToEdit.company_name || '');
       setPassword('');
-      setCustomDomain(clientToEdit.custom_domain || '');
+      setCustomDomain(clientToEdit.custom_domain || defaultHost);
       setBrandColor(clientToEdit.brand_color || '#4f46e5');
       setBrandLogoUrl(clientToEdit.brand_logo_url || '');
       setCanViewAnalytics(clientToEdit.can_view_analytics !== false);
@@ -88,7 +114,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
       setEmail('');
       setCompanyName('');
       setPassword('');
-      setCustomDomain('');
+      setCustomDomain(defaultHost);
       setBrandColor('#4f46e5');
       setBrandLogoUrl('');
       setCanViewAnalytics(true);
@@ -98,9 +124,11 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
       setSelectedLinkIds([]);
       setSelectedCampaignIds([]);
     }
-  }, [clientToEdit, isOpen]);
+  }, [clientToEdit, isOpen, availableDomains, currentHost]);
 
   if (!mounted || !isOpen) return null;
+
+  const portalDisplayHost = customDomain || primaryDomain?.hostname || currentHost;
 
   const filteredLinks = links.filter(l => {
     const q = linkSearchQuery.toLowerCase().trim();
@@ -120,9 +148,23 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
   };
 
   const toggleCampaignSelection = (campId: string) => {
-    setSelectedCampaignIds(prev =>
-      prev.includes(campId) ? prev.filter(id => id !== campId) : [...prev, campId]
-    );
+    setSelectedCampaignIds(prev => {
+      const willSelect = !prev.includes(campId);
+      const nextCampaignIds = willSelect ? [...prev, campId] : prev.filter(id => id !== campId);
+      
+      // Auto-select links belonging to this campaign
+      const camp = campaigns.find(c => c.id === campId);
+      if (camp && willSelect) {
+        const campaignLinks = links.filter(l => 
+          l.campaign_id === camp.id || 
+          (Array.isArray(l.tags) && Array.isArray(camp.tags) && l.tags.some(t => camp.tags.includes(t)))
+        );
+        if (campaignLinks.length > 0) {
+          setSelectedLinkIds(prevLinks => Array.from(new Set([...prevLinks, ...campaignLinks.map(l => l.id)])));
+        }
+      }
+      return nextCampaignIds;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,8 +188,16 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      // Gather all directly and campaign-associated link IDs
+      const campaignLinkIds = links.filter(l => 
+        l.campaign_id && selectedCampaignIds.includes(l.campaign_id)
+      ).map(l => l.id);
+
+      const allAssignedIds = Array.from(new Set([...selectedLinkIds, ...campaignLinkIds]));
+      const assignedLinksPayload = links.filter(l => allAssignedIds.includes(l.id));
+
       if (clientToEdit) {
-        const updates: Partial<ClientPortalAccount> & { password?: string } = {
+        const updates: any = {
           name: name.trim(),
           company_name: companyName.trim(),
           custom_domain: customDomain.trim() || undefined,
@@ -157,8 +207,9 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           can_edit_destination_url: canEditDestinationUrl,
           can_create_links: canCreateLinks,
           max_links_quota: Number(maxLinksQuota) || 10,
-          assigned_link_ids: selectedLinkIds,
-          assigned_campaign_ids: selectedCampaignIds
+          assigned_link_ids: allAssignedIds,
+          assigned_campaign_ids: selectedCampaignIds,
+          assigned_links: assignedLinksPayload
         };
         if (password.trim()) {
           updates.password = password.trim();
@@ -171,7 +222,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           showToast('error', res.error || 'Failed to update client.');
         }
       } else {
-        const payload = {
+        const payload: any = {
           name: name.trim(),
           email: email.trim().toLowerCase(),
           company_name: companyName.trim(),
@@ -183,8 +234,9 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           can_edit_destination_url: canEditDestinationUrl,
           can_create_links: canCreateLinks,
           max_links_quota: Number(maxLinksQuota) || 10,
-          assigned_link_ids: selectedLinkIds,
-          assigned_campaign_ids: selectedCampaignIds
+          assigned_link_ids: allAssignedIds,
+          assigned_campaign_ids: selectedCampaignIds,
+          assigned_links: assignedLinksPayload
         };
         const res = await addClient(payload);
         if (res.success) {
@@ -555,19 +607,27 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           {activeTab === 'branding' && (
             <div className="space-y-4 animate-fade-in">
               <div>
-                <div className="flex items-center gap-1 mb-1">
-                  <label className="text-xs font-bold text-on-surface">Custom White-Label Portal Domain</label>
-                  <InfoTooltip text="Bind this portal to an agency or client domain (e.g. portal.brandagency.com)." />
+                <div className="flex items-center gap-1 mb-1.5">
+                  <label htmlFor="portalDomainSelect" className="text-xs font-bold text-on-surface">Client Portal Domain</label>
+                  <InfoTooltip text="Select the branded domain configured in Settings for this client's portal." />
                 </div>
                 <div className="relative">
-                  <Globe2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
-                  <input
-                    type="text"
-                    placeholder="e.g. portal.clientbrand.com"
-                    value={customDomain}
+                  <Globe2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
+                  <select
+                    id="portalDomainSelect"
+                    value={customDomain || primaryDomain?.hostname || currentHost}
                     onChange={(e) => setCustomDomain(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
-                  />
+                    className="w-full appearance-none pl-9 pr-8 py-2 bg-surface-container-low text-on-surface font-mono text-xs rounded-lg border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer font-medium"
+                  >
+                    {availableDomains.map((d) => (
+                      <option key={d.id} value={d.hostname} disabled={!d.verified}>
+                        {d.hostname} {d.is_default || d.id === 'dom_platform' || d.id === 'dom_platform_host' || d.hostname.toLowerCase() === currentHost.toLowerCase() ? '(Primary Host)' : (d.verified ? '' : '(Pending DNS)')}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
 
@@ -609,13 +669,22 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               </div>
 
               {/* Portal URL preview */}
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 text-xs">
-                <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">
-                  Client Portal Access Address
-                </span>
-                <span className="font-mono text-primary-container font-semibold truncate block">
-                  https://{customDomain || 'snip.to'}/portal/login
-                </span>
+              <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 text-xs space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
+                    Client Portal Access Address
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container/10 text-primary-container font-semibold">
+                    Sandboxed Portal
+                  </span>
+                </div>
+                <div className="font-mono text-primary-container font-semibold text-xs bg-surface-container-lowest px-3 py-2 rounded-lg border border-outline-variant/30 flex items-center gap-2 overflow-hidden">
+                  <Globe2 className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                  <span className="truncate">https://{portalDisplayHost}/portal/login</span>
+                </div>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Provide this address to your client to sign in. Their session is isolated to scoped links and analytics only.
+                </p>
               </div>
             </div>
           )}

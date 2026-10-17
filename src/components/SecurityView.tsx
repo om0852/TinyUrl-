@@ -54,9 +54,14 @@ interface SecurityRow {
 }
 
 export const SecurityView: React.FC = () => {
-  const { links, updateLink, currentWorkspace, addWebhook, currentUser, checkPermissionOrToast } = useStore();
+  const { links, updateLink, currentWorkspace, addWebhook, currentUser, checkPermissionOrToast, refreshData } = useStore();
   const [mounted, setMounted] = useState(false);
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
+
+  useEffect(() => {
+    setMounted(true);
+    refreshData();
+  }, [refreshData]);
 
   // Audit animation state
   const [isAuditing, setIsAuditing] = useState(false);

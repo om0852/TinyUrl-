@@ -27,7 +27,11 @@ import {
   MessageCircle,
   CheckCheck,
   Clipboard,
-  Zap
+  Zap,
+  UploadCloud,
+  Loader2,
+  Trash2,
+  Cloud
 } from 'lucide-react';
 import { InfoTooltip } from '@/components/ui';
 import { detectAppDeepLink } from '@/lib/deepLink';
@@ -52,7 +56,25 @@ interface GeneratedItem {
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
   const { createShortLink, links, campaigns, domains } = useStore();
 
-  const primaryDomain = domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified) || domains[0];
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
+  const availableDomains = useMemo(() => {
+    const list = Array.isArray(domains) ? [...domains] : [];
+    const hasHost = list.some(d => d.hostname && d.hostname.toLowerCase() === originDomain.toLowerCase());
+    if (!hasHost) {
+      list.unshift({
+        id: 'dom_platform',
+        workspace_id: 'ws_default',
+        hostname: originDomain,
+        verified: true,
+        ssl_status: 'active',
+        is_default: true,
+        created_at: new Date().toISOString()
+      });
+    }
+    return list;
+  }, [domains, originDomain]);
+
+  const primaryDomain = availableDomains.find(d => d.is_default && d.verified) || availableDomains.find(d => d.verified) || availableDomains[0];
 
   // Mode: Single vs Batch (multiple)
   const [mode, setMode] = useState<'single' | 'multiple'>('single');
@@ -72,6 +94,44 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [ogDescription, setOgDescription] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
   const [socialPreviewTab, setSocialPreviewTab] = useState<'whatsapp' | 'twitter'>('twitter');
+  const [isUploadingOgImage, setIsUploadingOgImage] = useState(false);
+  const [uploadStorageType, setUploadStorageType] = useState<'vercel_blob' | 'inline' | null>(null);
+  const ogFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleOgImageUpload = async (file: File) => {
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size exceeds the 10MB limit.');
+      return;
+    }
+
+    setIsUploadingOgImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/v1/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (data.success && data.url) {
+        setOgImageUrl(data.url);
+        setUploadStorageType(data.storage === 'vercel_blob' ? 'vercel_blob' : 'inline');
+      } else {
+        alert(data.error || 'Failed to upload image.');
+      }
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      alert(err.message || 'Error uploading image.');
+    } finally {
+      setIsUploadingOgImage(false);
+      if (ogFileInputRef.current) {
+        ogFileInputRef.current.value = '';
+      }
+    }
+  };
 
   // Core redirection & protection settings
   const [redirectType, setRedirectType] = useState<'direct' | 'frame' | 'splash'>('direct');
@@ -117,9 +177,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     message?: string;
   } | null>(null);
 
-  const selectedDomainObj = domains.find(d => d.id === selectedDomainId) || primaryDomain;
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
-  const resolvedHost = selectedDomainObj?.hostname || (typeof window !== 'undefined' ? window.location.host : originDomain);
+  const selectedDomainObj = availableDomains.find(d => d.id === selectedDomainId) || primaryDomain;
+  const resolvedHost = selectedDomainObj?.hostname || originDomain;
 
   const probeSelectedDomain = useCallback(async (hostname: string) => {
     if (!hostname) return;
@@ -752,7 +811,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     onChange={(e) => setSelectedDomainId(e.target.value)}
                     className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-lowest text-on-surface font-mono text-xs rounded-lg shadow-sm border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer font-medium"
                   >
-                    {domains.map(d => (
+                    {availableDomains.map(d => (
                       <option key={d.id} value={d.id} disabled={!d.verified}>
                         {d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Primary)' : (d.verified ? '' : '(Pending DNS)')}
                       </option>
@@ -800,15 +859,25 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                 </div>
               </div>
 
-              {/* Sub-bar: SSL edge note + chars saved */}
+              {/* Sub-bar: SSL edge note + chars saved + Quick Upload Link */}
               <div className="flex items-center justify-between mt-1.5 text-xs text-on-surface-variant">
                 <span className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>SSL verified on custom edge network</span>
+                  <span>SSL verified on edge</span>
                 </span>
-                <span className="font-mono text-xs text-on-surface-variant font-medium">
-                  {charsSaved} chars saved
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('social')}
+                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-1 cursor-pointer bg-primary/10 px-2 py-0.5 rounded-md"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Upload Social Image</span>
+                  </button>
+                  <span className="font-mono text-xs text-on-surface-variant font-medium">
+                    {charsSaved} chars saved
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -839,8 +908,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     : 'text-on-surface-variant hover:text-on-surface'
                 }`}
               >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Social Preview (OG)</span>
+                <UploadCloud className="w-3.5 h-3.5 text-primary" />
+                <span>Social Card &amp; Image (Vercel Blob)</span>
               </button>
 
               <button
@@ -1215,14 +1284,24 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                             (e.target as HTMLElement).style.display = 'none';
                           }}
                         />
-                        <button 
-                          type="button"
-                          onClick={handleGenerateDynamicOg}
-                          className="absolute bottom-2 right-2 px-2.5 py-1 bg-black/70 hover:bg-black text-white rounded text-xs font-medium flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-primary-fixed" />
-                          <span>Auto-Generate Card</span>
-                        </button>
+                        <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+                          <button 
+                            type="button"
+                            onClick={() => ogFileInputRef.current?.click()}
+                            className="px-2.5 py-1 bg-primary hover:bg-primary/90 text-white rounded text-xs font-semibold flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer shadow-sm"
+                          >
+                            <UploadCloud className="w-3.5 h-3.5" />
+                            <span>Upload Image</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={handleGenerateDynamicOg}
+                            className="px-2.5 py-1 bg-black/70 hover:bg-black text-white rounded text-xs font-medium flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-primary-fixed" />
+                            <span>Auto-Generate</span>
+                          </button>
+                        </div>
                       </div>
                       <div className="p-3 bg-surface-container-lowest space-y-1">
                         <span className="font-mono text-xs text-on-surface-variant uppercase tracking-wider block font-medium">
@@ -1247,15 +1326,27 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                   ) : (
                     /* WhatsApp Chat Bubble Mockup */
                     <div className="bg-[#e7fedb] dark:bg-[#005c4b]/30 p-3 rounded-xl border border-emerald-500/20 shadow-xs flex flex-col gap-1.5 text-left max-w-lg mx-auto">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={previewOgImage}
-                        alt="Thumbnail preview"
-                        className="w-full h-28 object-cover rounded-lg border border-emerald-500/20"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
-                      />
+                      <div className="relative group overflow-hidden rounded-lg">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={previewOgImage}
+                          alt="Thumbnail preview"
+                          className="w-full h-28 object-cover rounded-lg border border-emerald-500/20"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                          <button 
+                            type="button"
+                            onClick={() => ogFileInputRef.current?.click()}
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer shadow-sm"
+                          >
+                            <UploadCloud className="w-3.5 h-3.5" />
+                            <span>Upload Image</span>
+                          </button>
+                        </div>
+                      </div>
                       <input
                         type="text"
                         value={ogTitle || title}
@@ -1277,20 +1368,135 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                     </div>
                   )}
 
-                  {/* Direct Image URL input */}
-                  <div>
-                    <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5 mb-1">
-                      <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                      <span>Custom Image URL (og:image)</span>
-                      <InfoTooltip text="Card thumbnail image shown on messaging apps and feeds (1200x630px recommended)" />
-                    </label>
+                  {/* Upload Image to Vercel Blob or Enter URL */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                        <span>Card Thumbnail Image (og:image)</span>
+                        <InfoTooltip text="Upload to Vercel Blob CDN or enter custom image URL. 1200x630px recommended for high-resolution WhatsApp and Twitter cards." />
+                      </label>
+                      {ogImageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => { setOgImageUrl(''); setUploadStorageType(null); }}
+                          className="text-[11px] text-red-500 hover:text-red-600 flex items-center gap-1 cursor-pointer font-medium"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Remove</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Hidden file input */}
                     <input
-                      type="url"
-                      value={ogImageUrl}
-                      onChange={(e) => setOgImageUrl(e.target.value)}
-                      placeholder="https://images.unsplash.com/... or /api/og?title=..."
-                      className="w-full px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs rounded-lg border border-outline-variant/40 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      ref={ogFileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleOgImageUpload(file);
+                      }}
                     />
+
+                    {/* Drag & Drop / Click Upload Box */}
+                    <div
+                      onClick={() => !isUploadingOgImage && ogFileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleOgImageUpload(file);
+                      }}
+                      className={`relative border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer ${
+                        ogImageUrl 
+                          ? 'border-primary/40 bg-primary/5' 
+                          : 'border-outline-variant/50 hover:border-primary/60 bg-surface-container-lowest hover:bg-surface-container-low'
+                      }`}
+                    >
+                      {isUploadingOgImage ? (
+                        <div className="py-2 flex flex-col items-center justify-center gap-1.5">
+                          <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                          <span className="text-xs font-medium text-primary">Uploading image to Vercel Blob...</span>
+                        </div>
+                      ) : ogImageUrl ? (
+                        <div className="flex items-center justify-between gap-3 text-left">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={ogImageUrl}
+                              alt="Thumbnail"
+                              className="w-12 h-9 object-cover rounded-md border border-outline-variant/40 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-on-surface">Image Ready</span>
+                                {ogImageUrl.includes('vercel-storage.com') || uploadStorageType === 'vercel_blob' ? (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                                    <Cloud className="w-2.5 h-2.5" />
+                                    <span>Vercel Blob</span>
+                                  </span>
+                                ) : ogImageUrl.startsWith('data:') ? (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                                    Inline Buffer
+                                  </span>
+                                ) : (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                                    External URL
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-on-surface-variant truncate font-mono mt-0.5 max-w-[240px]">
+                                {ogImageUrl}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              ogFileInputRef.current?.click();
+                            }}
+                            className="px-2 py-1 text-[11px] bg-surface-container hover:bg-surface-container-high text-on-surface rounded-md border border-outline-variant/40 font-medium shrink-0 cursor-pointer"
+                          >
+                            Replace
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="py-2 flex flex-col items-center justify-center gap-1 text-on-surface-variant">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-0.5">
+                            <UploadCloud className="w-4 h-4" />
+                          </div>
+                          <div className="text-xs font-semibold text-on-surface">
+                            Click to upload image or drag &amp; drop
+                          </div>
+                          <div className="text-[10px] text-on-surface-variant flex items-center gap-1.5">
+                            <span>PNG, JPG, WebP up to 10MB</span>
+                            <span>&bull;</span>
+                            <span className="text-primary font-medium flex items-center gap-0.5">
+                              <Cloud className="w-3 h-3" />
+                              <span>Vercel Blob Storage</span>
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Direct Image URL input */}
+                    <div className="pt-0.5">
+                      <input
+                        type="text"
+                        value={ogImageUrl}
+                        onChange={(e) => {
+                          setOgImageUrl(e.target.value);
+                          setUploadStorageType(null);
+                        }}
+                        placeholder="Or paste external image URL (https://...)"
+                        className="w-full px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs rounded-lg border border-outline-variant/40 font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-end gap-1.5 text-xs text-on-surface-variant">

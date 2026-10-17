@@ -56,12 +56,12 @@ export async function PATCH(
       : (client.assigned_campaign_ids || []);
 
     const linkRows = await sql.query(
-      `SELECT id, campaign_id, destination_url FROM links WHERE id = $1 AND workspace_id = $2 LIMIT 1`,
-      [linkId, client.workspace_id]
+      `SELECT id, campaign_id, destination_url, workspace_id FROM links WHERE id = $1 LIMIT 1`,
+      [linkId]
     );
 
     if (!linkRows || linkRows.length === 0) {
-      return NextResponse.json({ success: false, error: 'Link not found in your assigned workspace.' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'Link not found.' }, { status: 404 });
     }
 
     const targetLink = linkRows[0];

@@ -48,6 +48,15 @@ interface LinkItem {
   clicks_count: number;
   created_at: string;
   campaign_id?: string;
+  utm_campaign?: string;
+}
+
+interface CampaignItem {
+  id: string;
+  name: string;
+  description?: string;
+  tags?: string[];
+  target_clicks?: number;
 }
 
 interface ClickEvent {
@@ -68,9 +77,11 @@ function ClientPortalDashboardContent() {
 
   const [session, setSession] = useState<ClientSession | null>(null);
   const [links, setLinks] = useState<LinkItem[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignItem[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
   const [metrics, setMetrics] = useState({
     total_assigned_links: 0,
+    total_assigned_campaigns: 0,
     total_clicks: 0,
     unique_clicks: 0,
     quota_used: 0,
@@ -130,6 +141,7 @@ function ClientPortalDashboardContent() {
       if (data.success) {
         setLinks(data.links || []);
         setClicks(data.clicks || []);
+        if (Array.isArray(data.campaigns)) setCampaigns(data.campaigns);
         if (data.metrics) setMetrics(data.metrics);
         if (data.client) {
           setSession((prev) => ({
@@ -314,8 +326,13 @@ function ClientPortalDashboardContent() {
                 <Link2 className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-bold mt-2 text-slate-900 dark:text-white">
-              {metrics.total_assigned_links}
+            <div className="text-2xl sm:text-3xl font-bold mt-2 text-slate-900 dark:text-white flex items-baseline gap-2">
+              <span>{metrics.total_assigned_links}</span>
+              {metrics.total_assigned_campaigns > 0 && (
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                  {metrics.total_assigned_campaigns} campaign{metrics.total_assigned_campaigns === 1 ? '' : 's'}
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-1">
               Active campaigns & short URLs
@@ -435,6 +452,16 @@ function ClientPortalDashboardContent() {
                           }`}>
                             {link.status}
                           </span>
+                          {(() => {
+                            const camp = campaigns.find(c => c.id === link.campaign_id);
+                            const campName = camp?.name || link.utm_campaign;
+                            if (!campName) return null;
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                {campName}
+                              </span>
+                            );
+                          })()}
                         </div>
 
                         {/* Short code pill & Copy */}

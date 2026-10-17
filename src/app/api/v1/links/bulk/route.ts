@@ -44,21 +44,26 @@ export async function POST(request: Request) {
     const { workspace_id, batch_name, items } = body;
 
     // 1. Validation
-    if (!workspace_id || typeof workspace_id !== 'string' || !workspace_id.trim()) {
+    const resolvedWorkspaceId = (workspace_id || request.headers.get('x-workspace-id') || 'ws_default').trim();
+    if (!resolvedWorkspaceId) {
       return NextResponse.json({ 
         success: false, 
         error: 'Field "workspace_id" is required for bulk link import.' 
       }, { status: 400 });
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
+    const itemsList = (Array.isArray(items) && items.length > 0)
+      ? items 
+      : (Array.isArray((body as any).links) ? (body as any).links : []);
+
+    if (!Array.isArray(itemsList) || itemsList.length === 0) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Array of "items" is required and cannot be empty.' 
+        error: 'Array of "items" (or "links") is required and cannot be empty.' 
       }, { status: 400 });
     }
 
-    if (items.length > 1000) {
+    if (itemsList.length > 1000) {
       return NextResponse.json({ 
         success: false, 
         error: 'Batch size exceeds maximum limit of 1,000 links per request.' 
@@ -67,7 +72,7 @@ export async function POST(request: Request) {
 
     // 2. Permission check
     const authResult = await verifyWorkspacePermission(request, 'links:create', {
-      workspaceId: workspace_id.trim()
+      workspaceId: resolvedWorkspaceId
     });
     if (!authResult.success) {
       return authResult.response;
@@ -76,15 +81,15 @@ export async function POST(request: Request) {
 
     const cleanBatchName = (batch_name && typeof batch_name === 'string' && batch_name.trim()) 
       ? batch_name.trim().slice(0, 255) 
-      : `Batch Import (${items.length} links)`;
+      : `Batch Import (${itemsList.length} links)`;
 
     // 3. Process items
     const createdLinks: Link[] = [];
     const errors: BulkImportRowError[] = [];
     const allocatedSlugs = new Set<string>();
 
-    for (let index = 0; index < items.length; index++) {
-      const item = items[index];
+    for (let index = 0; index < itemsList.length; index++) {
+      const item = itemsList[index];
       const rowNum = index + 1;
 
       // URL Check
@@ -177,12 +182,12 @@ export async function POST(request: Request) {
 
       let itemTags: string[] = ['bulk_import'];
       if (Array.isArray(item.tags) && item.tags.length > 0) {
-        itemTags = item.tags.map(t => String(t).trim()).filter(Boolean).slice(0, 8);
+        itemTags = item.tags.map((t: string) => String(t).trim()).filter(Boolean).slice(0, 8);
       }
 
       const newLink: Link = {
         id: uniqueId,
-        workspace_id: workspace_id.trim(),
+        workspace_id: resolvedWorkspaceId,
         short_code: slug,
         custom_slug: item.custom_slug ? slug : undefined,
         domain_id: 'dom_primary',
@@ -244,11 +249,11 @@ export async function POST(request: Request) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
         [
           jobId,
-          workspace_id.trim(),
+          resolvedWorkspaceId,
           userEmail,
           'import',
           cleanBatchName,
-          items.length,
+          itemsList.length,
           createdLinks.length,
           errors.length,
           JSON.stringify(errors.slice(0, 100)),
@@ -263,7 +268,7 @@ export async function POST(request: Request) {
       success: true,
       job_id: jobId,
       batch_name: cleanBatchName,
-      total: items.length,
+      total: itemsList.length,
       imported: createdLinks.length,
       failed: errors.length,
       errors,

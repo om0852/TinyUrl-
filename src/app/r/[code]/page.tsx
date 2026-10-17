@@ -40,22 +40,59 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       const link = rows[0];
       const title = link.og_title?.trim() || link.title?.trim() || `Link /${link.short_code}`;
       const description = link.og_description?.trim() || `Open link: ${link.destination_url || 'destination'}`;
-      const imageUrl = link.og_image_url?.trim() || undefined;
+      
+      const headersList = await headers().catch(() => null);
+      const rawHost = headersList?.get('x-forwarded-host') || headersList?.get('host') || 'creataurus.work.gd';
+      const proto = headersList?.get('x-forwarded-proto') || (rawHost.includes('localhost') ? 'http' : 'https');
+      const host = rawHost.split(',')[0].trim().split(':')[0];
+      const baseUrl = `${proto}://${host}`;
+      const canonicalUrl = `${baseUrl}/${link.custom_slug || link.short_code}`;
+
+      // Open Graph image MUST be an absolute HTTP/HTTPS URL (never a data: URI for WhatsApp/Facebook/Twitter)
+      let imageUrl = `${baseUrl}/api/v1/links/${link.short_code}/og-image`;
+      const rawImg = link.og_image_url?.trim();
+      if (rawImg) {
+        if (rawImg.startsWith('data:')) {
+          // Base64 data URI converted to binary image endpoint
+          imageUrl = `${baseUrl}/api/v1/links/${link.short_code}/og-image`;
+        } else if (/^https?:\/\//i.test(rawImg)) {
+          imageUrl = rawImg;
+        } else if (rawImg.startsWith('/')) {
+          imageUrl = `${baseUrl}${rawImg}`;
+        }
+      }
 
       return {
         title,
         description,
+        metadataBase: new URL(baseUrl),
+        alternates: {
+          canonical: canonicalUrl
+        },
         openGraph: {
           title,
           description,
-          images: imageUrl ? [{ url: imageUrl, alt: title }] : [],
-          type: 'website'
+          url: canonicalUrl,
+          siteName: host,
+          locale: 'en_US',
+          type: 'website',
+          images: [
+            {
+              url: imageUrl,
+              secureUrl: imageUrl,
+              width: 1200,
+              height: 630,
+              alt: title,
+              type: 'image/jpeg'
+            }
+          ]
         },
         twitter: {
-          card: imageUrl ? 'summary_large_image' : 'summary',
+          card: 'summary_large_image',
           title,
           description,
-          images: imageUrl ? [imageUrl] : []
+          site: `@${host}`,
+          images: [imageUrl]
         }
       };
     }
@@ -84,13 +121,14 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
       const userAgent = headersList.get('user-agent') || '';
       const currentHost = rawHost.split(':')[0].toLowerCase();
       
-      // Social crawler detection for WhatsApp, Facebook, Twitter, Telegram, Slack, LinkedIn, Discord
-      isSocialCrawler = /whatsapp|facebookexternalhit|twitterbot|telegrambot|linkedinbot|slackbot|discordbot/i.test(userAgent);
+      // Comprehensive social crawler detection: WhatsApp, Facebook, Meta external agents, Twitter/X, Telegram, Slack, LinkedIn, Discord, Applebot, Skype, Pinterest
+      isSocialCrawler = /whatsapp|facebookexternalhit|meta-externalagent|meta-externalfetcher|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|applebot|skypeuripreview|pinterest/i.test(userAgent);
 
       const isPlatformDomain = currentHost === 'localhost' || 
                                currentHost === '127.0.0.1' || 
                                currentHost.includes('vercel.app') || 
-                               currentHost === 'tinyurl.dev';
+                               currentHost === 'tinyurl.dev' ||
+                               currentHost === 'creataurus.work.gd';
 
       let rows: Array<{
         id: string;
@@ -217,14 +255,19 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         if (isSocialCrawler) {
           const ogTitle = initialLink.og_title || initialLink.title;
           const ogDesc = initialLink.og_description || `Click to open link on ${currentHost}`;
-          const ogImg = initialLink.og_image_url;
+          const proto = headersList.get('x-forwarded-proto') || (rawHost.includes('localhost') ? 'http' : 'https');
+          const cleanHost = rawHost.split(',')[0].trim().split(':')[0];
+          let displayImg = initialLink.og_image_url;
+          if (displayImg && displayImg.startsWith('data:')) {
+            displayImg = `${proto}://${cleanHost}/api/v1/links/${initialLink.short_code}/og-image`;
+          }
 
           return (
             <div style={{ padding: '40px', fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
-              {ogImg && (
+              {displayImg && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img 
-                  src={ogImg} 
+                  src={displayImg} 
                   alt={ogTitle} 
                   style={{ width: '100%', maxHeight: '315px', objectFit: 'cover', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }} 
                 />

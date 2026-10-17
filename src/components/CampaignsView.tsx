@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
@@ -58,7 +58,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     updateLink, 
     createShortLink, 
     currentWorkspace,
-    currentUserRole
+    currentUserRole,
+    refreshData
   } = useStore();
   const { showToast } = useToast();
 
@@ -66,11 +67,17 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    refreshData();
+  }, [refreshData]);
 
   const userRole = currentUserRole;
   const canCreate = hasPermission(userRole, 'campaigns:create');
   const canDelete = hasPermission(userRole, 'campaigns:delete');
+
+  const activeCollaboratorsCount = useMemo(() => {
+    const active = teamMembers.filter(m => m.status === 'active');
+    return Math.max(1, active.length);
+  }, [teamMembers]);
 
   // Modals state
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -534,7 +541,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{teamMembers.length + 1}</span>
+              <span className="text-3xl font-black text-on-surface tracking-tight">{activeCollaboratorsCount}</span>
               <span className="text-xs text-on-surface-variant font-medium">Active Members</span>
             </div>
             <p className="font-mono text-xs text-on-surface-variant mt-1.5">
@@ -1084,7 +1091,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-bold text-on-surface truncate">Workspace Team</h4>
                   <span className="text-[10px] px-2 py-0.2 rounded-md font-bold bg-primary-fixed text-primary-container">
-                    {teamMembers.length + 1} Member{teamMembers.length + 1 === 1 ? '' : 's'}
+                    {activeCollaboratorsCount} Member{activeCollaboratorsCount === 1 ? '' : 's'}
                   </span>
                 </div>
                 <p className="text-xs text-on-surface-variant truncate">

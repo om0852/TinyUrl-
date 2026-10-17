@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { 
@@ -45,7 +45,8 @@ export const ApiDocsView: React.FC = () => {
     toggleWebhook,
     currentWorkspace, 
     currentUser, 
-    checkPermissionOrToast 
+    checkPermissionOrToast,
+    refreshData
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<ApiTab>('console');
@@ -56,10 +57,23 @@ export const ApiDocsView: React.FC = () => {
   const [customDestination, setCustomDestination] = useState('https://github.com/trending');
   const [customSlug, setCustomSlug] = useState('gh-trending');
   const [customTitle, setCustomTitle] = useState('Trending Repositories');
+
+  // Bulk parameters state
+  const [bulkBatchName, setBulkBatchName] = useState('Developer Bulk Import');
+  const [bulkUrl1, setBulkUrl1] = useState('https://docs.github.com');
+  const [bulkSlug1, setBulkSlug1] = useState('gh-docs');
+  const [bulkUrl2, setBulkUrl2] = useState('https://status.github.com');
+  const [bulkSlug2, setBulkSlug2] = useState('gh-status');
+
   const [apiResponse, setApiResponse] = useState<Record<string, unknown> | null>(null);
   const [responseStatus, setResponseStatus] = useState<number | null>(null);
   const [responseLatency, setResponseLatency] = useState<number | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+
+  // Synchronize workspace data on mount
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // API Key Generator state
   const [keyName, setKeyName] = useState('');
@@ -123,6 +137,7 @@ export const ApiDocsView: React.FC = () => {
     setKeyName('');
     setKeyModalOpen(true);
     showToast(`API Key "${created.name}" generated successfully.`);
+    setTimeout(() => refreshData(), 600);
   };
 
   // Copy newly created secret key
@@ -152,17 +167,36 @@ export const ApiDocsView: React.FC = () => {
     setWebhookModalOpen(false);
     setWebhookUrl('');
     showToast('Webhook registered successfully.');
+    setTimeout(() => refreshData(), 600);
   };
 
-  // Simulate Webhook Ping / Test Dispatch
-  const handleTestWebhookPing = async (id: string, url: string) => {
+  // Live Webhook Test Dispatcher
+  const handleTestWebhookPing = async (id: string, url: string, secret?: string) => {
     setTestingWebhookId(id);
     try {
-      // Simulate real dispatch check
-      await new Promise(res => setTimeout(res, 800));
-      showToast(`Ping delivered to ${url} • HTTP 200 OK (112ms)`);
+      const res = await fetch('/api/v1/webhooks/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+          'x-workspace-id': currentWorkspace?.id || 'ws_default'
+        },
+        body: JSON.stringify({
+          webhook_id: id,
+          url,
+          secret,
+          workspace_id: currentWorkspace?.id || 'ws_default'
+        })
+      });
+
+      const data = await res.json().catch(() => null);
+      if (data?.success) {
+        showToast(data.message || `Ping delivered to ${url} • HTTP ${data.status_code} (${data.latency_ms}ms)`);
+      } else {
+        showToast(data?.error || `Ping dispatch to ${url} returned HTTP ${data?.status_code || 500}`);
+      }
     } catch {
-      showToast(`Ping failed for ${url}`);
+      showToast(`Ping failed to connect to ${url}`);
     } finally {
       setTestingWebhookId(null);
     }
@@ -183,9 +217,10 @@ export const ApiDocsView: React.FC = () => {
           headers: { 
             'Content-Type': 'application/json',
             'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || ''
+            'x-workspace-id': currentWorkspace?.id || 'ws_default'
           },
           body: JSON.stringify({
+            workspace_id: currentWorkspace?.id || 'ws_default',
             destination_url: customDestination.trim() || 'https://github.com/trending',
             custom_slug: customSlug.trim() || undefined,
             title: customTitle.trim() || undefined
@@ -196,19 +231,29 @@ export const ApiDocsView: React.FC = () => {
         setResponseLatency(elapsed);
         const data = await res.json();
         setApiResponse(data);
+        if (data?.success) refreshData();
       } else if (selectedEndpoint === 'bulk') {
         const res = await fetch('/api/v1/links/bulk', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || ''
+            'x-workspace-id': currentWorkspace?.id || 'ws_default'
           },
           body: JSON.stringify({
-            workspace_id: currentWorkspace?.id,
-            links: [
-              { destination_url: 'https://docs.github.com', title: 'GitHub Docs', custom_slug: `gh-docs-${Math.floor(Math.random() * 900 + 100)}` },
-              { destination_url: 'https://status.github.com', title: 'GitHub Status', custom_slug: `gh-status-${Math.floor(Math.random() * 900 + 100)}` }
+            workspace_id: currentWorkspace?.id || 'ws_default',
+            batch_name: bulkBatchName.trim() || 'Developer Batch Import',
+            items: [
+              { 
+                destination_url: bulkUrl1.trim() || 'https://docs.github.com', 
+                title: 'GitHub Docs', 
+                custom_slug: bulkSlug1.trim() || undefined 
+              },
+              { 
+                destination_url: bulkUrl2.trim() || 'https://status.github.com', 
+                title: 'GitHub Status', 
+                custom_slug: bulkSlug2.trim() || undefined 
+              }
             ]
           })
         });
@@ -217,8 +262,14 @@ export const ApiDocsView: React.FC = () => {
         setResponseLatency(elapsed);
         const data = await res.json();
         setApiResponse(data);
+        if (data?.success) refreshData();
       } else if (selectedEndpoint === 'links') {
-        const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(currentWorkspace?.id || '')}`);
+        const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(currentWorkspace?.id || 'ws_default')}`, {
+          headers: {
+            'x-user-email': currentUser?.email || '',
+            'x-workspace-id': currentWorkspace?.id || 'ws_default'
+          }
+        });
         const elapsed = Date.now() - start;
         setResponseStatus(res.status);
         setResponseLatency(elapsed);
@@ -230,10 +281,10 @@ export const ApiDocsView: React.FC = () => {
           headers: {
             'Content-Type': 'application/json',
             'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || ''
+            'x-workspace-id': currentWorkspace?.id || 'ws_default'
           },
           body: JSON.stringify({
-            workspace_id: currentWorkspace?.id
+            workspace_id: currentWorkspace?.id || 'ws_default'
           })
         });
         const elapsed = Date.now() - start;
@@ -242,7 +293,12 @@ export const ApiDocsView: React.FC = () => {
         const data = await res.json();
         setApiResponse(data);
       } else {
-        const res = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(currentWorkspace?.id || '')}`);
+        const res = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(currentWorkspace?.id || 'ws_default')}`, {
+          headers: {
+            'x-user-email': currentUser?.email || '',
+            'x-workspace-id': currentWorkspace?.id || 'ws_default'
+          }
+        });
         const elapsed = Date.now() - start;
         setResponseStatus(res.status);
         setResponseLatency(elapsed);
@@ -263,6 +319,7 @@ export const ApiDocsView: React.FC = () => {
     const bearer = apiKeys[0]?.full_key && !apiKeys[0].full_key.includes('••••') 
       ? apiKeys[0].full_key 
       : (apiKeys[0]?.key_prefix ? `${apiKeys[0].key_prefix}abcdef1234567890` : 'sk_live_prod_sample_key_9872');
+    const wsId = currentWorkspace?.id || 'ws_default';
 
     if (activeLang === 'curl') {
       if (selectedEndpoint === 'shorten') {
@@ -270,9 +327,10 @@ export const ApiDocsView: React.FC = () => {
   -H "Authorization: Bearer ${bearer}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "destination_url": "${customDestination.trim() || 'https://example.com/summer-sale'}",
-    "custom_slug": "${customSlug.trim() || 'summer26'}",
-    "title": "${customTitle.trim() || 'Summer Sale Launch'}"
+    "workspace_id": "${wsId}",
+    "destination_url": "${customDestination.trim() || 'https://github.com/trending'}",
+    "custom_slug": "${customSlug.trim() || 'gh-trending'}",
+    "title": "${customTitle.trim() || 'Trending Repositories'}"
   }'`;
       }
       if (selectedEndpoint === 'bulk') {
@@ -280,22 +338,27 @@ export const ApiDocsView: React.FC = () => {
   -H "Authorization: Bearer ${bearer}" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "links": [
-      { "destination_url": "https://apple.com/iphone", "title": "iPhone Page" },
-      { "destination_url": "https://apple.com/macbook", "title": "MacBook Page" }
+    "workspace_id": "${wsId}",
+    "batch_name": "${bulkBatchName || 'Developer Bulk Import'}",
+    "items": [
+      { "destination_url": "${bulkUrl1 || 'https://docs.github.com'}", "title": "GitHub Docs", "custom_slug": "${bulkSlug1 || 'gh-docs'}" },
+      { "destination_url": "${bulkUrl2 || 'https://status.github.com'}", "title": "GitHub Status", "custom_slug": "${bulkSlug2 || 'gh-status'}" }
     ]
   }'`;
       }
       if (selectedEndpoint === 'links') {
-        return `curl -X GET "${currentHost}/api/v1/links" \\
+        return `curl -X GET "${currentHost}/api/v1/links?workspace_id=${wsId}" \\
   -H "Authorization: Bearer ${bearer}"`;
       }
       if (selectedEndpoint === 'audit') {
         return `curl -X POST "${currentHost}/api/v1/security/audit" \\
   -H "Authorization: Bearer ${bearer}" \\
-  -H "Content-Type: application/json"`;
+  -H "Content-Type: application/json" \\
+  -d '{
+    "workspace_id": "${wsId}"
+  }'`;
       }
-      return `curl -X GET "${currentHost}/api/v1/analytics" \\
+      return `curl -X GET "${currentHost}/api/v1/analytics?workspace_id=${wsId}" \\
   -H "Authorization: Bearer ${bearer}"`;
     }
 
@@ -308,15 +371,49 @@ export const ApiDocsView: React.FC = () => {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
-    destination_url: '${customDestination.trim() || 'https://example.com/summer-sale'}',
-    custom_slug: '${customSlug.trim() || 'summer26'}',
-    title: '${customTitle.trim() || 'Summer Sale Launch'}'
+    workspace_id: '${wsId}',
+    destination_url: '${customDestination.trim() || 'https://github.com/trending'}',
+    custom_slug: '${customSlug.trim() || 'gh-trending'}',
+    title: '${customTitle.trim() || 'Trending Repositories'}'
   })
 });
 const data = await res.json();
-console.log('Short link:', data.short_url);`;
+console.log('Short link created:', data.short_url);`;
       }
-      return `const res = await fetch('${currentHost}/api/v1/${selectedEndpoint}', {
+      if (selectedEndpoint === 'bulk') {
+        return `const res = await fetch('${currentHost}/api/v1/links/bulk', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ${bearer}',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    workspace_id: '${wsId}',
+    batch_name: '${bulkBatchName || 'Developer Bulk Import'}',
+    items: [
+      { destination_url: '${bulkUrl1 || 'https://docs.github.com'}', title: 'GitHub Docs', custom_slug: '${bulkSlug1 || 'gh-docs'}' },
+      { destination_url: '${bulkUrl2 || 'https://status.github.com'}', title: 'GitHub Status', custom_slug: '${bulkSlug2 || 'gh-status'}' }
+    ]
+  })
+});
+const data = await res.json();
+console.log('Bulk imported links:', data.imported, data.links);`;
+      }
+      if (selectedEndpoint === 'audit') {
+        return `const res = await fetch('${currentHost}/api/v1/security/audit', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ${bearer}',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    workspace_id: '${wsId}'
+  })
+});
+const data = await res.json();
+console.log('Security audit results:', data);`;
+      }
+      return `const res = await fetch('${currentHost}/api/v1/${selectedEndpoint}?workspace_id=${wsId}', {
   method: 'GET',
   headers: {
     'Authorization': 'Bearer ${bearer}'
@@ -326,22 +423,84 @@ const data = await res.json();
 console.log(data);`;
     }
 
-    // Python
-    return `import requests
+    // Python (requests)
+    if (selectedEndpoint === 'shorten') {
+      return `import requests
 
-url = "${currentHost}/api/v1/${selectedEndpoint}"
+url = "${currentHost}/api/v1/shorten"
 headers = {
     "Authorization": "Bearer ${bearer}",
     "Content-Type": "application/json"
 }
 payload = {
-    "destination_url": "${customDestination.trim() || 'https://example.com/summer-sale'}",
-    "custom_slug": "${customSlug.trim() || 'summer26'}"
+    "workspace_id": "${wsId}",
+    "destination_url": "${customDestination.trim() || 'https://github.com/trending'}",
+    "custom_slug": "${customSlug.trim() || 'gh-trending'}",
+    "title": "${customTitle.trim() || 'Trending Repositories'}"
 }
 
 response = requests.post(url, json=payload, headers=headers)
 print(response.status_code, response.json())`;
-  }, [activeLang, selectedEndpoint, customDestination, customSlug, customTitle, currentHost, apiKeys]);
+    }
+    if (selectedEndpoint === 'bulk') {
+      return `import requests
+
+url = "${currentHost}/api/v1/links/bulk"
+headers = {
+    "Authorization": "Bearer ${bearer}",
+    "Content-Type": "application/json"
+}
+payload = {
+    "workspace_id": "${wsId}",
+    "batch_name": "${bulkBatchName || 'Developer Bulk Import'}",
+    "items": [
+        {"destination_url": "${bulkUrl1 || 'https://docs.github.com'}", "title": "GitHub Docs", "custom_slug": "${bulkSlug1 || 'gh-docs'}"},
+        {"destination_url": "${bulkUrl2 || 'https://status.github.com'}", "title": "GitHub Status", "custom_slug": "${bulkSlug2 || 'gh-status'}"}
+    ]
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.status_code, response.json())`;
+    }
+    if (selectedEndpoint === 'audit') {
+      return `import requests
+
+url = "${currentHost}/api/v1/security/audit"
+headers = {
+    "Authorization": "Bearer ${bearer}",
+    "Content-Type": "application/json"
+}
+payload = {
+    "workspace_id": "${wsId}"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.status_code, response.json())`;
+    }
+    return `import requests
+
+url = "${currentHost}/api/v1/${selectedEndpoint}?workspace_id=${wsId}"
+headers = {
+    "Authorization": "Bearer ${bearer}"
+}
+
+response = requests.get(url, headers=headers)
+print(response.status_code, response.json())`;
+  }, [
+    activeLang, 
+    selectedEndpoint, 
+    customDestination, 
+    customSlug, 
+    customTitle, 
+    bulkBatchName, 
+    bulkUrl1, 
+    bulkSlug1, 
+    bulkUrl2, 
+    bulkSlug2, 
+    currentHost, 
+    apiKeys, 
+    currentWorkspace
+  ]);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(getDynamicSnippet);
@@ -562,6 +721,112 @@ print(response.status_code, response.json())`;
                       />
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Interactive Request Form (for POST /links/bulk) */}
+              {selectedEndpoint === 'bulk' && (
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-on-surface">Bulk Batch Parameters:</span>
+                    <span className="text-[10px] font-mono text-primary-container bg-primary-container/10 px-2 py-0.5 rounded font-semibold">
+                      Atomic 2-Link Test Batch
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Batch Identifier</label>
+                    <input 
+                      type="text"
+                      value={bulkBatchName}
+                      onChange={(e) => setBulkBatchName(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                      placeholder="e.g. Developer Bulk Import"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 space-y-2">
+                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Link Item #1</span>
+                      <input 
+                        type="url"
+                        value={bulkUrl1}
+                        onChange={(e) => setBulkUrl1(e.target.value)}
+                        placeholder="https://docs.github.com"
+                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
+                      />
+                      <input 
+                        type="text"
+                        value={bulkSlug1}
+                        onChange={(e) => setBulkSlug1(e.target.value)}
+                        placeholder="Custom slug (e.g. gh-docs)"
+                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
+                      />
+                    </div>
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 space-y-2">
+                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Link Item #2</span>
+                      <input 
+                        type="url"
+                        value={bulkUrl2}
+                        onChange={(e) => setBulkUrl2(e.target.value)}
+                        placeholder="https://status.github.com"
+                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
+                      />
+                      <input 
+                        type="text"
+                        value={bulkSlug2}
+                        onChange={(e) => setBulkSlug2(e.target.value)}
+                        placeholder="Custom slug (e.g. gh-status)"
+                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Interactive Request Form (for GET /links) */}
+              {selectedEndpoint === 'links' && (
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-2 text-xs">
+                  <span className="font-bold text-on-surface">Query Parameters:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+                      <span className="block text-[11px] font-semibold text-on-surface-variant">Target Workspace</span>
+                      <span className="font-mono text-xs font-bold text-primary-container">{currentWorkspace?.id || 'ws_default'}</span>
+                    </div>
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+                      <span className="block text-[11px] font-semibold text-on-surface-variant">Pagination Limit</span>
+                      <span className="font-mono text-xs font-bold text-on-surface">50 items per page</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Interactive Request Form (for POST /audit) */}
+              {selectedEndpoint === 'audit' && (
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-2 text-xs">
+                  <span className="font-bold text-on-surface">Security Audit Configuration:</span>
+                  <p className="text-xs text-on-surface-variant">
+                    Dispatches synthetic HTTP head probes and heuristic threat analysis across all links in <code className="font-mono text-primary-container font-bold">{currentWorkspace?.name || 'Current Workspace'}</code>.
+                  </p>
+                  <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                      ✓ TLS Handshake Check
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-800 border border-blue-200 font-bold">
+                      ✓ HTTP Response Status
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-50 text-indigo-800 border border-indigo-200 font-bold">
+                      ✓ Phishing Heuristics
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Interactive Request Form (for GET /analytics) */}
+              {selectedEndpoint === 'analytics' && (
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-2 text-xs">
+                  <span className="font-bold text-on-surface">Telemetry Parameters:</span>
+                  <p className="text-xs text-on-surface-variant">
+                    Queries raw real-time click stream, unique visitor deduplication, device breakdown, and geo-location for workspace <code className="font-mono text-primary-container font-bold">{currentWorkspace?.id || 'ws_default'}</code>.
+                  </p>
                 </div>
               )}
 
@@ -1006,7 +1271,7 @@ print(response.status_code, response.json())`;
                       <button
                         type="button"
                         disabled={testingWebhookId === wh.id}
-                        onClick={() => handleTestWebhookPing(wh.id, wh.url)}
+                        onClick={() => handleTestWebhookPing(wh.id, wh.url, wh.secret)}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-semibold text-xs border border-outline-variant/30 hover:bg-surface-container transition cursor-pointer disabled:opacity-50"
                       >
                         <Send className={`w-3.5 h-3.5 text-primary-container ${testingWebhookId === wh.id ? 'animate-pulse' : ''}`} />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
 import { hasPermission, ROLE_DESCRIPTIONS } from '@/lib/rbac';
@@ -33,8 +33,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenCreateModal, 
   onNavigateTab: _onNavigateTab
 }) => {
-  const { links, clicks, domains, createShortLink, deleteLink, currentUserRole } = useStore();
+  const { links, clicks, domains, createShortLink, deleteLink, currentUserRole, refreshData } = useStore();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
   const canCreateLinks = hasPermission(currentUserRole, 'links:create');

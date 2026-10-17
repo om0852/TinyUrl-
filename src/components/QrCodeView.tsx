@@ -43,9 +43,13 @@ interface QrCodeViewProps {
 }
 
 export const QrCodeView: React.FC<QrCodeViewProps> = () => {
-  const { links, domains } = useStore();
+  const { links, domains, refreshData } = useStore();
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
   const defaultDomainUrl = `https://${domains[0]?.hostname || originDomain}`;
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   // Source selection
   const [sourceMode, setSourceMode] = useState<'link' | 'custom'>(links.length > 0 ? 'link' : 'custom');
