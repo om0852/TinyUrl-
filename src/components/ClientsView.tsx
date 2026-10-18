@@ -31,14 +31,26 @@ import {
   Target
 } from 'lucide-react';
 import { CreateClientModal } from './CreateClientModal';
+import { SkeletonClientsView } from '@/components/ui/Skeleton';
 
 interface ClientsViewProps {
   onNavigateTab?: (tab: string) => void;
 }
 
 export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
-  const { clients, clientMetrics, refreshClients, deleteClient, updateClient, links, campaigns, refreshData } = useStore();
+  const { 
+    clients, 
+    clientMetrics, 
+    refreshClients, 
+    deleteClient, 
+    updateClient, 
+    links, 
+    campaigns,
+    isClientsLoading,
+    isInitialLoading
+  } = useStore();
   const { showToast } = useToast();
+  const [mounted, setMounted] = useState(false);
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<ClientPortalAccount | null>(null);
@@ -48,9 +60,9 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     refreshClients();
-    refreshData();
-  }, [refreshClients, refreshData]);
+  }, [refreshClients]);
 
   // Delete Confirm Modal
   const [clientToDelete, setClientToDelete] = useState<ClientPortalAccount | null>(null);
@@ -117,6 +129,14 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
       return matchesSearch && matchesStatus;
     });
   }, [clients, searchQuery, statusFilter]);
+
+  if (!mounted || ((isInitialLoading || isClientsLoading) && clients.length === 0)) {
+    return (
+      <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">
+        <SkeletonClientsView />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">

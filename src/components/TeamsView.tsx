@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { InviteMemberModal } from './InviteMemberModal';
 import { CreateTeamModal } from './CreateTeamModal';
+import { SkeletonTeamsView } from '@/components/ui/Skeleton';
 
 interface TeamsViewProps {
   onNavigateTab?: (tab: string) => void;
@@ -54,7 +55,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     declineInvitationDirect,
     updateWorkspace,
     deleteWorkspace,
-    currentUserRole
+    currentUserRole,
+    isTeamLoading,
+    isInitialLoading
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -87,7 +90,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     setRefreshing(true);
     try {
       await Promise.all([
-        refreshTeamMembers(),
+        refreshTeamMembers(true),
         refreshIncomingInvitations()
       ]);
     } finally {
@@ -100,11 +103,13 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     refreshIncomingInvitations();
     refreshTeamMembers();
 
-    // Auto-poll members list every 6 seconds so invite acceptances update live on inviter's screen
+    // Auto-poll members list only when tab is visible
     const interval = setInterval(() => {
-      refreshTeamMembers();
-      refreshIncomingInvitations();
-    }, 6000);
+      if (typeof document !== 'undefined' && !document.hidden) {
+        refreshTeamMembers();
+        refreshIncomingInvitations();
+      }
+    }, 20000);
 
     return () => clearInterval(interval);
   }, [refreshIncomingInvitations, refreshTeamMembers]);
@@ -231,7 +236,13 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     );
   };
 
-  if (!mounted) return null;
+  if (!mounted || ((isInitialLoading || isTeamLoading) && teamMembers.length === 0)) {
+    return (
+      <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto animate-fade-in">
+        <SkeletonTeamsView />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full gap-6 max-w-7xl mx-auto animate-fade-in">

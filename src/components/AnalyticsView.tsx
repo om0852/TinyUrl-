@@ -38,6 +38,7 @@ import {
   Sliders,
   Maximize2
 } from 'lucide-react';
+import { SkeletonAnalyticsView } from '@/components/ui/Skeleton';
 
 interface AnalyticsViewProps {
   onNavigateTab?: (tab: string) => void;
@@ -50,7 +51,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     campaigns, 
     selectedAnalyticsLinkId, 
     setSelectedAnalyticsLinkId, 
-    refreshData, 
+    refreshAnalytics,
+    refreshLinks,
+    isAnalyticsLoading,
+    isLinksLoading,
+    isInitialLoading,
     isRefreshing,
     resetLinkAnalytics
   } = useStore();
@@ -59,8 +64,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshAnalytics();
+    refreshLinks();
+  }, [refreshAnalytics, refreshLinks]);
 
   // Filter States
   const [selectedLinkId, setSelectedLinkId] = useState<string>(() => selectedAnalyticsLinkId || 'all');
@@ -531,6 +537,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     return `${Math.floor(diffHours / 24)}d ago`;
   };
 
+  if (!mounted || ((isInitialLoading || isAnalyticsLoading) && clicks.length === 0 && links.length === 0)) {
+    return (
+      <div className="w-full min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased transition-colors duration-200">
+        <SkeletonAnalyticsView />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased transition-colors duration-200">
       <div className="flex flex-col w-full pb-16 space-y-6">
@@ -710,7 +724,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             {/* Refresh Live Telemetry Button */}
             <button
               type="button"
-              onClick={() => refreshData()}
+              onClick={() => { refreshAnalytics(true); refreshLinks(true); }}
               disabled={isRefreshing}
               title="Refresh Telemetry"
               className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer border border-outline-variant/20"

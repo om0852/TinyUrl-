@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { SkeletonGenericView } from '@/components/ui';
 import { 
   ShieldAlert, 
   ShieldCheck, 
@@ -54,14 +55,14 @@ interface SecurityRow {
 }
 
 export const SecurityView: React.FC = () => {
-  const { links, updateLink, currentWorkspace, addWebhook, currentUser, checkPermissionOrToast, refreshData } = useStore();
+  const { links, updateLink, currentWorkspace, addWebhook, currentUser, checkPermissionOrToast, refreshLinks, isInitialLoading, isLinksLoading } = useStore();
   const [mounted, setMounted] = useState(false);
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
 
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshLinks();
+  }, [refreshLinks]);
 
   // Audit animation state
   const [isAuditing, setIsAuditing] = useState(false);
@@ -502,6 +503,10 @@ export const SecurityView: React.FC = () => {
   const activeIncident = useMemo(() => {
     return tableData.find(r => r.isDead || r.statusCode >= 400 || r.status === 'flagged');
   }, [tableData]);
+
+  if (!mounted || (isInitialLoading && links.length === 0)) {
+    return <SkeletonGenericView title="Zero-Trust Threat & Malware Inspector" />;
+  }
 
   return (
     <div className="flex flex-col w-full text-on-surface animate-fade-in">

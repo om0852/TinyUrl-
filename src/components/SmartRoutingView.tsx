@@ -20,15 +20,24 @@ import {
   Building2,
   Laptop
 } from 'lucide-react';
+import { SkeletonGenericView } from '@/components/ui/Skeleton';
 
 export const SmartRoutingView: React.FC = () => {
-  const { links, addRuleToLink, removeRuleFromLink, createShortLink, refreshData } = useStore();
+  const { 
+    links, 
+    addRuleToLink, 
+    removeRuleFromLink, 
+    createShortLink, 
+    refreshLinks,
+    isLinksLoading,
+    isInitialLoading
+  } = useStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshLinks();
+  }, [refreshLinks]);
 
   // New Rule Modal
   const [newRuleModalOpen, setNewRuleModalOpen] = useState(false);
@@ -148,6 +157,14 @@ export const SmartRoutingView: React.FC = () => {
     r.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
     r.code.toLowerCase().includes(searchFilter.toLowerCase())
   );
+
+  if (!mounted || ((isInitialLoading || isLinksLoading) && links.length === 0)) {
+    return (
+      <div className="flex flex-col w-full gap-8 animate-fade-in text-on-surface">
+        <SkeletonGenericView title="Smart Routing Rules" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full gap-8 animate-fade-in text-on-surface">

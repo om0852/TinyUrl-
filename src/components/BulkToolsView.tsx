@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { SkeletonGenericView } from '@/components/ui';
 import { 
   FileSpreadsheet, 
   Upload, 
@@ -93,7 +94,10 @@ export const BulkToolsView: React.FC = () => {
     exportLinksCsv, 
     importLinksBatch, 
     logExportJob,
-    refreshData 
+    refreshLinks,
+    refreshCampaigns,
+    isInitialLoading,
+    isLinksLoading
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
@@ -142,8 +146,9 @@ export const BulkToolsView: React.FC = () => {
 
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshLinks();
+    refreshCampaigns();
+  }, [refreshLinks, refreshCampaigns]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -463,7 +468,9 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
     return filteredJobs.slice(start, start + jobsPerPage);
   }, [filteredJobs, jobPage]);
 
-  if (!mounted) return null;
+  if (!mounted || (isInitialLoading && links.length === 0)) {
+    return <SkeletonGenericView title="Bulk CSV Import & Export Automation" />;
+  }
 
   return (
     <div className="flex flex-col w-full text-on-surface animate-fade-in max-w-7xl mx-auto pb-16">

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { EditLinkModal } from '@/components/EditLinkModal';
+import { SkeletonLinksView } from '@/components/ui/Skeleton';
 
 interface LinksViewProps {
   onOpenCreateModal: () => void;
@@ -54,7 +55,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
     brokenLinksCount,
     scanBrokenLinks,
     fixBrokenLink,
-    refreshData,
+    refreshLinks,
+    isLinksLoading,
     isRefreshing
   } = useStore();
   const { showToast } = useToast();
@@ -81,8 +83,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshLinks();
+  }, [refreshLinks]);
 
   // Filters & Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -535,6 +537,14 @@ export const LinksView: React.FC<LinksViewProps> = ({
     }
   };
 
+  if (!mounted || (isLinksLoading && links.length === 0)) {
+    return (
+      <div className="flex flex-col w-full pb-12 animate-fade-in text-on-surface">
+        <SkeletonLinksView />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col w-full pb-12 animate-fade-in text-on-surface">
       
@@ -786,7 +796,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 type="button"
                 onClick={() => {
                   setSearchTerm('');
-                  refreshData();
+                  refreshLinks(true);
                 }}
                 disabled={isRefreshing}
                 className="p-1.5 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"

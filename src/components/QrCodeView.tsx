@@ -28,6 +28,7 @@ import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { SkeletonGenericView } from './ui/Skeleton';
 import { 
   PRESET_BRAND_LOGOS, 
   QR_THEME_PRESETS, 
@@ -43,13 +44,14 @@ interface QrCodeViewProps {
 }
 
 export const QrCodeView: React.FC<QrCodeViewProps> = () => {
-  const { links, domains, refreshData } = useStore();
+  const { links, domains, refreshLinks, refreshDomains, isInitialLoading, isLinksLoading } = useStore();
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
   const defaultDomainUrl = `https://${domains[0]?.hostname || originDomain}`;
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    refreshLinks();
+    refreshDomains();
+  }, [refreshLinks, refreshDomains]);
 
   // Source selection
   const [sourceMode, setSourceMode] = useState<'link' | 'custom'>(links.length > 0 ? 'link' : 'custom');
@@ -342,6 +344,10 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
       handleCopyUrl();
     }
   };
+
+  if (isInitialLoading && links.length === 0) {
+    return <SkeletonGenericView title="Vector QR Code Studio & Logo Designer" />;
+  }
 
   return (
     <div className="space-y-8 animate-fade-in text-foreground">

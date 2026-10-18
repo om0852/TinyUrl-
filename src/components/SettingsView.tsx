@@ -31,6 +31,7 @@ import {
   Globe,
   Edit3
 } from 'lucide-react';
+import { SkeletonSettingsView } from '@/components/ui/Skeleton';
 
 interface SettingsViewProps {
   onNavigateTab?: (tab: string) => void;
@@ -51,11 +52,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
     deleteDomain,
     updateWorkspace,
     checkPermissionOrToast,
-    refreshData
+    refreshSettings,
+    isSettingsLoading,
+    isDomainsLoading,
+    isInitialLoading
   } = useStore();
 
   const [mounted, setMounted] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('profile');
+
 
   // Profile Form state
   const [displayName, setDisplayName] = useState(
@@ -115,8 +120,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
 
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshSettings();
+  }, [refreshSettings]);
 
   // Load workspace-isolated settings from localStorage or defaults
   useEffect(() => {
@@ -314,6 +319,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
   const displayDomains: Domain[] = useMemo(() => {
     return domains;
   }, [domains]);
+
+  if (!mounted || (isInitialLoading && !currentUser)) {
+    return (
+      <div className="flex flex-col w-full max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in text-on-surface">
+        <SkeletonSettingsView />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in text-on-surface">

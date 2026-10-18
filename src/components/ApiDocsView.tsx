@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { SkeletonSettingsView } from '@/components/ui';
 import { 
   Key, 
   Plus, 
@@ -46,7 +47,10 @@ export const ApiDocsView: React.FC = () => {
     currentWorkspace, 
     currentUser, 
     checkPermissionOrToast,
-    refreshData
+    refreshSettings,
+    refreshLinks,
+    isInitialLoading,
+    isSettingsLoading
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<ApiTab>('console');
@@ -72,8 +76,8 @@ export const ApiDocsView: React.FC = () => {
 
   // Synchronize workspace data on mount
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    refreshSettings();
+  }, [refreshSettings]);
 
   // API Key Generator state
   const [keyName, setKeyName] = useState('');
@@ -137,7 +141,7 @@ export const ApiDocsView: React.FC = () => {
     setKeyName('');
     setKeyModalOpen(true);
     showToast(`API Key "${created.name}" generated successfully.`);
-    setTimeout(() => refreshData(), 600);
+    setTimeout(() => refreshSettings(true), 600);
   };
 
   // Copy newly created secret key
@@ -167,7 +171,7 @@ export const ApiDocsView: React.FC = () => {
     setWebhookModalOpen(false);
     setWebhookUrl('');
     showToast('Webhook registered successfully.');
-    setTimeout(() => refreshData(), 600);
+    setTimeout(() => refreshSettings(true), 600);
   };
 
   // Live Webhook Test Dispatcher
@@ -231,7 +235,7 @@ export const ApiDocsView: React.FC = () => {
         setResponseLatency(elapsed);
         const data = await res.json();
         setApiResponse(data);
-        if (data?.success) refreshData();
+        if (data?.success) refreshLinks(true);
       } else if (selectedEndpoint === 'bulk') {
         const res = await fetch('/api/v1/links/bulk', {
           method: 'POST',
@@ -262,7 +266,7 @@ export const ApiDocsView: React.FC = () => {
         setResponseLatency(elapsed);
         const data = await res.json();
         setApiResponse(data);
-        if (data?.success) refreshData();
+        if (data?.success) refreshLinks(true);
       } else if (selectedEndpoint === 'links') {
         const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(currentWorkspace?.id || 'ws_default')}`, {
           headers: {
@@ -508,6 +512,10 @@ print(response.status_code, response.json())`;
     showToast('Code snippet copied to clipboard.');
     setTimeout(() => setCopiedSnippet(false), 2000);
   };
+
+  if ((isInitialLoading || isSettingsLoading) && apiKeys.length === 0 && webhooks.length === 0) {
+    return <SkeletonSettingsView />;
+  }
 
   return (
     <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">

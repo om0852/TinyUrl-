@@ -41,7 +41,16 @@ const TAB_TITLES: Record<TabType, string> = {
 };
 
 export default function Home() {
-  const { currentUser, currentUserRole, refreshData } = useStore();
+  const { 
+    currentUser, 
+    currentUserRole, 
+    refreshLinks, 
+    refreshAnalytics, 
+    refreshCampaigns, 
+    refreshClients, 
+    refreshTeamMembers, 
+    refreshSettings 
+  } = useStore();
   const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
@@ -96,12 +105,53 @@ export default function Home() {
     }
   }, [currentUser]);
 
-  // Whenever activeTab changes or dashboard is viewed, dynamically sync latest workspace data from PostgreSQL
+  // Target data loading specifically to what the active tab requires (Zero redundant multi-API fetches)
   useEffect(() => {
     if (mounted && currentUser && viewMode === 'dashboard') {
-      refreshData();
+      switch (activeTab) {
+        case 'overview':
+          refreshLinks();
+          refreshAnalytics();
+          break;
+        case 'links':
+        case 'routing':
+        case 'qr':
+        case 'security':
+        case 'bulk':
+        case 'ai':
+          refreshLinks();
+          break;
+        case 'analytics':
+          refreshAnalytics();
+          refreshLinks();
+          break;
+        case 'campaigns':
+          refreshCampaigns();
+          break;
+        case 'clients':
+          refreshClients();
+          break;
+        case 'teams':
+          refreshTeamMembers();
+          break;
+        case 'settings':
+        case 'api':
+          refreshSettings();
+          break;
+      }
     }
-  }, [activeTab, mounted, currentUser, viewMode, refreshData]);
+  }, [
+    activeTab, 
+    mounted, 
+    currentUser, 
+    viewMode, 
+    refreshLinks, 
+    refreshAnalytics, 
+    refreshCampaigns, 
+    refreshClients, 
+    refreshTeamMembers, 
+    refreshSettings
+  ]);
 
   // Global Keyboard Shortcuts
   useEffect(() => {

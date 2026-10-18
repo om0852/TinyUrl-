@@ -22,6 +22,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { SocialCardModal } from './SocialCardModal';
+import { SkeletonOverviewView } from '@/components/ui/Skeleton';
 
 interface OverviewViewProps {
   onOpenCreateModal: () => void;
@@ -33,12 +34,27 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenCreateModal, 
   onNavigateTab: _onNavigateTab
 }) => {
-  const { links, clicks, domains, createShortLink, deleteLink, currentUserRole, refreshData } = useStore();
+  const { 
+    links, 
+    clicks, 
+    domains, 
+    createShortLink, 
+    deleteLink, 
+    currentUserRole, 
+    refreshLinks, 
+    refreshAnalytics,
+    isInitialLoading,
+    isLinksLoading,
+    isAnalyticsLoading
+  } = useStore();
   const { showToast } = useToast();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    setMounted(true);
+    refreshLinks();
+    refreshAnalytics();
+  }, [refreshLinks, refreshAnalytics]);
 
   const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
   const canCreateLinks = hasPermission(currentUserRole, 'links:create');
@@ -131,6 +147,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const appDeepLinksCount = links.filter(l => l.deep_link?.enabled).length;
   const activeLinksCount = links.filter(l => l.status === 'active').length;
   const activePercentage = links.length > 0 ? Math.round((activeLinksCount / links.length) * 100) : 100;
+
+  if (!mounted || ((isInitialLoading || isLinksLoading) && links.length === 0)) {
+    return (
+      <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">
+        <SkeletonOverviewView />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">

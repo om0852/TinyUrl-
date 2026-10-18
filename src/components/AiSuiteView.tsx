@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
+import { SkeletonGenericView } from '@/components/ui';
 import { 
   Sparkles, 
   Zap, 
@@ -27,11 +28,12 @@ interface AiSlugResult {
 }
 
 export const AiSuiteView: React.FC = () => {
-  const { links, clicks, aiSuggestSlugs, aiSummarizePerformance, createShortLink, refreshData } = useStore();
+  const { links, clicks, aiSuggestSlugs, aiSummarizePerformance, createShortLink, refreshLinks, refreshAnalytics, isInitialLoading, isLinksLoading } = useStore();
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    refreshLinks();
+    refreshAnalytics();
+  }, [refreshLinks, refreshAnalytics]);
 
   const [inputUrl, setInputUrl] = useState('');
   const [inputTitle, setInputTitle] = useState('');
@@ -99,6 +101,10 @@ export const AiSuiteView: React.FC = () => {
     setCopiedMemo(true);
     setTimeout(() => setCopiedMemo(false), 2000);
   };
+
+  if ((isInitialLoading || isLinksLoading) && links.length === 0) {
+    return <SkeletonGenericView title="AI Creator Intelligence & Neural Engine" />;
+  }
 
   return (
     <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">

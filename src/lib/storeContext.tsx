@@ -50,7 +50,7 @@ interface StoreContextType {
   deleteWorkspace: (workspaceId: string) => Promise<boolean>;
 
   teamMembers: TeamMember[];
-  refreshTeamMembers: () => Promise<void>;
+  refreshTeamMembers: (force?: boolean) => Promise<void>;
   inviteTeamMember: (name: string, email: string, role: WorkspaceRole) => Promise<WorkspaceInvitation | null>;
   removeTeamMember: (id: string) => void;
   updateMemberRole: (memberId: string, role: WorkspaceRole) => Promise<boolean>;
@@ -61,21 +61,38 @@ interface StoreContextType {
   declineInvitationDirect: (token: string) => Promise<{ success: boolean; error?: string }>;
 
   domains: Domain[];
+  refreshDomains: (force?: boolean) => Promise<void>;
   campaigns: Campaign[];
+  refreshCampaigns: (force?: boolean) => Promise<void>;
   clients: ClientPortalAccount[];
   clientMetrics: ClientPortalSummaryMetrics;
-  refreshClients: () => Promise<void>;
+  refreshClients: (force?: boolean) => Promise<void>;
   links: Link[];
+  refreshLinks: (force?: boolean) => Promise<void>;
   brokenLinksCount: number;
   scanBrokenLinks: (workspaceId?: string) => Promise<{ success: boolean; checked: number; broken_count: number; broken_links?: any[]; error?: string }>;
   fixBrokenLink: (linkId: string, newDestinationUrl: string, fallbackUrl?: string) => Promise<{ success: boolean; error?: string }>;
   clicks: ClickEvent[];
+  refreshAnalytics: (force?: boolean) => Promise<void>;
   selectedAnalyticsLinkId: string | null;
   setSelectedAnalyticsLinkId: (id: string | null) => void;
+  
+  // Loading & Refreshing States
   isRefreshing: boolean;
-  refreshData: () => Promise<void>;
+  isInitialLoading: boolean;
+  isLinksLoading: boolean;
+  isAnalyticsLoading: boolean;
+  isCampaignsLoading: boolean;
+  isClientsLoading: boolean;
+  isTeamLoading: boolean;
+  isDomainsLoading: boolean;
+  isSettingsLoading: boolean;
+
+  refreshData: (force?: boolean) => Promise<void>;
+  refreshSettings: (force?: boolean) => Promise<void>;
   apiKeys: ApiKey[];
   webhooks: Webhook[];
+
   
   // Actions
   createShortLink: (data: {
@@ -437,57 +454,127 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [currentUserRole, currentWorkspace?.id]);
 
 
-  const setCurrentWorkspace = useCallback((ws: Workspace) => {
-    if (!ws) return;
-    setCurrentWorkspaceState(ws);
-    currentWorkspaceRef.current = ws;
-    try {
-      localStorage.setItem('url_shortener_current_workspace_id', ws.id);
-      if (currentUser?.email) {
-        localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', currentUser.email), ws.id);
+  // Main Store State Declarations
+  const [domains, setDomains] = useState<Domain[]>(() => ensurePlatformDomain(initialDomains || [], 'ws_default'));
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [clients, setClients] = useState<ClientPortalAccount[]>([]);
+  const [clientMetrics, setClientMetrics] = useState<ClientPortalSummaryMetrics>({
+    total_clients: 0,
+    active_this_month: 0,
+    total_logins: 0,
+    most_used_domain: 'portal.tinyurl.internal',
+    client_quota: { created: 0, limit: -1 }
+  });
+  const [links, setLinks] = useState<Link[]>([]);
+  const [clicks, setClicks] = useState<ClickEvent[]>([]);
+  const [selectedAnalyticsLinkId, setSelectedAnalyticsLinkId] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
+
+  // Granular Loading & Telemetry States
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLinksLoading, setIsLinksLoading] = useState(false);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [isCampaignsLoading, setIsCampaignsLoading] = useState(false);
+  const [isClientsLoading, setIsClientsLoading] = useState(false);
+  const [isTeamLoading, setIsTeamLoading] = useState(false);
+  const [isDomainsLoading, setIsDomainsLoading] = useState(false);
+  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
+
+  // Centralized Request Deduplicator & Cache TTL Manager
+  const inFlightRequestsRef = React.useRef<Map<string, Promise<any>>>(new Map());
+  const lastFetchRef = React.useRef<Map<string, number>>(new Map());
+  const CACHE_TTL_MS = 15000; // 15 seconds fresh read TTL
+
+  const invalidateStoreCache = useCallback((keyPrefix?: string) => {
+    if (!keyPrefix) {
+      lastFetchRef.current.clear();
+      return;
+    }
+    for (const key of lastFetchRef.current.keys()) {
+      if (key.startsWith(keyPrefix)) {
+        lastFetchRef.current.delete(key);
       }
-    } catch {}
+    }
+  }, []);
 
-    if (typeof window !== 'undefined') {
-      // 1. Fetch links for newly selected workspace
-      fetch(`/api/v1/links?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => {
+  // 1. Targeted Links Refresher with Deduplication & TTL
+  const refreshLinks = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `links_${activeWsId}`;
+
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
+    }
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
+    }
+
+    const task = (async () => {
+      setIsLinksLoading(true);
+      try {
+        const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json().catch(() => null);
           if (d?.success && Array.isArray(d.links)) {
-            const valid = sanitizeUserLinks(d.links, ws.id);
-            setLinks(valid);
-            try {
-              if (currentUser?.email) {
-                const linksKey = getUserStorageKey('url_shortener_links', currentUser.email);
-                localStorage.setItem(linksKey, JSON.stringify(valid));
-              }
-              localStorage.setItem('url_shortener_links', JSON.stringify(valid));
-            } catch {}
+            const remoteValid = sanitizeUserLinks(d.links, activeWsId);
+            setLinks(currentActive => {
+              const remoteCodes = new Set(remoteValid.map(r => r.short_code.toLowerCase()));
+              const recentLocals = currentActive.filter(l => 
+                l.workspace_id === activeWsId && 
+                !remoteCodes.has(l.short_code.toLowerCase()) && 
+                (Date.now() - new Date(l.created_at).getTime() < 15000)
+              );
+              const latestLinks = [...recentLocals, ...remoteValid];
+              try {
+                if (currentUserRef.current?.email) {
+                  const linksKey = getUserStorageKey('url_shortener_links', currentUserRef.current.email);
+                  localStorage.setItem(linksKey, JSON.stringify(latestLinks));
+                }
+                localStorage.setItem('url_shortener_links', JSON.stringify(latestLinks));
+              } catch {}
+              return latestLinks;
+            });
+            lastFetchRef.current.set(cacheKey, Date.now());
           }
-        }).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('refreshLinks error:', err);
+      } finally {
+        setIsLinksLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
+      }
+    })();
 
-      // 2. Fetch campaigns for newly selected workspace
-      fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success && Array.isArray(d.campaigns)) {
-            setCampaigns(d.campaigns);
-            try {
-              if (currentUser?.email) {
-                const campKey = getUserStorageKey('url_shortener_campaigns', currentUser.email);
-                localStorage.setItem(campKey, JSON.stringify(d.campaigns));
-              }
-              localStorage.setItem('url_shortener_campaigns', JSON.stringify(d.campaigns));
-            } catch {}
-          }
-        }).catch(() => {});
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
+  }, []);
 
-      // 3. Fetch analytics telemetry (clicks) for newly selected workspace
-      fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => {
+  // 2. Targeted Analytics Refresher with Deduplication & TTL
+  const refreshAnalytics = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `analytics_${activeWsId}`;
+
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
+    }
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
+    }
+
+    const task = (async () => {
+      setIsAnalyticsLoading(true);
+      try {
+        const res = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json().catch(() => null);
           if (d?.success && Array.isArray(d.recent_clicks)) {
-            const formattedClicks = d.recent_clicks.map((rc: ClickEvent) => {
+            const formattedRemote = d.recent_clicks.map((rc: ClickEvent) => {
               const norm = normalizeCountryName(rc.country, rc.country_code);
               return {
                 id: rc.id,
@@ -508,33 +595,142 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 latency_ms: rc.latency_ms || 20
               };
             });
-            setClicks(formattedClicks);
-            try {
-              if (currentUser?.email) {
-                const clicksKey = getUserStorageKey('url_shortener_clicks', currentUser.email);
-                localStorage.setItem(clicksKey, JSON.stringify(formattedClicks));
-              }
-              localStorage.setItem('url_shortener_clicks', JSON.stringify(formattedClicks));
-            } catch {}
-          } else if (d?.success && (!d.recent_clicks || d.recent_clicks.length === 0)) {
-            setClicks([]);
-          }
-        }).catch(() => {});
 
-      // 4. Fetch clients for newly selected workspace
-      fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => {
+            setClicks(currentClicks => {
+              const clickMap = new Map<string, ClickEvent>();
+              formattedRemote.forEach((c: ClickEvent) => clickMap.set(c.id, c));
+              currentClicks.forEach((c: ClickEvent) => {
+                if (!clickMap.has(c.id)) clickMap.set(c.id, c);
+              });
+              const sorted = Array.from(clickMap.values()).sort(
+                (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+              );
+              try {
+                if (currentUserRef.current?.email) {
+                  const clicksKey = getUserStorageKey('url_shortener_clicks', currentUserRef.current.email);
+                  localStorage.setItem(clicksKey, JSON.stringify(sorted));
+                }
+                localStorage.setItem('url_shortener_clicks', JSON.stringify(sorted));
+              } catch {}
+              return sorted;
+            });
+            lastFetchRef.current.set(cacheKey, Date.now());
+          }
+        }
+      } catch (err) {
+        console.warn('refreshAnalytics error:', err);
+      } finally {
+        setIsAnalyticsLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
+      }
+    })();
+
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
+  }, []);
+
+  // 3. Targeted Campaigns Refresher
+  const refreshCampaigns = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `campaigns_${activeWsId}`;
+
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
+    }
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
+    }
+
+    const task = (async () => {
+      setIsCampaignsLoading(true);
+      try {
+        const res = await fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json().catch(() => null);
+          if (d?.success && Array.isArray(d.campaigns)) {
+            setCampaigns(d.campaigns);
+            try {
+              if (currentUserRef.current?.email) {
+                const campKey = getUserStorageKey('url_shortener_campaigns', currentUserRef.current.email);
+                localStorage.setItem(campKey, JSON.stringify(d.campaigns));
+              }
+              localStorage.setItem('url_shortener_campaigns', JSON.stringify(d.campaigns));
+            } catch {}
+            lastFetchRef.current.set(cacheKey, Date.now());
+          }
+        }
+      } catch (err) {
+        console.warn('refreshCampaigns error:', err);
+      } finally {
+        setIsCampaignsLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
+      }
+    })();
+
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
+  }, []);
+
+  // 4. Targeted Clients Refresher
+  const refreshClients = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `clients_${activeWsId}`;
+
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
+    }
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
+    }
+
+    const task = (async () => {
+      setIsClientsLoading(true);
+      try {
+        const res = await fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json().catch(() => null);
           if (d?.success) {
             if (Array.isArray(d.clients)) setClients(d.clients);
             if (d.summary) setClientMetrics(d.summary);
+            lastFetchRef.current.set(cacheKey, Date.now());
           }
-        }).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('refreshClients error:', err);
+      } finally {
+        setIsClientsLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
+      }
+    })();
 
-      // 5. Fetch team members and pending invitations for newly selected workspace (deduplicated)
-      fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => {
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
+  }, []);
+
+  // 5. Targeted Team Members Refresher
+  const refreshTeamMembers = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `members_${activeWsId}`;
+
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
+    }
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
+    }
+
+    const task = (async () => {
+      setIsTeamLoading(true);
+      try {
+        const res = await fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json().catch(() => null);
           if (d?.success) {
             const memberMap = new Map<string, TeamMember>();
             if (Array.isArray(d.invitations)) {
@@ -560,316 +756,165 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 memberMap.set(key, m);
               });
             }
-            setTeamMembers(Array.from(memberMap.values()));
+            const fresh = Array.from(memberMap.values());
+            setTeamMembers(fresh);
+            if (currentUserRef.current?.email) {
+              const tmKey = getUserStorageKey('url_shortener_team_members', currentUserRef.current.email);
+              try {
+                localStorage.setItem(tmKey, JSON.stringify(fresh));
+                localStorage.setItem('url_shortener_team_members', JSON.stringify(fresh));
+              } catch {}
+            }
+            lastFetchRef.current.set(cacheKey, Date.now());
           }
-        }).catch(() => {});
-
-      // 6. Fetch custom domains for newly selected workspace
-      fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(ws.id)}`, { cache: 'no-store' })
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success && Array.isArray(d.domains)) {
-            const merged = ensurePlatformDomain(d.domains, ws.id);
-            setDomains(merged);
-            try {
-              if (currentUser?.email) {
-                const domKey = getUserStorageKey('url_shortener_domains', currentUser.email);
-                localStorage.setItem(domKey, JSON.stringify(merged));
-              }
-              localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
-            } catch {}
-          }
-        }).catch(() => {});
-    }
-  }, [currentUser?.email]);
-
-  const refreshTeamMembers = useCallback(async () => {
-    if (!currentWorkspace?.id || typeof window === 'undefined') return;
-    try {
-      const res = await fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(currentWorkspace.id)}`);
-      const d = await res.json();
-      if (d?.success) {
-        const memberMap = new Map<string, TeamMember>();
-        if (Array.isArray(d.invitations)) {
-          d.invitations.forEach((inv: WorkspaceInvitation) => {
-            const key = inv.email.toLowerCase().trim();
-            memberMap.set(key, {
-              id: inv.id,
-              workspace_id: inv.workspace_id,
-              name: inv.name,
-              email: inv.email,
-              role: inv.role,
-              status: 'invited',
-              token: inv.token,
-              invite_url: inv.invite_url,
-              avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
-              created_at: inv.created_at
-            });
-          });
         }
-        if (Array.isArray(d.members)) {
-          d.members.forEach((m: TeamMember) => {
-            const key = m.email.toLowerCase().trim();
-            memberMap.set(key, m);
-          });
-        }
-        const fresh = Array.from(memberMap.values());
-        setTeamMembers(fresh);
-        if (currentUser?.email) {
-          const tmKey = getUserStorageKey('url_shortener_team_members', currentUser.email);
-          try {
-            localStorage.setItem(tmKey, JSON.stringify(fresh));
-            localStorage.setItem('url_shortener_team_members', JSON.stringify(fresh));
-          } catch {}
-        }
+      } catch (err) {
+        console.warn('refreshTeamMembers error:', err);
+      } finally {
+        setIsTeamLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
       }
-    } catch {}
-  }, [currentWorkspace?.id, currentUser?.email]);
+    })();
 
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
+  }, []);
+
+  // 6. Targeted Incoming Invitations Refresher
   const refreshIncomingInvitations = useCallback(async () => {
-    if (!currentUser?.email) {
+    if (!currentUserRef.current?.email || typeof window === 'undefined') {
       setIncomingInvitations([]);
       return;
     }
     try {
-      const res = await fetch(`/api/v1/invitations?email=${encodeURIComponent(currentUser.email)}`);
-      const data = await res.json();
-      if (data?.success && Array.isArray(data.incoming)) {
-        setIncomingInvitations(data.incoming);
+      const res = await fetch(`/api/v1/invitations?email=${encodeURIComponent(currentUserRef.current.email)}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.success && Array.isArray(data.incoming)) {
+          setIncomingInvitations(data.incoming);
+        }
       }
     } catch {}
-  }, [currentUser?.email]);
+  }, []);
 
-  useEffect(() => {
-    refreshIncomingInvitations();
-    refreshTeamMembers();
-  }, [refreshIncomingInvitations, refreshTeamMembers]);
+  // 7. Targeted Custom Domains Refresher
+  const refreshDomains = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `domains_${activeWsId}`;
 
-  const [domains, setDomains] = useState<Domain[]>(() => ensurePlatformDomain(initialDomains || [], 'ws_default'));
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [clients, setClients] = useState<ClientPortalAccount[]>([]);
-  const [clientMetrics, setClientMetrics] = useState<ClientPortalSummaryMetrics>({
-    total_clients: 0,
-    active_this_month: 0,
-    total_logins: 0,
-    most_used_domain: 'portal.tinyurl.internal',
-    client_quota: { created: 0, limit: -1 }
-  });
-  const [links, setLinks] = useState<Link[]>([]);
-  const [clicks, setClicks] = useState<ClickEvent[]>([]);
-  const [selectedAnalyticsLinkId, setSelectedAnalyticsLinkId] = useState<string | null>(null);
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const refreshClients = useCallback(async () => {
-    if (!currentWorkspace?.id) return;
-    try {
-      const res = await fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(currentWorkspace.id)}`);
-      const data = await res.json();
-      if (data?.success) {
-        if (Array.isArray(data.clients)) setClients(data.clients);
-        if (data.summary) setClientMetrics(data.summary);
-      }
-    } catch (err) {
-      console.warn('Failed to fetch client portals:', err);
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
     }
-  }, [currentWorkspace?.id]);
-
-  useEffect(() => {
-    refreshClients();
-  }, [refreshClients]);
-
-  const inFlightSyncRef = React.useRef<Promise<void> | null>(null);
-
-  // Live Server Telemetry Synchronizer (Fetches latest links, clicks, campaigns, and clients from PostgreSQL)
-  const syncFromBackend = useCallback(async () => {
-    if (inFlightSyncRef.current) {
-      return inFlightSyncRef.current;
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
     }
 
-    const doSync = async () => {
+    const task = (async () => {
+      setIsDomainsLoading(true);
       try {
-        if (typeof window === 'undefined') return;
-        const activeUser = currentUserRef.current || (() => {
-          try {
-            const raw = localStorage.getItem('url_shortener_user');
-            return raw ? JSON.parse(raw) : null;
-          } catch { return null; }
-        })();
-        if (!activeUser?.email) return;
-
-        const wsIdKey = getUserStorageKey('url_shortener_current_workspace_id', activeUser.email);
-        const savedWsId = localStorage.getItem(wsIdKey) || 
-                          localStorage.getItem(`url_shortener_current_workspace_id_${activeUser.email}`) || 
-                          localStorage.getItem('url_shortener_current_workspace_id');
-        const activeWsId = currentWorkspaceRef.current?.id || savedWsId || 'ws_default';
-        if (!activeWsId) return;
-
-        // Run fetches in parallel for top speed
-        const [linksRes, analyticsRes, campaignsRes, clientsRes, apiKeysRes, webhooksRes] = await Promise.all([
-          fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
-          fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
-          fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
-          fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
-          fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
-          fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' }).catch(() => null),
-        ]);
-
-        // 1. Process Links
-        if (linksRes && linksRes.ok) {
-          const linksData = await linksRes.json().catch(() => null);
-          if (linksData?.success && Array.isArray(linksData.links)) {
-            const remoteValid = sanitizeUserLinks(linksData.links, activeWsId);
-            setLinks(currentActive => {
-              const remoteCodes = new Set(remoteValid.map(r => r.short_code.toLowerCase()));
-              // Keep very recently created local links that might not have hit DB yet (< 15 seconds)
-              const recentLocals = currentActive.filter(l => 
-                l.workspace_id === activeWsId && 
-                !remoteCodes.has(l.short_code.toLowerCase()) && 
-                (Date.now() - new Date(l.created_at).getTime() < 15000)
-              );
-              const latestLinks = [...recentLocals, ...remoteValid];
-              try {
-                if (activeUser?.email) {
-                  const linksKey = getUserStorageKey('url_shortener_links', activeUser.email);
-                  localStorage.setItem(linksKey, JSON.stringify(latestLinks));
-                }
-                localStorage.setItem('url_shortener_links', JSON.stringify(latestLinks));
-              } catch {}
-              return latestLinks;
-            });
-          }
-        }
-
-        // 2. Process Telemetry Clicks
-        if (analyticsRes && analyticsRes.ok) {
-          const analyticsData = await analyticsRes.json().catch(() => null);
-          if (analyticsData?.success && Array.isArray(analyticsData.recent_clicks)) {
-            const formattedRemote = analyticsData.recent_clicks.map((rc: ClickEvent) => {
-              const norm = normalizeCountryName(rc.country, rc.country_code);
-              return {
-                id: rc.id,
-                link_id: rc.link_id || '',
-                short_code: rc.short_code || '',
-                timestamp: rc.timestamp || new Date().toISOString(),
-                ip_hash: rc.ip_hash || 'ip_anon',
-                country: norm.country,
-                country_code: norm.country_code,
-                region: rc.region || undefined,
-                city: rc.city || 'Direct',
-                device: rc.device || 'mobile',
-                os: rc.os || 'iOS',
-                browser: rc.browser || 'Safari',
-                referrer: rc.referrer || 'Direct / Mobile',
-                is_bot: !!rc.is_bot,
-                is_unique: rc.is_unique ?? true,
-                latency_ms: rc.latency_ms || 20
-              };
-            });
-
-            setClicks(currentClicks => {
-              const clickMap = new Map<string, ClickEvent>();
-              formattedRemote.forEach((c: ClickEvent) => clickMap.set(c.id, c));
-              // Also keep any local clicks in memory
-              currentClicks.forEach((c: ClickEvent) => {
-                if (!clickMap.has(c.id)) {
-                  clickMap.set(c.id, c);
-                }
-              });
-
-              const sorted = Array.from(clickMap.values()).sort(
-                (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-              );
-
-              try {
-                if (activeUser?.email) {
-                  const clicksKey = getUserStorageKey('url_shortener_clicks', activeUser.email);
-                  localStorage.setItem(clicksKey, JSON.stringify(sorted));
-                }
-                localStorage.setItem('url_shortener_clicks', JSON.stringify(sorted));
-              } catch {}
-
-              // Synchronize links clicks_count immediately with the verified telemetry events count
-              setLinks(currentLinks => {
-                let linksChanged = false;
-                const synchronizedLinks = currentLinks.map(l => {
-                  const eventsForL = sorted.filter(c => 
-                    (c.link_id && c.link_id === l.id) || 
-                    (c.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())
-                  ).length;
-                  if (eventsForL > (l.clicks_count || 0)) {
-                    linksChanged = true;
-                    return { ...l, clicks_count: eventsForL };
-                  }
-                  return l;
-                });
-                return linksChanged ? synchronizedLinks : currentLinks;
-              });
-
-              return sorted;
-            });
-          }
-        }
-
-        // 3. Process Campaigns
-        if (campaignsRes && campaignsRes.ok) {
-          const campData = await campaignsRes.json().catch(() => null);
-          if (campData?.success && Array.isArray(campData.campaigns)) {
-            setCampaigns(campData.campaigns);
+        const res = await fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json().catch(() => null);
+          if (d?.success && Array.isArray(d.domains)) {
+            const merged = ensurePlatformDomain(d.domains, activeWsId);
+            setDomains(merged);
             try {
-              if (activeUser?.email) {
-                const campKey = getUserStorageKey('url_shortener_campaigns', activeUser.email);
-                localStorage.setItem(campKey, JSON.stringify(campData.campaigns));
+              if (currentUserRef.current?.email) {
+                const domKey = getUserStorageKey('url_shortener_domains', currentUserRef.current.email);
+                localStorage.setItem(domKey, JSON.stringify(merged));
               }
-              localStorage.setItem('url_shortener_campaigns', JSON.stringify(campData.campaigns));
+              localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
             } catch {}
-          }
-        }
-
-        // 4. Process Clients
-        if (clientsRes && clientsRes.ok) {
-          const clientsData = await clientsRes.json().catch(() => null);
-          if (clientsData?.success) {
-            if (Array.isArray(clientsData.clients)) setClients(clientsData.clients);
-            if (clientsData.summary) setClientMetrics(clientsData.summary);
-          }
-        }
-
-        // 5. Process API Keys
-        if (apiKeysRes && apiKeysRes.ok) {
-          const keysData = await apiKeysRes.json().catch(() => null);
-          if (keysData?.success && Array.isArray(keysData.keys)) {
-            setApiKeys(keysData.keys);
-          }
-        }
-
-        // 6. Process Webhooks
-        if (webhooksRes && webhooksRes.ok) {
-          const whData = await webhooksRes.json().catch(() => null);
-          if (whData?.success && Array.isArray(whData.webhooks)) {
-            setWebhooks(whData.webhooks);
+            lastFetchRef.current.set(cacheKey, Date.now());
           }
         }
       } catch (err) {
-        console.warn('syncFromBackend error:', err);
+        console.warn('refreshDomains error:', err);
       } finally {
-        inFlightSyncRef.current = null;
+        setIsDomainsLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
       }
-    };
+    })();
 
-    inFlightSyncRef.current = doSync();
-    return inFlightSyncRef.current;
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
   }, []);
 
-  const refreshData = useCallback(async () => {
+  // 8. Targeted Settings (API Keys & Webhooks & Domains) Refresher
+  const refreshSettings = useCallback(async (force = false) => {
+    if (typeof window === 'undefined') return;
+    const activeWsId = currentWorkspaceRef.current?.id || 'ws_default';
+    const cacheKey = `settings_${activeWsId}`;
+
+    if (!force) {
+      const last = lastFetchRef.current.get(cacheKey) || 0;
+      if (Date.now() - last < CACHE_TTL_MS) return;
+    }
+    if (inFlightRequestsRef.current.has(cacheKey)) {
+      return inFlightRequestsRef.current.get(cacheKey);
+    }
+
+    const task = (async () => {
+      setIsSettingsLoading(true);
+      try {
+        await Promise.all([
+          refreshDomains(force),
+          fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' })
+            .then(r => r.json())
+            .then(d => { if (d?.success && Array.isArray(d.keys)) setApiKeys(d.keys); })
+            .catch(() => {}),
+          fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' })
+            .then(r => r.json())
+            .then(d => { if (d?.success && Array.isArray(d.webhooks)) setWebhooks(d.webhooks); })
+            .catch(() => {})
+        ]);
+        lastFetchRef.current.set(cacheKey, Date.now());
+      } catch (err) {
+        console.warn('refreshSettings error:', err);
+      } finally {
+        setIsSettingsLoading(false);
+        inFlightRequestsRef.current.delete(cacheKey);
+      }
+    })();
+
+    inFlightRequestsRef.current.set(cacheKey, task);
+    return task;
+  }, [refreshDomains]);
+
+  // General Unified Refresh (Refreshes Core Telemetry without redundant requests)
+  const refreshData = useCallback(async (force = false) => {
     setIsRefreshing(true);
     try {
-      await syncFromBackend();
+      await Promise.all([
+        refreshLinks(force),
+        refreshAnalytics(force)
+      ]);
     } finally {
       setIsRefreshing(false);
     }
-  }, [syncFromBackend]);
+  }, [refreshLinks, refreshAnalytics]);
+
+  // Set Workspace with targeted core fetch (does NOT spam all 6 endpoints)
+  const setCurrentWorkspace = useCallback((ws: Workspace) => {
+    if (!ws) return;
+    setCurrentWorkspaceState(ws);
+    currentWorkspaceRef.current = ws;
+    try {
+      localStorage.setItem('url_shortener_current_workspace_id', ws.id);
+      if (currentUser?.email) {
+        localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', currentUser.email), ws.id);
+      }
+    } catch {}
+
+    if (typeof window !== 'undefined') {
+      // Cleanly fetch only the primary links and domains for the switched workspace
+      refreshLinks(true);
+      refreshDomains(true);
+    }
+  }, [currentUser?.email, refreshLinks, refreshDomains]);
+
 
   // Initialize dynamic domain & sync localStorage
   useEffect(() => {
@@ -1083,65 +1128,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setDomains(loadedDom);
         }
 
-        // 9. Synchronize with backend API only for current user's workspace
+        // 9. Initial workspace sync for primary resources (links & domains)
         if (loadedWs && loadedWs[0]?.id) {
-          const activeWsId = loadedWs[0].id;
-          // Synchronize custom domains
-          fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWsId)}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.success && Array.isArray(data.domains)) {
-                const merged = ensurePlatformDomain(data.domains, activeWsId);
-                setDomains(merged);
-                try {
-                  const domKey = getUserStorageKey('url_shortener_domains', user.email);
-                  localStorage.setItem(domKey, JSON.stringify(merged));
-                  localStorage.setItem('url_shortener_domains', JSON.stringify(merged));
-                } catch {}
-              }
-            })
-            .catch(() => {});
-
-          fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.success && Array.isArray(data.links)) {
-                const remoteValid = sanitizeUserLinks(data.links, activeWsId);
-                if (remoteValid.length > 0) {
-                  setLinks(currentActive => {
-                    const remoteMap = new Map(remoteValid.map(r => [r.short_code.toLowerCase(), r]));
-                    let hasChanges = false;
-                    const updated = currentActive.map(local => {
-                      const remote = remoteMap.get(local.short_code.toLowerCase());
-                      if (remote && (remote.clicks_count || 0) > (local.clicks_count || 0)) {
-                        hasChanges = true;
-                        return {
-                          ...local,
-                          clicks_count: remote.clicks_count
-                        };
-                      }
-                      return local;
-                    });
-                    const localKeys = new Set(currentActive.map(l => l.short_code.toLowerCase()));
-                    remoteValid.forEach(r => {
-                      if (!localKeys.has(r.short_code.toLowerCase())) {
-                        updated.push(r);
-                        hasChanges = true;
-                      }
-                    });
-                    if (hasChanges) {
-                      try {
-                        const linksKey = getUserStorageKey('url_shortener_links', user.email);
-                        localStorage.setItem(linksKey, JSON.stringify(updated));
-                      } catch {}
-                      return updated;
-                    }
-                    return currentActive;
-                  });
-                }
-              }
-            })
-            .catch(() => {});
+          refreshDomains();
+          refreshLinks();
         }
       } else {
         // Guest mode initialization
@@ -1168,6 +1158,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setClicks([]);
     } finally {
       setAuthLoaded(true);
+      setIsInitialLoading(false);
     }
 
     // Cross-tab and active-window real-time synchronization
@@ -1211,90 +1202,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch {}
     };
 
-    // One-time load of static workspace configuration on mount (domains, webhooks, keys, campaigns, members)
-    const fetchWorkspaceConfig = (wsId: string) => {
-      fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(wsId)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success && Array.isArray(d.domains)) {
-            setDomains(ensurePlatformDomain(d.domains, wsId));
-          }
-        }).catch(() => {});
-
-      fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(wsId)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success && Array.isArray(d.keys)) setApiKeys(d.keys);
-        }).catch(() => {});
-
-      fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(wsId)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success && Array.isArray(d.webhooks)) setWebhooks(d.webhooks);
-        }).catch(() => {});
-
-      fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(wsId)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success && Array.isArray(d.campaigns)) setCampaigns(d.campaigns);
-        }).catch(() => {});
-
-      fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(wsId)}`)
-        .then(r => r.json())
-        .then(d => {
-          if (d?.success) {
-            const memberMap = new Map<string, TeamMember>();
-            if (Array.isArray(d.invitations)) {
-              d.invitations.forEach((inv: WorkspaceInvitation) => {
-                const key = inv.email.toLowerCase().trim();
-                memberMap.set(key, {
-                  id: inv.id,
-                  workspace_id: inv.workspace_id,
-                  name: inv.name,
-                  email: inv.email,
-                  role: inv.role,
-                  status: 'invited' as const,
-                  token: inv.token,
-                  invite_url: inv.invite_url,
-                  avatar: inv.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'TM',
-                  created_at: inv.created_at
-                });
-              });
-            }
-            if (Array.isArray(d.members)) {
-              d.members.forEach((m: TeamMember) => memberMap.set(m.email.toLowerCase().trim(), m));
-            }
-            setTeamMembers(Array.from(memberMap.values()));
-          }
-        }).catch(() => {});
-    };
-
-    // Load initial configuration
-    const rawUserInit = localStorage.getItem('url_shortener_user');
-    const activeUserInit: User | null = rawUserInit ? JSON.parse(rawUserInit) : null;
-    if (activeUserInit?.email) {
-      const wsIdKey = getUserStorageKey('url_shortener_current_workspace_id', activeUserInit.email);
-      const savedWsId = localStorage.getItem(wsIdKey) || 'ws_default';
-      fetchWorkspaceConfig(savedWsId);
-    }
-
-    // Initial telemetry sync
-    syncFromBackend();
-
-    // Auto-polling with randomized jitter (12s to 18s) to avoid thundering herd and save resources
+    // Auto-polling with sensible intervals (30s) to keep live links updated without spamming APIs
     let pollTimer: NodeJS.Timeout | null = null;
     let isMounted = true;
 
     const scheduleJitteredPoll = () => {
       if (!isMounted) return;
-      // 15s base + random jitter of ±3s (12,000ms - 18,000ms)
-      const jitterMs = Math.floor(Math.random() * 6000) - 3000;
-      const delayMs = Math.max(10000, 15000 + jitterMs);
+      // 30s base polling interval
+      const delayMs = 30000;
 
       pollTimer = setTimeout(async () => {
         // Only poll if tab is active and visible
         if (typeof document !== 'undefined' && !document.hidden && isMounted) {
-          await syncFromBackend();
+          await refreshLinks();
         }
         scheduleJitteredPoll();
       }, delayMs);
@@ -1304,13 +1224,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const handleVisibility = () => {
       if (typeof document !== 'undefined' && !document.hidden) {
-        syncFromBackend();
+        refreshLinks();
       }
     };
 
+    const handleWindowFocus = () => {
+      handleSyncFromStorage();
+      refreshLinks();
+    };
+
     window.addEventListener('storage', handleSyncFromStorage);
-    window.addEventListener('focus', handleSyncFromStorage);
-    window.addEventListener('focus', syncFromBackend);
+    window.addEventListener('focus', handleWindowFocus);
     window.addEventListener('url_shortener_sync', handleSyncFromStorage);
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', handleVisibility);
@@ -1320,18 +1244,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isMounted = false;
       if (pollTimer) clearTimeout(pollTimer);
       window.removeEventListener('storage', handleSyncFromStorage);
-      window.removeEventListener('focus', handleSyncFromStorage);
-      window.removeEventListener('focus', syncFromBackend);
+      window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('url_shortener_sync', handleSyncFromStorage);
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibility);
       }
     };
-  }, [syncFromBackend]);
+  }, [refreshLinks, refreshDomains, setCurrentWorkspace]);
 
   // Sync state changes to localStorage scoped per user
   const saveLinksState = (newLinks: Link[]) => {
     setLinks(newLinks);
+    invalidateStoreCache('links');
     try {
       const userKey = getUserStorageKey('url_shortener_links', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newLinks));
@@ -1355,6 +1279,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const saveCampaignsState = (newCampaigns: Campaign[]) => {
     setCampaigns(newCampaigns);
+    invalidateStoreCache('campaigns');
     try {
       const userKey = getUserStorageKey('url_shortener_campaigns', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newCampaigns));
@@ -1379,6 +1304,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const saveTeamMembersState = (newMembers: TeamMember[]) => {
     setTeamMembers(newMembers);
+    invalidateStoreCache('members');
     try {
       const userKey = getUserStorageKey('url_shortener_team_members', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newMembers));
@@ -1391,6 +1317,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const saveApiKeysState = (newKeys: ApiKey[]) => {
     setApiKeys(newKeys);
+    invalidateStoreCache('settings');
     try {
       const userKey = getUserStorageKey('url_shortener_api_keys', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newKeys));
@@ -1403,6 +1330,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const saveWebhooksState = (newHooks: Webhook[]) => {
     setWebhooks(newHooks);
+    invalidateStoreCache('settings');
     try {
       const userKey = getUserStorageKey('url_shortener_webhooks', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newHooks));
@@ -1415,6 +1343,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const saveDomainsState = (newDomains: Domain[]) => {
     setDomains(newDomains);
+    invalidateStoreCache('domains');
+    invalidateStoreCache('settings');
     try {
       const userKey = getUserStorageKey('url_shortener_domains', currentUser?.email);
       localStorage.setItem(userKey, JSON.stringify(newDomains));
@@ -1976,7 +1906,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const resData = await res.json();
       if (resData.success && resData.client) {
         setClients(prev => [resData.client, ...prev]);
-        refreshClients();
+        refreshClients(true);
         return { success: true, client: resData.client };
       }
       return { success: false, error: resData.error || 'Failed to create client account.' };
@@ -1995,7 +1925,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const resData = await res.json();
       if (resData.success) {
         setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates, updated_at: new Date().toISOString() } : c));
-        refreshClients();
+        refreshClients(true);
         return { success: true };
       }
       return { success: false, error: resData.error || 'Failed to update client account.' };
@@ -2012,7 +1942,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const resData = await res.json();
       if (resData.success) {
         setClients(prev => prev.filter(c => c.id !== id));
-        refreshClients();
+        refreshClients(true);
         return { success: true };
       }
       return { success: false, error: resData.error || 'Failed to delete client account.' };
@@ -3296,25 +3226,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       acceptInvitationDirect,
       declineInvitationDirect,
       domains,
+      refreshDomains,
       addDomain,
       verifyDomain,
       updateDomainConfig,
       deleteDomain,
       campaigns,
+      refreshCampaigns,
       clients,
       clientMetrics,
       refreshClients,
       links,
+      refreshLinks,
       brokenLinksCount,
       scanBrokenLinks,
       fixBrokenLink,
       clicks,
+      refreshAnalytics,
       selectedAnalyticsLinkId,
       setSelectedAnalyticsLinkId,
       isRefreshing,
+      isInitialLoading,
+      isLinksLoading,
+      isAnalyticsLoading,
+      isCampaignsLoading,
+      isClientsLoading,
+      isTeamLoading,
+      isDomainsLoading,
+      isSettingsLoading,
       refreshData,
+      refreshSettings,
       apiKeys,
       webhooks,
+
       createShortLink,
       updateLink,
       deleteLink,

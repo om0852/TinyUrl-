@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { hasPermission, ROLE_DESCRIPTIONS } from '@/lib/rbac';
 import { Campaign, Link as LinkType } from '@/lib/types';
+import { SkeletonCampaignsView } from '@/components/ui/Skeleton';
 
 interface CampaignsViewProps {
   onNavigateTab?: (tab: string) => void;
@@ -59,7 +60,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     createShortLink, 
     currentWorkspace,
     currentUserRole,
-    refreshData
+    refreshCampaigns,
+    isCampaignsLoading,
+    isInitialLoading
   } = useStore();
   const { showToast } = useToast();
 
@@ -67,8 +70,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
   useEffect(() => {
     setMounted(true);
-    refreshData();
-  }, [refreshData]);
+    refreshCampaigns();
+  }, [refreshCampaigns]);
 
   const userRole = currentUserRole;
   const canCreate = hasPermission(userRole, 'campaigns:create');
@@ -418,6 +421,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   const reportCampaignsList = selectedReportCampId === 'all' 
     ? campaigns 
     : campaigns.filter(c => c.id === selectedReportCampId);
+
+  if (!mounted || ((isInitialLoading || isCampaignsLoading) && campaigns.length === 0)) {
+    return (
+      <div className="flex flex-col w-full gap-8 animate-fade-in text-on-surface">
+        <SkeletonCampaignsView />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col w-full gap-8 animate-fade-in text-on-surface">
