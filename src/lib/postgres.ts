@@ -18,10 +18,15 @@ export const sql: PostgresClient = connectionString
   ? (neon(connectionString) as unknown as PostgresClient)
   : (fallbackClient as unknown as PostgresClient);
 
+let isDatabaseInitialized = false;
+
 /**
  * Auto-initializes PostgreSQL tables in Neon if they do not exist yet.
  */
 export async function initializeDatabase() {
+  if (isDatabaseInitialized) {
+    return { success: true };
+  }
   if (!connectionString) {
     return { success: false, error: 'DATABASE_URL environment variable is not configured.' };
   }
@@ -307,6 +312,7 @@ export async function initializeDatabase() {
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_client_portals_email ON client_portals (email);`);
     await sql.query(`CREATE INDEX IF NOT EXISTS idx_client_portals_domain ON client_portals (custom_domain);`);
 
+    isDatabaseInitialized = true;
     return { success: true };
   } catch (error) {
     console.error('Failed to initialize database tables:', error);

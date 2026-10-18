@@ -47,11 +47,8 @@ export async function POST(request: Request) {
       if (id || code) {
         await sql.query(
           `UPDATE links l 
-           SET clicks_count = GREATEST(
-             COALESCE(l.clicks_count, 0) + 1,
-             (SELECT COUNT(*)::int FROM click_events c WHERE (c.link_id = l.id AND l.id != '') OR LOWER(c.short_code) = LOWER(l.short_code)) + 1
-           ),
-           updated_at = NOW() 
+           SET clicks_count = COALESCE(l.clicks_count, 0) + 1,
+               updated_at = NOW() 
            WHERE (l.id = $1 AND $1 != '') OR (LOWER(l.short_code) = $2 AND $2 != '')`,
           [id || '', code || '']
         );

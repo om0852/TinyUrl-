@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql, initializeDatabase } from '@/lib/postgres';
+import { linkCache } from '@/lib/cache';
 
 export async function PATCH(
   request: Request,
@@ -56,7 +57,7 @@ export async function PATCH(
       : (client.assigned_campaign_ids || []);
 
     const linkRows = await sql.query(
-      `SELECT id, campaign_id, destination_url, workspace_id FROM links WHERE id = $1 LIMIT 1`,
+      `SELECT id, short_code, custom_slug, campaign_id, destination_url, workspace_id FROM links WHERE id = $1 LIMIT 1`,
       [linkId]
     );
 
@@ -86,6 +87,14 @@ export async function PATCH(
       `UPDATE links SET destination_url = $1, updated_at = NOW() WHERE id = $2`,
       [cleanUrl, linkId]
     );
+
+    // 6. Invalidate Edge & Redis Cache so redirects reflect change immediately
+    if (targetLink.short_code) {
+      await linkCache.delete(`link_${targetLink.short_code.toLowerCase()}`).catch(() => {});
+    }
+    if (targetLink.custom_slug) {
+      await linkCache.delete(`link_${targetLink.custom_slug.toLowerCase()}`).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

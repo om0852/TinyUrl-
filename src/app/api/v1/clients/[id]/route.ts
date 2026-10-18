@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql, initializeDatabase } from '@/lib/postgres';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 function hashPassword(password: string): string {
   const salt = 'client_portal_salt_2026';
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return crypto.pbkdf2Sync(password, salt, 210000, 64, 'sha512').toString('hex');
 }
 
 export async function GET(
@@ -21,6 +22,14 @@ export async function GET(
     }
 
     const r = rows[0];
+
+    // RBAC: Requires clients:manage permission
+    const authResult = await verifyWorkspacePermission(request, 'clients:manage', {
+      workspaceId: r.workspace_id
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
     const client = {
       id: r.id,
       workspace_id: r.workspace_id,
@@ -74,6 +83,14 @@ export async function PATCH(
     }
 
     const existing = rows[0];
+
+    // RBAC: Requires clients:manage permission
+    const authResult = await verifyWorkspacePermission(request, 'clients:manage', {
+      workspaceId: existing.workspace_id
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
 
     const updatedName = body.name !== undefined ? body.name.trim() : existing.name;
     const updatedCompany = body.company_name !== undefined ? body.company_name.trim() : existing.company_name;
@@ -204,10 +221,20 @@ export async function DELETE(
     await initializeDatabase();
     const { id } = await params;
 
-    const res = await sql.query(`DELETE FROM client_portals WHERE id = $1 RETURNING id`, [id]);
-    if (!res || res.length === 0) {
+    const rows = await sql.query(`SELECT workspace_id FROM client_portals WHERE id = $1 LIMIT 1`, [id]);
+    if (!rows || rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Client account not found.' }, { status: 404 });
     }
+
+    // RBAC: Requires clients:manage permission
+    const authResult = await verifyWorkspacePermission(request, 'clients:manage', {
+      workspaceId: rows[0].workspace_id
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    await sql.query(`DELETE FROM client_portals WHERE id = $1`, [id]);
 
     return NextResponse.json({
       success: true,

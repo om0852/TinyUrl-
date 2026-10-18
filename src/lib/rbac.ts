@@ -11,6 +11,8 @@ export type Permission =
   | 'domains:manage'
   | 'api_keys:manage'
   | 'settings:manage'
+  | 'clients:manage'
+  | 'analytics:read'
   | 'export:data';
 
 export const ROLE_PERMISSIONS: Record<WorkspaceRole, Permission[]> = {
@@ -25,6 +27,8 @@ export const ROLE_PERMISSIONS: Record<WorkspaceRole, Permission[]> = {
     'domains:manage',
     'api_keys:manage',
     'settings:manage',
+    'clients:manage',
+    'analytics:read',
     'export:data'
   ],
   admin: [
@@ -37,15 +41,19 @@ export const ROLE_PERMISSIONS: Record<WorkspaceRole, Permission[]> = {
     'members:remove',
     'domains:manage',
     'api_keys:manage',
+    'clients:manage',
+    'analytics:read',
     'export:data'
   ],
   editor: [
     'links:create',
     'links:edit',
     'campaigns:create',
+    'analytics:read',
     'export:data'
   ],
   viewer: [
+    'analytics:read',
     'export:data'
   ]
 };

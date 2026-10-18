@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { TeamMember, WorkspaceInvitation, WorkspaceRole } from '@/lib/types';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface RawMemberRow {
   id: string;
@@ -44,6 +45,15 @@ export async function GET(request: Request) {
     if (!workspaceId) {
       return NextResponse.json({ success: true, members: [], invitations: [] });
     }
+
+    // RBAC: Verify that caller is authorized in this workspace
+    const authResult = await verifyWorkspacePermission(request, 'export:data', {
+      workspaceId: workspaceId.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+    const canManageMembers = ['owner', 'admin'].includes(authResult.context.role);
 
     const baseUrl = getBaseUrl(request);
 
@@ -126,11 +136,11 @@ export async function GET(request: Request) {
         name: inv.name,
         email: inv.email,
         role: (inv.role as WorkspaceRole) || 'editor',
-        token: inv.token,
+        token: canManageMembers ? inv.token : '••••••••',
         status: (inv.status as 'pending' | 'accepted' | 'revoked' | 'expired') || 'pending',
         expires_at: inv.expires_at || undefined,
         created_at: inv.created_at || new Date().toISOString(),
-        invite_url: `${baseUrl}/invite/${inv.token}`
+        invite_url: canManageMembers ? `${baseUrl}/invite/${inv.token}` : undefined
       }));
 
     return NextResponse.json({
@@ -143,8 +153,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: msg, members: [], invitations: [] }, { status: 500 });
   }
 }
-
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 export async function POST(request: Request) {
   try {

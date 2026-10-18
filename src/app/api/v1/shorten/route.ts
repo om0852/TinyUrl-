@@ -8,6 +8,10 @@ import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
+function hashLinkPassword(password: string): string {
+  return crypto.pbkdf2Sync(password, 'salt_link_password_hash', 100000, 32, 'sha256').toString('hex');
+}
+
 export async function POST(request: Request) {
   try {
     let body: Partial<ShortenApiRequest>;
@@ -178,7 +182,7 @@ export async function POST(request: Request) {
       utm_term: utm_term && typeof utm_term === 'string' ? utm_term.slice(0, 128) : undefined,
       utm_content: utm_content && typeof utm_content === 'string' ? utm_content.slice(0, 128) : undefined,
       rules: Array.isArray(rules) ? rules : [],
-      password_hash: cleanPassword,
+      password_hash: cleanPassword ? hashLinkPassword(cleanPassword) : undefined,
       expires_at: expires_at ? new Date(expires_at).toISOString() : undefined,
       max_clicks: max_clicks ? Number(max_clicks) : undefined,
       redirect_type: cleanPassword ? (redirect_type === 'direct' ? 'splash' : (redirect_type || 'splash')) : (redirect_type || 'direct'),

@@ -128,10 +128,11 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
   const { code } = await params;
   const sParams = await searchParams;
 
-  let initialTarget = sParams.target ? decodeURIComponent(sParams.target) : null;
   let initialLink: Link | null = null;
   let isSocialCrawler = false;
   let shouldDirectRedirectUrl: string | null = null;
+  let initialTarget: string | null = null;
+  const rawQueryTarget = sParams.target ? decodeURIComponent(sParams.target) : null;
 
   if (code) {
     try {
@@ -261,8 +262,14 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           return <PublicStatsClient link={initialLink} host={currentHost} />;
         }
 
+        // Strict Open Redirect Guard: Only allow rawQueryTarget if it exactly matches the registered destination or a rule target
+        const allowedTargets = new Set([row.destination_url, ...parsedRules.map(r => r.target_url)].filter(Boolean));
+        if (rawQueryTarget && allowedTargets.has(rawQueryTarget)) {
+          initialTarget = rawQueryTarget;
+        }
+
         // Server-Side Location & Device Smart Routing evaluation
-        if (!isPasswordLocked && parsedRules.length > 0) {
+        if (!initialTarget && !isPasswordLocked && parsedRules.length > 0) {
           try {
             const geo = extractGeoFromHeaders(name => headersList.get(name));
 
@@ -273,7 +280,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
               geo
             });
 
-            if (resolved) {
+            if (resolved && allowedTargets.has(resolved)) {
               initialTarget = resolved;
             }
           } catch {}

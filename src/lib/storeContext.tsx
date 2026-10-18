@@ -728,7 +728,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsTeamLoading(true);
       try {
-        const res = await fetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await apiFetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success) {

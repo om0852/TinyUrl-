@@ -3,10 +3,11 @@ import crypto from 'crypto';
 import { sql, initializeDatabase } from '@/lib/postgres';
 import { ClientPortalAccount, ClientPortalSummaryMetrics } from '@/lib/types';
 import { generateId } from '@/lib/db';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 function hashPassword(password: string): string {
   const salt = 'client_portal_salt_2026';
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return crypto.pbkdf2Sync(password, salt, 210000, 64, 'sha512').toString('hex');
 }
 
 export async function GET(request: Request) {
@@ -20,6 +21,13 @@ export async function GET(request: Request) {
         { success: false, error: 'Query parameter "workspace_id" is required.' },
         { status: 400 }
       );
+    }
+
+    const authResult = await verifyWorkspacePermission(request, 'clients:manage', {
+      workspaceId: workspaceId.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     const rows = await sql.query(
@@ -147,10 +155,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Field "company_name" is required.' }, { status: 400 });
     }
 
+    // RBAC: Requires clients:manage permission
+    const authResult = await verifyWorkspacePermission(request, 'clients:manage', {
+      workspaceId: workspace_id.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
     const cleanCompany = company_name.trim();
-    const passHash = password ? hashPassword(password.trim()) : hashPassword('client123');
+    const initialPass = (password && typeof password === 'string' && password.trim())
+      ? password.trim()
+      : `cln_${crypto.randomBytes(6).toString('hex')}`;
+    const passHash = hashPassword(initialPass);
     const clientId = generateId('cln');
 
     // Check if client with this email already exists in workspace

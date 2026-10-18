@@ -21,7 +21,14 @@ const BASE62_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV
 export function generateBase62Code(length = 6): string {
   let code = '';
   for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * BASE62_CHARS.length);
+    let randomIndex: number;
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      const arr = new Uint32Array(1);
+      crypto.getRandomValues(arr);
+      randomIndex = arr[0] % BASE62_CHARS.length;
+    } else {
+      randomIndex = Math.floor(Math.random() * BASE62_CHARS.length);
+    }
     code += BASE62_CHARS[randomIndex];
   }
   return code;

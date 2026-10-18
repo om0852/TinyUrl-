@@ -1,5 +1,28 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
+
+function verifyLinkPassword(password: string, storedHash: string): boolean {
+  if (!storedHash) return true;
+  try {
+    const hashedAttempt = crypto.pbkdf2Sync(password.trim(), 'salt_link_password_hash', 100000, 32, 'sha256').toString('hex');
+    const bufAttempt = Buffer.from(hashedAttempt, 'utf8');
+    const bufStored = Buffer.from(storedHash, 'utf8');
+
+    if (bufAttempt.length === bufStored.length && crypto.timingSafeEqual(bufAttempt, bufStored)) {
+      return true;
+    }
+
+    // Backward compatibility with legacy plaintext passwords
+    const bufPlain = Buffer.from(password.trim(), 'utf8');
+    if (bufPlain.length === bufStored.length && crypto.timingSafeEqual(bufPlain, bufStored)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
 
 export async function POST(request: Request) {
   try {
@@ -44,7 +67,7 @@ export async function POST(request: Request) {
     }
 
     // Server-side password verification
-    if (!link.password_hash || link.password_hash === password.trim()) {
+    if (verifyLinkPassword(password, link.password_hash)) {
       const dest = link.destination_url;
       const rules = typeof link.rules === 'string' ? JSON.parse(link.rules) : (link.rules || []);
 

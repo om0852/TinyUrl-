@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
+import { isSafeOutboundUrl } from '@/lib/security';
 
 interface AuditLinkRow {
   id: string;
@@ -110,34 +111,42 @@ export async function POST(request: Request) {
           threatFlags.push('Missing TLS/SSL (Plain HTTP endpoint)');
         }
 
-        // Live network probe with 3.5s timeout
-        const startTime = Date.now();
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 3500);
+        // Check destination URL with SSRF guard
+        const safeOutbound = isSafeOutboundUrl(l.destination_url);
+        if (!safeOutbound.safe) {
+          threatFlags.push(`Blocked Destination (SSRF Risk): ${safeOutbound.reason}`);
+          statusCode = 403;
+          httpStatus = '403 Blocked (Private Network / Metadata)';
+        } else {
+          // Live network probe with 3.5s timeout
+          const startTime = Date.now();
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 3500);
 
-          const res = await fetch(l.destination_url, {
-            method: 'HEAD',
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TinyUrlSecurityBot/2.0'
-            },
-            signal: controller.signal,
-            redirect: 'follow'
-          });
-          clearTimeout(timer);
+            const res = await fetch(l.destination_url, {
+              method: 'HEAD',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TinyUrlSecurityBot/2.0'
+              },
+              signal: controller.signal,
+              redirect: 'manual'
+            });
+            clearTimeout(timer);
 
-          latencyMs = Math.max(10, Date.now() - startTime);
-          statusCode = res.status;
-          httpStatus = `${res.status} ${res.statusText || 'Response'}`.trim();
+            latencyMs = Math.max(10, Date.now() - startTime);
+            statusCode = res.status;
+            httpStatus = `${res.status} ${res.statusText || 'Response'}`.trim();
 
-          if (statusCode >= 400) {
-            threatFlags.push(`Unhealthy HTTP status (${statusCode})`);
+            if (statusCode >= 400) {
+              threatFlags.push(`Unhealthy HTTP status (${statusCode})`);
+            }
+          } catch (fetchErr: any) {
+            latencyMs = Math.max(15, Date.now() - startTime);
+            statusCode = 504;
+            httpStatus = fetchErr?.name === 'AbortError' ? '504 Timeout' : '502 Unreachable';
+            threatFlags.push(`Host connection failed: ${httpStatus}`);
           }
-        } catch (fetchErr: any) {
-          latencyMs = Math.max(15, Date.now() - startTime);
-          statusCode = 504;
-          httpStatus = fetchErr?.name === 'AbortError' ? '504 Timeout' : '502 Unreachable';
-          threatFlags.push(`Host connection failed: ${httpStatus}`);
         }
 
         // Compute risk score (0 to 100)

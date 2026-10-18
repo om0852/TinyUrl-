@@ -3,8 +3,32 @@ import crypto from 'crypto';
 import { sql, initializeDatabase } from '@/lib/postgres';
 import { AuthApiRequest, AuthApiResponse } from '@/lib/types';
 
-function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+function hashPassword(password: string, salt: string, iterations = 210000): string {
+  return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
+}
+
+function verifyPassword(password: string, salt: string, expectedHash: string): boolean {
+  if (!expectedHash || !salt) return false;
+  try {
+    const bufTarget = Buffer.from(expectedHash, 'utf8');
+
+    // 1. Check with modern OWASP standard 210,000 iterations
+    const hash210k = hashPassword(password, salt, 210000);
+    const buf210k = Buffer.from(hash210k, 'utf8');
+    if (buf210k.length === bufTarget.length && crypto.timingSafeEqual(buf210k, bufTarget)) {
+      return true;
+    }
+
+    // 2. Backward compatibility with legacy 10,000 iteration hashes
+    const hash10k = hashPassword(password, salt, 10000);
+    const buf10k = Buffer.from(hash10k, 'utf8');
+    if (buf10k.length === bufTarget.length && crypto.timingSafeEqual(buf10k, bufTarget)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -134,12 +158,7 @@ export async function POST(request: Request) {
 
         if (rows && rows.length > 0) {
           const userRow = rows[0];
-          const computedHash = hashPassword(password, userRow.salt);
-
-          const isMatch = crypto.timingSafeEqual(
-            Buffer.from(computedHash, 'utf8'),
-            Buffer.from(userRow.password_hash, 'utf8')
-          );
+          const isMatch = verifyPassword(password, userRow.salt, userRow.password_hash);
 
           if (!isMatch) {
             return NextResponse.json<AuthApiResponse>({ 

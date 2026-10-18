@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getVercelBlobStream } from '@/lib/blobStorage';
+import { isSafeOutboundUrl } from '@/lib/security';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
@@ -53,6 +54,11 @@ export async function GET(request: Request) {
 
   if (!imageUrl) {
     return new NextResponse('URL parameter is required', { status: 400 });
+  }
+
+  const safetyCheck = isSafeOutboundUrl(imageUrl);
+  if (!safetyCheck.safe) {
+    return new NextResponse(`Prohibited URL: ${safetyCheck.reason}`, { status: 400 });
   }
 
   let rawBuffer: Buffer | null = null;

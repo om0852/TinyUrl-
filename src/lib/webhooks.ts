@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
+import { isSafeOutboundUrl } from '@/lib/security';
 
 export interface WebhookPayload {
   event: 'link.created' | 'link.clicked' | 'link.updated' | 'link.deleted';
@@ -46,6 +47,12 @@ export async function dispatchWorkspaceWebhooks(
         });
 
         if (!matchesEvent) return;
+
+        const safeCheck = isSafeOutboundUrl(hook.url);
+        if (!safeCheck.safe) {
+          console.warn(`[Webhook] Blocked dispatch to unsafe/private address (${hook.url}): ${safeCheck.reason}`);
+          return;
+        }
 
         const secret = hook.secret || 'whsec_default';
         const signature = crypto.createHmac('sha256', secret).update(bodyString).digest('hex');
