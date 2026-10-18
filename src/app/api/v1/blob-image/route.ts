@@ -88,7 +88,8 @@ export async function GET(request: Request) {
     try {
       const fetched = await fetch(imageUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TinyUrl-Bot/1.0)' },
-        signal: AbortSignal.timeout(6000)
+        signal: AbortSignal.timeout(6000),
+        redirect: 'manual'
       });
       if (fetched.ok) {
         const arrayBuffer = await fetched.arrayBuffer();

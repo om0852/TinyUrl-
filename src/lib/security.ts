@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 /**
  * Security validation and defense utilities
  * Prevents Server-Side Request Forgery (SSRF), open redirects, and private IP leakage.
@@ -75,3 +77,38 @@ export function isSafeOutboundUrl(rawUrl: string): { safe: boolean; reason?: str
 
   return { safe: true, url: parsed };
 }
+
+/**
+ * Hashes a short link password with PBKDF2 using SHA-256 and 100,000 iterations.
+ */
+export function hashLinkPassword(password: string): string {
+  if (!password) return '';
+  return crypto.pbkdf2Sync(password.trim(), 'salt_link_password_hash', 100000, 32, 'sha256').toString('hex');
+}
+
+/**
+ * Timing-safe verification of link passwords with backward compatibility for legacy plaintext hashes.
+ */
+export function verifyLinkPassword(password: string, storedHash?: string | null): boolean {
+  if (!storedHash) return true;
+  if (!password) return false;
+  try {
+    const hashedAttempt = hashLinkPassword(password);
+    const bufAttempt = Buffer.from(hashedAttempt, 'utf8');
+    const bufStored = Buffer.from(storedHash, 'utf8');
+
+    if (bufAttempt.length === bufStored.length && crypto.timingSafeEqual(bufAttempt, bufStored)) {
+      return true;
+    }
+
+    // Backward compatibility with legacy plaintext passwords
+    const bufPlain = Buffer.from(password.trim(), 'utf8');
+    if (bufPlain.length === bufStored.length && crypto.timingSafeEqual(bufPlain, bufStored)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+

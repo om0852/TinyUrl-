@@ -68,7 +68,8 @@ export async function dispatchWorkspaceWebhooks(
             'X-Webhook-ID': String(hook.id)
           },
           body: bodyString,
-          signal: AbortSignal.timeout(4000)
+          signal: AbortSignal.timeout(4000),
+          redirect: 'manual'
         }).catch(err => {
           console.warn(`[Webhook] Dispatch failed for ${hook.url}:`, err instanceof Error ? err.message : err);
         });

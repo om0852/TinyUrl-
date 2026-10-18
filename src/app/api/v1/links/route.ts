@@ -3,6 +3,8 @@ import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { LinksApiResponse, Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { hashLinkPassword } from '@/lib/security';
 
 interface RawLinkRow {
   id: string;
@@ -55,28 +57,23 @@ export async function GET(request: Request) {
       rows = (await sql.query(`
         SELECT 
           l.*,
-          COALESCE(
-            GREATEST(
-              COALESCE(l.clicks_count, 0),
-              (SELECT COUNT(*)::int FROM click_events c WHERE (c.link_id = l.id AND l.id != '') OR LOWER(c.short_code) = LOWER(l.short_code))
-            ),
-            0
-          ) as resolved_clicks_count
+          COALESCE(l.clicks_count, 0) as resolved_clicks_count
         FROM links l
         WHERE LOWER(l.short_code) = $1 OR LOWER(l.custom_slug) = $1
         LIMIT 1
       `, [code.trim().toLowerCase()])) as unknown as RawLinkRow[];
     } else if (workspaceId && typeof workspaceId === 'string' && workspaceId.trim()) {
+      const authResult = await verifyWorkspacePermission(request, 'export:data', {
+        workspaceId: workspaceId.trim()
+      });
+      if (!authResult.success) {
+        return authResult.response;
+      }
+
       rows = (await sql.query(`
         SELECT 
           l.*,
-          COALESCE(
-            GREATEST(
-              COALESCE(l.clicks_count, 0),
-              (SELECT COUNT(*)::int FROM click_events c WHERE (c.link_id = l.id AND l.id != '') OR LOWER(c.short_code) = LOWER(l.short_code))
-            ),
-            0
-          ) as resolved_clicks_count
+          COALESCE(l.clicks_count, 0) as resolved_clicks_count
         FROM links l
         WHERE l.workspace_id = $1 
         ORDER BY l.created_at DESC 
@@ -188,8 +185,6 @@ export async function GET(request: Request) {
   });
 }
 
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
-
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
@@ -267,8 +262,9 @@ export async function PATCH(request: Request) {
     const cleanBrokenCode = broken_code !== undefined ? (broken_code === null || broken_code === -1 ? -1 : Number(broken_code)) : null;
     const cleanBrokenReason = broken_reason !== undefined ? (broken_reason === null ? '__null__' : String(broken_reason).trim()) : null;
 
-    const cleanPassword = (password !== undefined || password_hash !== undefined)
-      ? (password || password_hash ? String(password || password_hash) : '__null__')
+    const rawIncomingPass = password !== undefined ? password : password_hash;
+    const cleanPassword = (rawIncomingPass !== undefined)
+      ? (rawIncomingPass && String(rawIncomingPass).trim() !== '' ? hashLinkPassword(String(rawIncomingPass)) : '__null__')
       : null;
 
     const cleanExpiresAt = expires_at !== undefined

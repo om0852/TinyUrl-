@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const email = searchParams.get('email');
+    const email = searchParams.get('email') || request.headers.get('x-user-email');
 
     let rows: RawWorkspaceRow[] = [];
     if (id) {
@@ -47,9 +47,12 @@ export async function GET(request: Request) {
         [cleanEmail]
       )) as unknown as RawWorkspaceRow[];
     } else {
-      rows = (await sql.query(
-        `SELECT * FROM workspaces ORDER BY created_at DESC LIMIT 50`
-      )) as unknown as RawWorkspaceRow[];
+      // Security Guard: Prevent unauthenticated full system enumeration
+      return NextResponse.json({
+        success: true,
+        total: 0,
+        workspaces: []
+      });
     }
 
     const formatted: Workspace[] = (rows || []).map(r => ({
@@ -89,6 +92,17 @@ export async function POST(request: Request) {
     const cleanOwnerEmail = (owner_email && typeof owner_email === 'string') ? owner_email.trim().toLowerCase() : null;
     const cleanOwnerId = (owner_id && typeof owner_id === 'string') ? owner_id.trim() : null;
     const cleanOwnerName = (owner_name && typeof owner_name === 'string') ? owner_name.trim() : 'Workspace Owner';
+
+    // Anti-Hijacking Guard: If modifying an existing workspace, require settings:manage permission
+    const existingWs = (await sql.query(`SELECT id, owner_email FROM workspaces WHERE id = $1 LIMIT 1`, [cleanId]).catch(() => [])) as { id: string }[];
+    if (existingWs && existingWs.length > 0) {
+      const authResult = await verifyWorkspacePermission(request, 'settings:manage', {
+        workspaceId: cleanId
+      });
+      if (!authResult.success) {
+        return authResult.response;
+      }
+    }
 
     const rows = (await sql.query(
       `INSERT INTO workspaces (id, name, slug, plan, role, owner_email, owner_id, created_at)

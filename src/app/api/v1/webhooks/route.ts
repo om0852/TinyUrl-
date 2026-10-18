@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { Webhook } from '@/lib/types';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { isSafeOutboundUrl } from '@/lib/security';
 
 interface RawWebhookRow {
   id: string;
@@ -16,19 +18,27 @@ interface RawWebhookRow {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspace_id');
+    const workspaceId = searchParams.get('workspace_id') || request.headers.get('x-workspace-id');
 
-    let rows: RawWebhookRow[] = [];
-    if (workspaceId) {
-      rows = (await sql.query(
-        `SELECT * FROM webhooks WHERE workspace_id = $1 ORDER BY created_at DESC`,
-        [workspaceId.trim()]
-      )) as unknown as RawWebhookRow[];
-    } else {
-      rows = (await sql.query(
-        `SELECT * FROM webhooks ORDER BY created_at DESC LIMIT 50`
-      )) as unknown as RawWebhookRow[];
+    if (!workspaceId) {
+      return NextResponse.json({
+        success: true,
+        total: 0,
+        webhooks: []
+      });
     }
+
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      workspaceId: workspaceId.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    const rows = (await sql.query(
+      `SELECT * FROM webhooks WHERE workspace_id = $1 ORDER BY created_at DESC`,
+      [workspaceId.trim()]
+    )) as unknown as RawWebhookRow[];
 
     const formatted: Webhook[] = (rows || []).map(r => ({
       id: r.id,
@@ -53,8 +63,6 @@ export async function GET(request: Request) {
   }
 }
 
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
-
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -62,6 +70,14 @@ export async function POST(request: Request) {
 
     if (!url || typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) {
       return NextResponse.json({ success: false, error: 'Valid webhook URL (HTTP/HTTPS) is required.' }, { status: 400 });
+    }
+
+    const safeUrlCheck = isSafeOutboundUrl(url.trim());
+    if (!safeUrlCheck.safe) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `Security Error: Prohibited webhook target URL. ${safeUrlCheck.reason}` 
+      }, { status: 422 });
     }
 
     const wsId = workspace_id || 'ws_default';

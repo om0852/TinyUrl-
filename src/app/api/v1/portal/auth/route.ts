@@ -2,9 +2,29 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql, initializeDatabase } from '@/lib/postgres';
 
-function hashPassword(password: string): string {
+function hashPassword(password: string, iterations = 210000): string {
   const salt = 'client_portal_salt_2026';
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
+}
+
+function verifyClientPassword(password: string, storedHash?: string): boolean {
+  if (!storedHash) return false;
+  try {
+    const bufTarget = Buffer.from(storedHash, 'utf8');
+    const hash210k = hashPassword(password, 210000);
+    const buf210k = Buffer.from(hash210k, 'utf8');
+    if (buf210k.length === bufTarget.length && crypto.timingSafeEqual(buf210k, bufTarget)) {
+      return true;
+    }
+    const hash10k = hashPassword(password, 10000);
+    const buf10k = Buffer.from(hash10k, 'utf8');
+    if (buf10k.length === bufTarget.length && crypto.timingSafeEqual(buf10k, bufTarget)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }
 
 export async function POST(request: Request) {
@@ -56,8 +76,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify password hash
-    if (client.password_hash && client.password_hash !== passHash) {
+    // Verify password hash with timing-safe comparison
+    if (!verifyClientPassword(password.trim(), client.password_hash)) {
       return NextResponse.json(
         { success: false, error: 'Incorrect client portal password.' },
         { status: 401 }

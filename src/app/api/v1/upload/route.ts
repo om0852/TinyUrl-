@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getBlobToken, getBlobStoreId, isBlobConfigured, uploadToVercelBlob } from '@/lib/blobStorage';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,14 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: Request) {
   try {
+    const wsId = request.headers.get('x-workspace-id') || 'ws_default';
+    const authResult = await verifyWorkspacePermission(request, 'links:create', {
+      workspaceId: wsId
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const contentType = request.headers.get('content-type') || '';
     let fileBuffer: Buffer | null = null;
     let fileName = 'upload.jpg';
@@ -102,12 +111,36 @@ export async function POST(request: Request) {
 
     // Check MIME type safety
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-      // If svg is allowed or check extensions
       if (!fileName.toLowerCase().endsWith('.svg')) {
         return NextResponse.json({
           success: false,
           error: `Unsupported image format: "${mimeType}". Allowed formats: JPEG, PNG, WebP, GIF, SVG, AVIF.`
         }, { status: 400 });
+      }
+    }
+
+    // SVG Stored XSS Prevention: Check SVG payload for scripts, event handlers, and unsafe elements
+    const isSvg = mimeType === 'image/svg+xml' || fileName.toLowerCase().endsWith('.svg');
+    if (isSvg) {
+      const svgText = fileBuffer.toString('utf8');
+      const dangerousPatterns = [
+        /<script\b/i,
+        /javascript:/i,
+        /on\w+\s*=/i, // onload=, onerror=, onclick=, etc.
+        /<foreignObject\b/i,
+        /<animate\b.*?\bvalues\b/i,
+        /<iframe\b/i,
+        /<embed\b/i,
+        /<object\b/i
+      ];
+
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(svgText)) {
+          return NextResponse.json({
+            success: false,
+            error: 'SVG contains potentially unsafe script content or interactive handlers.'
+          }, { status: 400 });
+        }
       }
     }
 

@@ -7,10 +7,7 @@ import { ShortenApiRequest, ShortenApiResponse, Link } from '@/lib/types';
 import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
-
-function hashLinkPassword(password: string): string {
-  return crypto.pbkdf2Sync(password, 'salt_link_password_hash', 100000, 32, 'sha256').toString('hex');
-}
+import { hashLinkPassword } from '@/lib/security';
 
 export async function POST(request: Request) {
   try {

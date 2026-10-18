@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { ApiKey } from '@/lib/types';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface RawApiKeyRow {
   id: string;
@@ -17,24 +18,30 @@ interface RawApiKeyRow {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspace_id');
+    const workspaceId = searchParams.get('workspace_id') || request.headers.get('x-workspace-id');
 
-    let rows: RawApiKeyRow[] = [];
-    if (workspaceId) {
-      rows = (await sql.query(
-        `SELECT id, workspace_id, name, key_prefix, permissions, created_at, last_used
-         FROM api_keys
-         WHERE workspace_id = $1
-         ORDER BY created_at DESC`,
-        [workspaceId.trim()]
-      )) as unknown as RawApiKeyRow[];
-    } else {
-      rows = (await sql.query(
-        `SELECT id, workspace_id, name, key_prefix, permissions, created_at, last_used
-         FROM api_keys
-         ORDER BY created_at DESC LIMIT 50`
-      )) as unknown as RawApiKeyRow[];
+    if (!workspaceId) {
+      return NextResponse.json({
+        success: true,
+        total: 0,
+        keys: []
+      });
     }
+
+    const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
+      workspaceId: workspaceId.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
+    const rows = (await sql.query(
+      `SELECT id, workspace_id, name, key_prefix, permissions, created_at, last_used
+       FROM api_keys
+       WHERE workspace_id = $1
+       ORDER BY created_at DESC`,
+      [workspaceId.trim()]
+    )) as unknown as RawApiKeyRow[];
 
     const formatted: ApiKey[] = (rows || []).map(r => ({
       id: r.id,
@@ -59,8 +66,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: msg, keys: [] }, { status: 500 });
   }
 }
-
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 export async function POST(request: Request) {
   try {

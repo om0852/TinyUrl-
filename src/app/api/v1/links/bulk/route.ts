@@ -83,10 +83,22 @@ export async function POST(request: Request) {
       ? batch_name.trim().slice(0, 255) 
       : `Batch Import (${itemsList.length} links)`;
 
-    // 3. Process items
+    // 3. Process items and validate in memory
     const createdLinks: Link[] = [];
     const errors: BulkImportRowError[] = [];
     const allocatedSlugs = new Set<string>();
+
+    interface ValidatedItem {
+      rowNum: number;
+      rawUrl: string;
+      finalUrl: string;
+      item: BulkImportItem;
+      slug: string;
+      isCustom: boolean;
+    }
+
+    const stage1Valid: ValidatedItem[] = [];
+    const slugsToCheck: string[] = [];
 
     for (let index = 0; index < itemsList.length; index++) {
       const item = itemsList[index];
@@ -116,6 +128,8 @@ export async function POST(request: Request) {
 
       // Slug assignment
       let slug = item.custom_slug ? String(item.custom_slug).trim() : '';
+      let isCustom = false;
+
       if (slug) {
         if (!/^[a-zA-Z0-9_-]{3,64}$/.test(slug)) {
           errors.push({ row: rowNum, url: rawUrl, error: `Invalid custom slug "${slug}". Must be 3-64 alphanumeric characters, dashes, or underscores.` });
@@ -132,48 +146,74 @@ export async function POST(request: Request) {
           continue;
         }
 
-        // Check DB collision
-        try {
-          const existing = await sql.query(
-            `SELECT id FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
-            [slug.toLowerCase()]
-          );
-          if (existing && existing.length > 0) {
-            errors.push({ row: rowNum, url: rawUrl, error: `Slug "${slug}" is already in use by another link.` });
-            continue;
-          }
-        } catch {}
+        isCustom = true;
+        allocatedSlugs.add(slug.toLowerCase());
+        slugsToCheck.push(slug.toLowerCase());
       } else {
-        // Auto-generate code and guarantee no collision
-        let attempts = 0;
-        let candidate = generateBase62Code(6);
-        while (attempts < 6) {
-          if (!allocatedSlugs.has(candidate.toLowerCase()) && !RESERVED_SLUGS.has(candidate.toLowerCase())) {
-            try {
-              const existing = await sql.query(
-                `SELECT id FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
-                [candidate.toLowerCase()]
-              );
-              if (!existing || existing.length === 0) {
-                slug = candidate;
-                break;
-              }
-            } catch {
-              slug = candidate;
-              break;
-            }
+        // Generate a random candidate
+        let candidate = generateBase62Code(7);
+        while (allocatedSlugs.has(candidate.toLowerCase()) || RESERVED_SLUGS.has(candidate.toLowerCase())) {
+          candidate = generateBase62Code(8);
+        }
+        slug = candidate;
+        allocatedSlugs.add(slug.toLowerCase());
+        slugsToCheck.push(slug.toLowerCase());
+      }
+
+      stage1Valid.push({
+        rowNum,
+        rawUrl,
+        finalUrl,
+        item,
+        slug,
+        isCustom
+      });
+    }
+
+    // Batch query existing slugs in PostgreSQL to eliminate N+1 roundtrips
+    const existingDbSlugs = new Set<string>();
+    if (slugsToCheck.length > 0) {
+      try {
+        const checkResults = await sql.query(
+          `SELECT LOWER(short_code) as code, LOWER(custom_slug) as slug FROM links WHERE LOWER(short_code) = ANY($1::text[]) OR LOWER(custom_slug) = ANY($1::text[])`,
+          [slugsToCheck]
+        );
+        if (Array.isArray(checkResults)) {
+          for (const row of checkResults) {
+            if (row.code) existingDbSlugs.add(String(row.code).toLowerCase());
+            if (row.slug) existingDbSlugs.add(String(row.slug).toLowerCase());
           }
-          candidate = generateBase62Code(6 + Math.floor(attempts / 2));
+        }
+      } catch (err) {
+        console.warn('Batch slug existence check error:', err);
+      }
+    }
+
+    // Prepare links to insert
+    const linksToInsert: Link[] = [];
+
+    for (const validItem of stage1Valid) {
+      const { rowNum, rawUrl, finalUrl, item, isCustom } = validItem;
+      let slug = validItem.slug;
+
+      if (isCustom) {
+        if (existingDbSlugs.has(slug.toLowerCase())) {
+          errors.push({ row: rowNum, url: rawUrl, error: `Slug "${slug}" is already in use by another link.` });
+          continue;
+        }
+      } else {
+        // Auto-generated slug collision resolution
+        let attempts = 0;
+        while (existingDbSlugs.has(slug.toLowerCase()) && attempts < 5) {
+          slug = generateBase62Code(8);
           attempts++;
         }
-
-        if (!slug) {
+        if (existingDbSlugs.has(slug.toLowerCase())) {
           errors.push({ row: rowNum, url: rawUrl, error: 'Could not allocate a unique short code after multiple attempts.' });
           continue;
         }
+        existingDbSlugs.add(slug.toLowerCase());
       }
-
-      allocatedSlugs.add(slug.toLowerCase());
 
       const uniqueId = `link_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
       const itemTitle = (item.title && typeof item.title === 'string' && item.title.trim())
@@ -189,7 +229,7 @@ export async function POST(request: Request) {
         id: uniqueId,
         workspace_id: resolvedWorkspaceId,
         short_code: slug,
-        custom_slug: item.custom_slug ? slug : undefined,
+        custom_slug: isCustom ? slug : undefined,
         domain_id: 'dom_primary',
         campaign_id: item.campaign_id ? item.campaign_id.trim() : undefined,
         destination_url: finalUrl,
@@ -207,35 +247,89 @@ export async function POST(request: Request) {
         created_at: new Date().toISOString()
       };
 
-      // Insert link into DB
+      linksToInsert.push(newLink);
+    }
+
+    // Batch insert into DB in chunks of 50 rows
+    const CHUNK_SIZE = 50;
+    for (let i = 0; i < linksToInsert.length; i += CHUNK_SIZE) {
+      const chunk = linksToInsert.slice(i, i + CHUNK_SIZE);
+      const valueClauses: string[] = [];
+      const values: any[] = [];
+      let pIndex = 1;
+
+      for (const link of chunk) {
+        valueClauses.push(
+          `($${pIndex}, $${pIndex + 1}, $${pIndex + 2}, $${pIndex + 3}, $${pIndex + 4}, $${pIndex + 5}, $${pIndex + 6}, $${pIndex + 7}, $${pIndex + 8}, $${pIndex + 9}, $${pIndex + 10}, $${pIndex + 11}, $${pIndex + 12}, $${pIndex + 13}, $${pIndex + 14})`
+        );
+        values.push(
+          link.id,
+          link.workspace_id,
+          link.short_code,
+          link.custom_slug || link.short_code,
+          link.destination_url,
+          link.title,
+          link.status,
+          0,
+          JSON.stringify(link.tags),
+          JSON.stringify(link.rules),
+          link.utm_source || null,
+          link.utm_medium || null,
+          link.utm_campaign || null,
+          link.campaign_id || null,
+          link.created_at
+        );
+        pIndex += 15;
+      }
+
       try {
         await sql.query(
           `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+           VALUES ${valueClauses.join(', ')}
            ON CONFLICT (short_code) DO NOTHING`,
-          [
-            newLink.id,
-            newLink.workspace_id,
-            newLink.short_code,
-            newLink.custom_slug || newLink.short_code,
-            newLink.destination_url,
-            newLink.title,
-            newLink.status,
-            0,
-            JSON.stringify(newLink.tags),
-            JSON.stringify(newLink.rules),
-            newLink.utm_source || null,
-            newLink.utm_medium || null,
-            newLink.utm_campaign || null,
-            newLink.campaign_id || null,
-            newLink.created_at
-          ]
+          values
         );
 
-        await linkCache.set(`link_${slug.toLowerCase()}`, newLink, 300);
-        createdLinks.push(newLink);
+        for (const link of chunk) {
+          linkCache.set(`link_${link.short_code.toLowerCase()}`, link, 300);
+          createdLinks.push(link);
+        }
       } catch (insertErr) {
-        errors.push({ row: rowNum, url: rawUrl, error: `Database insert failed: ${insertErr instanceof Error ? insertErr.message : 'Unknown DB error'}` });
+        // Fallback for this chunk to isolate any failing row
+        for (const link of chunk) {
+          try {
+            await sql.query(
+              `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+               ON CONFLICT (short_code) DO NOTHING`,
+              [
+                link.id,
+                link.workspace_id,
+                link.short_code,
+                link.custom_slug || link.short_code,
+                link.destination_url,
+                link.title,
+                link.status,
+                0,
+                JSON.stringify(link.tags),
+                JSON.stringify(link.rules),
+                link.utm_source || null,
+                link.utm_medium || null,
+                link.utm_campaign || null,
+                link.campaign_id || null,
+                link.created_at
+              ]
+            );
+            linkCache.set(`link_${link.short_code.toLowerCase()}`, link, 300);
+            createdLinks.push(link);
+          } catch (singleErr) {
+            errors.push({
+              row: 0,
+              url: link.destination_url,
+              error: `Database insert failed: ${singleErr instanceof Error ? singleErr.message : 'Unknown error'}`
+            });
+          }
+        }
       }
     }
 

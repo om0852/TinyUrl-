@@ -45,7 +45,7 @@ const RESERVED_DOMAINS = new Set([
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const workspaceId = searchParams.get('workspace_id');
+    const workspaceId = searchParams.get('workspace_id') || request.headers.get('x-workspace-id');
 
     let rows: RawDomainRow[] = [];
     if (workspaceId) {
@@ -54,9 +54,12 @@ export async function GET(request: Request) {
         [workspaceId.trim()]
       )) as unknown as RawDomainRow[];
     } else {
-      rows = (await sql.query(
-        `SELECT * FROM domains ORDER BY created_at DESC LIMIT 50`
-      )) as unknown as RawDomainRow[];
+      // Security Guard: Prevent unauthenticated full system domain enumeration
+      return NextResponse.json({
+        success: true,
+        total: 0,
+        domains: []
+      });
     }
 
     const formatted: Domain[] = (rows || []).map(r => ({
@@ -145,11 +148,11 @@ export async function POST(request: Request) {
 
     if (existingDomainRows && existingDomainRows.length > 0) {
       const existing = existingDomainRows[0];
-      // If already owned by another workspace and verified
-      if (existing.workspace_id && existing.workspace_id !== cleanWsId && existing.verified) {
+      // If already registered by another workspace
+      if (existing.workspace_id && existing.workspace_id !== cleanWsId) {
         return NextResponse.json({
           success: false,
-          error: `Domain "${cleanHost}" is currently verified and in use by another organization. If your organization is the legal owner of this domain, contact support or configure the DNS TXT challenge to transfer ownership.`
+          error: `Domain "${cleanHost}" is currently registered by another organization. Please remove it from the original workspace or contact support to verify domain ownership.`
         }, { status: 409 });
       }
     }

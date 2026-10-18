@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql, initializeDatabase } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
+import { isSafeOutboundUrl } from '@/lib/security';
 
 export async function PATCH(
   request: Request,
@@ -80,6 +81,14 @@ export async function PATCH(
     let cleanUrl = destination_url.trim();
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       cleanUrl = `https://${cleanUrl}`;
+    }
+
+    const safeCheck = isSafeOutboundUrl(cleanUrl);
+    if (!safeCheck.safe) {
+      return NextResponse.json({
+        success: false,
+        error: `Security Error: Invalid destination URL. ${safeCheck.reason}`
+      }, { status: 400 });
     }
 
     // 5. Update destination URL only

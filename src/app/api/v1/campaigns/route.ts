@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { Campaign } from '@/lib/types';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface RawCampaignRow {
   id: string;
@@ -60,8 +61,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: msg, campaigns: [] }, { status: 500 });
   }
 }
-
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 async function handleSaveCampaign(request: Request) {
   try {

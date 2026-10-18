@@ -239,7 +239,12 @@ export async function verifyWorkspacePermission(
 
     if (!resolvedRole) {
       if (userEmail === 'owner@workspace.local' || targetWsId === 'ws_default') {
-        resolvedRole = 'owner';
+        // In production, unauthenticated guests are granted editor privileges at most, preventing administrative tampering
+        if (process.env.NODE_ENV === 'production' && (!headerEmail || headerEmail === 'owner@workspace.local')) {
+          resolvedRole = 'editor';
+        } else {
+          resolvedRole = 'owner';
+        }
       } else {
         return {
           success: false,

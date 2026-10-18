@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { AnalyticsApiResponse, AnalyticsMetrics, ClickEvent } from '@/lib/types';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface CountryStatRow {
   country?: string | null;
@@ -129,6 +130,14 @@ export async function GET(request: Request) {
         }));
       }
     } else if (workspaceId) {
+      // RBAC: Requires analytics:read permission
+      const authResult = await verifyWorkspacePermission(request, 'analytics:read', {
+        workspaceId: workspaceId.trim()
+      });
+      if (!authResult.success) {
+        return authResult.response;
+      }
+
       // Scoped workspace aggregation
       const stats = (await sql.query(`
         SELECT 
