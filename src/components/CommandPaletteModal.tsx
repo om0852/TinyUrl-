@@ -88,7 +88,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
   const handleCopy = (code: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const domain = domains[0]?.hostname || 'tiny-url-self.vercel.app';
+    const originHost = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
+    const domain = domains[0]?.hostname || originHost;
     const full = `https://${domain}/${code}`;
     navigator.clipboard.writeText(full);
     setCopiedId(id);

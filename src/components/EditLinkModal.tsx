@@ -100,8 +100,8 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
         setUploadStorageType(isBlob ? 'vercel_blob' : 'inline');
         showToast(
           'success', 
-          isBlob ? 'Uploaded to Vercel Blob' : 'Image Ready', 
-          isBlob ? 'Image uploaded to high-speed Vercel Blob CDN' : 'Image loaded successfully'
+          isBlob ? 'Image Uploaded' : 'Image Ready', 
+          isBlob ? 'Image uploaded and optimized for social sharing' : 'Image loaded successfully'
         );
       } else {
         showToast('error', 'Upload Error', data.error || 'Failed to upload image.');
@@ -742,7 +742,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                 }`}
               >
                 <UploadCloud className="w-3.5 h-3.5 text-primary" />
-                <span>Social Card &amp; Image (Vercel Blob)</span>
+                <span>Social Card &amp; Thumbnail</span>
               </button>
 
               <button
@@ -1199,13 +1199,13 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                     </div>
                   )}
 
-                  {/* Upload Image to Vercel Blob or Enter URL */}
+                  {/* Upload Image or Enter URL */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
                         <ImageIcon className="w-3.5 h-3.5 text-primary" />
                         <span>Card Thumbnail Image (og:image)</span>
-                        <InfoTooltip text="Upload to Vercel Blob CDN or enter custom image URL. 1200x630px recommended for high-resolution WhatsApp and Twitter cards." />
+                        <InfoTooltip text="Upload high-resolution preview image or enter custom image URL. 1200x630px recommended for social cards." />
                       </label>
                       {ogImageUrl && (
                         <button
@@ -1250,7 +1250,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                       {isUploadingOgImage ? (
                         <div className="py-2 flex flex-col items-center justify-center gap-1.5">
                           <Loader2 className="w-5 h-5 text-primary animate-spin" />
-                          <span className="text-xs font-medium text-primary">Uploading image to Vercel Blob...</span>
+                          <span className="text-xs font-medium text-primary">Uploading image to CDN...</span>
                         </div>
                       ) : ogImageUrl ? (
                         <div className="flex items-center justify-between gap-3 text-left">
@@ -1267,7 +1267,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                                 {isVercelBlobUrl(ogImageUrl) || uploadStorageType === 'vercel_blob' ? (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
                                     <Cloud className="w-2.5 h-2.5" />
-                                    <span>Vercel Blob</span>
+                                    <span>Cloud CDN</span>
                                   </span>
                                 ) : ogImageUrl.startsWith('data:') ? (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
@@ -1308,7 +1308,7 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
                             <span>&bull;</span>
                             <span className="text-primary font-medium flex items-center gap-0.5">
                               <Cloud className="w-3 h-3" />
-                              <span>Vercel Blob Storage</span>
+                              <span>Cloud Storage</span>
                             </span>
                           </div>
                         </div>

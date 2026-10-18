@@ -697,17 +697,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
                           </button>
                         )}
 
-                        {!dom.verified && dom.id !== 'dom_platform' && (
-                          <button
-                            type="button"
-                            onClick={() => handleTestDomainDns(dom.id, dom.hostname, true)}
-                            title="Simulate DNS verification instantly for testing or local demonstration"
-                            className="px-2.5 py-1.5 bg-secondary-fixed text-on-secondary-fixed text-xs font-bold rounded-lg hover:bg-secondary-fixed-dim transition-colors shadow-xs cursor-pointer"
-                          >
-                            Demo Instant Verify
-                          </button>
-                        )}
-
                         {!isDefaultPrimary && dom.id !== 'dom_primary_default' && dom.id !== 'dom_platform' && (
                           <button
                             type="button"

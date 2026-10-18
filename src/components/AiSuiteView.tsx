@@ -116,7 +116,7 @@ export const AiSuiteView: React.FC = () => {
             <h1 className="text-2xl font-bold text-on-surface tracking-tight">AI Creator Intelligence</h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs bg-primary-container text-on-primary font-bold shadow-xs">
               <Sparkles className="w-3.5 h-3.5" />
-              Loomlink Neural Engine 4.2
+              TinyURL Neural Engine 4.2
             </span>
           </div>
           <p className="text-sm text-on-surface-variant mt-1">
@@ -170,7 +170,7 @@ export const AiSuiteView: React.FC = () => {
           </div>
           <div className="mt-4">
             <div className="text-2xl font-extrabold text-emerald-600">99.9% Clean</div>
-            <p className="text-xs text-on-surface-variant mt-0.5">Automated fake click filtering</p>
+            <p className="text-xs text-on-surface-variant mt-0.5">Automated invalid click filtering</p>
           </div>
         </div>
 

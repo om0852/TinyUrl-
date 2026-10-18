@@ -1357,7 +1357,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="w-48 h-48 mx-auto p-4 bg-surface-container-lowest rounded-lg shadow-xs border border-outline-variant/30 flex items-center justify-center mb-5">
               <QRCodeSVG
                 id="landing-qr-code"
-                value={currentLink?.fullUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://tiny-url-self.vercel.app')}
+                value={currentLink?.fullUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev')}
                 size={160}
                 level="H"
                 fgColor="#141b2b"

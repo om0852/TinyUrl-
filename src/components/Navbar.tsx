@@ -10,7 +10,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommandPalette }) => {
-  const { currentUser, logout } = useStore();
+  const { currentUser, logout, domains } = useStore();
   
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
           <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-surface-container text-tertiary border border-outline-variant/30">
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-ping"></span>
             <span className="font-label-sm text-label-sm font-semibold">
-              System Healthy: 42 domains
+              System Healthy: {domains.length} {domains.length === 1 ? 'Domain' : 'Domains'}
             </span>
           </div>
 

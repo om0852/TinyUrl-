@@ -132,7 +132,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   // Report modal state
   const [selectedReportCampId, setSelectedReportCampId] = useState<string>('all');
 
-  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tiny-url-self.vercel.app';
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev';
 
   // Toggle accordion for deliverables
   const toggleAccordion = (id: string) => {

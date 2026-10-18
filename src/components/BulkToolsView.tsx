@@ -194,12 +194,12 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'snip_bulk_links_template.csv';
+    a.download = 'bulk_links_template.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('Downloaded official CSV template: "snip_bulk_links_template.csv"');
+    showToast('Downloaded official CSV template: "bulk_links_template.csv"');
   };
 
   // Parse Uploaded File

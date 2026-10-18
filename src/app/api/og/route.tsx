@@ -8,8 +8,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const title = searchParams.get('title') || 'Enterprise Link Operations';
-    const slug = searchParams.get('slug') || 'lmk.to/link';
-    const clicks = searchParams.get('clicks') || '24.8k';
+    const slug = searchParams.get('slug') || 'tinyurl.dev/link';
+    const clicks = searchParams.get('clicks') || 'Real-time Analytics';
     const theme = searchParams.get('theme') || 'indigo';
 
     // Gradients
@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
                     color: '#3525cd',
                   }}
                 >
-                  L
+                  T
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '26px', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
-                  Loomlink
+                  TinyURL
                 </span>
                 <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.75)' }}>
                   Enterprise Link Infrastructure
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
             </div>
 
             <span style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.65)' }}>
-              Powered by Loomlink Autonomous Routing
+              Powered by TinyURL Edge Network
             </span>
           </div>
         </div>

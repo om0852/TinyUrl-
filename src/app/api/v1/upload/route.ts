@@ -147,7 +147,7 @@ export async function POST(request: Request) {
           size: fileSize,
           storage: 'vercel_blob',
           access: isPrivate ? 'private' : 'public',
-          message: 'Image successfully uploaded and stored on Vercel Blob'
+          message: 'Image uploaded successfully'
         });
       } catch (blobError: any) {
         console.error('Vercel Blob API error:', blobError?.message || blobError);
@@ -164,9 +164,6 @@ export async function POST(request: Request) {
       size: fileSize,
       contentType: mimeType,
       storage: 'inline_data_uri',
-      warning: blobToken 
-        ? 'Vercel Blob upload failed. Stored as inline image fallback.' 
-        : 'BLOB_READ_WRITE_TOKEN is not configured in environment. Stored as high-res inline image.',
       message: 'Image uploaded successfully'
     });
 
@@ -183,7 +180,7 @@ export async function GET() {
   const isConfigured = isBlobConfigured();
   const storeId = getBlobStoreId();
   return NextResponse.json({
-    service: 'Vercel Blob Image Upload Service',
+    service: 'Cloud Image Upload Service',
     configured: isConfigured,
     storeId,
     storage: isConfigured ? 'vercel_blob' : 'fallback_inline',

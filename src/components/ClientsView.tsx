@@ -68,7 +68,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
   const [clientToDelete, setClientToDelete] = useState<ClientPortalAccount | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'snip.to';
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);

@@ -137,7 +137,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
     }
   }, [activeSubTab, currentWorkspace?.id]);
 
-  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tiny-url-self.vercel.app';
+  const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev';
   const userRole: WorkspaceRole = currentUserRole;
   const isOwnerOrAdmin = userRole === 'owner' || userRole === 'admin';
 

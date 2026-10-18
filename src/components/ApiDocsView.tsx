@@ -322,7 +322,7 @@ export const ApiDocsView: React.FC = () => {
   const getDynamicSnippet = useMemo(() => {
     const bearer = apiKeys[0]?.full_key && !apiKeys[0].full_key.includes('••••') 
       ? apiKeys[0].full_key 
-      : (apiKeys[0]?.key_prefix ? `${apiKeys[0].key_prefix}abcdef1234567890` : 'sk_live_prod_sample_key_9872');
+      : (apiKeys[0]?.key_prefix ? `${apiKeys[0].key_prefix}••••••••••••••••` : 'sk_live_••••••••••••••••');
     const wsId = currentWorkspace?.id || 'ws_default';
 
     if (activeLang === 'curl') {

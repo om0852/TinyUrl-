@@ -24,8 +24,9 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
 
   if (!isOpen) return null;
 
-  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  const ogUrl = `${appUrl}/api/og?title=${encodeURIComponent(customTitle)}&slug=lmk.to/${encodeURIComponent(shortCode)}&theme=${theme}&clicks=24.8k`;
+  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
+  const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev';
+  const ogUrl = `${appUrl}/api/og?title=${encodeURIComponent(customTitle)}&slug=${encodeURIComponent(originDomain)}/${encodeURIComponent(shortCode)}&theme=${theme}`;
 
   const handleCopyOgUrl = () => {
     navigator.clipboard.writeText(ogUrl);
