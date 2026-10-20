@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
@@ -9,6 +9,7 @@ import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 import { RedirectClient } from './RedirectClient';
 import { PublicStatsClient } from '@/components/PublicStatsClient';
 import { linkCache } from '@/lib/cache';
+import { cleanHost, isPlatformHost } from '@/lib/domainHelper';
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -139,18 +140,14 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
       const isPublicStatsRequest = code.endsWith('+') || sParams.target === 'stats';
       const cleanCode = code.replace(/\+$/, '').trim().toLowerCase();
       const headersList = await headers();
-      const rawHost = headersList.get('host') || '';
+      const rawHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
       const userAgent = headersList.get('user-agent') || '';
-      const currentHost = rawHost.split(':')[0].toLowerCase();
+      const currentHost = cleanHost(rawHost);
       
       // Comprehensive social crawler detection: WhatsApp, Facebook, Meta external agents, Twitter/X, Telegram, Slack, LinkedIn, Discord, Applebot, Skype, Pinterest
       isSocialCrawler = /whatsapp|facebookexternalhit|meta-externalagent|meta-externalfetcher|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|applebot|skypeuripreview|pinterest/i.test(userAgent);
 
-      const isPlatformDomain = currentHost === 'localhost' || 
-                               currentHost === '127.0.0.1' || 
-                               currentHost.includes('vercel.app') || 
-                               currentHost === 'tinyurl.dev' ||
-                               currentHost === 'creataurus.work.gd';
+      const isPlatformDomain = isPlatformHost(currentHost);
 
       let rows: Array<{
         id: string;
@@ -212,6 +209,12 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
 
         if (rows && rows.length > 0) {
           await linkCache.set(cacheKey, rows[0], 180);
+        }
+      }
+
+      if (!rows || rows.length === 0) {
+        if (!isPlatformDomain) {
+          notFound();
         }
       }
 

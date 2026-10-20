@@ -36,6 +36,7 @@ interface RawDomainRow {
 const RESERVED_DOMAINS = new Set([
   'tinyurl.dev',
   'tiny-url-self.vercel.app',
+  'creataurus.work.gd',
   'localhost',
   '127.0.0.1',
   'vercel.app',

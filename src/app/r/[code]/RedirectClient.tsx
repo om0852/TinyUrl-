@@ -7,6 +7,7 @@ import { Link } from '@/lib/types';
 import { Link2, ArrowRight, Shield, AlertTriangle, ExternalLink, Lock, Globe, Zap } from 'lucide-react';
 import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
 import { resolveSmartTargetUrl } from '@/lib/geo';
+import { isPlatformHost } from '@/lib/domainHelper';
 
 /* ─── Animated Progress Bar ─── */
 function AnimatedProgressBar({
@@ -200,6 +201,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
   const router = useRouter();
   const searchParams = useSearchParams();
   const { links, logClick } = useStore();
+  const isPlatform = typeof window !== 'undefined' ? isPlatformHost(window.location.hostname) : true;
 
   const edgeTarget = useMemo(() => {
     if (initialTarget) return initialTarget;
@@ -685,16 +687,18 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
             The short link <code className="font-mono px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--muted, #f1f3ff)', color: 'var(--primary, #4f46e5)' }}>/{code}</code> does not exist or has expired.
           </p>
 
-          <button
-            onClick={() => router.push('/')}
-            className="w-full max-w-xs py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
-            style={{
-              backgroundColor: 'var(--primary, #4f46e5)',
-              boxShadow: '0 4px 14px rgba(79, 70, 229, 0.25)',
-            }}
-          >
-            Return to Homepage <ArrowRight className="w-4 h-4" />
-          </button>
+          {isPlatform && (
+            <button
+              onClick={() => router.push('/')}
+              className="w-full max-w-xs py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
+              style={{
+                backgroundColor: 'var(--primary, #4f46e5)',
+                boxShadow: '0 4px 14px rgba(79, 70, 229, 0.25)',
+              }}
+            >
+              Return to Homepage <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </PageShell>
     );
@@ -846,17 +850,19 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
           {/* Actions */}
           <div className="flex gap-3 w-full">
-            <button
-              onClick={() => router.push('/')}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
-              style={{
-                backgroundColor: 'var(--muted, #f1f3ff)',
-                color: 'var(--foreground, #141b2b)',
-                border: '1px solid var(--border, #e1e8fd)',
-              }}
-            >
-              Go to Safety
-            </button>
+            {isPlatform && (
+              <button
+                onClick={() => router.push('/')}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                style={{
+                  backgroundColor: 'var(--muted, #f1f3ff)',
+                  color: 'var(--foreground, #141b2b)',
+                  border: '1px solid var(--border, #e1e8fd)',
+                }}
+              >
+                Go to Safety
+              </button>
+            )}
             <button
               onClick={() => window.location.replace(link.destination_url)}
               className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-white"

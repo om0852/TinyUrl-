@@ -3,18 +3,18 @@ import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
+import { cleanHost, isPlatformHost } from '@/lib/domainHelper';
 
-const EXCLUDED_PREFIXES = [
-  '/_next',
-  '/api',
-  '/favicon.ico',
-  '/terms',
-  '/privacy',
+// Prefixes that belong exclusively to the main platform and must NEVER be served on custom domains
+const PLATFORM_EXCLUSIVE_PREFIXES = [
   '/login',
   '/signup',
   '/invite',
   '/c',
   '/portal',
+  '/landing',
+  '/terms',
+  '/privacy',
   '/stitch-screenshot',
   '/stitch-screen'
 ];
@@ -25,53 +25,226 @@ export async function middleware(request: NextRequest) {
                   request.headers.get('x-original-host') ||
                   request.headers.get('host') ||
                   request.nextUrl.host || '';
-  const currentHost = rawHost.split(',')[0].trim().split(':')[0].toLowerCase();
-  const cnameTarget = (process.env.CUSTOM_DOMAIN_CNAME_TARGET || process.env.NEXT_PUBLIC_CNAME_TARGET || '').toLowerCase().trim();
-  const defaultDomain = (process.env.NEXT_PUBLIC_DEFAULT_DOMAIN || '').toLowerCase().trim();
-  const isPlatformDomain = currentHost === 'localhost' || 
-                           currentHost === '127.0.0.1' || 
-                           currentHost.includes('vercel.app') || 
-                           currentHost === 'tinyurl.dev' ||
-                           (cnameTarget !== '' && currentHost === cnameTarget) ||
-                           (defaultDomain !== '' && currentHost === defaultDomain) ||
-                           currentHost === 'creataurus.work.gd';
+  const currentHost = cleanHost(rawHost);
+  const isPlatform = isPlatformHost(currentHost);
 
-  // 1. Custom Domain Root Redirect (e.g. go.brand.com/ -> brand.com)
-  if (!isPlatformDomain) {
-    try {
-      let customDomain = await linkCache.get<{ id: string; hostname: string; root_redirect_url?: string }>(`domain_${currentHost}`);
-      if (!customDomain) {
-        const domainRows = (await sql.query(
-          `SELECT id, hostname, root_redirect_url, verified FROM domains WHERE LOWER(hostname) = $1 AND verified = true LIMIT 1`,
-          [currentHost]
-        )) as unknown as Array<{ id: string; hostname: string; root_redirect_url?: string; verified: boolean }>;
-        if (domainRows && domainRows.length > 0) {
-          customDomain = domainRows[0];
-          await linkCache.set(`domain_${currentHost}`, customDomain, 300);
-        }
-      }
-
-      if (customDomain && (pathname === '/' || pathname === '')) {
-        if (customDomain.root_redirect_url && /^https?:\/\//i.test(customDomain.root_redirect_url)) {
-          return NextResponse.redirect(new URL(customDomain.root_redirect_url), 307);
-        }
-      }
-    } catch {
-      // Fallback silently
-    }
-  }
-
-  // 2. Skip system paths, root on platform domain, bridge path /r/, and static assets
+  // 1. Static Assets & Framework Files (always pass through)
   if (
-    pathname === '/' ||
-    pathname.startsWith('/r/') ||
-    EXCLUDED_PREFIXES.some(prefix => pathname.startsWith(prefix)) ||
+    pathname.startsWith('/_next') ||
+    pathname === '/favicon.ico' ||
     pathname.includes('.')
   ) {
     return NextResponse.next();
   }
 
-  // 3. Extract potential short code (handles both /code and /r/code)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CASE 1: CUSTOM DOMAIN REQUEST (!isPlatform)
+  // Strict isolation: only short link redirection, unlock UI, and custom domain 404
+  // The main platform (landing, dashboard, login, settings, etc.) is NEVER exposed here.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (!isPlatform) {
+    // A. API routes on Custom Domains:
+    // Only permit APIs strictly required for link resolution, unlocking, tracking, and OG preview
+    if (pathname.startsWith('/api/')) {
+      const isPermittedApi =
+        pathname === '/api/v1/links/unlock' ||
+        pathname === '/api/v1/track' ||
+        pathname.startsWith('/api/v1/links') || // GET /api/v1/links or /api/v1/links/[code]/og-image
+        pathname.startsWith('/api/v1/og-image') ||
+        pathname.startsWith('/api/v1/blob-image');
+
+      if (!isPermittedApi) {
+        return NextResponse.json(
+          { success: false, error: 'This API route is not available on custom domains.' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.next();
+    }
+
+    // B. Root path on Custom Domain (pathname === '/' or '')
+    if (pathname === '/' || pathname === '') {
+      let rootRedirectUrl: string | null = null;
+      try {
+        let customDomain = await linkCache.get<{ id: string; hostname: string; root_redirect_url?: string }>(`domain_${currentHost}`);
+        if (!customDomain) {
+          const domainRows = (await sql.query(
+            `SELECT id, hostname, root_redirect_url, verified FROM domains WHERE LOWER(hostname) = $1 AND verified = true LIMIT 1`,
+            [currentHost]
+          )) as unknown as Array<{ id: string; hostname: string; root_redirect_url?: string; verified: boolean }>;
+          if (domainRows && domainRows.length > 0) {
+            customDomain = domainRows[0];
+            await linkCache.set(`domain_${currentHost}`, customDomain, 300);
+          }
+        }
+
+        if (customDomain?.root_redirect_url && /^https?:\/\//i.test(customDomain.root_redirect_url)) {
+          rootRedirectUrl = customDomain.root_redirect_url;
+        }
+      } catch (err) {
+        console.error('Custom domain root redirect lookup error:', err);
+      }
+
+      if (rootRedirectUrl) {
+        return NextResponse.redirect(new URL(rootRedirectUrl), 307);
+      }
+
+      // If no root_redirect_url is configured, return 404 (NEVER load platform landing page!)
+      const notFoundUrl = new URL('/not-found', request.url);
+      notFoundUrl.searchParams.set('domain', currentHost);
+      return NextResponse.rewrite(notFoundUrl, { status: 404 });
+    }
+
+    // C. Internal /not-found path
+    if (pathname === '/not-found') {
+      return NextResponse.next();
+    }
+
+    // D. Internal /r/ bridge path on Custom Domain
+    if (pathname.startsWith('/r/')) {
+      const bridgeCode = pathname.slice(3).replace(/\/$/, '').toLowerCase();
+      if (!bridgeCode) {
+        const notFoundUrl = new URL('/not-found', request.url);
+        notFoundUrl.searchParams.set('domain', currentHost);
+        return NextResponse.rewrite(notFoundUrl, { status: 404 });
+      }
+      return NextResponse.next();
+    }
+
+    // E. Extract short code
+    let code = pathname.slice(1).replace(/\/$/, '').toLowerCase();
+    if (!code) {
+      const notFoundUrl = new URL('/not-found', request.url);
+      notFoundUrl.searchParams.set('domain', currentHost);
+      return NextResponse.rewrite(notFoundUrl, { status: 404 });
+    }
+
+    // F. Resolve short link for this custom domain
+    try {
+      const cleanCode = code.replace(/\+$/, '');
+      const cacheKey = `link_${currentHost}_${cleanCode}`;
+      let linkData = await linkCache.get<Link & { rules?: string | LinkRule[] }>(cacheKey);
+
+      if (!linkData) {
+        const rows = (await sql.query(
+          `SELECT l.* FROM links l
+           LEFT JOIN domains d ON d.id = l.domain_id
+           WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
+             AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
+           ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
+           LIMIT 1`,
+          [currentHost, cleanCode]
+        )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
+
+        if (rows && rows.length > 0) {
+          linkData = rows[0];
+          await linkCache.set(cacheKey, linkData, 180);
+        }
+      }
+
+      // CRITICAL GUARD: If code is NOT a registered shortlink on this custom domain,
+      // IMMEDIATELY RETURN 404. Never allow Next.js to route to platform pages (e.g. /landing).
+      if (!linkData) {
+        const notFoundUrl = new URL('/not-found', request.url);
+        notFoundUrl.searchParams.set('domain', currentHost);
+        notFoundUrl.searchParams.set('code', code);
+        return NextResponse.rewrite(notFoundUrl, { status: 404 });
+      }
+
+      // Status and expiration guards
+      if (linkData.status === 'disabled') {
+        const notFoundUrl = new URL('/not-found', request.url);
+        notFoundUrl.searchParams.set('domain', currentHost);
+        notFoundUrl.searchParams.set('code', code);
+        notFoundUrl.searchParams.set('reason', 'disabled');
+        return NextResponse.rewrite(notFoundUrl, { status: 404 });
+      }
+
+      if (linkData.expires_at && new Date(linkData.expires_at) < new Date()) {
+        const notFoundUrl = new URL('/not-found', request.url);
+        notFoundUrl.searchParams.set('domain', currentHost);
+        notFoundUrl.searchParams.set('code', code);
+        notFoundUrl.searchParams.set('reason', 'expired');
+        return NextResponse.rewrite(notFoundUrl, { status: 404 });
+      }
+
+      if (linkData.max_clicks && linkData.clicks_count >= linkData.max_clicks) {
+        const notFoundUrl = new URL('/not-found', request.url);
+        notFoundUrl.searchParams.set('domain', currentHost);
+        notFoundUrl.searchParams.set('code', code);
+        notFoundUrl.searchParams.set('reason', 'click_limit');
+        return NextResponse.rewrite(notFoundUrl, { status: 404 });
+      }
+
+      // If flagged, password protected, splash, frame, or public stats (+), route to bridge UI
+      if (linkData.is_flagged || linkData.password_hash || code.endsWith('+')) {
+        const rewriteUrl = new URL(`/r/${code}`, request.url);
+        return NextResponse.rewrite(rewriteUrl);
+      }
+
+      // Resolve smart target URL (Location, Device, A/B Testing)
+      let destinationUrl = linkData.destination_url;
+      const rules: LinkRule[] = typeof linkData.rules === 'string' ? JSON.parse(linkData.rules) : (linkData.rules || []);
+      const userAgent = request.headers.get('user-agent') || '';
+      const geo = extractGeoFromHeaders(name => request.headers.get(name));
+      const existingAbVariant = request.cookies.get(`ab_${cleanCode}`)?.value as 'A' | 'B' | undefined;
+
+      if (rules.length > 0) {
+        destinationUrl = resolveSmartTargetUrl({
+          rules,
+          defaultUrl: linkData.destination_url,
+          userAgent,
+          geo,
+          abVariant: existingAbVariant || null
+        });
+
+        const abRule = rules.find(r => r.rule_type === 'ab');
+        if (abRule && !existingAbVariant) {
+          const isB = destinationUrl === abRule.target_url;
+          const abRewriteUrl = new URL(`/r/${code}`, request.url);
+          abRewriteUrl.searchParams.set('target', destinationUrl);
+          const response = NextResponse.rewrite(abRewriteUrl);
+          response.headers.set('x-destination-url', destinationUrl);
+          response.cookies.set(`ab_${cleanCode}`, isB ? 'B' : 'A', {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 30,
+            sameSite: 'lax',
+          });
+          return response;
+        }
+      }
+
+      // Rewrite to /r/[code] for telemetry logging and fast redirection
+      const rewriteUrl = new URL(`/r/${code}`, request.url);
+      rewriteUrl.searchParams.set('target', destinationUrl);
+      const res = NextResponse.rewrite(rewriteUrl);
+      res.headers.set('x-destination-url', destinationUrl);
+      return res;
+
+    } catch (error) {
+      console.error('Custom domain link resolution error:', error);
+      const notFoundUrl = new URL('/not-found', request.url);
+      notFoundUrl.searchParams.set('domain', currentHost);
+      return NextResponse.rewrite(notFoundUrl, { status: 404 });
+    }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CASE 2: PRIMARY PLATFORM DOMAIN REQUEST (isPlatform === true)
+  // The full URL Shortener console, landing page, and routes are served here.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // On the platform domain, root '/', '/r/*', and platform-exclusive prefixes load normally
+  if (
+    pathname === '/' ||
+    pathname.startsWith('/r/') ||
+    pathname === '/not-found' ||
+    PLATFORM_EXCLUSIVE_PREFIXES.some(prefix => pathname.startsWith(prefix))
+  ) {
+    return NextResponse.next();
+  }
+
+  // Extract potential short code on platform domain
   let code = pathname.startsWith('/r/') ? pathname.slice(3) : pathname.slice(1);
   code = code.replace(/\/$/, '').toLowerCase();
 
@@ -80,44 +253,28 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // 4. Fast Cache Lookup (Edge LRU + Redis Cache)
-    const cacheKey = !isPlatformDomain ? `link_${currentHost}_${code}` : `link_${code}`;
+    const cleanCode = code.replace(/\+$/, '');
+    const cacheKey = `link_${cleanCode}`;
     let linkData = await linkCache.get<Link & { rules?: string | LinkRule[] }>(cacheKey);
 
     if (!linkData) {
-      // Query Neon PostgreSQL
-      let rows: Array<Link & { rules?: string | LinkRule[] }> = [];
-
-      if (!isPlatformDomain) {
-        // Look up link for this custom domain first, fallback to unassigned link
-        rows = (await sql.query(
-          `SELECT l.* FROM links l
-           LEFT JOIN domains d ON d.id = l.domain_id
-           WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
-             AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
-           ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
-           LIMIT 1`,
-          [currentHost, code]
-        )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
-      } else {
-        rows = (await sql.query(
-          `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
-          [code]
-        )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
-      }
+      const rows = (await sql.query(
+        `SELECT * FROM links WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 LIMIT 1`,
+        [cleanCode]
+      )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
 
       if (rows && rows.length > 0) {
         linkData = rows[0];
-        await linkCache.set(cacheKey, linkData, 180); // Cache for 3 minutes
+        await linkCache.set(cacheKey, linkData, 180);
       }
     }
 
     if (!linkData) {
-      // Not a registered shortlink, continue to standard Next.js routing
+      // On the platform domain, if not a shortlink, proceed to standard Next.js routing (or 404)
       return NextResponse.next();
     }
 
-    // 4. Status and expiration guards
+    // Status and expiration guards
     if (linkData.status === 'disabled') {
       return NextResponse.next();
     }
@@ -130,26 +287,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // 5. If flagged, quarantine interstitial handles it in React page
-    if (linkData.is_flagged) {
+    // If flagged, password protected, or public stats (+), let /r/[code] handle it
+    if (linkData.is_flagged || linkData.password_hash || code.endsWith('+')) {
       return NextResponse.next();
     }
 
-    // 6. If password protected, let the password unlock UI handle it
-    if (linkData.password_hash) {
-      return NextResponse.next();
-    }
-
-    // 7. Hand off click tracking and telemetry to /r/[code] and /api/v1/track
-    // Deduplication guarantees exact 1-count tracking per real user visit without double-counting.
-
-    // 8. Resolve Smart Edge Routing (Location: City > State > Country, Device, & A/B Split Testing)
     let destinationUrl = linkData.destination_url;
     const rules: LinkRule[] = typeof linkData.rules === 'string' ? JSON.parse(linkData.rules) : (linkData.rules || []);
-
     const userAgent = request.headers.get('user-agent') || '';
     const geo = extractGeoFromHeaders(name => request.headers.get(name));
-    const existingAbVariant = request.cookies.get(`ab_${code}`)?.value as 'A' | 'B' | undefined;
+    const existingAbVariant = request.cookies.get(`ab_${cleanCode}`)?.value as 'A' | 'B' | undefined;
 
     if (rules.length > 0) {
       destinationUrl = resolveSmartTargetUrl({
@@ -160,7 +307,6 @@ export async function middleware(request: NextRequest) {
         abVariant: existingAbVariant || null
       });
 
-      // Handle sticky A/B test assignment if an A/B rule exists and no cookie is set
       const abRule = rules.find(r => r.rule_type === 'ab');
       if (abRule && !existingAbVariant) {
         const isB = destinationUrl === abRule.target_url;
@@ -171,32 +317,26 @@ export async function middleware(request: NextRequest) {
           : NextResponse.rewrite(abRewriteUrl);
 
         response.headers.set('x-destination-url', destinationUrl);
-        response.cookies.set(`ab_${code}`, isB ? 'B' : 'A', {
+        response.cookies.set(`ab_${cleanCode}`, isB ? 'B' : 'A', {
           path: '/',
-          maxAge: 60 * 60 * 24 * 30, // 30 days
+          maxAge: 60 * 60 * 24 * 30,
           sameSite: 'lax',
         });
         return response;
       }
     }
 
-    // 8. If request is already on /r/<code>, let Next.js route it
     if (pathname.startsWith('/r/')) {
       return NextResponse.next();
     }
 
-    // 9. For standard browser requests, rewrite to /r/<code> so that:
-    // - Client-side click tracking & telemetry run
-    // - LocalStorage & StoreContext update in real time
-    // - OpeninApp deep linking handles mobile apps cleanly
-    // - Verified safe transition displays properly
     const rewriteUrl = new URL(`/r/${code}`, request.url);
     rewriteUrl.searchParams.set('target', destinationUrl);
     const res = NextResponse.rewrite(rewriteUrl);
     res.headers.set('x-destination-url', destinationUrl);
     return res;
   } catch (error) {
-    console.error('Edge middleware error:', error);
+    console.error('Platform link resolution error:', error);
     return NextResponse.next();
   }
 }
