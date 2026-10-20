@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql, initializeDatabase } from '@/lib/postgres';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface HealthCheckResult {
   link_id: string;
@@ -131,6 +132,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Query parameter "workspace_id" is required.' }, { status: 400 });
     }
 
+    const authResult = await verifyWorkspacePermission(request, 'analytics:read', {
+      workspaceId: workspaceId.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = await sql.query(
       `SELECT id, short_code, custom_slug, title, destination_url, status, broken_code, broken_reason, last_health_check, clicks_count
        FROM links
@@ -186,6 +194,14 @@ export async function POST(request: Request) {
         { success: false, error: 'Either "workspace_id" or "link_id" is required to run health checks.' },
         { status: 400 }
       );
+    }
+
+    const authResult = await verifyWorkspacePermission(request, 'links:edit', {
+      workspaceId: workspaceId ? String(workspaceId).trim() : undefined,
+      linkId: linkId ? String(linkId).trim() : undefined
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     let linksToProbe: any[] = [];

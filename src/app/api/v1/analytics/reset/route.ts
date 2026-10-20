@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +18,15 @@ export async function POST(request: Request) {
         { success: false, error: 'Provide link_id, short_code, or workspace_id to reset analytics.' },
         { status: 400 }
       );
+    }
+
+    // RBAC: Requires settings:manage or links:delete permission
+    const authResult = await verifyWorkspacePermission(request, 'settings:manage', {
+      workspaceId: workspace_id || undefined,
+      linkId: link_id || short_code || undefined
+    });
+    if (!authResult.success) {
+      return authResult.response;
     }
 
     if (link_id || short_code) {

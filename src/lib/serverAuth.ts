@@ -106,60 +106,129 @@ export async function verifyWorkspacePermission(
 ): Promise<ServerAuthResult> {
   try {
     const authHeader = request.headers.get('authorization') || '';
+    const xApiKeyHeader = request.headers.get('x-api-key') || '';
     const headerEmail = request.headers.get('x-user-email');
     const headerWsId = request.headers.get('x-workspace-id');
 
-    // 1. Check for API Key Authentication
-    if (authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7).trim();
-      if (token.startsWith('sk_live_')) {
-        const keyHash = crypto.createHash('sha256').update(token).digest('hex');
-        const keyRows = (await sql.query(
-          `SELECT id, workspace_id, permissions FROM api_keys WHERE key_hash = $1 LIMIT 1`,
-          [keyHash]
-        ).catch(() => [])) as { id: string; workspace_id: string; permissions?: string | string[] }[];
+    // 1. Extract API Key Token if supplied
+    let rawToken: string | null = null;
+    if (xApiKeyHeader.trim()) {
+      rawToken = xApiKeyHeader.trim();
+    } else if (authHeader.startsWith('Bearer ')) {
+      rawToken = authHeader.substring(7).trim();
+    }
 
-        if (keyRows && keyRows.length > 0) {
-          const keyRecord = keyRows[0];
-          const rawPerms = keyRecord.permissions;
-          const keyPerms: string[] = typeof rawPerms === 'string' 
-            ? JSON.parse(rawPerms) 
-            : (Array.isArray(rawPerms) ? rawPerms : []);
+    if (rawToken) {
+      // Check Master Platform API Keys from environment
+      const masterEnvKeys = [
+        process.env.PLATFORM_API_KEY,
+        process.env.TINYURL_API_KEY,
+        process.env.API_KEY
+      ].filter(Boolean) as string[];
 
-          // API keys map to admin authority if granted write access or explicit permission
-          const hasApiKeyPerm = keyPerms.includes(requiredPermission) || 
-                                keyPerms.includes('admin') || 
-                                keyPerms.includes('links:write');
+      const isMasterKeyMatch = masterEnvKeys.some(masterKey => {
+        if (!masterKey || masterKey.length !== rawToken!.length) return false;
+        try {
+          return crypto.timingSafeEqual(Buffer.from(rawToken!), Buffer.from(masterKey));
+        } catch {
+          return false;
+        }
+      });
 
-          if (!hasApiKeyPerm) {
-            return {
-              success: false,
-              response: NextResponse.json({
-                success: false,
-                error: `Forbidden: API key does not have "${requiredPermission}" permission.`
-              }, { status: 403 })
-            };
+      if (isMasterKeyMatch) {
+        const targetWsId = options.workspaceId || headerWsId || 'ws_default';
+        return {
+          success: true,
+          context: {
+            userEmail: 'master_api_admin',
+            role: 'owner',
+            workspaceId: targetWsId.trim(),
+            isApiKey: true
           }
+        };
+      }
 
-          // Update last_used
-          sql.query(`UPDATE api_keys SET last_used = NOW() WHERE id = $1`, [keyRecord.id]).catch(() => {});
+      // Check Database Stored API Keys
+      const keyHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const keyRows = (await sql.query(
+        `SELECT id, workspace_id, permissions FROM api_keys WHERE key_hash = $1 LIMIT 1`,
+        [keyHash]
+      ).catch(() => [])) as { id: string; workspace_id: string; permissions?: string | string[] }[];
 
+      if (keyRows && keyRows.length > 0) {
+        const keyRecord = keyRows[0];
+        const rawPerms = keyRecord.permissions;
+        const keyPerms: string[] = typeof rawPerms === 'string' 
+          ? JSON.parse(rawPerms) 
+          : (Array.isArray(rawPerms) ? rawPerms : []);
+
+        // Check workspace isolation if specific workspace was requested
+        const targetWs = (options.workspaceId || headerWsId || '').trim();
+        if (targetWs && targetWs !== keyRecord.workspace_id && keyRecord.workspace_id !== 'ws_default') {
           return {
-            success: true,
-            context: {
-              userEmail: 'api_client',
-              role: 'admin',
-              workspaceId: keyRecord.workspace_id,
-              isApiKey: true
-            }
+            success: false,
+            response: NextResponse.json({
+              success: false,
+              error: 'Forbidden: API key does not have access to the specified workspace.'
+            }, { status: 403 })
           };
         }
+
+        // Granular RBAC validation for API keys
+        const hasApiKeyPerm = 
+          keyPerms.includes('*') ||
+          keyPerms.includes('admin') ||
+          keyPerms.includes(requiredPermission) ||
+          (requiredPermission.startsWith('links:') && keyPerms.includes('links:write')) ||
+          (requiredPermission === 'links:read' && (keyPerms.includes('links:create') || keyPerms.includes('links:edit'))) ||
+          (requiredPermission === 'export:data' && (keyPerms.includes('links:read') || keyPerms.includes('analytics:read')));
+
+        if (!hasApiKeyPerm) {
+          return {
+            success: false,
+            response: NextResponse.json({
+              success: false,
+              error: `Forbidden: API key does not have "${requiredPermission}" permission.`
+            }, { status: 403 })
+          };
+        }
+
+        // Asynchronously update last_used timestamp
+        sql.query(`UPDATE api_keys SET last_used = NOW() WHERE id = $1`, [keyRecord.id]).catch(() => {});
+
+        return {
+          success: true,
+          context: {
+            userEmail: 'api_client',
+            role: 'admin',
+            workspaceId: keyRecord.workspace_id,
+            isApiKey: true
+          }
+        };
       }
+
+      // Security Guard: Caller provided an explicit API key token, but it is invalid or revoked
+      return {
+        success: false,
+        response: NextResponse.json({
+          success: false,
+          error: 'Unauthorized: Invalid or revoked API key.'
+        }, { status: 401 })
+      };
     }
 
     // 2. Identify Caller Email
     let userEmail = (options.userEmail || headerEmail || '').trim().toLowerCase();
     if (!userEmail) {
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          success: false,
+          response: NextResponse.json({
+            success: false,
+            error: 'Unauthorized: Authentication required. Provide a valid Bearer API key or session.'
+          }, { status: 401 })
+        };
+      }
       // In local development or guest mode, fallback to owner identity
       userEmail = 'owner@workspace.local';
     }
