@@ -186,7 +186,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   // 3. Core KPI Calculations
   const totalLinksCount = filteredLinks.length;
   const totalClicksCount = filteredClicks.length;
-  
   // Unique Visitors (deduplicated by ip_hash or id)
   const uniqueVisitorsCount = useMemo(() => {
     const uniqueIps = new Set<string>();
@@ -232,7 +231,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
   // Top Referrer
   const topReferrer = useMemo(() => {
-    if (filteredClicks.length === 0) return { name: 'Direct', percent: '100%' };
+    if (filteredClicks.length === 0) return { name: 'None', percent: '' };
     const counts: Record<string, number> = {};
     filteredClicks.forEach(c => {
       const raw = c.referrer || 'Direct';
@@ -274,7 +273,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         const d = new Date(now.getTime() - i * 3600 * 1000);
         const hourStr = `${d.getHours().toString().padStart(2, '0')}:00`;
         const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        
         const count = filteredClicks.filter(c => {
           const ct = new Date(c.timestamp);
           return ct.getDate() === d.getDate() && ct.getHours() === d.getHours();
@@ -286,7 +284,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       for (let i = days - 1; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 86400 * 1000);
         const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        
         const count = filteredClicks.filter(c => {
           const ct = new Date(c.timestamp);
           return ct.toDateString() === d.toDateString();
@@ -539,35 +536,18 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
   if (!mounted || ((isInitialLoading || isAnalyticsLoading) && clicks.length === 0 && links.length === 0)) {
     return (
-      <div className="w-full min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased transition-colors duration-200">
+      <div className="w-full font-body-md text-body-md text-on-surface antialiased">
         <SkeletonAnalyticsView />
       </div>
     );
   }
 
   return (
-    <div className="w-full min-h-screen bg-surface font-body-md text-body-md text-on-surface antialiased transition-colors duration-200">
+    <div className="w-full font-body-md text-body-md text-on-surface antialiased">
       <div className="flex flex-col w-full pb-16 space-y-6">
 
         {/* ─── Top Meta / Status Bar (Architectural Sharp-Cornered Strip) ─── */}
-        <div className="w-full bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-ink shadow-sm shrink-0">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-display-lg text-2xl sm:text-3xl font-bold text-on-surface tracking-tight">
-                  Analytics
-                </h1>
-                <InfoTooltip text="Real-time multi-dimensional click telemetry, geographic resolution, device split, and conversion performance for your workspace." />
-              </div>
-              <p className="text-xs text-on-surface-variant mt-0.5">
-                Aggregated workspace telemetry &amp; live edge visitor activity
-              </p>
-            </div>
-          </div>
-
+        <div className="w-full flex flex-wrap items-center justify-end gap-2 pb-[15px] border-b-[0.5px] border-outline-variant">
           {/* Filters & Actions Strip */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Campaigns Filter Dropdown */}
@@ -590,7 +570,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <div className="absolute left-0 lg:right-0 lg:left-auto top-full mt-1.5 w-56 bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-1.5 z-30 animate-fade-in">
                   <div className="px-2 py-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
                     <span>Filter Campaign</span>
-                    <InfoTooltip text="Scope all metrics to a specific marketing campaign tag." />
                   </div>
                   <button
                     type="button"
@@ -637,7 +616,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <div className="absolute left-0 lg:right-0 lg:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-2 z-30 animate-fade-in">
                   <div className="px-1 pb-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
                     <span>Select Link</span>
-                    <InfoTooltip text="Filter the entire analytics dashboard down to one short link." />
                   </div>
                   <div className="relative mb-1.5">
                     <Search className="w-3 h-3 text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -697,7 +675,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-1.5 z-30 animate-fade-in">
                   <div className="px-2 py-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
                     <span>Date Range</span>
-                    <InfoTooltip text="Filter all clicks and visitor stats by time horizon." />
                   </div>
                   {[
                     { key: '24h', label: 'Last 24 Hours' },
@@ -752,7 +729,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Total Links
               </span>
-              <InfoTooltip text="The total number of shortened URLs created in this workspace matching your active filters." />
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-bold text-on-surface font-mono">
@@ -772,20 +748,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                   Total Clicks
                 </span>
-                <InfoTooltip text="Total raw clicks across all selected links within the chosen timeframe, including repeat visits." />
-              </div>
-              <div className="flex items-center gap-1 bg-secondary/10 text-secondary px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-                <span>Live</span>
+                <InfoTooltip text="Every click, including repeat visits." />
               </div>
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-bold text-on-surface font-mono">
                 {totalClicksCount.toLocaleString()}
-              </div>
-              <div className="text-xs text-secondary font-medium mt-1 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                <span>+28% vs prior period</span>
               </div>
             </div>
           </div>
@@ -796,7 +764,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Unique Visitors
               </span>
-              <InfoTooltip text="Deduplicated distinct individuals who clicked your links, verified via privacy-preserving one-way hashed IP address." />
+              <InfoTooltip text="Each visitor counted once, however often they click." />
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-bold text-on-surface font-mono">
@@ -814,7 +782,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Top Link
               </span>
-              <InfoTooltip text="Your highest performing shortened URL based on total click volume and engagement." />
             </div>
             <div>
               <div className="text-base sm:text-lg font-bold text-primary-ink truncate font-mono">
@@ -832,14 +799,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Top Referrer
               </span>
-              <InfoTooltip text="The dominant external traffic source or platform sending visitors to your links." />
             </div>
             <div>
               <div className="text-base sm:text-lg font-bold text-on-surface truncate">
                 {topReferrer.name}
               </div>
               <div className="text-xs text-on-surface-variant mt-1">
-                <span className="font-semibold text-on-surface">{topReferrer.percent}</span> of total traffic
+                {topReferrer.percent ? (
+                  <><span className="font-semibold text-on-surface">{topReferrer.percent}</span> of total traffic</>
+                ) : 'No clicks yet'}
               </div>
             </div>
           </div>
@@ -853,10 +821,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2 border-b border-outline-variant">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-on-surface">Click Velocity</h2>
-                    <InfoTooltip text="Timeline curve tracking daily click acceleration across all your links. Identifies momentum surges and viral spikes." />
+                    <h2 className="text-[14px] font-semibold text-on-surface">Clicks over time</h2>
                   </div>
-                  <p className="text-xs text-on-surface-variant">Daily clicks across all active links</p>
                 </div>
 
                 <div className="inline-flex bg-surface-container-low p-1 gap-1 rounded-lg border-[0.5px] border-outline-variant self-start sm:self-center">
@@ -989,10 +955,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <div className="flex items-center justify-between pb-3 border-b border-outline-variant">
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <h2 className="text-base font-bold text-on-surface">Hourly Engagement</h2>
-                      <InfoTooltip text="Aggregated 24-hour visitor breakdown. Detects when your audience is most actively clicking links so you can schedule drops accordingly." />
+                      <h2 className="text-[14px] font-semibold text-on-surface">Clicks by hour</h2>
                     </div>
-                    <p className="text-xs text-on-surface-variant">Click distribution by hour (00-23)</p>
                   </div>
                   <span className="text-[11px] font-semibold text-primary-ink bg-primary/10 px-2 py-0.5 rounded-full border border-primary-strong/20">
                     Peak: {hourlyData.peakHour.label}
@@ -1004,7 +968,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   {hourlyData.hours.map((h, i) => {
                     const heightPct = Math.max(6, (h.clicks / hourlyData.maxHourClicks) * 100);
                     const isPeak = h.hour === hourlyData.peakHour.hour && h.clicks > 0;
-                    
                     return (
                       <div
                         key={i}
@@ -1058,10 +1021,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <div className="flex items-center justify-between pb-4 border-b border-outline-variant">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <h2 className="text-base font-bold text-on-surface">Traffic Sources</h2>
-                    <InfoTooltip text="Categorized origins of visitor traffic (Direct, Messengers, YouTube, Instagram, X/Twitter, and Web Referrals)." />
+                    <h2 className="text-[14px] font-semibold text-on-surface">Traffic sources</h2>
                   </div>
-                  <p className="text-xs text-on-surface-variant">Where your visitors originate from</p>
                 </div>
                 <span className="font-mono text-xs text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded">
                   {trafficSources.length} {trafficSources.length === 1 ? 'Source' : 'Sources'}
@@ -1113,10 +1074,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <div className="flex items-center justify-between pb-4 border-b border-outline-variant">
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <h2 className="text-base font-bold text-on-surface">Devices &amp; Geography</h2>
-                    <InfoTooltip text="Technical environment breakdown including device form factor, OS, and edge-resolved geographic countries." />
+                    <h2 className="text-[14px] font-semibold text-on-surface">Devices &amp; countries</h2>
                   </div>
-                  <p className="text-xs text-on-surface-variant">Visitor device types and top countries</p>
                 </div>
 
                 <div className="inline-flex bg-surface-container-low p-0.5 rounded-lg border border-outline-variant">
@@ -1153,7 +1112,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
                       {techTab === 'devices' ? 'Device Split' : 'Operating System'}
                     </span>
-                    <InfoTooltip text={techTab === 'devices' ? 'Hardware categories of visiting client user agents.' : 'Desktop and mobile operating systems.'} />
                   </div>
 
                   <div className="space-y-3 my-1">
@@ -1203,7 +1161,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-on-surface-variant">
                       Top Locations
                     </span>
-                    <InfoTooltip text="Visitor geographic origins resolved via CF-IPCountry headers and geo-edge lookups." />
                   </div>
 
                   <div className="space-y-3 my-1">
@@ -1235,10 +1192,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-3 border-b border-outline-variant">
             <div>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-base font-bold text-on-surface">UTM Campaigns &amp; Attribution</h2>
-                <InfoTooltip text="Track and attribute clicks by UTM Source (e.g. google, youtube), UTM Medium (e.g. cpc, bio), and UTM Campaign name." />
+                <h2 className="text-[14px] font-semibold text-on-surface">UTM campaigns</h2>
               </div>
-              <p className="text-xs text-on-surface-variant">Performance metrics grouped by marketing campaign tags</p>
             </div>
 
             <button
@@ -1287,10 +1242,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           <div className="p-4 sm:p-5 flex items-center justify-between bg-surface-container-low/30 border-b border-outline-variant">
             <div>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-base font-bold text-on-surface">Top Links Leaderboard</h2>
-                <InfoTooltip text="Ranked leaderboard of the highest performing links in your workspace based on total click volume and trends." />
+                <h2 className="text-[14px] font-semibold text-on-surface">Top links</h2>
               </div>
-              <p className="text-xs text-on-surface-variant">Highest performing shortened URLs across your workspace</p>
             </div>
           </div>
 
@@ -1430,10 +1383,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h2 className="text-base font-bold text-on-surface">Recent Clicks Activity Stream</h2>
-                  <InfoTooltip text="Live incoming visitor stream recording click timestamps, geographic location, device platform, and referring origin." />
+                  <h2 className="text-[14px] font-semibold text-on-surface">Recent clicks</h2>
                 </div>
-                <p className="text-xs text-on-surface-variant">Live visitor telemetry recorded on your short links</p>
               </div>
             </div>
 
