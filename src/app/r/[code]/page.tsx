@@ -1,11 +1,12 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
 import { redirect, notFound } from 'next/navigation';
+import { after } from 'next/server';
 import { Metadata } from 'next';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { Link, LinkRule } from '@/lib/types';
-import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
+import { extractGeoFromHeaders, getTrustedEdgeClientIp, resolveSmartTargetUrl } from '@/lib/geo';
 import { RedirectClient } from './RedirectClient';
 import { PublicStatsClient } from '@/components/PublicStatsClient';
 import { linkCache } from '@/lib/cache';
@@ -330,7 +331,8 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         if (initialTarget && !isSuspicious && !isPasswordLocked && !isSplashOrFrame) {
           // Asynchronously log the click in the background with rich telemetry
           try {
-            const ip = headersList.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
+            const trustedIp = getTrustedEdgeClientIp(name => headersList.get(name));
+            const ip = trustedIp || headersList.get('x-forwarded-for')?.split(',')[0].trim() || '127.0.0.1';
             const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
             const geo = extractGeoFromHeaders(name => headersList.get(name));
             const referrer = headersList.get('referer') || 'Direct / None';
@@ -358,46 +360,67 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
 
             const isBot = /bot|spider|crawl|slurp|facebookexternalhit|whatsapp|telegrambot|twitterbot|pinterest|slackbot|curl|wget|python|postman|insomnia|go-http-client|headlesschrome/i.test(ua);
 
-            sql.query(
-              `INSERT INTO click_events (
-                id, link_id, short_code, timestamp, ip_hash, country, country_code, city, region, 
-                device, os, browser, referrer, language, user_agent, 
-                utm_source, utm_medium, utm_campaign, utm_term, utm_content, destination_url, 
-                is_bot, is_unique
-              )
-              VALUES (
-                $1, $2, $3, NOW(), $4, $5, $6, $7, $8, 
-                $9, $10, $11, $12, $13, $14, 
-                $15, $16, $17, $18, $19, $20, 
-                $21, $22
-              )`,
-              [
-                `clk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                row.id,
-                row.short_code,
-                ipHash,
-                geo.countryName || 'United States',
-                geo.countryCode || 'US',
-                geo.city || 'San Francisco',
-                geo.regionName || geo.regionCode || 'California',
-                device,
-                os,
-                browser,
-                referrer.slice(0, 255),
-                rawLang.slice(0, 64),
-                ua.slice(0, 500),
-                row.utm_source || null,
-                row.utm_medium || null,
-                row.utm_campaign || null,
-                row.utm_term || null,
-                row.utm_content || null,
-                initialTarget,
-                isBot,
-                true
-              ]
-            ).catch(() => {});
+            const clickId = `clk_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const clickTarget = initialTarget;
 
-            sql.query(`UPDATE links SET clicks_count = clicks_count + 1 WHERE id = $1`, [row.id]).catch(() => {});
+            // after() keeps the invocation alive until the writes finish (also when redirect() throws);
+            // a bare un-awaited promise can be dropped or delayed once the serverless response is sent.
+            after(async () => {
+              // Only judge repeat visits when the IP is the verified visitor IP. Without the trusted
+              // edge proxy, custom-domain traffic all shares the proxy's IP and would look like repeats.
+              let isUnique = true;
+              if (trustedIp) {
+                try {
+                  const prior = await sql.query(
+                    `SELECT 1 FROM click_events WHERE link_id = $1 AND ip_hash = $2 LIMIT 1`,
+                    [row.id, ipHash]
+                  );
+                  if (prior && prior.length > 0) isUnique = false;
+                } catch {}
+              }
+
+              await sql.query(
+                `INSERT INTO click_events (
+                  id, link_id, short_code, timestamp, ip_hash, country, country_code, city, region,
+                  device, os, browser, referrer, language, user_agent,
+                  utm_source, utm_medium, utm_campaign, utm_term, utm_content, destination_url,
+                  is_bot, is_unique
+                )
+                VALUES (
+                  $1, $2, $3, NOW(), $4, $5, $6, $7, $8,
+                  $9, $10, $11, $12, $13, $14,
+                  $15, $16, $17, $18, $19, $20,
+                  $21, $22
+                )`,
+                [
+                  clickId,
+                  row.id,
+                  row.short_code,
+                  ipHash,
+                  geo.countryName || 'Unknown',
+                  geo.countryCode || 'Unknown',
+                  geo.city || 'Unknown',
+                  geo.regionName || geo.regionCode || null,
+                  device,
+                  os,
+                  browser,
+                  referrer.slice(0, 255),
+                  rawLang.slice(0, 64),
+                  ua.slice(0, 500),
+                  row.utm_source || null,
+                  row.utm_medium || null,
+                  row.utm_campaign || null,
+                  row.utm_term || null,
+                  row.utm_content || null,
+                  clickTarget,
+                  isBot,
+                  isUnique
+                ]
+              ).catch((err: unknown) => console.warn('Click insert failed:', err));
+
+              await sql.query(`UPDATE links SET clicks_count = clicks_count + 1 WHERE id = $1`, [row.id])
+                .catch((err: unknown) => console.warn('Click counter update failed:', err));
+            });
           } catch {}
 
           shouldDirectRedirectUrl = initialTarget;
