@@ -528,9 +528,30 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
     if (!isSuspicious && !isSplash) {
       if (appDeepLink && activeNativeUri && activeNativeUri !== resolvedTarget) {
+        // Android intent:// URIs carry their own browser_fallback_url, so hand off and stop
+        if (clientContext.isAndroid && activeNativeUri.startsWith('intent://')) {
+          window.location.href = activeNativeUri;
+          return;
+        }
+        // iOS: try the app scheme and only fall back to the web URL if we are still on this
+        // page afterwards. Replacing the location straight away cancelled the app launch.
+        let leftPage = false;
+        const markLeft = () => { leftPage = true; };
+        document.addEventListener('visibilitychange', markLeft);
+        window.addEventListener('pagehide', markLeft);
+        window.addEventListener('blur', markLeft);
         try {
           window.location.href = activeNativeUri;
         } catch {}
+        const fallbackTimer = setTimeout(() => {
+          if (!leftPage && !document.hidden) window.location.replace(resolvedTarget);
+        }, 1500);
+        return () => {
+          clearTimeout(fallbackTimer);
+          document.removeEventListener('visibilitychange', markLeft);
+          window.removeEventListener('pagehide', markLeft);
+          window.removeEventListener('blur', markLeft);
+        };
       }
       window.location.replace(resolvedTarget);
       return;

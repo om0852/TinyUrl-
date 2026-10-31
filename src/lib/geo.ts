@@ -216,9 +216,77 @@ export function extractGeoFromHeaders(getHeader: HeaderGetter): VisitorGeoInfo {
   };
 }
 
+// Common ways people type a country that are neither the ISO code nor the English name
+const COUNTRY_ALIASES: Record<string, string> = {
+  usa: 'US',
+  'united states of america': 'US',
+  america: 'US',
+  uk: 'GB',
+  'great britain': 'GB',
+  britain: 'GB',
+  england: 'GB',
+  uae: 'AE',
+  'south korea': 'KR',
+  korea: 'KR',
+};
+
+/** Lowercase, trim, treat hyphens/underscores/dots as spaces and collapse whitespace. */
+function normalizePlace(value: string | null | undefined): string {
+  return (value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[-_.]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Resolves what the rule author typed (code, name or alias) to an ISO country code. */
+function ruleCountryToCode(target: string): string {
+  const t = normalizePlace(target);
+  if (!t) return '';
+  if (COUNTRY_ALIASES[t]) return COUNTRY_ALIASES[t];
+  if (/^[a-z]{2}$/.test(t)) return t.toUpperCase() === 'UK' ? 'GB' : t.toUpperCase();
+  const named = Object.entries(COMMON_COUNTRIES).find(([, name]) => normalizePlace(name) === t);
+  if (named) return named[0] === 'UK' ? 'GB' : named[0];
+  return '';
+}
+
+function countryMatches(target: string, geo: VisitorGeoInfo): boolean {
+  const t = normalizePlace(target);
+  if (!t) return false;
+  const visitorCode = (geo.countryCode || '').toUpperCase();
+  const code = ruleCountryToCode(target);
+  if (code && visitorCode) return code === visitorCode;
+  // Unknown spelling: fall back to an exact (normalized) name comparison, never a substring
+  return !!geo.countryName && normalizePlace(geo.countryName) === t;
+}
+
+function stateMatches(target: string, geo: VisitorGeoInfo): boolean {
+  const t = normalizePlace(target);
+  if (!t) return false;
+  const vCode = normalizePlace(geo.regionCode);
+  const vName = normalizePlace(geo.regionName);
+  if (vCode && t === vCode) return true;
+  if (vName && t === vName) return true;
+  // Rule written as a code ("MH") while the visitor only has a full name, or the reverse
+  const upper = t.toUpperCase().replace(/\s/g, '');
+  const fromCode = INDIAN_STATES[upper] || US_STATES[upper];
+  if (fromCode && vName && normalizePlace(fromCode) === vName) return true;
+  return false;
+}
+
+function cityMatches(target: string, geo: VisitorGeoInfo): boolean {
+  const t = normalizePlace(target);
+  const v = normalizePlace(geo.city);
+  return !!t && !!v && t === v;
+}
+
 /**
  * Evaluates whether a rule matches the incoming visitor and calculates a specificity score.
- * Higher specificity means more criteria were matched.
+ * Higher specificity means more criteria were matched. Every criterion is an exact
+ * (case/accent-insensitive) comparison: substring matching made "IN" match China and
+ * "US" match Australia.
  */
 export function evaluateRuleMatch(
   rule: LinkRule,
@@ -235,7 +303,7 @@ export function evaluateRuleMatch(
   let hasAnyFilter = false;
 
   // 1. Device match evaluation
-  const targetDevice = (rule.device || (rule.rule_type === 'device' ? rule.condition?.toLowerCase() : 'all')).trim();
+  const targetDevice = (rule.device || (rule.rule_type === 'device' ? rule.condition?.toLowerCase() : 'all') || 'all').trim();
   if (targetDevice && targetDevice !== 'all') {
     hasAnyFilter = true;
     if (targetDevice === 'android') {
@@ -250,48 +318,32 @@ export function evaluateRuleMatch(
     }
   }
 
-  // 2. City match evaluation
-  const targetCity = (rule.city || (rule.rule_type === 'geo' && rule.geo_type === 'city' ? rule.condition : '')).trim().toLowerCase();
+  // 2. City
+  const targetCity = (rule.city || (rule.rule_type === 'geo' && rule.geo_type === 'city' ? rule.condition : '') || '').trim();
   if (targetCity) {
     hasAnyFilter = true;
-    const vCity = (geo.city || '').trim().toLowerCase();
-    if (!vCity) return { isMatch: false, score: 0 };
-    const cityMatches = vCity === targetCity || vCity.includes(targetCity) || targetCity.includes(vCity);
-    if (!cityMatches) return { isMatch: false, score: 0 };
+    if (!cityMatches(targetCity, geo)) return { isMatch: false, score: 0 };
     score += 100;
   }
 
-  // 3. State / Region match evaluation
-  const targetState = (rule.state || (rule.rule_type === 'geo' && rule.geo_type === 'state' ? rule.condition : '')).trim().toLowerCase();
+  // 3. State / region
+  const targetState = (rule.state || (rule.rule_type === 'geo' && rule.geo_type === 'state' ? rule.condition : '') || '').trim();
   if (targetState) {
     hasAnyFilter = true;
-    const vRegionName = (geo.regionName || '').trim().toLowerCase();
-    const vRegionCode = (geo.regionCode || '').trim().toLowerCase();
-    const stateMatches =
-      (vRegionCode && targetState === vRegionCode) ||
-      (vRegionName && (targetState === vRegionName || vRegionName.includes(targetState) || targetState.includes(vRegionName))) ||
-      (INDIAN_STATES[targetState.toUpperCase()] && INDIAN_STATES[targetState.toUpperCase()].toLowerCase() === vRegionName) ||
-      (US_STATES[targetState.toUpperCase()] && US_STATES[targetState.toUpperCase()].toLowerCase() === vRegionName);
-    if (!stateMatches) return { isMatch: false, score: 0 };
+    if (!stateMatches(targetState, geo)) return { isMatch: false, score: 0 };
     score += 50;
   }
 
-  // 4. Country match evaluation
-  const targetCountry = (rule.country || (rule.rule_type === 'geo' && (!rule.geo_type || rule.geo_type === 'country') ? rule.condition : '')).trim().toLowerCase();
+  // 4. Country
+  const targetCountry = (rule.country || (rule.rule_type === 'geo' && (!rule.geo_type || rule.geo_type === 'country') ? rule.condition : '') || '').trim();
   if (targetCountry) {
     hasAnyFilter = true;
-    const vCountryCode = (geo.countryCode || '').trim().toLowerCase();
-    const vCountryName = (geo.countryName || '').trim().toLowerCase();
-    const countryMatches =
-      (vCountryCode && targetCountry === vCountryCode) ||
-      (vCountryName && (targetCountry === vCountryName || vCountryName.includes(targetCountry) || targetCountry.includes(vCountryName))) ||
-      (COMMON_COUNTRIES[targetCountry.toUpperCase()] && COMMON_COUNTRIES[targetCountry.toUpperCase()].toLowerCase() === vCountryName);
-    if (!countryMatches) return { isMatch: false, score: 0 };
+    if (!countryMatches(targetCountry, geo)) return { isMatch: false, score: 0 };
     score += 25;
   }
 
-  // 5. Fallback for legacy rules without explicit multi-fields
   if (!hasAnyFilter) {
+    // Legacy device rules: condition "all" historically meant "any phone"
     if (rule.rule_type === 'device') {
       const cond = rule.condition?.toLowerCase();
       if ((cond === 'android' && isAndroid) || (cond === 'ios' && isIOS) || (cond === 'all' && isMobile)) {
@@ -299,16 +351,19 @@ export function evaluateRuleMatch(
       }
       return { isMatch: false, score: 0 };
     }
+    // Legacy geo rules with only a free-text condition
     if (rule.rule_type === 'geo') {
-      const cond = rule.condition?.trim().toLowerCase();
-      const vCity = (geo.city || '').trim().toLowerCase();
-      const vRegion = (geo.regionName || '').trim().toLowerCase();
-      const vCountry = (geo.countryCode || '').trim().toLowerCase();
-      if (vCity && (vCity === cond || vCity.includes(cond))) return { isMatch: true, score: 100 };
-      if (vRegion && (vRegion === cond || vRegion.includes(cond))) return { isMatch: true, score: 50 };
-      if (vCountry && (vCountry === cond || vCountry.includes(cond))) return { isMatch: true, score: 25 };
+      const cond = rule.condition || '';
+      if (cityMatches(cond, geo)) return { isMatch: true, score: 100 };
+      if (stateMatches(cond, geo)) return { isMatch: true, score: 50 };
+      if (countryMatches(cond, geo)) return { isMatch: true, score: 25 };
       return { isMatch: false, score: 0 };
     }
+    // "All devices, anywhere" smart rule: a catch-all that loses to every specific rule
+    if (rule.rule_type === 'smart') {
+      return { isMatch: true, score: 1 };
+    }
+    return { isMatch: false, score: 0 };
   }
 
   return { isMatch: score > 0, score };

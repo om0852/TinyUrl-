@@ -242,7 +242,13 @@ export const PLATFORM_REGISTRY: PlatformRule[] = [
     icon: 'linkedin',
     domains: ['linkedin.com'],
     androidPackage: 'com.linkedin.android',
-    iosScheme: 'linkedin'
+    iosScheme: 'linkedin',
+    // The app scheme takes paths like linkedin://in/<user>, not a copy of the web host
+    customResolver: (parsed) => {
+      const path = parsed.pathname.replace(/^\/+|\/+$/g, '');
+      const supported = /^(in|company|school|groups|feed)(\/|$)/.test(path);
+      return { iosUri: supported ? `linkedin://${path}` : parsed.href };
+    }
   },
   {
     app: 'messenger',
@@ -262,7 +268,20 @@ export const PLATFORM_REGISTRY: PlatformRule[] = [
     icon: 'message-circle',
     domains: ['wa.me', 'whatsapp.com', 'api.whatsapp.com'],
     androidPackage: 'com.whatsapp',
-    iosScheme: 'whatsapp'
+    iosScheme: 'whatsapp',
+    // whatsapp://send?phone=..&text=.. is the only chat scheme the app accepts
+    customResolver: (parsed) => {
+      const host = parsed.hostname.toLowerCase();
+      const text = parsed.searchParams.get('text');
+      let phone = '';
+      if (host === 'wa.me') phone = parsed.pathname.replace(/\D/g, '');
+      else if (parsed.pathname.startsWith('/send')) phone = (parsed.searchParams.get('phone') || '').replace(/\D/g, '');
+      if (!phone && !text) return { iosUri: parsed.href };
+      const params = new URLSearchParams();
+      if (phone) params.set('phone', phone);
+      if (text) params.set('text', text);
+      return { iosUri: `whatsapp://send?${params.toString()}` };
+    }
   },
   {
     app: 'telegram',
@@ -1494,42 +1513,6 @@ PLATFORM_REGISTRY.forEach(rule => {
 });
 
 /**
- * Deterministically generates a vibrant, aesthetically pleasing color from any string.
- * Used for dynamic future platforms to ensure gorgeous conduit animations and branding.
- */
-function getHarmoniousColor(str: string): string {
-  const palette = [
-    '#4F46E5', '#6366F1', '#EC4899', '#F43F5E', '#EF4444', 
-    '#F97316', '#F59E0B', '#10B981', '#06B6D4', '#0EA5E9', 
-    '#3B82F6', '#8B5CF6', '#A855F7', '#D946EF'
-  ];
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return palette[Math.abs(hash) % palette.length];
-}
-
-/**
- * Humanizes any hostname or slug into a clean Title Case brand name.
- * e.g., 'sub-domain.awesome-app.co.uk' -> 'Awesome App'
- */
-function humanizeBrandName(host: string): string {
-  const parts = host.replace(/^www\./, '').split('.');
-  // Pick primary domain name part
-  const primary = parts.length > 2 && parts[parts.length - 2].length <= 3 
-    ? parts[parts.length - 3] || parts[0]
-    : parts[0];
-
-  return primary
-    .replace(/[-_]/g, ' ')
-    .split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-}
-
-/**
  * Detects destination platforms and formats native app URI schemes,
  * Android Intents, and cross-platform fallbacks for any device.
  * Includes an automated heuristic engine for 100% future-proof scalability.
@@ -1585,25 +1568,9 @@ export function detectAppDeepLink(url: string): DeepLinkDetection | null {
       };
     }
 
-    // 4. Automated Heuristic Dynamic Engine (Supports 100% of ANY Future Platform Additions)
-    // Extracts brand identity, formats certified Android Chrome Intent & iOS Universal routing
-    const brandName = humanizeBrandName(host);
-    const brandAppId = host.replace(/[^a-z0-9]/g, '_');
-    const brandColor = getHarmoniousColor(host);
-
-    const universalIntent = `intent://${cleanTarget}#Intent;scheme=https;S.browser_fallback_url=${encodedTarget};end;`;
-
-    return {
-      isSupported: true,
-      app: brandAppId,
-      appName: brandName,
-      color: brandColor,
-      icon: 'external-link',
-      desktopUri: parsed.href,
-      iosUri: parsed.href,
-      androidIntent: universalIntent,
-      fallbackUrl: parsed.href
-    };
+    // Unknown sites are not apps: treating every website as one made ordinary links show
+    // "Launching <Site>…" screens and app badges for things with no app to open.
+    return null;
   } catch {
     return null;
   }

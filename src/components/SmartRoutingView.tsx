@@ -6,9 +6,6 @@ import { useStore } from '@/lib/storeContext';
 import { 
   Smartphone, 
   Plus, 
-  ChevronRight, 
-  Zap, 
-  Cpu, 
   Layers, 
   Download, 
   Filter, 
@@ -18,16 +15,17 @@ import {
   MapPin,
   Globe,
   Building2,
-  Laptop
+  Laptop,
+  MousePointerClick
 } from 'lucide-react';
 import { SkeletonGenericView } from '@/components/ui/Skeleton';
+import { detectAppDeepLink } from '@/lib/deepLink';
 
 export const SmartRoutingView: React.FC = () => {
   const { 
     links, 
     addRuleToLink, 
     removeRuleFromLink, 
-    createShortLink, 
     refreshLinks,
     isLinksLoading,
     isInitialLoading
@@ -48,7 +46,6 @@ export const SmartRoutingView: React.FC = () => {
   const [targetState, setTargetState] = useState('');
   const [targetCity, setTargetCity] = useState('');
   const [ruleDestinationUrl, setRuleDestinationUrl] = useState('');
-  const [ruleFallback, setRuleFallback] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
 
   // Sync default targetLinkId when links load
@@ -62,20 +59,12 @@ export const SmartRoutingView: React.FC = () => {
     e.preventDefault();
     if (!ruleName.trim() || !ruleDestinationUrl.trim()) return;
 
-    let linkIdToUse = targetLinkId || links[0]?.id;
-    if (!linkIdToUse) {
-      const newLnk = createShortLink({
-        destination_url: ruleFallback || 'https://instagram.com',
-        title: ruleName
-      });
-      if (newLnk.link) {
-        linkIdToUse = newLnk.link.id;
-      }
-    }
-
+    // A rule needs an existing link; visitors who match no rule go to that link's destination
+    const linkIdToUse = targetLinkId || links[0]?.id;
     if (linkIdToUse) {
       addRuleToLink(linkIdToUse, {
         rule_type: 'smart',
+        condition: ruleName.trim(),
         device: selectedDevice,
         country: targetCountry.trim() || undefined,
         state: targetState.trim() || undefined,
@@ -91,7 +80,6 @@ export const SmartRoutingView: React.FC = () => {
     setTargetCity('');
     setSelectedDevice('all');
     setRuleDestinationUrl('');
-    setRuleFallback('');
     setNewRuleModalOpen(false);
   };
 
@@ -137,12 +125,15 @@ export const SmartRoutingView: React.FC = () => {
         return {
           id: r.id,
           linkId: l.id,
-          title: `${l.title || l.short_code} · ${r.condition || filterTags.join(' · ') || 'Smart Route'}`,
+          title: r.condition || filterTags.join(' · ') || 'All visitors',
+          linkLabel: l.title || l.short_code,
           code: `${l.custom_slug || l.short_code}`,
           badge,
           badgeBg,
           scheme: r.target_url,
-          openRate: r.city || r.state || r.country ? 'Geo & Device Match' : '96.2% native app rate',
+          openRate: r.city || r.state || r.country
+            ? (r.device && r.device !== 'all' ? 'Location + device' : 'Location')
+            : (r.device && r.device !== 'all' ? 'Device' : 'Everyone else'),
           filters: filterTags,
           fallback: l.destination_url,
           clicks: (l.clicks_count || 0).toLocaleString(),
@@ -152,6 +143,10 @@ export const SmartRoutingView: React.FC = () => {
       })
     );
   }, [links]);
+
+  const linksWithRules = links.filter(l => (l.rules || []).length > 0);
+  const routedClicks = linksWithRules.reduce((acc, l) => acc + (l.clicks_count || 0), 0);
+  const appLinkCount = links.filter(l => detectAppDeepLink(l.destination_url)).length;
 
   const filteredRules = dynamicRules.filter(r => 
     r.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
@@ -169,146 +164,53 @@ export const SmartRoutingView: React.FC = () => {
   return (
     <div className="flex flex-col w-full gap-8 animate-fade-in text-on-surface">
       
-      {/* 1. Top Breadcrumb & Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
-            <span className="hover:text-on-surface cursor-pointer">Workspace</span>
-            <ChevronRight className="w-3.5 h-3.5 text-outline" />
-            <span className="text-primary-ink font-semibold">Smart Routing</span>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight whitespace-nowrap">
-              OpeninApp &amp; Smart Routing Console
-            </h1>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-surface-container-low text-primary-ink text-xs font-semibold border-[0.5px] border-outline-variant whitespace-nowrap shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Engine: 99.98% Native App Bounce</span>
-            </div>
-          </div>
-
-          <p className="text-xs sm:text-sm text-on-surface-variant max-w-3xl leading-relaxed mt-0.5">
-            Deep-link mobile app handlers, iOS Universal Links, Android App Links, and device/geo intent fallbacks to bypass trapped in-app webviews seamlessly.
-          </p>
-        </div>
-
-        {/* Quick Action Buttons */}
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          <button 
-            type="button"
-            id="new-routing-rule-btn"
-            onClick={() => setNewRuleModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-container text-on-primary hover:bg-primary transition-all text-xs font-bold shadow-sm cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Routing Rule</span>
-          </button>
-        </div>
+      {/* Intro + primary action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <p className="text-xs text-on-surface-variant max-w-2xl">
+          Send visitors to different destinations by device or location. Links to apps like YouTube,
+          Instagram or Spotify open in the app on phones automatically.
+        </p>
+        <button
+          type="button"
+          id="new-routing-rule-btn"
+          onClick={() => setNewRuleModalOpen(true)}
+          className="inline-flex items-center gap-1.5 h-[34px] px-4 rounded-md bg-primary-container text-on-primary hover:bg-primary transition-colors text-xs font-medium cursor-pointer whitespace-nowrap shrink-0"
+        >
+          <Plus className="w-4 h-4" />
+          <span>New rule</span>
+        </button>
       </div>
 
-      {/* 2. KPI Metric Overview (4 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        
-        {/* Card 1 */}
-        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Pass-through Rate</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <Zap className="w-4 h-4" />
+      {/* Stats (computed from your links) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-[15px]">
+        {[
+          {
+            icon: <Layers className="w-5 h-5" />,
+            value: dynamicRules.length.toLocaleString(),
+            label: 'Routing rules',
+            hint: `On ${linksWithRules.length} ${linksWithRules.length === 1 ? 'link' : 'links'}`,
+          },
+          {
+            icon: <Smartphone className="w-5 h-5" />,
+            value: appLinkCount.toLocaleString(),
+            label: 'App links',
+            hint: 'Open in the app on phones',
+          },
+          {
+            icon: <MousePointerClick className="w-5 h-5" />,
+            value: routedClicks.toLocaleString(),
+            label: 'Clicks on routed links',
+            hint: 'All clicks on links with rules',
+          },
+        ].map(card => (
+          <div key={card.label} className="flex items-center gap-[10px] rounded-xl border-[0.5px] border-outline-variant p-[15px]">
+            <div className="grid size-[40px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{card.icon}</div>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-on-surface">{card.value}</div>
+              <p className="text-xs text-outline truncate">{card.label} · {card.hint}</p>
             </div>
           </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">
-                {dynamicRules.length > 0 ? '100%' : '0%'}
-              </span>
-              <span className="inline-flex items-center text-xs text-emerald-700 font-bold">
-                {dynamicRules.length > 0 ? 'Live' : 'Standby'}
-              </span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1">
-              {dynamicRules.length > 0 ? 'Active native app handoff enabled' : 'No routing rules active'}
-            </p>
-          </div>
-          <div className="mt-4 h-1.5 w-full bg-surface-container-low rounded-full overflow-hidden">
-            <div className="h-full bg-primary-container rounded-full" style={{ width: dynamicRules.length > 0 ? '100%' : '0%' }} />
-          </div>
-        </div>
-
-        {/* Card 2 */}
-        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Bypassed Webviews</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <ExternalLink className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">
-                {links.filter(l => l.deep_link?.enabled || (l.rules && l.rules.length > 0)).reduce((acc, l) => acc + (l.clicks_count || 0), 0).toLocaleString()}
-              </span>
-              <span className="text-xs text-on-surface-variant font-medium">clicks</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1">Direct to native YouTube, IG &amp; TikTok</p>
-          </div>
-          <div className="mt-4 flex items-center gap-1 h-2">
-            <div className="h-full bg-primary-container/20 flex-1 rounded-sm" />
-            <div className="h-full bg-primary-container/30 flex-1 rounded-sm" />
-            <div className="h-full bg-primary-container/50 flex-1 rounded-sm" />
-            <div className="h-full bg-primary-container/70 flex-1 rounded-sm" />
-            <div className="h-full bg-primary-container/90 flex-1 rounded-sm" />
-            <div className="h-full bg-primary-container flex-1 rounded-sm" />
-          </div>
-        </div>
-
-        {/* Card 3 */}
-        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Active Deep-Link Rules</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <Layers className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{dynamicRules.length}</span>
-              <span className="text-xs text-primary-ink font-semibold">rules active</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1">
-              Across {links.length} configured links
-            </p>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <span className={`w-2 h-2 rounded-full ${dynamicRules.length > 0 ? 'bg-emerald-500' : 'bg-outline'}`} />
-            <span>{dynamicRules.length > 0 ? 'Zero collisions detected' : 'No rules created yet'}</span>
-          </div>
-        </div>
-
-        {/* Card 4 */}
-        <div className="p-6 rounded-xl bg-surface-container-lowest shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-start justify-between">
-            <span className="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">Direct Handoff Latency</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <Cpu className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">
-                {dynamicRules.length > 0 ? '12ms' : '0ms'}
-              </span>
-              <span className="text-xs text-emerald-700 font-bold">Edge-V8</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1">Sub-15ms edge resolution</p>
-          </div>
-          <div className="mt-4 flex items-center gap-1.5 font-mono text-[11px] text-on-surface-variant">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span>us-east &bull; eu-central &bull; ap-southeast</span>
-          </div>
-        </div>
-
+        ))}
       </div>
 
       {/* 3. Routing Rules Data Table Section */}
@@ -400,7 +302,7 @@ export const SmartRoutingView: React.FC = () => {
                       </div>
                       <div>
                         <div className="font-bold text-on-surface">{rule.title}</div>
-                        <div className="font-mono text-primary-ink text-xs font-semibold">{rule.code}</div>
+                        <div className="text-xs text-on-surface-variant"><span className="font-mono text-primary-ink">/{rule.code}</span> · {rule.linkLabel}</div>
                       </div>
                     </div>
                   </td>
@@ -499,7 +401,7 @@ export const SmartRoutingView: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                       <div className="font-bold text-sm text-on-surface truncate">{rule.title}</div>
-                      <div className="font-mono text-primary-ink text-xs font-semibold">/{rule.code}</div>
+                      <div className="text-xs text-on-surface-variant truncate"><span className="font-mono text-primary-ink">/{rule.code}</span> · {rule.linkLabel}</div>
                     </div>
                   </div>
                   <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
@@ -811,17 +713,9 @@ export const SmartRoutingView: React.FC = () => {
                 />
               </div>
 
-              {/* 4. FALLBACK WEB URL */}
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Fallback Web URL (Default)</label>
-                <input 
-                  type="url"
-                  placeholder="https://example.com/fallback-page"
-                  value={ruleFallback}
-                  onChange={(e) => setRuleFallback(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong text-on-surface font-mono text-[11px]"
-                />
-              </div>
+              <p className="text-[11px] text-outline">
+                Visitors who don’t match any rule go to the link’s normal destination.
+              </p>
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-3">
@@ -834,9 +728,10 @@ export const SmartRoutingView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
+                  disabled={links.length === 0}
+                  className="px-5 py-2 rounded-lg bg-primary-container text-on-primary font-medium hover:bg-primary cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Save Smart Rule
+                  Save rule
                 </button>
               </div>
             </form>
