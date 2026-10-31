@@ -180,6 +180,7 @@ export async function verifyWorkspacePermission(
           keyPerms.includes('admin') ||
           keyPerms.includes(requiredPermission) ||
           (requiredPermission.startsWith('links:') && keyPerms.includes('links:write')) ||
+          (requiredPermission === 'links:read' && (keyPerms.includes('links:create') || keyPerms.includes('links:edit'))) ||
           (requiredPermission === 'export:data' && (keyPerms.includes('links:read') || keyPerms.includes('analytics:read')));
 
         if (!hasApiKeyPerm) {

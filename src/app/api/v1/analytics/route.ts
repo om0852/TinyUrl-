@@ -267,55 +267,34 @@ export async function GET(request: Request) {
             latency_ms: Number(c.latency_ms) || 0
           };
         });
+
+        // Compute top regions & cities from clicks
+        const regMap = new Map<string, number>();
+        const cityMap = new Map<string, { city: string; region?: string; country?: string; clicks: number }>();
+
+        recentClicks.forEach((c) => {
+          if (c.region && c.region !== 'Unknown') {
+            regMap.set(c.region, (regMap.get(c.region) || 0) + 1);
+          }
+          if (c.city && c.city !== 'Direct' && c.city !== 'Unknown') {
+            const key = `${c.city}_${c.region || ''}`;
+            const existing = cityMap.get(key) || { city: c.city, region: c.region, country: c.country, clicks: 0 };
+            existing.clicks += 1;
+            cityMap.set(key, existing);
+          }
+        });
+
+        topRegions = Array.from(regMap.entries())
+          .map(([region, clicks]) => ({ region, clicks }))
+          .sort((a, b) => b.clicks - a.clicks)
+          .slice(0, 5);
+
+        topCities = Array.from(cityMap.values())
+          .sort((a, b) => b.clicks - a.clicks)
+          .slice(0, 5);
       }
     } catch (e) {
       console.warn('Recent clicks fetch error:', e);
-    }
-
-    // Top regions & cities are aggregated over ALL clicks (same scope as top countries),
-    // not just the 100 most recent rows, so they stay consistent with the totals.
-    try {
-      const isSingleLink = !!(code && code !== 'all');
-      const scopeFilter = isSingleLink
-        ? `LOWER(c.short_code) = $1`
-        : `EXISTS (
-             SELECT 1 FROM links l
-             WHERE l.workspace_id = $1 AND (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code))
-           )`;
-      const scopeParam = isSingleLink ? code : workspaceId;
-
-      const [regionRows, cityRows] = !scopeParam ? [[], []] : await Promise.all([
-        sql.query(`
-          SELECT c.region, COUNT(*)::int AS clicks
-          FROM click_events c
-          WHERE ${scopeFilter}
-            AND c.region IS NOT NULL AND c.region <> '' AND c.region <> 'Unknown'
-          GROUP BY c.region
-          ORDER BY clicks DESC, MAX(c.timestamp) DESC
-          LIMIT 5
-        `, [scopeParam]) as unknown as Promise<Array<{ region: string; clicks: number | string }>>,
-        sql.query(`
-          SELECT c.city, NULLIF(c.region, '') AS region,
-                 (ARRAY_AGG(c.country ORDER BY c.timestamp DESC))[1] AS country,
-                 COUNT(*)::int AS clicks
-          FROM click_events c
-          WHERE ${scopeFilter}
-            AND c.city IS NOT NULL AND c.city <> '' AND c.city NOT IN ('Direct', 'Unknown')
-          GROUP BY c.city, NULLIF(c.region, '')
-          ORDER BY clicks DESC, MAX(c.timestamp) DESC
-          LIMIT 5
-        `, [scopeParam]) as unknown as Promise<Array<{ city: string; region?: string | null; country?: string | null; clicks: number | string }>>
-      ]);
-
-      topRegions = (regionRows || []).map((r) => ({ region: r.region, clicks: Number(r.clicks) || 0 }));
-      topCities = (cityRows || []).map((r) => ({
-        city: r.city,
-        region: r.region || undefined,
-        country: r.country || undefined,
-        clicks: Number(r.clicks) || 0
-      }));
-    } catch (e) {
-      console.warn('Top regions/cities aggregation error:', e);
     }
   }
 
