@@ -196,17 +196,17 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-surface-container-lowest text-on-surface antialiased font-sans selection:bg-primary-container/20 selection:text-primary-container">
+    <div className="min-h-screen bg-surface-container-lowest text-on-surface antialiased font-sans selection:bg-primary-container/20 selection:text-primary-ink">
       
       {/* 1. FIXED TOP NAVBAR */}
-      <header className="fixed top-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/30">
+      <header className="fixed top-0 w-full z-50 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant">
         <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           
           {/* Logo & Navigation */}
           <div className="flex items-center gap-6 sm:gap-8">
             <a href="#" className="flex items-center gap-2.5 group">
               <img 
-                src="/senior_brand_identity_designer._1024x1024_production_app_store_icon_for_snip.png"
+                src="/snip-logo.svg"
                 alt="Snip Creator Logo" 
                 className="w-9 h-9 rounded-xl object-contain shadow-sm group-hover:scale-105 transition-transform"
               />
@@ -273,7 +273,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
         {/* Mobile Navigation Dropdown Menu */}
         {mobileNavOpen && (
-          <div className="md:hidden bg-surface-container-lowest border-t border-outline-variant/30 px-4 py-4 space-y-3 animate-fade-in shadow-xl">
+          <div className="md:hidden bg-surface-container-lowest border-t-[0.5px] border-outline-variant px-4 py-4 space-y-3 animate-fade-in shadow-xl">
             <nav className="flex flex-col space-y-1 text-sm font-semibold text-on-surface-variant">
               <a 
                 href="#features" 
@@ -309,11 +309,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 className="py-2.5 px-3 rounded-lg hover:bg-surface-container-low hover:text-on-surface transition flex items-center justify-between"
               >
                 <span>Client Portal</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container-high text-primary-container">Agency</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container-high text-primary-ink">Agency</span>
               </Link>
             </nav>
 
-            <div className="pt-2 border-t border-outline-variant/20 flex flex-col gap-2">
+            <div className="pt-2 border-t-[0.5px] border-outline-variant flex flex-col gap-2">
               {currentUser ? (
                 <button
                   type="button"
@@ -333,7 +333,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                       setMobileNavOpen(false);
                       onOpenAuth('login');
                     }}
-                    className="py-2 px-3 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold text-center border border-outline-variant/30 cursor-pointer"
+                    className="py-2 px-3 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold text-center border-[0.5px] border-outline-variant cursor-pointer"
                   >
                     Log In
                   </button>
@@ -358,13 +358,13 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
       <main className="w-full pt-16">
         
         {/* Top Notification Announcement Bar */}
-        <section className="w-full bg-surface-container-low py-2 text-center border-b border-outline-variant/30">
+        <section className="w-full bg-surface-container-low py-2 text-center border-b border-outline-variant">
           <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-2 text-xs">
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary-container text-on-primary">
               New
             </span>
             <span className="text-on-surface font-medium">Dynamic QR Code generator 2.0 & OpeninApp routing are now live</span>
-            <a href="#features" className="text-primary-container hover:underline font-semibold ml-1 inline-flex items-center gap-0.5">
+            <a href="#features" className="text-primary-ink hover:underline font-semibold ml-1 inline-flex items-center gap-0.5">
               Learn more <ArrowRight className="w-3 h-3" />
             </a>
           </div>
@@ -375,7 +375,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center">
             
             {/* Creator Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-surface-container-high mb-6 shadow-xs border border-outline-variant/30">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md bg-surface-container-high mb-6 shadow-xs border border-outline-variant">
               <span className="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
               <span className="text-xs text-on-surface-variant font-semibold">Built for modern creators & influencers</span>
             </div>
@@ -389,7 +389,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </p>
 
             {/* Interactive Shorten Card */}
-            <div className="w-full max-w-3xl bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-4 sm:p-6 text-left">
+            <div className="w-full max-w-3xl bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-4 sm:p-6 text-left">
               <form onSubmit={handleShorten} className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-outline">
@@ -412,7 +412,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                       }
                     }}
                     placeholder={currentUser ? "Paste a long URL (e.g. https://yourcompany.com/product-launch)" : "Sign in to shorten & brand links (Click to sign in)"}
-                    className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest rounded-lg text-sm font-medium text-on-surface placeholder:text-outline border border-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary-container shadow-inner transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-surface-container-lowest rounded-lg text-sm font-medium text-on-surface placeholder:text-outline border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong shadow-inner transition-all"
                   />
                 </div>
                 <button
@@ -434,12 +434,12 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               {/* Login Required Notice for unauthenticated users */}
               {!currentUser && (
                 <div className="mt-3 flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
-                  <Lock className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                  <Lock className="w-3.5 h-3.5 text-primary-ink shrink-0" />
                   <span>Account required to generate short links, track analytics, and customize slugs.</span>
                   <button 
                     type="button" 
                     onClick={() => onOpenAuth('login')} 
-                    className="text-primary-container font-semibold hover:underline cursor-pointer ml-1 inline-flex items-center gap-0.5"
+                    className="text-primary-ink font-semibold hover:underline cursor-pointer ml-1 inline-flex items-center gap-0.5"
                   >
                     Log in <ArrowRight className="w-3 h-3" />
                   </button>
@@ -448,15 +448,15 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
               {/* Instant Output Result Card */}
               {currentLink && (
-                <div className="mt-4 p-4 rounded-lg bg-surface-container-low border border-outline-variant/30 flex flex-col gap-3 transition-all">
+                <div className="mt-4 p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col gap-3 transition-all">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
                         <ShieldCheck className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-primary-container truncate">
+                          <span className="font-mono text-sm font-bold text-primary-ink truncate">
                             {currentLink.fullUrl}
                           </span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-100 text-emerald-800">
@@ -474,7 +474,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                       <button
                         type="button"
                         onClick={handleCopy}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high text-xs font-semibold shadow-xs border border-outline-variant/40 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high text-xs font-semibold shadow-xs border-[0.5px] border-outline-variant transition-all cursor-pointer"
                       >
                         {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                         <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -483,7 +483,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                         type="button"
                         onClick={() => setQrModalOpen(true)}
                         title="Download QR code"
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high text-xs font-semibold shadow-xs border border-outline-variant/40 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high text-xs font-semibold shadow-xs border-[0.5px] border-outline-variant transition-all cursor-pointer"
                       >
                         <QrCode className="w-4 h-4" />
                         <span className="hidden sm:inline">QR</span>
@@ -492,7 +492,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                         type="button"
                         onClick={() => setAliasDrawerOpen(prev => !prev)}
                         title="Edit alias slug"
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high text-xs font-semibold shadow-xs border border-outline-variant/40 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface hover:bg-surface-container-high text-xs font-semibold shadow-xs border-[0.5px] border-outline-variant transition-all cursor-pointer"
                       >
                         <Edit3 className="w-4 h-4" />
                         <span className="hidden sm:inline">Alias</span>
@@ -502,7 +502,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
                   {/* Edit Alias Drawer */}
                   {aliasDrawerOpen && (
-                    <div className="pt-3 bg-surface-container-lowest p-3.5 rounded-lg border border-outline-variant/40 mt-1">
+                    <div className="pt-3 bg-surface-container-lowest p-3.5 rounded-lg border-[0.5px] border-outline-variant mt-1">
                       <label className="block text-xs font-semibold text-on-surface-variant mb-1.5">
                         Customize URL Back-half:
                       </label>
@@ -512,7 +512,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                           type="text"
                           value={aliasInput}
                           onChange={(e) => setAliasInput(e.target.value)}
-                          className="flex-1 px-3 py-1.5 text-xs font-mono rounded-lg bg-surface-container-low text-on-surface border border-outline-variant/40 focus:outline-none focus:ring-1 focus:ring-primary-container"
+                          className="flex-1 px-3 py-1.5 text-xs font-mono rounded-lg bg-surface-container-low text-on-surface border-[0.5px] border-outline-variant focus:outline-none focus:ring-1 focus:ring-primary-strong"
                         />
                         <button
                           type="button"
@@ -547,42 +547,42 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 max-w-4xl">
                 
                 {/* YouTube */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-600"></span>
                   <span className="text-xs text-on-surface font-semibold">YouTube</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">1.2M+</span>
                 </div>
 
                 {/* Instagram */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-pink-600"></span>
                   <span className="text-xs text-on-surface font-semibold">Instagram</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Bio & Stories</span>
                 </div>
 
                 {/* TikTok */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-black dark:bg-white"></span>
                   <span className="text-xs text-on-surface font-semibold">TikTok</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Profile</span>
                 </div>
 
                 {/* X / Twitter */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant shadow-xs">
                   <span className="text-xs font-bold text-on-surface">𝕏</span>
                   <span className="text-xs text-on-surface font-semibold">X / Twitter</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Posts</span>
                 </div>
 
                 {/* Twitch */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-purple-600"></span>
                   <span className="text-xs text-on-surface font-semibold">Twitch</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Panels</span>
                 </div>
 
                 {/* Substack */}
-                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border border-outline-variant/30 shadow-xs">
+                <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant shadow-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
                   <span className="text-xs text-on-surface font-semibold">Substack</span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] bg-surface-container-lowest text-on-surface-variant font-mono">Newsletters</span>
@@ -595,10 +595,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
         </section>
 
         {/* 4. CORE FEATURES SECTION */}
-        <section className="w-full bg-surface-container-low py-16 lg:py-24 border-t border-outline-variant/20" id="features">
+        <section className="w-full bg-surface-container-low py-16 lg:py-24 border-t border-outline-variant" id="features">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl mx-auto text-center mb-14">
-              <span className="text-xs uppercase tracking-wider text-primary-container font-bold">
+              <span className="text-xs uppercase tracking-wider text-primary-ink font-bold">
                 Purpose-Built Architecture
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface mt-2 mb-4 tracking-tight">
@@ -612,29 +612,29 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               
               {/* Feature 1 */}
-              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant">
                 <div>
-                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink mb-5">
                     <Globe2 className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
                     Branded Custom Links
                   </h3>
                   <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
-                    Use your own vanity domain or custom back-half (<span className="font-mono text-primary-container text-xs">snip.to/yourname</span>) that followers trust and recognize instantly.
+                    Use your own vanity domain or custom back-half (<span className="font-mono text-primary-ink text-xs">snip.to/yourname</span>) that followers trust and recognize instantly.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-outline-variant/30">
-                  <span className="inline-flex items-center text-xs font-semibold text-primary-container gap-1">
+                <div className="mt-6 pt-4 border-t border-outline-variant">
+                  <span className="inline-flex items-center text-xs font-semibold text-primary-ink gap-1">
                     Zero DNS headaches <Check className="w-3.5 h-3.5" />
                   </span>
                 </div>
               </div>
 
               {/* Feature 2 */}
-              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant">
                 <div>
-                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink mb-5">
                     <BarChart3 className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -644,17 +644,17 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     See exactly where traffic originates—Instagram bio, YouTube description, TikTok stories, or X posts—without cookie banners.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-outline-variant/30">
-                  <span className="inline-flex items-center text-xs font-semibold text-primary-container gap-1">
+                <div className="mt-6 pt-4 border-t border-outline-variant">
+                  <span className="inline-flex items-center text-xs font-semibold text-primary-ink gap-1">
                     Native in-app tracking <TrendingUp className="w-3.5 h-3.5" />
                   </span>
                 </div>
               </div>
 
               {/* Feature 3 */}
-              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant">
                 <div>
-                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink mb-5">
                     <QrCode className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -664,17 +664,17 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     Generate high-resolution vector QR codes with customizable colors and download formats ready for print merch or video overlays.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-outline-variant/30">
-                  <span className="inline-flex items-center text-xs font-semibold text-primary-container gap-1">
+                <div className="mt-6 pt-4 border-t border-outline-variant">
+                  <span className="inline-flex items-center text-xs font-semibold text-primary-ink gap-1">
                     SVG, PNG & PDF exports <Download className="w-3.5 h-3.5" />
                   </span>
                 </div>
               </div>
 
               {/* Feature 4 */}
-              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant/40">
+              <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between border border-outline-variant">
                 <div>
-                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-container mb-5">
+                  <div className="w-11 h-11 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink mb-5">
                     <Smartphone className="w-6 h-6" />
                   </div>
                   <h3 className="text-base font-bold text-on-surface mb-2">
@@ -684,8 +684,8 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                     Automatically launch YouTube, Instagram, Spotify, and TikTok native mobile apps directly, bypassing restricted in-app webviews.
                   </p>
                 </div>
-                <div className="mt-6 pt-4 border-t border-outline-variant/30">
-                  <span className="inline-flex items-center text-xs font-semibold text-primary-container gap-1">
+                <div className="mt-6 pt-4 border-t border-outline-variant">
+                  <span className="inline-flex items-center text-xs font-semibold text-primary-ink gap-1">
                     Direct app launches <Sparkles className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -696,10 +696,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
         </section>
 
         {/* 4.5 OFFICIAL APP STORE PRODUCT SHOWCASE */}
-        <section className="w-full bg-surface-container-lowest py-16 lg:py-20 border-t border-outline-variant/20 overflow-hidden">
+        <section className="w-full bg-surface-container-lowest py-16 lg:py-20 border-t-[0.5px] border-outline-variant overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto text-center mb-12">
-              <span className="text-xs uppercase tracking-wider text-primary-container font-bold">
+              <span className="text-xs uppercase tracking-wider text-primary-ink font-bold">
                 Platform Experience
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface mt-2 mb-4 tracking-tight">
@@ -712,8 +712,8 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
               {/* Screenshot 1 */}
-              <div className="group rounded-xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
-                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
+              <div className="group rounded-xl bg-surface-container-low p-3 border-[0.5px] border-outline-variant shadow-md hover:shadow-xl transition-all flex flex-col">
+                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant">
                   <img 
                     src="/official_app_store_marketing_screenshot_1_title_card_the_hook_for_snip_creator.png"
                     alt="Snip Creator - The Hook Title Card"
@@ -721,15 +721,15 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   />
                 </div>
                 <div className="p-4 pt-3 flex flex-col">
-                  <span className="text-[11px] font-bold text-primary-container uppercase tracking-wider">Command Center</span>
+                  <span className="text-[11px] font-bold text-primary-ink uppercase tracking-wider">Command Center</span>
                   <h4 className="text-sm font-bold text-on-surface mt-1">Direct Intent &amp; Routing Hook</h4>
                   <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">Bypass trapped webviews with one-tap deep linking into native apps.</p>
                 </div>
               </div>
 
               {/* Screenshot 2 */}
-              <div className="group rounded-xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
-                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
+              <div className="group rounded-xl bg-surface-container-low p-3 border-[0.5px] border-outline-variant shadow-md hover:shadow-xl transition-all flex flex-col">
+                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant">
                   <img 
                     src="/official_app_store_marketing_screenshot_2_key_feature_for_snip_creator_app..png"
                     alt="Key Feature Deep Dive"
@@ -737,15 +737,15 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   />
                 </div>
                 <div className="p-4 pt-3 flex flex-col">
-                  <span className="text-[11px] font-bold text-primary-container uppercase tracking-wider">Key Utilities</span>
+                  <span className="text-[11px] font-bold text-primary-ink uppercase tracking-wider">Key Utilities</span>
                   <h4 className="text-sm font-bold text-on-surface mt-1">Real-Time Performance Engine</h4>
                   <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">Aggregated metrics, automated UTM tags, and high-velocity link generation.</p>
                 </div>
               </div>
 
               {/* Screenshot 3 */}
-              <div className="group rounded-xl bg-surface-container-low p-3 border border-outline-variant/30 shadow-md hover:shadow-xl transition-all flex flex-col">
-                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant/20">
+              <div className="group rounded-xl bg-surface-container-low p-3 border-[0.5px] border-outline-variant shadow-md hover:shadow-xl transition-all flex flex-col">
+                <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant">
                   <img 
                     src="/official_app_store_marketing_screenshot_3_visual_polish_utilities_for_snip.png"
                     alt="Visual Polish & Utilities"
@@ -753,7 +753,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   />
                 </div>
                 <div className="p-4 pt-3 flex flex-col">
-                  <span className="text-[11px] font-bold text-primary-container uppercase tracking-wider">Enterprise Reliability</span>
+                  <span className="text-[11px] font-bold text-primary-ink uppercase tracking-wider">Enterprise Reliability</span>
                   <h4 className="text-sm font-bold text-on-surface mt-1">Zero-Trust Threat Shield</h4>
                   <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">Automatic 404 killswitches, bot filtering, and verified SSL health inspection.</p>
                 </div>
@@ -768,7 +768,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             
             {/* Section Header */}
             <div className="max-w-3xl mb-12">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface-container text-primary-container text-xs font-bold mb-3 border border-outline-variant/30">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-surface-container text-primary-ink text-xs font-bold mb-3 border border-outline-variant">
                 <BarChart3 className="w-3.5 h-3.5" />
                 <span>Zero Guesswork</span>
               </div>
@@ -781,10 +781,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </div>
 
             {/* Dashboard Mockup Card */}
-            <div className="bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-6 lg:p-8 overflow-hidden">
+            <div className="bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-6 lg:p-8 overflow-hidden">
               
               {/* Mockup Top Bar */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 gap-4 border-b border-outline-variant/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 gap-4 border-b border-outline-variant">
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-sm shadow-xs">
                     SC
@@ -792,7 +792,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-bold text-on-surface">Sarah Connor Media</h4>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-primary-container">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-surface-container text-primary-ink">
                         Pro Creator
                       </span>
                     </div>
@@ -801,11 +801,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant/30">
+                  <span className="px-3 py-1.5 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold flex items-center gap-1.5 border border-outline-variant">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     Live Tracking
                   </span>
-                  <div className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant text-xs font-semibold border border-outline-variant/40 shadow-xs">
+                  <div className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface-variant text-xs font-semibold border-[0.5px] border-outline-variant shadow-xs">
                     Last 14 Days
                   </div>
                 </div>
@@ -813,7 +813,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
               {/* 4 Metric Cards Grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 my-8">
-                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant">
                   <span className="text-xs text-on-surface-variant font-semibold">Total Clicks</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold font-mono text-on-surface">48,250</span>
@@ -824,16 +824,16 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <span className="text-[11px] text-outline mt-1 block">vs. previous period</span>
                 </div>
 
-                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant">
                   <span className="text-xs text-on-surface-variant font-semibold">Top Traffic Origin</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold text-on-surface">YouTube</span>
-                    <span className="text-xs font-bold text-primary-container">52.0%</span>
+                    <span className="text-xs font-bold text-primary-ink">52.0%</span>
                   </div>
                   <span className="text-[11px] text-outline mt-1 block">Main video description</span>
                 </div>
 
-                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant">
                   <span className="text-xs text-on-surface-variant font-semibold">Mobile Device Ratio</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold font-mono text-on-surface">84.0%</span>
@@ -842,7 +842,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <span className="text-[11px] text-outline mt-1 block">iOS: 62% • Android: 22%</span>
                 </div>
 
-                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant/20">
+                <div className="p-4 rounded-lg bg-surface-container-low border border-outline-variant">
                   <span className="text-xs text-on-surface-variant font-semibold">Conversion Rate</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-2xl font-extrabold font-mono text-on-surface">18.6%</span>
@@ -856,13 +856,13 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
                 {/* Main Timeline Chart (7 cols) */}
-                <div className="lg:col-span-7 bg-surface-container-low p-5 rounded-lg border border-outline-variant/20">
+                <div className="lg:col-span-7 bg-surface-container-low p-5 rounded-lg border border-outline-variant">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h5 className="text-sm font-bold text-on-surface">Click Velocity (14-Day Timeline)</h5>
                       <p className="text-xs text-on-surface-variant">Aggregated direct and in-app referrals</p>
                     </div>
-                    <span className="font-mono text-xs text-primary-container font-bold bg-surface-container-lowest px-2.5 py-1 rounded-md border border-outline-variant/30 shadow-xs">
+                    <span className="font-mono text-xs text-primary-ink font-bold bg-surface-container-lowest px-2.5 py-1 rounded-md border-[0.5px] border-outline-variant shadow-xs">
                       Peak: 4,920 clicks / day
                     </span>
                   </div>
@@ -871,15 +871,15 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   <div className="w-full h-56 relative flex items-end">
                     <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 600 200">
                       {/* Gridlines */}
-                      <line x1="0" y1="20" x2="600" y2="20" stroke="#dce2f7" strokeWidth="1" strokeDasharray="3 3" />
-                      <line x1="0" y1="70" x2="600" y2="70" stroke="#dce2f7" strokeWidth="1" strokeDasharray="3 3" />
-                      <line x1="0" y1="120" x2="600" y2="120" stroke="#dce2f7" strokeWidth="1" strokeDasharray="3 3" />
-                      <line x1="0" y1="170" x2="600" y2="170" stroke="#dce2f7" strokeWidth="1" />
+                      <line x1="0" y1="20" x2="600" y2="20" stroke="#e8e8e8" strokeWidth="1" strokeDasharray="3 3" />
+                      <line x1="0" y1="70" x2="600" y2="70" stroke="#e8e8e8" strokeWidth="1" strokeDasharray="3 3" />
+                      <line x1="0" y1="120" x2="600" y2="120" stroke="#e8e8e8" strokeWidth="1" strokeDasharray="3 3" />
+                      <line x1="0" y1="170" x2="600" y2="170" stroke="#e8e8e8" strokeWidth="1" />
                       
                       {/* Area Fill */}
                       <path
                         d="M 0,160 Q 40,150 80,130 T 160,110 T 240,60 T 320,40 T 400,90 T 480,30 T 560,75 L 600,65 L 600,170 L 0,170 Z"
-                        fill="#4f46e5"
+                        fill="#65a30d"
                         fillOpacity="0.12"
                       />
                       
@@ -887,14 +887,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                       <path
                         d="M 0,160 Q 40,150 80,130 T 160,110 T 240,60 T 320,40 T 400,90 T 480,30 T 560,75 L 600,65"
                         fill="none"
-                        stroke="#4f46e5"
+                        stroke="#65a30d"
                         strokeWidth="3.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                       
                       {/* Peak Marker Dot */}
-                      <circle cx="480" cy="30" r="5" fill="#4f46e5" stroke="#ffffff" strokeWidth="2.5" />
+                      <circle cx="480" cy="30" r="5" fill="#65a30d" stroke="#ffffff" strokeWidth="2.5" />
                     </svg>
 
                     {/* Tooltip Pill */}
@@ -916,7 +916,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
                 {/* Breakdown by Platform Column (5 cols) */}
                 <div className="lg:col-span-5 flex flex-col gap-6">
-                  <div className="bg-surface-container-low p-5 rounded-lg border border-outline-variant/20">
+                  <div className="bg-surface-container-low p-5 rounded-lg border border-outline-variant">
                     <h5 className="text-sm font-bold text-on-surface mb-4">Traffic by Channel</h5>
                     <div className="space-y-4">
                       
@@ -976,7 +976,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   </div>
 
                   {/* Geography Pill */}
-                  <div className="bg-surface-container-low p-5 rounded-lg flex items-center justify-between border border-outline-variant/20">
+                  <div className="bg-surface-container-low p-5 rounded-lg flex items-center justify-between border border-outline-variant">
                     <div>
                       <span className="text-xs text-on-surface-variant font-medium">Top Countries</span>
                       <p className="text-xs sm:text-sm font-bold text-on-surface mt-0.5">🇺🇸 US 46% • 🇬🇧 UK 24% • 🇨🇦 CA 14%</p>
@@ -997,10 +997,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
         </section>
 
         {/* 6. PRICING SECTION */}
-        <section className="w-full bg-surface-container-low py-16 lg:py-24 border-t border-outline-variant/20" id="pricing">
+        <section className="w-full bg-surface-container-low py-16 lg:py-24 border-t border-outline-variant" id="pricing">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-3xl mx-auto text-center mb-16">
-              <span className="text-xs uppercase tracking-wider text-primary-container font-bold">
+              <span className="text-xs uppercase tracking-wider text-primary-ink font-bold">
                 Fair & Scalable
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight mt-2 mb-3">
@@ -1015,7 +1015,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch max-w-6xl mx-auto">
               
               {/* Free Tier */}
-              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xs border border-outline-variant/40 flex flex-col justify-between">
+              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
                 <div>
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-on-surface">Free</h3>
@@ -1027,19 +1027,19 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   </div>
                   <ul className="space-y-3.5 mb-8 text-xs text-on-surface">
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>100 short links / month</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Standard <strong className="font-mono">{originDomain}</strong> links</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Basic 30-day analytics</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>1 Dynamic QR code</span>
                     </li>
                     <li className="flex items-center gap-2.5 text-on-surface-variant">
@@ -1058,7 +1058,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Creator Tier (Featured) */}
-              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xl border-2 border-primary-container flex flex-col justify-between relative transform lg:-translate-y-2">
+              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xl border-2 border-primary-strong flex flex-col justify-between relative transform lg:-translate-y-2">
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary-container text-on-primary rounded-md text-[11px] font-bold tracking-wide uppercase shadow-sm">
                   Most popular
                 </div>
@@ -1073,27 +1073,27 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   </div>
                   <ul className="space-y-3.5 mb-8 text-xs text-on-surface">
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span className="font-semibold">Unlimited short links</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>3 custom branded vanity domains</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Real-time social origin breakdown</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Unlimited vector QR codes</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>OpeninApp native deep routing</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Priority support</span>
                     </li>
                   </ul>
@@ -1108,7 +1108,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               </div>
 
               {/* Business Tier */}
-              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xs border border-outline-variant/40 flex flex-col justify-between">
+              <div className="bg-surface-container-lowest rounded-xl p-8 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
                 <div>
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-on-surface">Business</h3>
@@ -1120,27 +1120,27 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   </div>
                   <ul className="space-y-3.5 mb-8 text-xs text-on-surface">
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Everything in Creator, plus:</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>10 team seats with role permissions</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>10 custom branded domains</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>UTM campaign batch builder</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Developer API & Webhooks</span>
                     </li>
                     <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <CheckCircle2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span>Dedicated account manager</span>
                     </li>
                   </ul>
@@ -1159,10 +1159,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
         </section>
 
         {/* 7. FAQ ACCORDION SECTION */}
-        <section className="w-full bg-surface-container-lowest py-16 lg:py-24 border-t border-outline-variant/20" id="faq">
+        <section className="w-full bg-surface-container-lowest py-16 lg:py-24 border-t border-outline-variant" id="faq">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
-              <span className="text-xs uppercase tracking-wider text-primary-container font-bold">
+              <span className="text-xs uppercase tracking-wider text-primary-ink font-bold">
                 Got Questions?
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight mt-2 mb-3">
@@ -1176,7 +1176,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <div className="space-y-4">
               
               {/* Item 1 */}
-              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border-[0.5px] border-outline-variant p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(1)}
@@ -1186,14 +1186,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   {openFaq === 1 ? <ChevronUp className="w-5 h-5 text-outline" /> : <ChevronDown className="w-5 h-5 text-outline" />}
                 </button>
                 {openFaq === 1 && (
-                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t border-outline-variant/20 leading-relaxed animate-fade-in">
+                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t-[0.5px] border-outline-variant leading-relaxed animate-fade-in">
                     Yes! You can connect your custom domain like <code className="font-mono text-xs bg-surface-container px-1.5 py-0.5 rounded">links.yourbrand.com</code> in less than 2 minutes via standard CNAME records. We provision automatic, auto-renewing SSL certificates instantly.
                   </div>
                 )}
               </div>
 
               {/* Item 2 */}
-              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border-[0.5px] border-outline-variant p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(2)}
@@ -1203,14 +1203,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   {openFaq === 2 ? <ChevronUp className="w-5 h-5 text-outline" /> : <ChevronDown className="w-5 h-5 text-outline" />}
                 </button>
                 {openFaq === 2 && (
-                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t border-outline-variant/20 leading-relaxed animate-fade-in">
+                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t-[0.5px] border-outline-variant leading-relaxed animate-fade-in">
                     Free links remain active indefinitely. You never have to worry about broken links in your old YouTube descriptions or evergreen podcast show notes. If you downgrade from a paid tier, your existing links continue routing seamlessly.
                   </div>
                 )}
               </div>
 
               {/* Item 3 */}
-              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border-[0.5px] border-outline-variant p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(3)}
@@ -1220,14 +1220,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   {openFaq === 3 ? <ChevronUp className="w-5 h-5 text-outline" /> : <ChevronDown className="w-5 h-5 text-outline" />}
                 </button>
                 {openFaq === 3 && (
-                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t border-outline-variant/20 leading-relaxed animate-fade-in">
+                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t-[0.5px] border-outline-variant leading-relaxed animate-fade-in">
                     Snip automatically analyzes destination links (YouTube, Instagram, Spotify, etc.) and dispatches native mobile intents and URI schemes. On mobile, visitors launch straight into the native app with their logged-in Google or Instagram accounts, bypassing restricted in-app browser webviews!
                   </div>
                 )}
               </div>
 
               {/* Item 4 */}
-              <div className="rounded-xl bg-surface-container-low border border-outline-variant/30 p-5 transition-all">
+              <div className="rounded-xl bg-surface-container-low border-[0.5px] border-outline-variant p-5 transition-all">
                 <button
                   type="button"
                   onClick={() => toggleFaq(4)}
@@ -1237,7 +1237,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   {openFaq === 4 ? <ChevronUp className="w-5 h-5 text-outline" /> : <ChevronDown className="w-5 h-5 text-outline" />}
                 </button>
                 {openFaq === 4 && (
-                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t border-outline-variant/20 leading-relaxed animate-fade-in">
+                  <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t-[0.5px] border-outline-variant leading-relaxed animate-fade-in">
                     Yes, dynamic redirects allow you to update where a link points at any time without changing the short URL. If a brand changes their promo page or you swap out an affiliate link, you update it once in your dashboard and all past shares redirect instantly.
                   </div>
                 )}
@@ -1248,11 +1248,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
         </section>
 
         {/* 8. CREATOR TESTIMONIAL & FINAL CTA */}
-        <section className="w-full bg-surface-container-low py-16 lg:py-24 border-t border-outline-variant/20">
+        <section className="w-full bg-surface-container-low py-16 lg:py-24 border-t border-outline-variant">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
             
             {/* Testimonial Card */}
-            <div className="w-full bg-surface-container-lowest rounded-xl p-8 sm:p-12 shadow-sm border border-outline-variant/40 mb-16 text-center max-w-3xl">
+            <div className="w-full bg-surface-container-lowest rounded-xl p-8 sm:p-12 shadow-sm border-[0.5px] border-outline-variant mb-16 text-center max-w-3xl">
               <div className="flex justify-center mb-6 gap-1 text-amber-500">
                 {'★'.repeat(5)}
               </div>
@@ -1260,7 +1260,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 “I used to stress about dead Amazon affiliate links in my old YouTube descriptions. Snip gives me complete peace of mind, and the in-app Instagram tracking helped me double my sponsor rates because I had verifiable click proof.”
               </blockquote>
               <div className="flex items-center justify-center gap-3">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-container border border-outline-variant/40">
+                <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-container border border-outline-variant">
                   <img
                     alt="Sarah Connor"
                     src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
@@ -1286,7 +1286,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth('signup')}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-lg bg-surface-container-lowest text-primary-container hover:bg-surface-container-low text-xs font-bold shadow-md transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-lg bg-surface-container-lowest text-primary-ink hover:bg-surface-container-low text-xs font-bold shadow-md transition-all cursor-pointer"
                 >
                   Sign up free
                 </button>
@@ -1316,11 +1316,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
       </main>
 
       {/* 9. FOOTER */}
-      <footer className="w-full bg-surface-container-lowest border-t border-outline-variant/20 py-8">
+      <footer className="w-full bg-surface-container-lowest border-t-[0.5px] border-outline-variant py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <img 
-              src="/senior_brand_identity_designer._1024x1024_production_app_store_icon_for_snip.png"
+              src="/snip-logo.svg"
               alt="Snip Logo"
               className="w-6 h-6 rounded-lg object-contain shadow-2xs"
             />
@@ -1339,8 +1339,8 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
 
       {/* 10. QR CODE MODAL */}
       {qrModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-6 shadow-2xl border border-outline-variant/40 relative">
+        <div className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative">
             <button
               type="button"
               onClick={() => setQrModalOpen(false)}
@@ -1350,17 +1350,17 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             </button>
             <h4 className="text-base font-bold text-on-surface mb-1">Dynamic QR Code</h4>
             <p className="text-xs text-on-surface-variant mb-4">
-              Print-ready vector QR for <span className="font-mono text-primary-container font-semibold">{currentLink?.fullUrl}</span>
+              Print-ready vector QR for <span className="font-mono text-primary-ink font-semibold">{currentLink?.fullUrl}</span>
             </p>
 
             {/* Dynamic QR Code Graphic */}
-            <div className="w-48 h-48 mx-auto p-4 bg-surface-container-lowest rounded-lg shadow-xs border border-outline-variant/30 flex items-center justify-center mb-5">
+            <div className="w-48 h-48 mx-auto p-4 bg-surface-container-lowest rounded-lg shadow-xs border-[0.5px] border-outline-variant flex items-center justify-center mb-5">
               <QRCodeSVG
                 id="landing-qr-code"
                 value={currentLink?.fullUrl || (typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev')}
                 size={160}
                 level="H"
-                fgColor="#141b2b"
+                fgColor="#1a1a1a"
                 bgColor="#ffffff"
               />
             </div>
@@ -1376,7 +1376,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               <button
                 type="button"
                 onClick={() => downloadQr('png')}
-                className="py-2.5 px-3 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer border border-outline-variant/30"
+                className="py-2.5 px-3 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer border border-outline-variant"
               >
                 PNG (Hi-Res)
               </button>

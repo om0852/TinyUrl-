@@ -7,7 +7,7 @@ export function Card({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-xl border border-border/40 bg-card text-card-foreground shadow-sm transition-all duration-200 ${className}`}
+      className={`rounded-xl border-[0.5px] border-outline-variant bg-card text-card-foreground transition-colors duration-200 ${className}`}
       {...props}
     >
       {children}
@@ -22,7 +22,7 @@ export function CardHeader({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`flex flex-col space-y-1.5 p-5 pb-3 ${className}`}
+      className={`flex flex-col space-y-1 p-[15px] pb-[10px] ${className}`}
       {...props}
     >
       {children}
@@ -37,7 +37,7 @@ export function CardTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={`font-semibold text-foreground tracking-tight leading-none ${className}`}
+      className={`text-[14px] font-semibold text-foreground leading-tight ${className}`}
       {...props}
     >
       {children}
@@ -66,7 +66,7 @@ export function CardContent({
   ...props 
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`p-5 pt-0 ${className}`} {...props}>
+    <div className={`p-[15px] pt-0 ${className}`} {...props}>
       {children}
     </div>
   );
@@ -79,7 +79,7 @@ export function CardFooter({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`flex items-center p-5 pt-0 ${className}`}
+      className={`flex items-center p-[15px] pt-0 ${className}`}
       {...props}
     >
       {children}

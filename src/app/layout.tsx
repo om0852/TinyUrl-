@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Poppins, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
-const inter = Inter({
-  variable: "--font-inter",
+const poppins = Poppins({
+  variable: "--font-poppins",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   title: "TinyURL — Enterprise URL Shortener & Link Operations Console",
   description: "Enterprise link operations, OpeninApp deep routing, threat inspection, and zero-latency analytics.",
   icons: {
-    icon: "/favicon_and_pwa_icon_for_snip_creator_url_shortener_app._minimalist_graphic.png",
+    icon: "/snip-logo.svg",
     apple: "/apple_touch_icon_for_snip_creator_url_shortener_app._sleek_modern_minimalist.png",
   },
 };
@@ -32,9 +33,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-surface text-on-surface antialiased selection:bg-primary-container/20 selection:text-primary-container">
+      <body className="min-h-full flex flex-col bg-surface text-on-surface antialiased selection:bg-primary-container/40 selection:text-on-primary">
         <Providers>{children}</Providers>
       </body>
     </html>

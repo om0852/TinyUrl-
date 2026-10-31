@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto p-4 rounded-xl bg-surface-container-lowest shadow-xl border border-outline-variant/30 flex items-start justify-between gap-3 animate-fade-in transition-all ${
+            className={`pointer-events-auto p-4 rounded-xl bg-surface-container-lowest shadow-xl border-[0.5px] border-outline-variant flex items-start justify-between gap-3 animate-fade-in transition-all ${
               toast.type === 'success'
                 ? 'border-l-4 border-l-emerald-500'
                 : toast.type === 'error'
@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
                 {toast.type === 'sync' && (
-                  <div className="w-7 h-7 rounded-full bg-surface-container-high text-primary flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-full bg-surface-container-high text-primary-ink flex items-center justify-center">
                     <RefreshCw className="w-4 h-4 animate-spin" />
                   </div>
                 )}
@@ -80,7 +80,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
             <div className="flex items-center gap-2 shrink-0">
               {toast.latency && (
-                <span className="font-mono text-[10px] font-bold text-primary px-1.5 py-0.5 rounded bg-surface-container">
+                <span className="font-mono text-[10px] font-bold text-primary-ink px-1.5 py-0.5 rounded bg-surface-container">
                   {toast.latency}
                 </span>
               )}

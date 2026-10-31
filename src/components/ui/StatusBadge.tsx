@@ -36,7 +36,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       defaultText: 'Verified'
     },
     hardened: {
-      bg: 'bg-primary-container/10 text-primary',
+      bg: 'bg-primary-container/10 text-primary-ink',
       defaultIcon: <ShieldCheck className="w-3.5 h-3.5" />,
       defaultText: 'Hardened Edge'
     },
@@ -60,7 +60,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       defaultText: 'Default'
     },
     pro: {
-      bg: 'bg-surface-container-high text-primary font-bold',
+      bg: 'bg-surface-container-high text-primary-ink font-bold',
       defaultText: 'PRO'
     }
   };

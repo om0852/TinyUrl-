@@ -118,7 +118,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
           updatePosition();
           setIsOpen(!isOpen);
         }}
-        className={`inline-flex items-center justify-center text-on-surface-variant/60 hover:text-primary transition-all duration-150 cursor-pointer focus:outline-none focus:text-primary rounded-full p-0.5 hover:bg-surface-container-high/60 ${className}`}
+        className={`inline-flex items-center justify-center text-on-surface-variant/60 hover:text-primary-ink transition-all duration-150 cursor-pointer focus:outline-none focus:text-primary-ink rounded-full p-0.5 hover:bg-surface-container-high/60 ${className}`}
       >
         <Info className={sizeClasses} />
       </button>
@@ -140,7 +140,7 @@ export const InfoTooltip: React.FC<InfoTooltipProps> = ({
         >
           {title && (
             <div className="font-bold text-white text-xs mb-1 flex items-center gap-1.5 border-b border-neutral-800 pb-1">
-              <Info className="w-3 h-3 text-primary" />
+              <Info className="w-3 h-3 text-primary-ink" />
               <span>{title}</span>
             </div>
           )}

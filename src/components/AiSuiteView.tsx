@@ -125,7 +125,7 @@ export const AiSuiteView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 shadow-xs flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
+          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant shadow-xs flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Edge Inference: &lt;14ms</span>
           </div>
@@ -135,10 +135,10 @@ export const AiSuiteView: React.FC = () => {
       {/* 2. STATS ROW */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Avg. CTR Boost</span>
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
@@ -148,7 +148,7 @@ export const AiSuiteView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Neural Slugs Created</span>
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
@@ -161,7 +161,7 @@ export const AiSuiteView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Bot & Scraper Shield</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
@@ -174,10 +174,10 @@ export const AiSuiteView: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Audience Telemetry</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+            <div className="w-8 h-8 rounded-lg bg-lime-400/10 flex items-center justify-center text-lime-700">
               <Bot className="w-4 h-4" />
             </div>
           </div>
@@ -193,11 +193,11 @@ export const AiSuiteView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* LEFT COLUMN: BRANDED SLUG STUDIO (7 COLS) */}
-        <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40 shadow-xs flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between pb-4 border-b border-outline-variant/40 mb-5">
+            <div className="flex items-center justify-between pb-4 border-b-[0.5px] border-outline-variant mb-5">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
                   <Zap className="w-4 h-4" />
                 </div>
                 <div>
@@ -205,7 +205,7 @@ export const AiSuiteView: React.FC = () => {
                   <p className="text-xs text-on-surface-variant">Synthesizes context & high-performing social keywords</p>
                 </div>
               </div>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-surface-container-high text-primary">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-surface-container-high text-primary-ink">
                 CTR Model v4
               </span>
             </div>
@@ -219,7 +219,7 @@ export const AiSuiteView: React.FC = () => {
                   value={inputUrl}
                   onChange={(e) => setInputUrl(e.target.value)}
                   placeholder="https://example.com/your-long-url"
-                  className="w-full h-11 px-3.5 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg text-xs font-mono text-on-surface outline-none transition"
+                  className="w-full h-11 px-3.5 bg-surface-container-lowest border-[0.5px] border-outline-variant focus:border-primary-strong focus:ring-2 focus:ring-primary-strong/20 rounded-lg text-xs font-mono text-on-surface outline-none transition"
                 />
               </div>
 
@@ -230,7 +230,7 @@ export const AiSuiteView: React.FC = () => {
                   value={inputTitle}
                   onChange={(e) => setInputTitle(e.target.value)}
                   placeholder="e.g. Product Launch, Newsletter Signup"
-                  className="w-full h-11 px-3.5 bg-surface-container-lowest border border-outline-variant/60 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg text-xs text-on-surface outline-none transition"
+                  className="w-full h-11 px-3.5 bg-surface-container-lowest border-[0.5px] border-outline-variant focus:border-primary-strong focus:ring-2 focus:ring-primary-strong/20 rounded-lg text-xs text-on-surface outline-none transition"
                 />
               </div>
 
@@ -253,11 +253,11 @@ export const AiSuiteView: React.FC = () => {
                         onClick={() => setTone(t.id)}
                         className={`p-2.5 rounded-lg border text-left flex items-center gap-2 transition cursor-pointer ${
                           isSelected
-                            ? 'bg-primary/5 border-primary text-primary font-bold shadow-xs'
-                            : 'bg-surface-container-lowest border-outline-variant/40 text-on-surface-variant hover:border-outline-variant hover:bg-surface-container-low'
+                            ? 'bg-primary/5 border-primary-strong text-primary-ink font-bold shadow-xs'
+                            : 'bg-surface-container-lowest border-outline-variant text-on-surface-variant hover:border-outline-variant hover:bg-surface-container-low'
                         }`}
                       >
-                        <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-on-surface-variant'}`} />
+                        <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary-ink' : 'text-on-surface-variant'}`} />
                         <span className="text-xs">{t.label}</span>
                       </button>
                     );
@@ -285,7 +285,7 @@ export const AiSuiteView: React.FC = () => {
             </form>
 
             {/* Generated Slugs List */}
-            <div className="mt-6 pt-5 border-t border-outline-variant/40">
+            <div className="mt-6 pt-5 border-t border-outline-variant">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
                   Algorithmic Recommendations
@@ -297,10 +297,10 @@ export const AiSuiteView: React.FC = () => {
                 {slugResults.map((item, idx) => (
                   <div
                     key={idx}
-                    className="p-3 bg-surface-container-lowest hover:bg-surface-container-low rounded-lg border border-outline-variant/40 hover:border-outline-variant transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                    className="p-3 bg-surface-container-lowest hover:bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant hover:border-outline-variant transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
                   >
                     <div className="flex items-start sm:items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-primary font-mono text-xs font-bold shrink-0">
+                      <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-ink font-mono text-xs font-bold shrink-0">
                         /{idx + 1}
                       </div>
                       <div>
@@ -323,7 +323,7 @@ export const AiSuiteView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleCopySlug(item.slug)}
-                        className="px-2.5 py-1.5 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface rounded-lg text-xs font-semibold border border-outline-variant/40 flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-2.5 py-1.5 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface rounded-lg text-xs font-semibold border-[0.5px] border-outline-variant flex items-center gap-1.5 transition cursor-pointer"
                       >
                         {copiedSlug === item.slug ? (
                           <>
@@ -367,11 +367,11 @@ export const AiSuiteView: React.FC = () => {
         <div className="lg:col-span-5 space-y-6">
           
           {/* Executive Narrative Memo */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40 shadow-xs flex flex-col justify-between">
+          <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-outline-variant/40 mb-4">
+              <div className="flex items-center justify-between pb-4 border-b-[0.5px] border-outline-variant mb-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                  <div className="w-8 h-8 rounded-lg bg-lime-400/10 flex items-center justify-center text-lime-700">
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
@@ -389,32 +389,32 @@ export const AiSuiteView: React.FC = () => {
                 type="button"
                 onClick={handleRunAudit}
                 disabled={isAuditing}
-                className="w-full h-10 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs rounded-lg transition flex items-center justify-center gap-2 border border-outline-variant/40 cursor-pointer disabled:opacity-50"
+                className="w-full h-10 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs rounded-lg transition flex items-center justify-center gap-2 border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-50"
               >
                 {isAuditing ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-primary-ink" />
                     <span>Analyzing Multi-Source Telemetry...</span>
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4 text-primary" />
+                    <Sparkles className="w-4 h-4 text-primary-ink" />
                     <span>Generate Fresh Performance Audit</span>
                   </>
                 )}
               </button>
 
               {summaryText ? (
-                <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg space-y-3 animate-fade-in text-xs">
+                <div className="mt-4 p-4 bg-primary/5 border border-primary-strong/20 rounded-lg space-y-3 animate-fade-in text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-primary flex items-center gap-1.5">
+                    <span className="font-bold text-primary-ink flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" />
                       Executive Memo Generated
                     </span>
                     <button
                       type="button"
                       onClick={handleCopyMemo}
-                      className="text-primary hover:text-on-surface flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                      className="text-primary-ink hover:text-on-surface flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                     >
                       {copiedMemo ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedMemo ? 'Copied' : 'Copy Memo'}</span>
@@ -425,7 +425,7 @@ export const AiSuiteView: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <div className="mt-4 p-4 bg-surface-container-low rounded-lg border border-dashed border-outline-variant/60 text-center">
+                <div className="mt-4 p-4 bg-surface-container-low rounded-lg border-[0.5px] border-dashed border-outline-variant text-center">
                   <p className="text-xs text-on-surface-variant">
                     Click above to generate an instant algorithmic summary across all your short links and campaign metrics.
                   </p>
@@ -435,24 +435,24 @@ export const AiSuiteView: React.FC = () => {
           </div>
 
           {/* Real-Time Behavioral Insights */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/40 shadow-xs">
+          <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
             <h3 className="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
-              <Bot className="w-4 h-4 text-primary" />
+              <Bot className="w-4 h-4 text-primary-ink" />
               Automated Route Recommendations
             </h3>
             
             <div className="space-y-3 text-xs">
-              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/40 flex items-start gap-2.5">
+              <div className="p-3 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold text-on-surface block">YouTube Description Optimization</span>
                   <span className="text-on-surface-variant">
-                    Slugs shorter than 8 characters had 31% higher desktop click-through. Use <span className="font-mono text-primary">/gear26</span> for the upcoming upload.
+                    Slugs shorter than 8 characters had 31% higher desktop click-through. Use <span className="font-mono text-primary-ink">/gear26</span> for the upcoming upload.
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-surface-container-low border border-outline-variant/40 flex items-start gap-2.5">
+              <div className="p-3 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold text-on-surface block">In-App Webview Bypass Active</span>

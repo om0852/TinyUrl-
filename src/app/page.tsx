@@ -193,26 +193,26 @@ export default function Home() {
 
   // Authenticated Console / Workspace
   return (
-    <div className="min-h-screen bg-surface text-on-surface selection:bg-primary-container/20 selection:text-primary-container">
-      
-      {/* 1. Desktop Sidebar (Fixed) */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col z-50">
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
+    <div className="h-screen flex overflow-hidden bg-canvas text-on-surface selection:bg-primary-container/40 selection:text-on-primary">
+
+      {/* 1. Desktop Sidebar: floating white card on the tinted canvas */}
+      <div className="hidden lg:flex lg:w-[270px] lg:shrink-0 lg:flex-col lg:py-[10px] lg:pl-[10px]">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
           onOpenCreateModal={handleOpenCreateModal}
-          className="w-64"
+          className="rounded-xl"
         />
       </div>
 
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 lg:hidden animate-fade-in"
+          className="fixed inset-0 bg-[#00000A73] backdrop-blur-[5px] z-50 lg:hidden animate-fade-in"
           onClick={() => setMobileMenuOpen(false)}
         >
-          <div 
-            className="w-64 max-w-[85vw] h-full bg-surface-container-lowest shadow-2xl"
+          <div
+            className="w-[260px] max-w-[85vw] h-full p-[10px]"
             onClick={(e) => e.stopPropagation()}
           >
             <Sidebar 
@@ -223,16 +223,17 @@ export default function Home() {
                 handleOpenCreateModal();
               }}
               onCloseMobile={() => setMobileMenuOpen(false)}
+              className="rounded-xl"
             />
           </div>
         </div>
       )}
 
-      {/* 2. Main Workspace (Offset by sidebar width) */}
-      <div className="lg:pl-64 flex flex-col min-h-screen bg-surface min-w-0">
-        
-        {/* Sticky Top Header Bar */}
-        <DashboardHeader 
+      {/* 2. Main Workspace: one white card; header stays put, content scrolls inside */}
+      <div className="flex-1 min-w-0 p-[10px]">
+        <div className="h-full flex flex-col min-w-0 overflow-hidden rounded-xl bg-surface-container-lowest">
+
+        <DashboardHeader
           activeTabTitle={TAB_TITLES[activeTab] || 'Overview'}
           onOpenCreateModal={handleOpenCreateModal}
           onOpenCommandPalette={() => setCommandPaletteOpen(true)}
@@ -241,7 +242,8 @@ export default function Home() {
         />
 
         {/* Dynamic Main Canvas */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6 sm:space-y-8 animate-fade-in min-w-0">
+        <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+          <div className="p-[15px] sm:p-5 lg:p-6 max-w-[1600px] w-full mx-auto space-y-6 animate-fade-in min-w-0">
           {activeTab === 'overview' && (
             <OverviewView 
               onOpenCreateModal={handleOpenCreateModal} 
@@ -273,7 +275,9 @@ export default function Home() {
           {activeTab === 'ai' && <AiSuiteView />}
           {activeTab === 'api' && <ApiDocsView />}
           {activeTab === 'bulk' && <BulkToolsView />}
+          </div>
         </main>
+        </div>
       </div>
 
       {/* Global Create Short Link Modal */}

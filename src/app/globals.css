@@ -2,20 +2,22 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Light Theme Palette Matching Snip Reference Design */
-  --background: #f9f9ff;
-  --foreground: #141b2b;
+  /* Lime theme on the Creatosaurus design system (see new-creatosaurus/frontend/design.md):
+     tinted canvas, white floating cards, hairline grey borders, lime only for actions/active state. */
+  --canvas: #f4fae8;
+  --background: #f4fae8;
+  --foreground: #1a1a1a;
   --card: #ffffff;
-  --card-foreground: #141b2b;
-  --muted: #f1f3ff;
-  --muted-foreground: #464555;
-  --border: #e1e8fd;
+  --card-foreground: #1a1a1a;
+  --muted: #f8f8f9;
+  --muted-foreground: #666666;
+  --border: #e3e3e3;
 
-  /* Accents */
-  --primary: #4f46e5;
-  --primary-foreground: #ffffff;
-  --accent: #6860ef;
-  --destructive: #ba1a1a;
+  /* Lime is too light for white text: fills use dark ink text, text/links use lime-700 */
+  --primary: #a3e635;
+  --primary-foreground: #1a2e05;
+  --accent: #84cc16;
+  --destructive: #ff4359;
 }
 
 @theme {
@@ -31,31 +33,74 @@
   --color-accent: var(--accent);
   --color-destructive: var(--destructive);
 
-  --color-surface: #f9f9ff;
-  --color-surface-bright: #f9f9ff;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f1f3ff;
-  --color-surface-container: #e9edff;
-  --color-surface-container-high: #e1e8fd;
-  --color-surface-container-highest: #dce2f7;
-  --color-on-surface: #141b2b;
-  --color-on-surface-variant: #464555;
-  --color-primary-container: #4f46e5;
-  --color-on-primary: #ffffff;
-  --color-primary-fixed: #e2dfff;
-  --color-inverse-surface: #293040;
-  --color-inverse-on-surface: #edf0ff;
-  --color-outline: #777587;
-  --color-outline-variant: #c7c4d8;
-  --color-error-container: #ffdad6;
-  --color-on-error-container: #93000a;
-  --color-error: #ba1a1a;
-  --color-secondary: #4e45d5;
-  --color-secondary-container: #6860ef;
-  --color-surface-dim: #d3daef;
+  --color-canvas: var(--canvas);
 
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Neutrals (Creatosaurus greys) */
+  --color-surface: #f4fae8;
+  --color-surface-bright: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #fafafa;
+  --color-surface-container: #f8f8f9;
+  --color-surface-container-high: #f0f0f0;
+  --color-surface-container-highest: #e8e8e8;
+  --color-surface-dim: #dcdcdc;
+  --color-on-surface: #1a1a1a;
+  --color-on-surface-variant: #666666;
+  --color-outline: #808080;
+  --color-outline-variant: #dcdcdc;
+  --color-inverse-surface: #1a1a1a;
+  --color-inverse-on-surface: #f5f5f5;
+
+  /* Lime brand: primary/primary-container = fills (dark text on top),
+     primary-ink = text & icons on white, primary-strong = borders, rings, strokes */
+  --color-primary-container: #a3e635;
+  --color-on-primary: #1a2e05;
+  --color-primary-ink: #4d7c0f;
+  --color-primary-strong: #84cc16;
+  --color-primary-fixed: #ecfccb;
+  --color-secondary: #65a30d;
+  --color-secondary-container: #d9f99d;
+  --color-on-secondary-container: #365314;
+  --color-on-secondary-fixed-variant: #3f6212;
+
+  /* Status */
+  --color-error: #e5243b;
+  --color-on-error: #ffffff;
+  --color-on-primary-fixed-variant: #3f6212;
+  --color-on-primary-container: #1a2e05;
+  --color-on-secondary: #ffffff;
+  --color-secondary-fixed: #ecfccb;
+  --color-tertiary: #0e7490;
+  --color-error-container: #ffedef;
+  --color-on-error-container: #b4162b;
+
+  --font-sans: var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Creatosaurus never goes above semibold; Poppins reads heavy, so cap the weights */
+  --font-weight-bold: 600;
+  --font-weight-extrabold: 600;
+  --font-weight-black: 700;
+  --tracking-tight: -0.01em;
+  --tracking-tighter: -0.02em;
+
+  /* Radii: 5px controls, 10px cards/panels, 14px dialogs */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 10px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
+
+  /* Flat cards; shadows only for floating layers */
+  --shadow-2xs: none;
+  --shadow-xs: none;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.10);
+  --shadow-2xl: 0 20px 40px rgba(0, 0, 0, 0.12);
 }
 
 @layer base {
@@ -70,13 +115,16 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    letter-spacing: -0.015em;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #808080;
   }
 
   code, pre, kbd, samp {
@@ -88,7 +136,7 @@
 /* Custom Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -99,16 +147,16 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 70, 229, 0.6);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
@@ -118,11 +166,11 @@
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.35);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 9999px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 70, 229, 0.65);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 /* Micro-animations */
@@ -148,7 +196,7 @@
 .skeleton-shimmer {
   position: relative;
   overflow: hidden;
-  background-color: #e9edff;
+  background-color: #f0f0f0;
 }
 
 .skeleton-shimmer::after {

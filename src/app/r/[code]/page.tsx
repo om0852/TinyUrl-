@@ -302,20 +302,20 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
           const displayImg = `${proto}://${currentHost}/api/v1/links/${initialLink.custom_slug || initialLink.short_code}/og-image`;
 
           return (
-            <div style={{ padding: '40px', fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+            <div style={{ padding: '40px', fontFamily: 'var(--font-poppins), system-ui, -apple-system, sans-serif', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
               {displayImg && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img 
                   src={displayImg} 
                   alt={ogTitle} 
-                  style={{ width: '100%', maxHeight: '315px', objectFit: 'contain', backgroundColor: '#020617', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }} 
+                  style={{ width: '100%', maxHeight: '315px', objectFit: 'contain', backgroundColor: '#0b0f06', borderRadius: '10px', marginBottom: '20px', border: '1px solid #dcdcdc' }} 
                 />
               )}
-              <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e293b', marginBottom: '10px' }}>{ogTitle}</h1>
-              <p style={{ fontSize: '15px', color: '#64748b', lineHeight: '1.5', marginBottom: '20px' }}>{ogDesc}</p>
+              <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#1a1a1a', marginBottom: '10px' }}>{ogTitle}</h1>
+              <p style={{ fontSize: '15px', color: '#666666', lineHeight: '1.5', marginBottom: '20px' }}>{ogDesc}</p>
               <a 
                 href={initialTarget || row.destination_url} 
-                style={{ display: 'inline-block', backgroundColor: '#4f46e5', color: '#ffffff', padding: '12px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' }}
+                style={{ display: 'inline-block', backgroundColor: '#a3e635', color: '#1a2e05', padding: '12px 24px', borderRadius: '5px', textDecoration: 'none', fontWeight: 600 }}
               >
                 Continue to Destination &rarr;
               </a>

@@ -550,9 +550,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       <div className="flex flex-col w-full pb-16 space-y-6">
 
         {/* ─── Top Meta / Status Bar (Architectural Sharp-Cornered Strip) ─── */}
-        <div className="w-full bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="w-full bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shadow-sm shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-ink shadow-sm shrink-0">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
@@ -575,7 +575,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => { setCampaignFilterOpen(!campaignFilterOpen); setLinkFilterOpen(false); setDateRangeOpen(false); }}
-                className="inline-flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg shadow-sm cursor-pointer hover:bg-surface-container transition-colors text-xs font-medium text-on-surface border border-outline-variant/20"
+                className="inline-flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg shadow-sm cursor-pointer hover:bg-surface-container transition-colors text-xs font-medium text-on-surface border border-outline-variant"
               >
                 <Layers className="w-3.5 h-3.5 text-on-surface-variant mr-1.5" />
                 <span>
@@ -587,7 +587,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               </button>
 
               {campaignFilterOpen && (
-                <div className="absolute left-0 lg:right-0 lg:left-auto top-full mt-1.5 w-56 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-1.5 z-30 animate-fade-in">
+                <div className="absolute left-0 lg:right-0 lg:left-auto top-full mt-1.5 w-56 bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-1.5 z-30 animate-fade-in">
                   <div className="px-2 py-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
                     <span>Filter Campaign</span>
                     <InfoTooltip text="Scope all metrics to a specific marketing campaign tag." />
@@ -596,7 +596,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     type="button"
                     onClick={() => { setSelectedCampaignId('all'); setCampaignFilterOpen(false); }}
                     className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      selectedCampaignId === 'all' ? 'bg-primary text-white font-bold' : 'hover:bg-surface-container text-on-surface'
+                      selectedCampaignId === 'all' ? 'bg-primary text-on-primary font-bold' : 'hover:bg-surface-container text-on-surface'
                     }`}
                   >
                     All Campaigns ({campaigns.length})
@@ -607,7 +607,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       type="button"
                       onClick={() => { setSelectedCampaignId(c.id); setCampaignFilterOpen(false); }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors truncate ${
-                        selectedCampaignId === c.id ? 'bg-primary text-white font-bold' : 'hover:bg-surface-container text-on-surface'
+                        selectedCampaignId === c.id ? 'bg-primary text-on-primary font-bold' : 'hover:bg-surface-container text-on-surface'
                       }`}
                     >
                       {c.name}
@@ -622,7 +622,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => { setLinkFilterOpen(!linkFilterOpen); setCampaignFilterOpen(false); setDateRangeOpen(false); }}
-                className="inline-flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg shadow-sm cursor-pointer hover:bg-surface-container transition-colors text-xs font-medium text-on-surface border border-outline-variant/20"
+                className="inline-flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg shadow-sm cursor-pointer hover:bg-surface-container transition-colors text-xs font-medium text-on-surface border border-outline-variant"
               >
                 <Link2 className="w-3.5 h-3.5 text-on-surface-variant mr-1.5" />
                 <span>
@@ -634,7 +634,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               </button>
 
               {linkFilterOpen && (
-                <div className="absolute left-0 lg:right-0 lg:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-2 z-30 animate-fade-in">
+                <div className="absolute left-0 lg:right-0 lg:left-auto top-full mt-1.5 w-64 bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-2 z-30 animate-fade-in">
                   <div className="px-1 pb-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
                     <span>Select Link</span>
                     <InfoTooltip text="Filter the entire analytics dashboard down to one short link." />
@@ -646,7 +646,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       value={linkSearchQuery}
                       onChange={(e) => setLinkSearchQuery(e.target.value)}
                       placeholder="Search links..."
-                      className="w-full pl-7 pr-2 py-1 text-xs bg-surface-container-low rounded-md border border-outline-variant/30 text-on-surface focus:outline-none"
+                      className="w-full pl-7 pr-2 py-1 text-xs bg-surface-container-low rounded-md border-[0.5px] border-outline-variant text-on-surface focus:outline-none"
                     />
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-0.5 custom-scrollbar">
@@ -654,7 +654,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       type="button"
                       onClick={() => { setSelectedLinkId('all'); setSelectedAnalyticsLinkId(null); setLinkFilterOpen(false); }}
                       className={`w-full text-left px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                        selectedLinkId === 'all' ? 'bg-primary text-white font-bold' : 'hover:bg-surface-container text-on-surface'
+                        selectedLinkId === 'all' ? 'bg-primary text-on-primary font-bold' : 'hover:bg-surface-container text-on-surface'
                       }`}
                     >
                       All Links ({links.length})
@@ -667,7 +667,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                           type="button"
                           onClick={() => { setSelectedLinkId(l.id); setSelectedAnalyticsLinkId(l.id); setLinkFilterOpen(false); }}
                           className={`w-full text-left px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-between ${
-                            selectedLinkId === l.id ? 'bg-primary text-white font-bold' : 'hover:bg-surface-container text-on-surface'
+                            selectedLinkId === l.id ? 'bg-primary text-on-primary font-bold' : 'hover:bg-surface-container text-on-surface'
                           }`}
                         >
                           <span className="truncate">/{l.custom_slug || l.short_code}</span>
@@ -684,7 +684,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => { setDateRangeOpen(!dateRangeOpen); setCampaignFilterOpen(false); setLinkFilterOpen(false); }}
-                className="inline-flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg shadow-sm cursor-pointer hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface border border-outline-variant/20"
+                className="inline-flex items-center bg-surface-container-low px-3 py-1.5 rounded-lg shadow-sm cursor-pointer hover:bg-surface-container transition-colors text-xs font-semibold text-on-surface border border-outline-variant"
               >
                 <Calendar className="w-3.5 h-3.5 text-on-surface-variant mr-1.5" />
                 <span>
@@ -694,7 +694,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               </button>
 
               {dateRangeOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface-container-lowest rounded-xl shadow-xl border border-outline-variant/40 p-1.5 z-30 animate-fade-in">
+                <div className="absolute right-0 top-full mt-1.5 w-48 bg-surface-container-lowest rounded-xl shadow-xl border-[0.5px] border-outline-variant p-1.5 z-30 animate-fade-in">
                   <div className="px-2 py-1 text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider flex items-center justify-between">
                     <span>Date Range</span>
                     <InfoTooltip text="Filter all clicks and visitor stats by time horizon." />
@@ -709,7 +709,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       type="button"
                       onClick={() => { setDateRange(item.key as any); setDateRangeOpen(false); }}
                       className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                        dateRange === item.key ? 'bg-primary text-white font-bold' : 'hover:bg-surface-container text-on-surface'
+                        dateRange === item.key ? 'bg-primary text-on-primary font-bold' : 'hover:bg-surface-container text-on-surface'
                       }`}
                     >
                       {item.label}
@@ -727,9 +727,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               onClick={() => { refreshAnalytics(true); refreshLinks(true); }}
               disabled={isRefreshing}
               title="Refresh Telemetry"
-              className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer border border-outline-variant/20"
+              className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer border border-outline-variant"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-primary-ink' : ''}`} />
             </button>
 
             {/* Export CSV Button */}
@@ -747,7 +747,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         {/* ─── 5 KPI Cards: Geometric Rhythm (Square 0px-rounded Architectural Cards) ─── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
           {/* Card 1: Total Links */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Total Links
@@ -766,7 +766,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Card 2: Total Clicks */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
@@ -791,7 +791,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Card 3: Unique Visitors */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Unique Visitors
@@ -803,13 +803,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 {uniqueVisitorsCount.toLocaleString()}
               </div>
               <div className="text-xs text-on-surface-variant mt-1">
-                <span className="font-semibold text-primary">{uniqueVisitorRate}%</span> unique visitor rate
+                <span className="font-semibold text-primary-ink">{uniqueVisitorRate}%</span> unique visitor rate
               </div>
             </div>
           </div>
 
           {/* Card 4: Top Link */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Top Link
@@ -817,7 +817,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               <InfoTooltip text="Your highest performing shortened URL based on total click volume and engagement." />
             </div>
             <div>
-              <div className="text-base sm:text-lg font-bold text-primary truncate font-mono">
+              <div className="text-base sm:text-lg font-bold text-primary-ink truncate font-mono">
                 {topLink ? `/${topLink.link.custom_slug || topLink.link.short_code}` : 'None'}
               </div>
               <div className="text-xs text-on-surface-variant mt-1">
@@ -827,7 +827,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Card 5: Top Referrer */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
                 Top Referrer
@@ -848,9 +848,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         {/* ─── Bento Section: Click Velocity Timeline + Hourly Peak Matrix ─── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Click Velocity & Timeline Curve (Span 8) */}
-          <div className="lg:col-span-8 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="lg:col-span-8 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2 border-b border-outline-variant/20">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2 border-b border-outline-variant">
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-base font-bold text-on-surface">Click Velocity</h2>
@@ -859,7 +859,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   <p className="text-xs text-on-surface-variant">Daily clicks across all active links</p>
                 </div>
 
-                <div className="inline-flex bg-surface-container-low p-1 gap-1 rounded-lg border border-outline-variant/20 self-start sm:self-center">
+                <div className="inline-flex bg-surface-container-low p-1 gap-1 rounded-lg border-[0.5px] border-outline-variant self-start sm:self-center">
                   {(['24h', '7d', '30d'] as const).map(range => (
                     <button
                       key={range}
@@ -867,7 +867,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       onClick={() => setVelocityRange(range)}
                       className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
                         velocityRange === range
-                          ? 'bg-surface-container-lowest text-primary shadow-sm font-bold'
+                          ? 'bg-surface-container-lowest text-primary-ink shadow-sm font-bold'
                           : 'text-on-surface-variant hover:text-on-surface'
                       }`}
                     >
@@ -890,8 +890,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 200">
                   <defs>
                     <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#4F46E5" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#4F46E5" stopOpacity="0.00" />
+                      <stop offset="0%" stopColor="#65A30D" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#65A30D" stopOpacity="0.00" />
                     </linearGradient>
                   </defs>
 
@@ -905,7 +905,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <path
                       d={svgPathData.linePath}
                       fill="none"
-                      stroke="#4F46E5"
+                      stroke="#65A30D"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2.5"
@@ -921,8 +921,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         r={hoveredDataPoint?.date === pt.date ? 5 : 3}
                         className={`${
                           hoveredDataPoint?.date === pt.date
-                            ? 'fill-primary stroke-white stroke-2'
-                            : 'fill-surface-container-lowest stroke-primary stroke-2'
+                            ? 'fill-primary-strong stroke-white stroke-2'
+                            : 'fill-surface-container-lowest stroke-primary-strong stroke-2'
                         } transition-all cursor-pointer`}
                         onMouseEnter={() => setHoveredDataPoint(pt)}
                       />
@@ -933,7 +933,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 {/* Floating Interactive Hover Tooltip */}
                 {hoveredDataPoint && (
                   <div 
-                    className="absolute bg-surface-container-lowest p-2.5 shadow-lg rounded-lg border border-outline-variant/40 flex flex-col gap-1 pointer-events-none z-20 text-xs animate-fade-in"
+                    className="absolute bg-surface-container-lowest p-2.5 shadow-lg rounded-lg border-[0.5px] border-outline-variant flex flex-col gap-1 pointer-events-none z-20 text-xs animate-fade-in"
                     style={{
                       left: `${Math.min(75, Math.max(10, (hoveredDataPoint.x / 800) * 100))}%`,
                       top: '10%'
@@ -941,7 +941,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   >
                     <div className="flex items-center justify-between gap-4 font-mono text-[11px] text-on-surface-variant">
                       <span>{hoveredDataPoint.date}</span>
-                      <span className="text-primary font-bold">{hoveredDataPoint.clicks} Clicks</span>
+                      <span className="text-primary-ink font-bold">{hoveredDataPoint.clicks} Clicks</span>
                     </div>
                     <div className="flex items-center justify-between gap-4 text-xs text-on-surface">
                       <span className="text-on-surface-variant">Daily velocity</span>
@@ -957,12 +957,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                 <span className="hidden sm:inline">{timelineData.points[Math.floor(timelineData.points.length / 4)]?.label}</span>
                 <span>{timelineData.points[Math.floor(timelineData.points.length / 2)]?.label}</span>
                 <span className="hidden sm:inline">{timelineData.points[Math.floor((timelineData.points.length * 3) / 4)]?.label}</span>
-                <span className="font-semibold text-primary">{timelineData.points[timelineData.points.length - 1]?.label || 'Now'}</span>
+                <span className="font-semibold text-primary-ink">{timelineData.points[timelineData.points.length - 1]?.label || 'Now'}</span>
               </div>
             </div>
 
             {/* Bottom Sub-card: Peak Day & Daily Average */}
-            <div className="grid grid-cols-2 gap-3 pt-4 mt-4 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant/20">
+            <div className="grid grid-cols-2 gap-3 pt-4 mt-4 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant">
               <div className="flex flex-col">
                 <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
                   Peak Velocity Day
@@ -983,10 +983,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Hourly Peak Engagement Breakdown (Span 4) */}
-          <div className="lg:col-span-4 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="lg:col-span-4 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex flex-col justify-between h-full">
               <div>
-                <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+                <div className="flex items-center justify-between pb-3 border-b border-outline-variant">
                   <div>
                     <div className="flex items-center gap-1.5">
                       <h2 className="text-base font-bold text-on-surface">Hourly Engagement</h2>
@@ -994,7 +994,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     </div>
                     <p className="text-xs text-on-surface-variant">Click distribution by hour (00-23)</p>
                   </div>
-                  <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                  <span className="text-[11px] font-semibold text-primary-ink bg-primary/10 px-2 py-0.5 rounded-full border border-primary-strong/20">
                     Peak: {hourlyData.peakHour.label}
                   </span>
                 </div>
@@ -1034,15 +1034,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   <span>00:00</span>
                   <span>08:00</span>
                   <span>16:00</span>
-                  <span className="font-bold text-primary">{hourlyData.peakHour.label}</span>
+                  <span className="font-bold text-primary-ink">{hourlyData.peakHour.label}</span>
                   <span>23:00</span>
                 </div>
               </div>
 
               {/* Bottom Summary Strip */}
-              <div className="pt-4 mt-4 border-t border-outline-variant/20 flex items-center justify-between text-xs text-on-surface-variant">
+              <div className="pt-4 mt-4 border-t-[0.5px] border-outline-variant flex items-center justify-between text-xs text-on-surface-variant">
                 <span>Most active period</span>
-                <span className="font-semibold text-primary">
+                <span className="font-semibold text-primary-ink">
                   {hourlyData.peakHour.hour >= 18 || hourlyData.peakHour.hour < 5 ? 'Evening' : hourlyData.peakHour.hour >= 12 ? 'Afternoon' : 'Morning'} ({hourlyData.peakHour.label})
                 </span>
               </div>
@@ -1053,9 +1053,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         {/* ─── Technical Attribution Grid: Referral Breakdown & Audience/Devices ─── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Platform Traffic Share (Span 6) */}
-          <div className="lg:col-span-6 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
+              <div className="flex items-center justify-between pb-4 border-b border-outline-variant">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h2 className="text-base font-bold text-on-surface">Traffic Sources</h2>
@@ -1108,9 +1108,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Audience & Technical Breakdown (Span 6) */}
-          <div className="lg:col-span-6 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border border-outline-variant/30 flex flex-col justify-between">
+          <div className="lg:col-span-6 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
+              <div className="flex items-center justify-between pb-4 border-b border-outline-variant">
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h2 className="text-base font-bold text-on-surface">Devices &amp; Geography</h2>
@@ -1119,13 +1119,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   <p className="text-xs text-on-surface-variant">Visitor device types and top countries</p>
                 </div>
 
-                <div className="inline-flex bg-surface-container-low p-0.5 rounded-lg border border-outline-variant/20">
+                <div className="inline-flex bg-surface-container-low p-0.5 rounded-lg border border-outline-variant">
                   <button
                     type="button"
                     onClick={() => setTechTab('devices')}
                     className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${
                       techTab === 'devices'
-                        ? 'bg-surface-container-lowest text-primary font-bold shadow-sm'
+                        ? 'bg-surface-container-lowest text-primary-ink font-bold shadow-sm'
                         : 'text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
@@ -1136,7 +1136,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     onClick={() => setTechTab('os')}
                     className={`px-2.5 py-1 text-xs font-semibold rounded transition-all cursor-pointer ${
                       techTab === 'os'
-                        ? 'bg-surface-container-lowest text-primary font-bold shadow-sm'
+                        ? 'bg-surface-container-lowest text-primary-ink font-bold shadow-sm'
                         : 'text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
@@ -1231,8 +1231,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* ─── Campaign Attribution & UTM Deep-Dive Container ─── */}
-        <div className="bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border border-outline-variant/30">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-3 border-b border-outline-variant/20">
+        <div className="bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border border-outline-variant">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-3 border-b border-outline-variant">
             <div>
               <div className="flex items-center gap-1.5">
                 <h2 className="text-base font-bold text-on-surface">UTM Campaigns &amp; Attribution</h2>
@@ -1244,7 +1244,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
             <button
               type="button"
               onClick={() => onNavigateTab?.('links')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container text-primary text-xs font-semibold rounded-lg transition-colors cursor-pointer border border-outline-variant/20 self-start sm:self-center"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low hover:bg-surface-container text-primary-ink text-xs font-semibold rounded-lg transition-colors cursor-pointer border-[0.5px] border-outline-variant self-start sm:self-center"
             >
               <Link2 className="w-3.5 h-3.5" />
               <span>New UTM Link</span>
@@ -1253,7 +1253,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
           {utmCampaignsList.length === 0 ? (
             <div className="p-6 bg-surface-container-low/30 rounded-lg text-center flex items-center justify-center gap-2 text-on-surface-variant text-xs mt-3">
-              <HelpCircle className="w-4 h-4 text-primary" />
+              <HelpCircle className="w-4 h-4 text-primary-ink" />
               <span>No UTM campaign parameters detected for this period. Add UTM parameters when shortening links to view campaign breakdowns.</span>
             </div>
           ) : (
@@ -1267,13 +1267,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                     <th className="py-2.5 px-3 text-right">Clicks</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-outline-variant/20">
+                <tbody className="divide-y divide-outline-variant">
                   {utmCampaignsList.map((utm, idx) => (
                     <tr key={idx} className="hover:bg-surface-container-low/50 transition-colors">
                       <td className="py-2.5 px-3 font-semibold text-on-surface">{utm.campaign}</td>
                       <td className="py-2.5 px-3 font-mono text-on-surface-variant">{utm.source}</td>
                       <td className="py-2.5 px-3 font-mono text-on-surface-variant">{utm.medium}</td>
-                      <td className="py-2.5 px-3 text-right font-mono font-bold text-primary">{utm.clicks}</td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-primary-ink">{utm.clicks}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1283,8 +1283,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* ─── Top Links Ranked Leaderboard (Sharp Table Layout) ─── */}
-        <div className="bg-surface-container-lowest shadow-sm rounded-xl border border-outline-variant/30 overflow-hidden">
-          <div className="p-4 sm:p-5 flex items-center justify-between bg-surface-container-low/30 border-b border-outline-variant/20">
+        <div className="bg-surface-container-lowest shadow-sm rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+          <div className="p-4 sm:p-5 flex items-center justify-between bg-surface-container-low/30 border-b border-outline-variant">
             <div>
               <div className="flex items-center gap-1.5">
                 <h2 className="text-base font-bold text-on-surface">Top Links Leaderboard</h2>
@@ -1306,7 +1306,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                   <th className="py-3 px-4 text-right">Inspect</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/20 text-xs">
+              <tbody className="divide-y divide-outline-variant text-xs">
                 {paginatedLeaderboard.map((item, idx) => {
                   const rankNum = (leaderboardPage - 1) * LEADERBOARD_PAGE_SIZE + idx + 1;
                   const slug = item.custom_slug || item.short_code;
@@ -1320,7 +1320,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                         <div className="flex items-center gap-2.5">
                           <span className={`w-6 h-6 flex items-center justify-center font-mono text-xs font-bold rounded ${
                             rankNum === 1 
-                              ? 'bg-primary text-white' 
+                              ? 'bg-primary text-on-primary' 
                               : 'bg-surface-container text-on-surface'
                           }`}>
                             {rankNum}
@@ -1338,12 +1338,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
                       {/* Short URL with Copy */}
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-primary font-medium">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-primary-ink font-medium">
                           <span>/{slug}</span>
                           <button
                             type="button"
                             onClick={() => handleCopy(shortUrl, item.id)}
-                            className="text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                            className="text-on-surface-variant hover:text-primary-ink transition-colors cursor-pointer"
                             title="Copy short link"
                           >
                             {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1382,7 +1382,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                           type="button"
                           onClick={() => { setSelectedLinkId(item.id); setSelectedAnalyticsLinkId(item.id); }}
                           title="Focus analytics on this link"
-                          className="p-1 text-on-surface-variant hover:text-primary hover:bg-surface-container rounded transition-colors cursor-pointer"
+                          className="p-1 text-on-surface-variant hover:text-primary-ink hover:bg-surface-container rounded transition-colors cursor-pointer"
                         >
                           <BarChart3 className="w-4 h-4" />
                         </button>
@@ -1395,7 +1395,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
 
           {/* Pagination Controls */}
-          <div className="px-4 py-3 bg-surface-container-low/40 flex items-center justify-between text-on-surface-variant text-xs border-t border-outline-variant/20">
+          <div className="px-4 py-3 bg-surface-container-low/40 flex items-center justify-between text-on-surface-variant text-xs border-t border-outline-variant">
             <div className="font-mono text-[11px]">
               Displaying {Math.min(leaderboardLinks.length, (leaderboardPage - 1) * LEADERBOARD_PAGE_SIZE + 1)} - {Math.min(leaderboardLinks.length, leaderboardPage * LEADERBOARD_PAGE_SIZE)} of {leaderboardLinks.length} links
             </div>
@@ -1408,7 +1408,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               >
                 Previous
               </button>
-              <span className="px-2 py-0.5 font-mono text-xs bg-surface-container-lowest font-bold text-primary shadow-sm rounded border border-outline-variant/30">
+              <span className="px-2 py-0.5 font-mono text-xs bg-surface-container-lowest font-bold text-primary-ink shadow-sm rounded border border-outline-variant">
                 {leaderboardPage}
               </span>
               <button
@@ -1424,8 +1424,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         </div>
 
         {/* ─── Real-Time Activity Log (Click Stream) ─── */}
-        <div className="bg-surface-container-lowest shadow-sm rounded-xl border border-outline-variant/30 overflow-hidden">
-          <div className="p-4 sm:p-5 flex items-center justify-between bg-surface-container-low/30 border-b border-outline-variant/20">
+        <div className="bg-surface-container-lowest shadow-sm rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+          <div className="p-4 sm:p-5 flex items-center justify-between bg-surface-container-low/30 border-b border-outline-variant">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
               <div>
@@ -1467,11 +1467,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       <th className="py-3 px-4 text-right">Time</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-outline-variant/20">
+                  <tbody className="divide-y divide-outline-variant">
                     {recentClicksStream.map(click => {
                       return (
                         <tr key={click.id} className="hover:bg-surface-container-low/50 transition-colors">
-                          <td className="py-3 px-4 font-mono font-bold text-primary">
+                          <td className="py-3 px-4 font-mono font-bold text-primary-ink">
                             /{click.short_code}
                           </td>
                           <td className="py-3 px-4 text-on-surface font-medium">
@@ -1497,11 +1497,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
               </div>
 
               {/* Mobile Stream Cards (Phones) */}
-              <div className="block md:hidden divide-y divide-outline-variant/20">
+              <div className="block md:hidden divide-y divide-outline-variant">
                 {recentClicksStream.map(click => (
                   <div key={click.id} className="p-3.5 flex flex-col gap-1.5 text-xs">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-bold text-primary text-sm">/{click.short_code}</span>
+                      <span className="font-mono font-bold text-primary-ink text-sm">/{click.short_code}</span>
                       <span className="font-mono text-[11px] text-on-surface-variant">{formatRelativeTime(click.timestamp)}</span>
                     </div>
                     <div className="flex items-center justify-between text-on-surface gap-2 flex-wrap">
@@ -1529,7 +1529,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       {/* Reset Confirmation Modal */}
       {resetModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-on-surface/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl max-w-sm w-full p-5 shadow-2xl relative">
+          <div className="bg-surface-container-lowest border-[0.5px] border-outline-variant rounded-xl max-w-sm w-full p-5 shadow-2xl relative">
             <h3 className="font-bold text-base text-on-surface mb-2">Reset Link Telemetry?</h3>
             <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
               This will permanently delete all click event logs and reset the click counter for this link back to 0. This action cannot be undone.

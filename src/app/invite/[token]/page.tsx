@@ -147,12 +147,12 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
       
       {/* Background ambient light */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[550px] h-[350px] bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-[600px] h-[250px] bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-[600px] h-[250px] bg-lime-400/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Top Header Logo */}
       <header className="w-full flex justify-center pb-6">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card shadow-xs border border-border/60">
-          <Link2 className="w-4 h-4 text-primary" />
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card shadow-xs border border-outline-variant">
+          <Link2 className="w-4 h-4 text-primary-ink" />
           <span className="text-sm font-bold tracking-tight text-foreground">TinyURL</span>
           <span className="text-[11px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground">Team Portal</span>
         </div>
@@ -160,12 +160,12 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
 
       {/* Main Card */}
       <main className="w-full max-w-md my-auto">
-        <div className="bg-card/90 backdrop-blur-md border border-border/80 rounded-xl p-6 sm:p-8 shadow-2xl relative">
+        <div className="bg-card/90 backdrop-blur-md border-[0.5px] border-outline-variant rounded-xl p-6 sm:p-8 shadow-2xl relative">
 
           {/* Loading State */}
           {loading && (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-12 h-12 rounded-lg border-2 border-primary border-t-transparent animate-spin" />
+              <div className="w-12 h-12 rounded-lg border-2 border-primary-strong border-t-transparent animate-spin" />
               <h2 className="text-lg font-bold">Verifying Invitation…</h2>
               <p className="text-xs text-muted-foreground">Checking security token &amp; workspace privileges</p>
             </div>
@@ -198,7 +198,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
               <p className="text-xs text-muted-foreground">
                 You have joined <strong className="text-foreground">{invitation?.workspace_name}</strong> as <strong className="capitalize">{invitation?.role}</strong>.
               </p>
-              <div className="inline-flex items-center gap-2 text-xs text-primary font-semibold animate-pulse pt-2">
+              <div className="inline-flex items-center gap-2 text-xs text-primary-ink font-semibold animate-pulse pt-2">
                 <span>Entering Workspace Dashboard…</span>
                 <ArrowRight className="w-4 h-4" />
               </div>
@@ -211,7 +211,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
               
               {/* Workspace Badge Header */}
               <div className="text-center space-y-2">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 text-primary text-xs font-bold border border-primary/20 mb-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-primary/10 text-primary-ink text-xs font-bold border border-primary-strong/20 mb-1">
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Workspace Collaboration</span>
                 </div>
@@ -224,10 +224,10 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
               </div>
 
               {/* Role & Permissions Card */}
-              <div className="bg-muted/40 border border-border/60 rounded-lg p-4 space-y-2.5">
+              <div className="bg-muted/40 border-[0.5px] border-outline-variant rounded-lg p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-primary" />
+                    <ShieldCheck className="w-4 h-4 text-primary-ink" />
                     <span className="text-xs font-bold text-foreground">Assigned Seat:</span>
                   </div>
                   <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-primary text-primary-foreground">
@@ -260,7 +260,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Alex Rivera"
-                    className="w-full h-10 px-3.5 bg-background border border-border/80 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                    className="w-full h-10 px-3.5 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
                   />
                 </div>
 
@@ -272,7 +272,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                     type="email"
                     disabled
                     value={invitation.email}
-                    className="w-full h-10 px-3.5 bg-muted/60 border border-border/40 rounded-lg text-xs text-muted-foreground font-mono outline-none cursor-not-allowed"
+                    className="w-full h-10 px-3.5 bg-muted/60 border-[0.5px] border-outline-variant rounded-lg text-xs text-muted-foreground font-mono outline-none cursor-not-allowed"
                   />
                 </div>
 
@@ -289,7 +289,7 @@ export default function InviteAcceptPage({ params }: InvitePageProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter or set your password"
-                      className="w-full h-10 pl-3.5 pr-10 bg-background border border-border/80 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                      className="w-full h-10 pl-3.5 pr-10 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
                     />
                     <Lock className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>

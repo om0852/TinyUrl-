@@ -517,7 +517,7 @@ export const SecurityView: React.FC = () => {
           <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium mb-1">
             <span className="hover:text-on-surface cursor-pointer">Workspace</span>
             <ChevronRight className="w-3.5 h-3.5 text-outline" />
-            <span className="text-primary-container font-semibold">Security &amp; Zero-Trust</span>
+            <span className="text-primary-ink font-semibold">Security &amp; Zero-Trust</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight">
             Zero-Trust Threat &amp; Malware Inspector
@@ -532,7 +532,7 @@ export const SecurityView: React.FC = () => {
             type="button"
             id="btn-webhook"
             onClick={() => setWebhookModalOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors shadow-xs border border-outline-variant/30 cursor-pointer whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors shadow-xs border-[0.5px] border-outline-variant cursor-pointer whitespace-nowrap shrink-0"
           >
             <Webhook className="w-3.5 h-3.5 text-on-surface-variant" />
             <span>Configure Webhook Alert</span>
@@ -552,7 +552,7 @@ export const SecurityView: React.FC = () => {
       </div>
 
       {/* 2. Security Posture Health Banner */}
-      <div className="relative overflow-hidden bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 p-6 mb-6">
+      <div className="relative overflow-hidden bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 mb-6">
         <div className="absolute -right-8 -top-8 w-64 h-64 bg-primary/5 rounded-full pointer-events-none" />
         
         <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -568,7 +568,7 @@ export const SecurityView: React.FC = () => {
                   strokeWidth="5" 
                 />
                 <circle 
-                  className={healthPercent === 100 ? 'stroke-primary-container' : 'stroke-amber-500'} 
+                  className={healthPercent === 100 ? 'stroke-primary-strong' : 'stroke-amber-500'} 
                   cx="32" cy="32" r="28" 
                   fill="none" 
                   strokeDasharray="175.9" 
@@ -578,7 +578,7 @@ export const SecurityView: React.FC = () => {
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <Lock className={`w-5 h-5 ${healthPercent === 100 ? 'text-primary-container' : 'text-amber-500'}`} />
+                <Lock className={`w-5 h-5 ${healthPercent === 100 ? 'text-primary-ink' : 'text-amber-500'}`} />
               </div>
             </div>
 
@@ -627,30 +627,30 @@ export const SecurityView: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         
         {/* Card 1: Scanned Endpoints */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Monitored Links</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
               <Shield className="w-4 h-4" />
             </div>
           </div>
           <div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black text-on-surface tracking-tight">{totalCount}</span>
-              <span className="text-xs text-primary-container font-bold">Total</span>
+              <span className="text-xs text-primary-ink font-bold">Total</span>
             </div>
             <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-primary-container" />
+              <Lock className="w-3.5 h-3.5 text-primary-ink" />
               <span>{httpsCount} encrypted via TLS 1.3</span>
             </p>
           </div>
         </div>
 
         {/* Card 2: Threats Neutralized */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Flagged Threats</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
               <ShieldAlert className="w-4 h-4" />
             </div>
           </div>
@@ -676,10 +676,10 @@ export const SecurityView: React.FC = () => {
         </div>
 
         {/* Card 3: Destination Uptime */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30 flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Destination Health</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
               <Zap className="w-4 h-4" />
             </div>
           </div>
@@ -699,7 +699,7 @@ export const SecurityView: React.FC = () => {
 
         {/* Card 4: Dead / Inactive Link Alerts */}
         <div className={`bg-surface-container-lowest rounded-xl p-5 shadow-xs border ${
-          flaggedCount + pausedCount > 0 ? 'border-amber-300' : 'border-outline-variant/30'
+          flaggedCount + pausedCount > 0 ? 'border-amber-300' : 'border-outline-variant'
         } flex flex-col justify-between hover:shadow-sm transition-shadow relative overflow-hidden`}>
           {flaggedCount + pausedCount > 0 && (
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
@@ -734,10 +734,10 @@ export const SecurityView: React.FC = () => {
       </div>
 
       {/* 4. Real-Time Link Inspector & Audit Queue Section */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 overflow-hidden mb-6">
+      <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant overflow-hidden mb-6">
         
         {/* Header & Table Controls */}
-        <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant/20">
+        <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant">
           <div>
             <h2 className="text-base font-bold text-on-surface">Live Destination Health &amp; Threat Queue</h2>
             <p className="text-xs text-on-surface-variant mt-0.5">Automated synthetic head requests checking HTTP response codes, SSL certificates, and threat heuristics</p>
@@ -752,7 +752,7 @@ export const SecurityView: React.FC = () => {
                 placeholder="Search link or destination..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-surface-container-low text-on-surface rounded-xl outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/30 text-xs w-48 sm:w-56"
+                className="pl-8 pr-3 py-1.5 bg-surface-container-low text-on-surface rounded-xl outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant text-xs w-48 sm:w-56"
               />
             </div>
 
@@ -762,7 +762,7 @@ export const SecurityView: React.FC = () => {
               <select 
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="pl-8 pr-7 py-1.5 bg-surface-container-low text-on-surface font-semibold rounded-xl outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/30 cursor-pointer text-xs"
+                className="pl-8 pr-7 py-1.5 bg-surface-container-low text-on-surface font-semibold rounded-xl outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant cursor-pointer text-xs"
               >
                 <option value="all">All Statuses ({tableData.length})</option>
                 <option value="safe">Safe &amp; Verified ({safeCount})</option>
@@ -777,7 +777,7 @@ export const SecurityView: React.FC = () => {
               <select 
                 value={protocolFilter}
                 onChange={(e) => setProtocolFilter(e.target.value as any)}
-                className="pl-8 pr-7 py-1.5 bg-surface-container-low text-on-surface font-semibold rounded-xl outline-none focus:ring-2 focus:ring-primary-container border border-outline-variant/30 cursor-pointer text-xs"
+                className="pl-8 pr-7 py-1.5 bg-surface-container-low text-on-surface font-semibold rounded-xl outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant cursor-pointer text-xs"
               >
                 <option value="all">All Protocols ({tableData.length})</option>
                 <option value="https">HTTPS Encrypted ({httpsCount})</option>
@@ -789,7 +789,7 @@ export const SecurityView: React.FC = () => {
             <button 
               type="button"
               onClick={handleExportAuditCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors border border-outline-variant/30 cursor-pointer font-semibold text-xs" 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors border-[0.5px] border-outline-variant cursor-pointer font-semibold text-xs" 
               title="Export audit log CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -802,7 +802,7 @@ export const SecurityView: React.FC = () => {
         <div className="hidden md:block w-full overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs min-w-[780px]">
             <thead>
-              <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/20">
+              <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">
                 <th className="py-3 px-6 whitespace-nowrap">Short Link</th>
                 <th className="py-3 px-4 whitespace-nowrap">Destination URL</th>
                 <th className="py-3 px-4 whitespace-nowrap">Scan Engines</th>
@@ -813,7 +813,7 @@ export const SecurityView: React.FC = () => {
                 <th className="py-3 px-6 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-outline-variant/20">
+            <tbody className="divide-y divide-outline-variant">
               {paginatedRows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-on-surface-variant">
@@ -845,13 +845,13 @@ export const SecurityView: React.FC = () => {
                     {/* Short Link */}
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-2">
-                        <span className={`font-mono font-bold ${row.isDead ? 'text-amber-900' : 'text-primary-container'}`}>
+                        <span className={`font-mono font-bold ${row.isDead ? 'text-amber-900' : 'text-primary-ink'}`}>
                           {row.shortLink}
                         </span>
                         <button 
                           type="button"
                           onClick={() => handleCopy(`https://${row.shortLink}`)}
-                          className="text-outline hover:text-primary-container transition-colors cursor-pointer" 
+                          className="text-outline hover:text-primary-ink transition-colors cursor-pointer" 
                           title="Copy shortened URL"
                         >
                           {copiedLink === `https://${row.shortLink}` ? (
@@ -885,7 +885,7 @@ export const SecurityView: React.FC = () => {
                             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               row.isDead
                                 ? 'bg-amber-200 text-amber-900'
-                                : 'bg-surface-container text-primary-container'
+                                : 'bg-surface-container text-primary-ink'
                             }`}
                           >
                             {!row.isDead && <Check className="w-2.5 h-2.5" />}
@@ -899,7 +899,7 @@ export const SecurityView: React.FC = () => {
                     <td className="py-4 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-1 text-on-surface font-semibold text-xs">
                         {row.isSslValid ? (
-                          <Lock className="w-3.5 h-3.5 text-primary-container" />
+                          <Lock className="w-3.5 h-3.5 text-primary-ink" />
                         ) : (
                           <LockOpen className="w-3.5 h-3.5 text-amber-600" />
                         )}
@@ -953,7 +953,7 @@ export const SecurityView: React.FC = () => {
                             <button 
                               type="button"
                               onClick={() => handleTogglePause(row)}
-                              className="p-1.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-amber-800 hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant/30" 
+                              className="p-1.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-amber-800 hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant" 
                               title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
                             >
                               {row.status === 'expired' ? <PlayCircle className="w-4 h-4 text-emerald-600" /> : <PauseCircle className="w-4 h-4 text-amber-700" />}
@@ -965,7 +965,7 @@ export const SecurityView: React.FC = () => {
                               type="button"
                               disabled={scanningRowId === row.id}
                               onClick={() => handleScanSingleLink(row)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-semibold text-xs border border-outline-variant/30 cursor-pointer disabled:opacity-50"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-semibold text-xs border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-50"
                             >
                               <RefreshCw className={`w-3 h-3 text-outline ${scanningRowId === row.id ? 'animate-spin' : ''}`} />
                               <span>{scanningRowId === row.id ? 'Probing...' : 'Scan Now'}</span>
@@ -973,7 +973,7 @@ export const SecurityView: React.FC = () => {
                             <button 
                               type="button"
                               onClick={() => handleTogglePause(row)}
-                              className="p-1.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant/30"
+                              className="p-1.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant"
                               title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
                             >
                               {row.status === 'expired' ? <PlayCircle className="w-3.5 h-3.5 text-emerald-600" /> : <PauseCircle className="w-3.5 h-3.5" />}
@@ -990,7 +990,7 @@ export const SecurityView: React.FC = () => {
         </div>
 
         {/* Mobile Cards View (Phones & Small Tablets) */}
-        <div className="block md:hidden divide-y divide-outline-variant/20">
+        <div className="block md:hidden divide-y divide-outline-variant">
           {paginatedRows.length === 0 ? (
             <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
               <ShieldAlert className="w-8 h-8 text-outline mx-auto mb-2 opacity-50" />
@@ -1010,13 +1010,13 @@ export const SecurityView: React.FC = () => {
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono font-bold text-sm ${row.isDead ? 'text-amber-900' : 'text-primary-container'}`}>
+                    <span className={`font-mono font-bold text-sm ${row.isDead ? 'text-amber-900' : 'text-primary-ink'}`}>
                       {row.shortLink}
                     </span>
                     <button 
                       type="button"
                       onClick={() => handleCopy(`https://${row.shortLink}`)}
-                      className="text-outline hover:text-primary-container"
+                      className="text-outline hover:text-primary-ink"
                     >
                       {copiedLink === `https://${row.shortLink}` ? (
                         <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -1043,11 +1043,11 @@ export const SecurityView: React.FC = () => {
 
                     <div className="flex items-center gap-0.5 font-semibold text-[11px]">
                       {row.isSslValid ? (
-                        <Lock className="w-3 h-3 text-primary-container" />
+                        <Lock className="w-3 h-3 text-primary-ink" />
                       ) : (
                         <LockOpen className="w-3 h-3 text-amber-600" />
                       )}
-                      <span className={row.isSslValid ? 'text-primary' : 'text-amber-800'}>{row.sslStatus}</span>
+                      <span className={row.isSslValid ? 'text-primary-ink' : 'text-amber-800'}>{row.sslStatus}</span>
                     </div>
                   </div>
                 </div>
@@ -1063,7 +1063,7 @@ export const SecurityView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 flex-wrap">
+                <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant flex-wrap">
                   <div className="flex items-center gap-1">
                     {row.engines.map((eng, idx) => (
                       <span key={idx} className="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant text-[9px] font-bold">
@@ -1087,7 +1087,7 @@ export const SecurityView: React.FC = () => {
                         type="button"
                         disabled={scanningRowId === row.id}
                         onClick={() => handleScanSingleLink(row)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold border border-outline-variant/30 cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-50"
                       >
                         <RefreshCw className={`w-3 h-3 text-outline ${scanningRowId === row.id ? 'animate-spin' : ''}`} />
                         <span>Scan</span>
@@ -1097,7 +1097,7 @@ export const SecurityView: React.FC = () => {
                     <button 
                       type="button"
                       onClick={() => handleTogglePause(row)}
-                      className="p-1 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-outline-variant/30 cursor-pointer"
+                      className="p-1 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface border-[0.5px] border-outline-variant cursor-pointer"
                       title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
                     >
                       {row.status === 'expired' ? <PlayCircle className="w-3.5 h-3.5 text-emerald-600" /> : <PauseCircle className="w-3.5 h-3.5 text-amber-700" />}
@@ -1110,7 +1110,7 @@ export const SecurityView: React.FC = () => {
         </div>
 
         {/* Table Footer with Real Pagination */}
-        <div className="p-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-xs border-t border-outline-variant/20">
+        <div className="p-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-xs border-t border-outline-variant">
           <span className="text-on-surface-variant">
             {filteredRows.length === 0 
               ? 'Showing 0 monitored destinations' 
@@ -1121,7 +1121,7 @@ export const SecurityView: React.FC = () => {
               type="button" 
               disabled={currentPage <= 1} 
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs hover:bg-surface-container transition-colors border border-outline-variant/30 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs hover:bg-surface-container transition-colors border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               <span>Previous</span>
@@ -1133,7 +1133,7 @@ export const SecurityView: React.FC = () => {
               type="button" 
               disabled={currentPage >= totalPages} 
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs hover:bg-surface-container transition-colors border border-outline-variant/30 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs hover:bg-surface-container transition-colors border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <span>Next</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -1147,13 +1147,13 @@ export const SecurityView: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
         
         {/* Left Column: 4 Persistent Guardrail Toggles */}
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant/30">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-outline-variant/20">
+        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-outline-variant">
             <div>
               <h2 className="text-base font-bold text-on-surface">Zero-Trust Guardrails &amp; Automated Quarantine</h2>
               <p className="text-xs text-on-surface-variant mt-0.5">Automated policies enforced across edge routers whenever a destination endpoint violates integrity thresholds</p>
             </div>
-            <SlidersHorizontal className="w-5 h-5 text-primary-container" />
+            <SlidersHorizontal className="w-5 h-5 text-primary-ink" />
           </div>
 
           <div className="space-y-4 text-xs">
@@ -1161,7 +1161,7 @@ export const SecurityView: React.FC = () => {
             {/* Toggle 1: Auto-Redirect Killswitch */}
             <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
+                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
                   <ArrowRight className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -1191,7 +1191,7 @@ export const SecurityView: React.FC = () => {
             {/* Toggle 2: Bot Fraud Filtering */}
             <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
+                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
                   <Bot className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -1221,7 +1221,7 @@ export const SecurityView: React.FC = () => {
             {/* Toggle 3: Phishing Guard */}
             <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
+                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
                   <ShieldCheck className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -1251,7 +1251,7 @@ export const SecurityView: React.FC = () => {
             {/* Toggle 4: Instant Alerts */}
             <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-container shrink-0">
+                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
                   <Bell className="w-3.5 h-3.5" />
                 </div>
                 <div>
@@ -1286,7 +1286,7 @@ export const SecurityView: React.FC = () => {
           
           {/* Active Incident or Clean Posture Box */}
           {activeIncident ? (
-            <div className="bg-amber-50/90 rounded-xl p-5 shadow-xs border-l-4 border-l-amber-600 border border-outline-variant/30 flex flex-col justify-between">
+            <div className="bg-amber-50/90 rounded-xl p-5 shadow-xs border-l-4 border-l-amber-600 border-[0.5px] border-outline-variant flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 text-amber-900 text-xs font-bold mb-1">
                   <AlertTriangle className="w-4 h-4 text-amber-700" />
@@ -1311,7 +1311,7 @@ export const SecurityView: React.FC = () => {
                 <button 
                   type="button"
                   onClick={() => handleTogglePause(activeIncident)}
-                  className="px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant/30"
+                  className="px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant"
                 >
                   {activeIncident.status === 'expired' ? 'Resume Link' : 'Pause Link'}
                 </button>
@@ -1348,12 +1348,12 @@ export const SecurityView: React.FC = () => {
           )}
 
           {/* Active Heuristics Status Box */}
-          <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant/30">
+          <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant">
             <h3 className="text-sm font-bold text-on-surface mb-1">Threat Probes Connected</h3>
             <p className="text-xs text-on-surface-variant mb-3">Active edge consensus validating redirect safety</p>
             
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/20">
+              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="font-semibold text-on-surface">Heuristic Safe Browsing</span>
@@ -1361,7 +1361,7 @@ export const SecurityView: React.FC = () => {
                 <span className="font-mono text-[11px] text-emerald-700 font-bold">Active</span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/20">
+              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="font-semibold text-on-surface">TLS &amp; Certificate Handshake</span>
@@ -1369,12 +1369,12 @@ export const SecurityView: React.FC = () => {
                 <span className="font-mono text-[11px] text-emerald-700 font-bold">Strict</span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant/20">
+              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <span className="font-semibold text-on-surface">Edge Quarantine Interstitial</span>
                 </div>
-                <span className="font-mono text-[11px] text-primary-container font-bold">Enforced</span>
+                <span className="font-mono text-[11px] text-primary-ink font-bold">Enforced</span>
               </div>
             </div>
           </div>
@@ -1386,12 +1386,12 @@ export const SecurityView: React.FC = () => {
       {/* 6. Emergency Destination Swap Modal (Rendered via Portal) */}
       {mounted && swapModalOpen && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSwapModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
             {/* Close Button */}
             <button
               type="button"
@@ -1402,11 +1402,11 @@ export const SecurityView: React.FC = () => {
             </button>
 
             <div className="flex items-center gap-2 mb-1">
-              <ArrowRight className="w-5 h-5 text-primary-container" />
+              <ArrowRight className="w-5 h-5 text-primary-ink" />
               <h3 className="text-base font-bold text-on-surface">Emergency Destination Swap</h3>
             </div>
             <p className="text-xs text-on-surface-variant mb-4">
-              Update destination for <strong className="text-primary-container font-mono">{swapTargetSlug}</strong> across all edge nodes instantly.
+              Update destination for <strong className="text-primary-ink font-mono">{swapTargetSlug}</strong> across all edge nodes instantly.
             </p>
 
             <form onSubmit={handleSaveSwap} className="space-y-4 text-xs">
@@ -1418,16 +1418,16 @@ export const SecurityView: React.FC = () => {
                   placeholder="https://example.com/new-destination"
                   value={newDestinationUrl}
                   onChange={(e) => setNewDestinationUrl(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-lg font-mono text-xs border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-lg font-mono text-xs border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
                 />
               </div>
 
-              <div className="p-3 bg-surface-container-low rounded-lg flex items-center gap-2 text-on-surface-variant text-xs border border-outline-variant/20">
-                <Zap className="w-4 h-4 text-primary-container shrink-0" />
+              <div className="p-3 bg-surface-container-low rounded-lg flex items-center gap-2 text-on-surface-variant text-xs border border-outline-variant">
+                <Zap className="w-4 h-4 text-primary-ink shrink-0" />
                 <span>Edge propagation: updates globally in ~200ms without modifying the shortened code.</span>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-outline-variant/20 mt-3">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-3">
                 <button 
                   type="button"
                   onClick={() => setSwapModalOpen(false)}
@@ -1452,12 +1452,12 @@ export const SecurityView: React.FC = () => {
       {/* 7. Configure Webhook Alert Modal (Rendered via Portal) */}
       {mounted && webhookModalOpen && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setWebhookModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
             <button
               type="button"
               onClick={() => setWebhookModalOpen(false)}
@@ -1489,8 +1489,8 @@ export const SecurityView: React.FC = () => {
                       onClick={() => setWebhookService(srv)}
                       className={`py-1.5 rounded-lg font-bold transition-all cursor-pointer border text-xs ${
                         webhookService === srv
-                          ? 'bg-primary-container text-on-primary border-primary-container shadow-xs'
-                          : 'bg-surface-container-low text-on-surface-variant border-outline-variant/30 hover:bg-surface-container'
+                          ? 'bg-primary-container text-on-primary border-primary-strong shadow-xs'
+                          : 'bg-surface-container-low text-on-surface-variant border-outline-variant hover:bg-surface-container'
                       }`}
                     >
                       {srv}
@@ -1507,11 +1507,11 @@ export const SecurityView: React.FC = () => {
                   placeholder="https://your-webhook-endpoint.com/..."
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container text-on-surface font-mono text-xs"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong text-on-surface font-mono text-xs"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-outline-variant/20 mt-3">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-3">
                 <button
                   type="button"
                   onClick={() => setWebhookModalOpen(false)}
@@ -1534,7 +1534,7 @@ export const SecurityView: React.FC = () => {
 
       {/* 8. Notification Toast */}
       {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
+        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border-[0.5px] border-outline-variant text-xs font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>,

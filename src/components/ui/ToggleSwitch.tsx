@@ -19,7 +19,7 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`flex items-center justify-between p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 ${className}`}>
+    <div className={`flex items-center justify-between p-3 rounded-xl bg-surface-container-low border-[0.5px] border-outline-variant ${className}`}>
       {(title || description) && (
         <div className="flex items-center gap-1.5 pr-4 min-w-0">
           {title && <span className="text-xs font-bold text-on-surface leading-tight">{title}</span>}

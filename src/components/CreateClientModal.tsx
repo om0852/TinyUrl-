@@ -51,7 +51,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
   const [companyName, setCompanyName] = useState('');
   const [password, setPassword] = useState('');
   const [customDomain, setCustomDomain] = useState('');
-  const [brandColor, setBrandColor] = useState('#4f46e5');
+  const [brandColor, setBrandColor] = useState('#65a30d');
   const [brandLogoUrl, setBrandLogoUrl] = useState('');
 
   // Permissions
@@ -101,7 +101,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
       setCompanyName(clientToEdit.company_name || '');
       setPassword('');
       setCustomDomain(clientToEdit.custom_domain || defaultHost);
-      setBrandColor(clientToEdit.brand_color || '#4f46e5');
+      setBrandColor(clientToEdit.brand_color || '#65a30d');
       setBrandLogoUrl(clientToEdit.brand_logo_url || '');
       setCanViewAnalytics(clientToEdit.can_view_analytics !== false);
       setCanEditDestinationUrl(Boolean(clientToEdit.can_edit_destination_url));
@@ -115,7 +115,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
       setCompanyName('');
       setPassword('');
       setCustomDomain(defaultHost);
-      setBrandColor('#4f46e5');
+      setBrandColor('#65a30d');
       setBrandLogoUrl('');
       setCanViewAnalytics(true);
       setCanEditDestinationUrl(false);
@@ -255,15 +255,15 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
   return createPortal(
     <div 
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-3 sm:p-4 animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isSubmitting) onClose();
       }}
     >
-      <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[92vh] overflow-y-auto custom-scrollbar text-on-surface flex flex-col">
+      <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in max-h-[92vh] overflow-y-auto custom-scrollbar text-on-surface flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-outline-variant/20">
+        <div className="flex items-center justify-between pb-4 border-b border-outline-variant">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs">
               <Building2 className="w-5 h-5" />
@@ -293,7 +293,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
         </div>
 
         {/* Multi-Step Category Tabs */}
-        <div className="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border border-outline-variant/30 my-4 text-xs overflow-x-auto">
+        <div className="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border-[0.5px] border-outline-variant my-4 text-xs overflow-x-auto">
           {[
             { id: 'info', label: '1. Account Credentials', icon: User },
             { id: 'scoping', label: '2. Resource Scoping', icon: Link2, badge: selectedLinkIds.length + selectedCampaignIds.length },
@@ -309,7 +309,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                   isActive
-                    ? 'bg-surface-container-lowest text-primary-container shadow-xs font-bold'
+                    ? 'bg-surface-container-lowest text-primary-ink shadow-xs font-bold'
                     : 'text-on-surface-variant hover:text-on-surface'
                 }`}
               >
@@ -345,7 +345,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
-                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
                     />
                   </div>
                 </div>
@@ -363,7 +363,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
                       required
-                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
                     />
                   </div>
                 </div>
@@ -384,7 +384,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={Boolean(clientToEdit)}
                       required
-                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container disabled:opacity-60"
+                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -404,14 +404,14 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required={!clientToEdit}
-                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                      className="w-full pl-9 pr-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="p-3.5 bg-primary-container/10 border border-primary-container/20 rounded-xl text-xs text-on-surface flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-primary-container shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-primary-container/10 border border-primary-strong/20 rounded-xl text-xs text-on-surface flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-primary-ink shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
                   <strong>Strict Sandboxing Guarantee:</strong> When this client logs in via the portal URL, your main workspace sidebar (Billing, API Keys, Team Members, and other clients&rsquo; links) is completely hidden.
                 </div>
@@ -441,12 +441,12 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                   placeholder="Search your workspace links by title or slug..."
                   value={linkSearchQuery}
                   onChange={(e) => setLinkSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none"
+                  className="w-full pl-8 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none"
                 />
               </div>
 
               {/* Links List */}
-              <div className="max-h-44 overflow-y-auto space-y-1.5 border border-outline-variant/20 rounded-xl p-2 bg-surface-container-low/30 custom-scrollbar">
+              <div className="max-h-44 overflow-y-auto space-y-1.5 border-[0.5px] border-outline-variant rounded-xl p-2 bg-surface-container-low/30 custom-scrollbar">
                 {filteredLinks.length === 0 ? (
                   <div className="py-6 text-center text-xs text-on-surface-variant">
                     No matching short links found in this workspace.
@@ -460,17 +460,17 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                         onClick={() => toggleLinkSelection(l.id)}
                         className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition text-xs ${
                           isSelected
-                            ? 'bg-primary-container/15 border-primary-container/40 text-on-surface font-semibold'
-                            : 'bg-surface-container-lowest border-outline-variant/30 hover:bg-surface-container-low text-on-surface-variant'
+                            ? 'bg-primary-container/15 border-primary-strong/40 text-on-surface font-semibold'
+                            : 'bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low text-on-surface-variant'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                          <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-primary-container text-on-primary border-primary-container' : 'border-outline-variant'}`}>
+                          <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-primary-container text-on-primary border-primary-strong' : 'border-outline-variant'}`}>
                             {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                           </div>
                           <div className="flex flex-col min-w-0">
                             <span className="truncate font-bold text-on-surface">{l.title || 'Untitled Link'}</span>
-                            <span className="text-[10px] font-mono text-primary-container truncate">/{l.custom_slug || l.short_code}</span>
+                            <span className="text-[10px] font-mono text-primary-ink truncate">/{l.custom_slug || l.short_code}</span>
                           </div>
                         </div>
                         <span className="font-mono text-[10px] shrink-0 text-on-surface-variant">
@@ -483,7 +483,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               </div>
 
               {/* Assign Campaigns */}
-              <div className="pt-2 border-t border-outline-variant/20">
+              <div className="pt-2 border-t border-outline-variant">
                 <div className="flex items-center gap-1 mb-1.5">
                   <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">
                     Or Assign Whole Marketing Campaigns
@@ -505,17 +505,17 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                           onClick={() => toggleCampaignSelection(c.id)}
                           className={`p-2.5 rounded-lg border flex items-center justify-between cursor-pointer transition text-xs ${
                             isSelected
-                              ? 'bg-primary-container/15 border-primary-container/40 text-on-surface font-semibold'
-                              : 'bg-surface-container-lowest border-outline-variant/30 hover:bg-surface-container-low text-on-surface-variant'
+                              ? 'bg-primary-container/15 border-primary-strong/40 text-on-surface font-semibold'
+                              : 'bg-surface-container-lowest border-outline-variant hover:bg-surface-container-low text-on-surface-variant'
                           }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-primary-container text-on-primary border-primary-container' : 'border-outline-variant'}`}>
+                            <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isSelected ? 'bg-primary-container text-on-primary border-primary-strong' : 'border-outline-variant'}`}>
                               {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                             </div>
                             <span className="truncate">{c.name}</span>
                           </div>
-                          <Target className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                          <Target className="w-3.5 h-3.5 text-primary-ink shrink-0" />
                         </div>
                       );
                     })
@@ -533,7 +533,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               </span>
 
               {/* Permission 1: View Analytics Only */}
-              <label className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-start justify-between cursor-pointer hover:bg-surface-container transition">
+              <label className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant flex items-start justify-between cursor-pointer hover:bg-surface-container transition">
                 <div className="flex flex-col pr-4">
                   <span className="text-xs font-bold text-on-surface">View Real-Time Analytics</span>
                   <span className="text-[11px] text-on-surface-variant mt-0.5">
@@ -544,12 +544,12 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                   type="checkbox"
                   checked={canViewAnalytics}
                   onChange={(e) => setCanViewAnalytics(e.target.checked)}
-                  className="w-4 h-4 text-primary-container rounded cursor-pointer mt-0.5"
+                  className="w-4 h-4 text-primary-ink rounded cursor-pointer mt-0.5"
                 />
               </label>
 
               {/* Permission 2: Edit Destination URLs */}
-              <label className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 flex items-start justify-between cursor-pointer hover:bg-surface-container transition">
+              <label className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant flex items-start justify-between cursor-pointer hover:bg-surface-container transition">
                 <div className="flex flex-col pr-4">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-on-surface">Edit Destination URLs (Self-Serve)</span>
@@ -565,12 +565,12 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                   type="checkbox"
                   checked={canEditDestinationUrl}
                   onChange={(e) => setCanEditDestinationUrl(e.target.checked)}
-                  className="w-4 h-4 text-primary-container rounded cursor-pointer mt-0.5"
+                  className="w-4 h-4 text-primary-ink rounded cursor-pointer mt-0.5"
                 />
               </label>
 
               {/* Permission 3: Create New Links */}
-              <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 space-y-3">
+              <div className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant space-y-3">
                 <label className="flex items-start justify-between cursor-pointer">
                   <div className="flex flex-col pr-4">
                     <span className="text-xs font-bold text-on-surface">Allow Creating New Short Links</span>
@@ -582,12 +582,12 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                     type="checkbox"
                     checked={canCreateLinks}
                     onChange={(e) => setCanCreateLinks(e.target.checked)}
-                    className="w-4 h-4 text-primary-container rounded cursor-pointer mt-0.5"
+                    className="w-4 h-4 text-primary-ink rounded cursor-pointer mt-0.5"
                   />
                 </label>
 
                 {canCreateLinks && (
-                  <div className="pt-2 border-t border-outline-variant/20 flex items-center justify-between text-xs">
+                  <div className="pt-2 border-t-[0.5px] border-outline-variant flex items-center justify-between text-xs">
                     <span className="font-semibold text-on-surface">Max Links Quota</span>
                     <input
                       type="number"
@@ -595,7 +595,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       max={1000}
                       value={maxLinksQuota}
                       onChange={(e) => setMaxLinksQuota(Number(e.target.value))}
-                      className="w-24 px-2 py-1 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-right"
+                      className="w-24 px-2 py-1 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-right"
                     />
                   </div>
                 )}
@@ -617,7 +617,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                     id="portalDomainSelect"
                     value={customDomain || primaryDomain?.hostname || currentHost}
                     onChange={(e) => setCustomDomain(e.target.value)}
-                    className="w-full appearance-none pl-9 pr-8 py-2 bg-surface-container-low text-on-surface font-mono text-xs rounded-lg border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer font-medium"
+                    className="w-full appearance-none pl-9 pr-8 py-2 bg-surface-container-low text-on-surface font-mono text-xs rounded-lg border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong transition-all cursor-pointer font-medium"
                   >
                     {availableDomains.map((d) => (
                       <option key={d.id} value={d.hostname} disabled={!d.verified}>
@@ -642,13 +642,13 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                       type="color"
                       value={brandColor}
                       onChange={(e) => setBrandColor(e.target.value)}
-                      className="w-9 h-9 rounded-lg border border-outline-variant/40 cursor-pointer p-0.5 bg-surface-container-low"
+                      className="w-9 h-9 rounded-lg border-[0.5px] border-outline-variant cursor-pointer p-0.5 bg-surface-container-low"
                     />
                     <input
                       type="text"
                       value={brandColor}
                       onChange={(e) => setBrandColor(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-surface-container-low rounded-lg text-xs font-mono border border-outline-variant/30 outline-none"
+                      className="flex-1 px-3 py-2 bg-surface-container-low rounded-lg text-xs font-mono border-[0.5px] border-outline-variant outline-none"
                     />
                   </div>
                 </div>
@@ -663,23 +663,23 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                     placeholder="https://client.com/logo.png"
                     value={brandLogoUrl}
                     onChange={(e) => setBrandLogoUrl(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+                    className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
                   />
                 </div>
               </div>
 
               {/* Portal URL preview */}
-              <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 text-xs space-y-1.5">
+              <div className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant text-xs space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
                     Client Portal Access Address
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container/10 text-primary-container font-semibold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container/10 text-primary-ink font-semibold">
                     Sandboxed Portal
                   </span>
                 </div>
-                <div className="font-mono text-primary-container font-semibold text-xs bg-surface-container-lowest px-3 py-2 rounded-lg border border-outline-variant/30 flex items-center gap-2 overflow-hidden">
-                  <Globe2 className="w-3.5 h-3.5 text-primary-container shrink-0" />
+                <div className="font-mono text-primary-ink font-semibold text-xs bg-surface-container-lowest px-3 py-2 rounded-lg border-[0.5px] border-outline-variant flex items-center gap-2 overflow-hidden">
+                  <Globe2 className="w-3.5 h-3.5 text-primary-ink shrink-0" />
                   <span className="truncate">https://{portalDisplayHost}/portal/login</span>
                 </div>
                 <p className="text-[11px] text-on-surface-variant leading-relaxed">
@@ -690,7 +690,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           )}
 
           {/* Modal Footer Controls */}
-          <div className="pt-4 border-t border-outline-variant/20 mt-6 flex items-center justify-between gap-3">
+          <div className="pt-4 border-t-[0.5px] border-outline-variant mt-6 flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={onClose}

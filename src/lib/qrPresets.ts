@@ -28,10 +28,10 @@ export const PRESET_BRAND_LOGOS: PresetBrandLogo[] = [
     id: 'link',
     name: 'Link',
     category: 'utility',
-    brandColor: '#4F46E5',
-    suggestedFg: '#4F46E5',
-    suggestedBg: '#EEF2FF',
-    svgDataUri: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%234F46E5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`
+    brandColor: '#3F6212',
+    suggestedFg: '#3F6212',
+    suggestedBg: '#ECFCCB',
+    svgDataUri: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%233F6212" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`
   },
   {
     id: 'google',
@@ -190,7 +190,7 @@ export const QR_THEME_PRESETS: QrThemePreset[] = [
 export function extractColorsFromImage(dataUrl: string): Promise<{ primary: string; secondary: string; background: string }> {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') {
-      resolve({ primary: '#4F46E5', secondary: '#7C3AED', background: '#FFFFFF' });
+      resolve({ primary: '#3F6212', secondary: '#65A30D', background: '#FFFFFF' });
       return;
     }
 
@@ -202,7 +202,7 @@ export function extractColorsFromImage(dataUrl: string): Promise<{ primary: stri
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          resolve({ primary: '#4F46E5', secondary: '#7C3AED', background: '#FFFFFF' });
+          resolve({ primary: '#3F6212', secondary: '#65A30D', background: '#FFFFFF' });
           return;
         }
 
@@ -252,15 +252,15 @@ export function extractColorsFromImage(dataUrl: string): Promise<{ primary: stri
 
           resolve({ primary: hexPrimary, secondary: hexSecondary, background });
         } else {
-          resolve({ primary: '#4F46E5', secondary: '#7C3AED', background: '#FFFFFF' });
+          resolve({ primary: '#3F6212', secondary: '#65A30D', background: '#FFFFFF' });
         }
       } catch {
-        resolve({ primary: '#4F46E5', secondary: '#7C3AED', background: '#FFFFFF' });
+        resolve({ primary: '#3F6212', secondary: '#65A30D', background: '#FFFFFF' });
       }
     };
 
     img.onerror = () => {
-      resolve({ primary: '#4F46E5', secondary: '#7C3AED', background: '#FFFFFF' });
+      resolve({ primary: '#3F6212', secondary: '#65A30D', background: '#FFFFFF' });
     };
 
     img.src = dataUrl;

@@ -19,7 +19,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  activeTabTitle: _activeTabTitle,
+  activeTabTitle,
   onOpenCreateModal,
   onOpenCommandPalette,
   onToggleMobileMenu,
@@ -29,22 +29,24 @@ export function DashboardHeader({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   return (
-    <header className="h-16 sticky top-0 z-40 px-4 sm:px-6 lg:px-8 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-outline-variant/30 flex items-center justify-between transition-colors">
+    <header className="h-[60px] shrink-0 relative z-40 mx-[15px] sm:mx-5 lg:mx-6 bg-surface-container-lowest border-b-[0.5px] border-outline-variant flex items-center justify-between">
       
       {/* Left: Mobile Toggle + Search Bar */}
       <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 mr-2 sm:mr-4">
         {onToggleMobileMenu && (
           <button
             onClick={onToggleMobileMenu}
-            className="lg:hidden p-2 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container-low transition cursor-pointer shrink-0"
+            className="lg:hidden size-[34px] grid place-items-center text-on-surface-variant hover:text-on-surface rounded-full hover:bg-surface-container transition cursor-pointer shrink-0"
             aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
 
-        {/* Reference Search Bar */}
-        <div className="relative w-full max-w-[190px] sm:max-w-xs md:max-w-md flex items-center min-w-0">
+        <h1 className="hidden md:block text-[16px] font-semibold text-on-surface whitespace-nowrap mr-2">{activeTabTitle}</h1>
+
+        {/* Command search pill */}
+        <div className="relative w-full max-w-[190px] sm:max-w-xs md:max-w-[320px] flex items-center min-w-0">
           <Search className="w-4 h-4 absolute left-3 text-outline pointer-events-none shrink-0" />
           <input
             type="text"
@@ -53,10 +55,10 @@ export function DashboardHeader({
               if (e.key === 'Enter') onOpenCommandPalette();
             }}
             placeholder="Search links, tags, campaigns..."
-            className="w-full pl-9 pr-8 sm:pr-12 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer truncate"
+            className="w-full h-[34px] pl-9 pr-8 sm:pr-12 bg-surface-container-low border-[0.5px] border-outline-variant rounded-full text-xs font-light text-on-surface placeholder:text-outline focus:outline-none focus:border-on-surface-variant transition-colors cursor-pointer truncate"
             readOnly
           />
-          <kbd className="absolute right-2 px-1.5 py-0.5 text-[10px] font-mono text-on-surface-variant/80 bg-surface-container-lowest border border-outline-variant/40 rounded shadow-2xs pointer-events-none hidden sm:inline-block">
+          <kbd className="absolute right-2.5 px-1.5 py-[1px] text-[10px] font-mono text-outline bg-surface-container-lowest border-[0.5px] border-outline-variant rounded-full pointer-events-none hidden sm:inline-block">
             ⌘K
           </kbd>
         </div>
@@ -68,9 +70,9 @@ export function DashboardHeader({
           <button
             onClick={onViewLandingPage}
             title="View Public Landing Page"
-            className="h-9 px-2.5 sm:px-3 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface text-xs font-medium flex items-center gap-1.5 transition cursor-pointer border border-outline-variant/20 whitespace-nowrap shrink-0"
+            className="h-[34px] px-3 rounded-full bg-surface-container-lowest hover:bg-surface-container border-[0.5px] border-outline-variant text-on-surface text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0"
           >
-            <Globe className="w-3.5 h-3.5 text-primary-container" />
+            <Globe className="w-3.5 h-3.5 text-primary-ink" />
             <span className="hidden sm:inline">Landing Page</span>
           </button>
         )}
@@ -79,7 +81,7 @@ export function DashboardHeader({
         <button
           onClick={onOpenCreateModal}
           type="button"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary rounded-lg px-2.5 sm:px-3.5 py-2 hover:bg-primary transition-all shadow-sm cursor-pointer whitespace-nowrap shrink-0"
+          className="lg:hidden inline-flex items-center gap-1.5 h-[34px] text-xs font-medium bg-primary-container text-on-primary rounded-md px-3 hover:bg-primary transition-colors cursor-pointer whitespace-nowrap shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">Create link</span>
@@ -91,22 +93,22 @@ export function DashboardHeader({
           <button
             type="button"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary-container/30 transition cursor-pointer"
+            className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-primary-strong/30 transition cursor-pointer"
             aria-label="User account menu"
           >
-            <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs ring-2 ring-primary-container/20 shadow-xs">
+            <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-semibold text-xs">
               {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
             </div>
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-2 z-50 animate-fade-in text-xs">
-              <div className="p-3 bg-surface-container-low rounded-lg mb-1.5 flex items-center gap-3">
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-xl bg-surface-container-lowest shadow-md border-[0.5px] border-outline-variant p-[6px] z-50 animate-fade-in text-xs">
+              <div className="p-3 bg-surface-container rounded-md mb-1.5 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-xs ring-1 ring-outline-variant/40 shrink-0">
                   {currentUser?.avatar || (currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U')}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="font-bold text-on-surface truncate block">
+                  <span className="font-semibold text-on-surface truncate block">
                     {currentUser?.name || "My Account"}
                   </span>
                   <span className="text-[11px] text-on-surface-variant truncate block">
@@ -122,14 +124,14 @@ export function DashboardHeader({
                     setUserMenuOpen(false);
                     onViewLandingPage?.();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-on-surface hover:bg-surface-container-low transition cursor-pointer text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-on-surface hover:bg-surface-container transition cursor-pointer text-left"
                 >
                   <Globe className="w-4 h-4 text-outline" />
                   <span>Public Landing Page</span>
                 </button>
               </div>
 
-              <div className="h-px bg-outline-variant/30 my-1" />
+              <div className="h-[0.5px] bg-outline-variant my-1" />
 
               <button
                 type="button"
@@ -138,7 +140,7 @@ export function DashboardHeader({
                   logout();
                   if (onViewLandingPage) onViewLandingPage();
                 }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-error hover:bg-error-container/20 font-semibold transition cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-error hover:bg-error-container font-medium transition cursor-pointer text-left"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Log Out</span>

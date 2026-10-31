@@ -538,11 +538,11 @@ print(response.status_code, response.json())`;
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 shadow-xs flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
+          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant shadow-xs flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Edge Gateway: Active</span>
           </div>
-          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/40 shadow-xs flex items-center gap-2 text-xs font-mono text-on-surface">
+          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant shadow-xs flex items-center gap-2 text-xs font-mono text-on-surface">
             <span className="text-on-surface-variant font-sans font-medium">Host:</span>
             <span>{currentHost.replace(/^https?:\/\//, '')}</span>
           </div>
@@ -553,10 +553,10 @@ print(response.status_code, response.json())`;
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Active API Keys */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Active API Keys</span>
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-container">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
               <Key className="w-4 h-4" />
             </div>
           </div>
@@ -567,7 +567,7 @@ print(response.status_code, response.json())`;
         </div>
 
         {/* Configured Webhooks */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Webhooks</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
@@ -583,10 +583,10 @@ print(response.status_code, response.json())`;
         </div>
 
         {/* Edge SLA */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Edge SLA</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+            <div className="w-8 h-8 rounded-lg bg-lime-400/10 flex items-center justify-center text-lime-700">
               <Server className="w-4 h-4" />
             </div>
           </div>
@@ -597,7 +597,7 @@ print(response.status_code, response.json())`;
         </div>
 
         {/* Auth Standard */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/40 shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
+        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Authentication</span>
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
@@ -613,7 +613,7 @@ print(response.status_code, response.json())`;
       </div>
 
       {/* 3. NAVIGATION TAB BAR */}
-      <div className="flex items-center gap-1.5 p-1 bg-surface-container-low rounded-xl border border-outline-variant/30 max-w-full overflow-x-auto scrollbar-none whitespace-nowrap text-xs font-bold">
+      <div className="flex items-center gap-1.5 p-1 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant max-w-full overflow-x-auto scrollbar-none whitespace-nowrap text-xs font-bold">
         {[
           { id: 'console', label: 'Interactive Console', icon: Play },
           { id: 'keys', label: `API Keys (${apiKeys.length})`, icon: Key },
@@ -629,7 +629,7 @@ print(response.status_code, response.json())`;
               onClick={() => setActiveTab(tab.id as ApiTab)}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-surface-container-lowest text-primary-container shadow-xs font-extrabold'
+                  ? 'bg-surface-container-lowest text-primary-ink shadow-xs font-extrabold'
                   : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60'
               }`}
             >
@@ -649,12 +649,12 @@ print(response.status_code, response.json())`;
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* LEFT: Request Configuration & Code (7 COLS) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs flex flex-col justify-between">
+          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between">
             <div>
               {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-outline-variant/20 mb-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-[0.5px] border-outline-variant mb-5">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-container">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
                     <Play className="w-4 h-4" />
                   </div>
                   <div>
@@ -683,7 +683,7 @@ print(response.status_code, response.json())`;
                       }}
                       className={`px-2.5 py-1 rounded-md text-xs font-mono font-bold transition cursor-pointer ${
                         selectedEndpoint === ep.id
-                          ? 'bg-surface-container-lowest text-primary-container shadow-xs'
+                          ? 'bg-surface-container-lowest text-primary-ink shadow-xs'
                           : 'text-on-surface-variant hover:text-on-surface'
                       }`}
                     >
@@ -695,7 +695,7 @@ print(response.status_code, response.json())`;
 
               {/* Interactive Request Form (for POST /shorten) */}
               {selectedEndpoint === 'shorten' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-3 text-xs">
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-3 text-xs">
                   <div className="font-bold text-on-surface">Request Parameters:</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">
@@ -704,7 +704,7 @@ print(response.status_code, response.json())`;
                         type="url"
                         value={customDestination}
                         onChange={(e) => setCustomDestination(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
                         placeholder="https://example.com/target"
                       />
                     </div>
@@ -714,7 +714,7 @@ print(response.status_code, response.json())`;
                         type="text"
                         value={customSlug}
                         onChange={(e) => setCustomSlug(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
                         placeholder="vanity-alias"
                       />
                     </div>
@@ -724,7 +724,7 @@ print(response.status_code, response.json())`;
                         type="text"
                         value={customTitle}
                         onChange={(e) => setCustomTitle(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
                         placeholder="Campaign Title"
                       />
                     </div>
@@ -734,10 +734,10 @@ print(response.status_code, response.json())`;
 
               {/* Interactive Request Form (for POST /links/bulk) */}
               {selectedEndpoint === 'bulk' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-3 text-xs">
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-3 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-on-surface">Bulk Batch Parameters:</span>
-                    <span className="text-[10px] font-mono text-primary-container bg-primary-container/10 px-2 py-0.5 rounded font-semibold">
+                    <span className="text-[10px] font-mono text-primary-ink bg-primary-container/10 px-2 py-0.5 rounded font-semibold">
                       Atomic 2-Link Test Batch
                     </span>
                   </div>
@@ -747,12 +747,12 @@ print(response.status_code, response.json())`;
                       type="text"
                       value={bulkBatchName}
                       onChange={(e) => setBulkBatchName(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                      className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
                       placeholder="e.g. Developer Bulk Import"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 space-y-2">
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant space-y-2">
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase">Link Item #1</span>
                       <input 
                         type="url"
@@ -769,7 +769,7 @@ print(response.status_code, response.json())`;
                         className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
                       />
                     </div>
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30 space-y-2">
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant space-y-2">
                       <span className="text-[10px] font-bold text-on-surface-variant uppercase">Link Item #2</span>
                       <input 
                         type="url"
@@ -792,14 +792,14 @@ print(response.status_code, response.json())`;
 
               {/* Interactive Request Form (for GET /links) */}
               {selectedEndpoint === 'links' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-2 text-xs">
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-2 text-xs">
                   <span className="font-bold text-on-surface">Query Parameters:</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant">
                       <span className="block text-[11px] font-semibold text-on-surface-variant">Target Workspace</span>
-                      <span className="font-mono text-xs font-bold text-primary-container">{currentWorkspace?.id || 'ws_default'}</span>
+                      <span className="font-mono text-xs font-bold text-primary-ink">{currentWorkspace?.id || 'ws_default'}</span>
                     </div>
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant/30">
+                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant">
                       <span className="block text-[11px] font-semibold text-on-surface-variant">Pagination Limit</span>
                       <span className="font-mono text-xs font-bold text-on-surface">50 items per page</span>
                     </div>
@@ -809,10 +809,10 @@ print(response.status_code, response.json())`;
 
               {/* Interactive Request Form (for POST /audit) */}
               {selectedEndpoint === 'audit' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-2 text-xs">
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-2 text-xs">
                   <span className="font-bold text-on-surface">Security Audit Configuration:</span>
                   <p className="text-xs text-on-surface-variant">
-                    Dispatches synthetic HTTP head probes and heuristic threat analysis across all links in <code className="font-mono text-primary-container font-bold">{currentWorkspace?.name || 'Current Workspace'}</code>.
+                    Dispatches synthetic HTTP head probes and heuristic threat analysis across all links in <code className="font-mono text-primary-ink font-bold">{currentWorkspace?.name || 'Current Workspace'}</code>.
                   </p>
                   <div className="flex items-center gap-2 pt-1 flex-wrap">
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
@@ -821,7 +821,7 @@ print(response.status_code, response.json())`;
                     <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-800 border border-blue-200 font-bold">
                       ✓ HTTP Response Status
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-50 text-indigo-800 border border-indigo-200 font-bold">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-lime-50 text-lime-800 border border-lime-200 font-bold">
                       ✓ Phishing Heuristics
                     </span>
                   </div>
@@ -830,10 +830,10 @@ print(response.status_code, response.json())`;
 
               {/* Interactive Request Form (for GET /analytics) */}
               {selectedEndpoint === 'analytics' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border border-outline-variant/20 space-y-2 text-xs">
+                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-2 text-xs">
                   <span className="font-bold text-on-surface">Telemetry Parameters:</span>
                   <p className="text-xs text-on-surface-variant">
-                    Queries raw real-time click stream, unique visitor deduplication, device breakdown, and geo-location for workspace <code className="font-mono text-primary-container font-bold">{currentWorkspace?.id || 'ws_default'}</code>.
+                    Queries raw real-time click stream, unique visitor deduplication, device breakdown, and geo-location for workspace <code className="font-mono text-primary-ink font-bold">{currentWorkspace?.id || 'ws_default'}</code>.
                   </p>
                 </div>
               )}
@@ -849,7 +849,7 @@ print(response.status_code, response.json())`;
                         onClick={() => setActiveLang(lang)}
                         className={`text-xs font-bold px-3 py-1 rounded-lg transition cursor-pointer ${
                           activeLang === lang
-                            ? 'bg-surface-container-high text-primary-container shadow-xs'
+                            ? 'bg-surface-container-high text-primary-ink shadow-xs'
                             : 'text-on-surface-variant hover:text-on-surface'
                         }`}
                       >
@@ -908,7 +908,7 @@ print(response.status_code, response.json())`;
 
                 {/* Live Response Viewer */}
                 {apiResponse && (
-                  <div className="mt-4 pt-4 border-t border-outline-variant/20 space-y-2 animate-fade-in">
+                  <div className="mt-4 pt-4 border-t-[0.5px] border-outline-variant space-y-2 animate-fade-in">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <span className="text-xs font-bold text-on-surface">Response Payload</span>
@@ -944,8 +944,8 @@ print(response.status_code, response.json())`;
           <div className="lg:col-span-5 space-y-6">
             
             {/* Quick Token Overview */}
-            <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-outline-variant/20 mb-4">
+            <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
+              <div className="flex items-center gap-2.5 pb-3 border-b-[0.5px] border-outline-variant mb-4">
                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
                   <Key className="w-4 h-4" />
                 </div>
@@ -956,7 +956,7 @@ print(response.status_code, response.json())`;
               </div>
 
               {apiKeys.length === 0 ? (
-                <div className="p-4 bg-surface-container-low rounded-lg text-center text-xs text-on-surface-variant border border-dashed border-outline-variant/40">
+                <div className="p-4 bg-surface-container-low rounded-lg text-center text-xs text-on-surface-variant border border-dashed border-outline-variant">
                   <p className="font-semibold text-on-surface mb-1">No API keys registered</p>
                   <p className="text-xs text-on-surface-variant mb-3">Generate a secret key to authenticate remote requests.</p>
                   <button
@@ -969,14 +969,14 @@ print(response.status_code, response.json())`;
                   </button>
                 </div>
               ) : (
-                <div className="p-3.5 bg-surface-container-low rounded-lg border border-outline-variant/20 space-y-2 text-xs">
+                <div className="p-3.5 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-on-surface">{apiKeys[0].name}</span>
                     <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
                       Primary
                     </span>
                   </div>
-                  <div className="p-2 bg-surface-container-lowest rounded-md font-mono text-[11px] text-primary-container border border-outline-variant/30 break-all">
+                  <div className="p-2 bg-surface-container-lowest rounded-md font-mono text-[11px] text-primary-ink border-[0.5px] border-outline-variant break-all">
                     {apiKeys[0].key_prefix}...••••••••••••
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap pt-1">
@@ -991,23 +991,23 @@ print(response.status_code, response.json())`;
             </div>
 
             {/* Standard Headers Card */}
-            <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs">
+            <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
               <h3 className="text-sm font-bold text-on-surface mb-2 flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-primary-container" />
+                <SlidersHorizontal className="w-4 h-4 text-primary-ink" />
                 <span>Required Request Headers</span>
               </h3>
               <p className="text-xs text-on-surface-variant mb-4">Include these headers on every outbound programmatic request</p>
 
               <div className="space-y-2 text-xs font-mono">
-                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant/20">
+                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant">
                   <span className="text-on-surface font-bold">Authorization</span>
                   <span className="text-on-surface-variant text-[11px]">Bearer sk_live_...</span>
                 </div>
-                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant/20">
+                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant">
                   <span className="text-on-surface font-bold">Content-Type</span>
                   <span className="text-on-surface-variant text-[11px]">application/json</span>
                 </div>
-                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant/20">
+                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant">
                   <span className="text-on-surface font-bold">x-workspace-id</span>
                   <span className="text-on-surface-variant text-[11px]">{currentWorkspace?.id || 'ws_default'}</span>
                 </div>
@@ -1026,8 +1026,8 @@ print(response.status_code, response.json())`;
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Key Generator Form (5 COLS) */}
-          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-outline-variant/20 mb-4">
+          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
+            <div className="flex items-center gap-2.5 pb-3 border-b-[0.5px] border-outline-variant mb-4">
               <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
                 <Key className="w-4 h-4" />
               </div>
@@ -1046,7 +1046,7 @@ print(response.status_code, response.json())`;
                   value={keyName}
                   onChange={(e) => setKeyName(e.target.value)}
                   placeholder="e.g. Production Webhook Runner"
-                  className="w-full h-10 px-3.5 bg-surface-container-low border border-outline-variant/30 focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 rounded-lg text-xs text-on-surface outline-none transition"
+                  className="w-full h-10 px-3.5 bg-surface-container-low border-[0.5px] border-outline-variant focus:border-primary-strong focus:ring-2 focus:ring-primary-strong/20 rounded-lg text-xs text-on-surface outline-none transition"
                 />
               </div>
 
@@ -1067,15 +1067,15 @@ print(response.status_code, response.json())`;
                         onClick={() => handleToggleScope(scope.id)}
                         className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
                           isChecked 
-                            ? 'bg-primary-container/5 border-primary-container/40' 
-                            : 'bg-surface-container-low border-outline-variant/20 hover:bg-surface-container'
+                            ? 'bg-primary-container/5 border-primary-strong/40' 
+                            : 'bg-surface-container-low border-outline-variant hover:bg-surface-container'
                         }`}
                       >
                         <input 
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {}} 
-                          className="mt-0.5 accent-primary-container cursor-pointer"
+                          className="mt-0.5 accent-primary-strong cursor-pointer"
                         />
                         <div>
                           <span className="font-bold text-on-surface block">{scope.name}</span>
@@ -1098,10 +1098,10 @@ print(response.status_code, response.json())`;
           </div>
 
           {/* Active Keys Table (7 COLS) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-4">
+          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
+            <div className="flex items-center justify-between pb-3 border-b-[0.5px] border-outline-variant mb-4">
               <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
-                <Key className="w-4 h-4 text-primary-container" />
+                <Key className="w-4 h-4 text-primary-ink" />
                 <span>Active Workspace Keys ({apiKeys.length})</span>
               </h2>
               <span className="text-xs text-on-surface-variant">Hashed with SHA-256</span>
@@ -1122,7 +1122,7 @@ print(response.status_code, response.json())`;
                 apiKeys.map((k) => (
                   <div
                     key={k.id}
-                    className="p-4 bg-surface-container-low rounded-lg border border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    className="p-4 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -1131,7 +1131,7 @@ print(response.status_code, response.json())`;
                           {k.created_at ? new Date(k.created_at).toLocaleDateString() : 'Active'}
                         </span>
                       </div>
-                      <div className="font-mono text-xs text-primary-container mt-1 font-semibold">
+                      <div className="font-mono text-xs text-primary-ink mt-1 font-semibold">
                         {k.key_prefix}...••••••••••••
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -1174,8 +1174,8 @@ print(response.status_code, response.json())`;
       {activeTab === 'webhooks' && (
         <div className="space-y-6">
           
-          <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-outline-variant/20 mb-5">
+          <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-[0.5px] border-outline-variant mb-5">
               <div>
                 <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
                   <WebhookIcon className="w-4 h-4 text-emerald-600" />
@@ -1220,14 +1220,14 @@ print(response.status_code, response.json())`;
                 webhooks.map((wh) => (
                   <div
                     key={wh.id}
-                    className="p-4 bg-surface-container-low rounded-lg border border-outline-variant/20 flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    className="p-4 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant flex flex-col md:flex-row md:items-center justify-between gap-4"
                   >
                     <div className="space-y-1.5 max-w-xl">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
                           wh.active 
                             ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                            : 'bg-surface-container text-on-surface-variant border-outline-variant/40'
+                            : 'bg-surface-container text-on-surface-variant border-outline-variant'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${wh.active ? 'bg-emerald-600' : 'bg-outline'}`} />
                           <span>{wh.active ? 'Streaming' : 'Paused'}</span>
@@ -1238,7 +1238,7 @@ print(response.status_code, response.json())`;
                       {/* Subscribed events */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {wh.events.map((ev, idx) => (
-                          <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-container font-semibold text-primary-container">
+                          <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-container font-semibold text-primary-ink">
                             {ev}
                           </span>
                         ))}
@@ -1247,7 +1247,7 @@ print(response.status_code, response.json())`;
                       {/* Signing Secret */}
                       <div className="flex items-center gap-2 text-[11px] text-on-surface-variant font-mono pt-1">
                         <span>Secret:</span>
-                        <span className="bg-surface-container-lowest px-2 py-0.5 rounded border border-outline-variant/30 select-all">
+                        <span className="bg-surface-container-lowest px-2 py-0.5 rounded border-[0.5px] border-outline-variant select-all">
                           {revealedSecrets[wh.id] ? wh.secret : `${wh.secret.substring(0, 10)}••••••••••••`}
                         </span>
                         <button
@@ -1280,9 +1280,9 @@ print(response.status_code, response.json())`;
                         type="button"
                         disabled={testingWebhookId === wh.id}
                         onClick={() => handleTestWebhookPing(wh.id, wh.url, wh.secret)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-semibold text-xs border border-outline-variant/30 hover:bg-surface-container transition cursor-pointer disabled:opacity-50"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-semibold text-xs border-[0.5px] border-outline-variant hover:bg-surface-container transition cursor-pointer disabled:opacity-50"
                       >
-                        <Send className={`w-3.5 h-3.5 text-primary-container ${testingWebhookId === wh.id ? 'animate-pulse' : ''}`} />
+                        <Send className={`w-3.5 h-3.5 text-primary-ink ${testingWebhookId === wh.id ? 'animate-pulse' : ''}`} />
                         <span>{testingWebhookId === wh.id ? 'Pinging...' : 'Send Test Ping'}</span>
                       </button>
 
@@ -1292,7 +1292,7 @@ print(response.status_code, response.json())`;
                           await toggleWebhook(wh.id);
                           showToast(`Webhook ${wh.active ? 'paused' : 'resumed'}.`);
                         }}
-                        className="p-2 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition cursor-pointer border border-outline-variant/30"
+                        className="p-2 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition cursor-pointer border border-outline-variant"
                         title={wh.active ? 'Pause webhook delivery' : 'Resume webhook delivery'}
                       >
                         {wh.active ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4 text-emerald-600" />}
@@ -1319,13 +1319,13 @@ print(response.status_code, response.json())`;
           </div>
 
           {/* Webhook Signature Verification Guide */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-xs">
+          <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
             <h3 className="text-sm font-bold text-on-surface mb-2 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary-container" />
+              <ShieldCheck className="w-4 h-4 text-primary-ink" />
               <span>Verifying Webhook Signatures (HMAC-SHA256)</span>
             </h3>
             <p className="text-xs text-on-surface-variant mb-4">
-              Every webhook delivery includes a <code className="font-mono text-primary-container">x-tinyurl-signature</code> header computed over the raw request payload using your webhook signing secret.
+              Every webhook delivery includes a <code className="font-mono text-primary-ink">x-tinyurl-signature</code> header computed over the raw request payload using your webhook signing secret.
             </p>
 
             <div className="p-3.5 bg-slate-950 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto leading-relaxed">
@@ -1401,7 +1401,7 @@ function verifyWebhook(payload, signatureHeader, secret) {
               body: `// Query Parameters: ?workspace_id=ws_...&range=7d`
             }
           ].map((endpoint, i) => (
-            <div key={i} className="p-5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-xs space-y-3">
+            <div key={i} className="p-5 bg-surface-container-lowest rounded-xl border-[0.5px] border-outline-variant shadow-xs space-y-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
@@ -1429,12 +1429,12 @@ function verifyWebhook(payload, signatureHeader, secret) {
           ───────────────────────────────────────────────────────────── */}
       {keyModalOpen && createdKey && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setKeyModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
             <button
               type="button"
               onClick={() => setKeyModalOpen(false)}
@@ -1451,13 +1451,13 @@ function verifyWebhook(payload, signatureHeader, secret) {
               Please copy your secret key right now. For security purposes, this token will <strong>never be shown again</strong>.
             </p>
 
-            <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 space-y-2 mb-4">
-              <div className="font-mono text-xs text-primary-container font-bold break-all select-all">
+            <div className="p-3 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant space-y-2 mb-4">
+              <div className="font-mono text-xs text-primary-ink font-bold break-all select-all">
                 {createdKey}
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-outline-variant/20">
+            <div className="flex items-center justify-between gap-3 pt-2 border-t border-outline-variant">
               <span className="text-[11px] text-on-surface-variant">Store securely in your environment variables.</span>
               <button
                 type="button"
@@ -1478,12 +1478,12 @@ function verifyWebhook(payload, signatureHeader, secret) {
           ───────────────────────────────────────────────────────────── */}
       {webhookModalOpen && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setWebhookModalOpen(false);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
             <button
               type="button"
               onClick={() => setWebhookModalOpen(false)}
@@ -1509,7 +1509,7 @@ function verifyWebhook(payload, signatureHeader, secret) {
                   placeholder="https://api.yourdomain.com/webhooks/tinyurl"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border border-outline-variant/30 text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
                 />
               </div>
 
@@ -1529,15 +1529,15 @@ function verifyWebhook(payload, signatureHeader, secret) {
                         onClick={() => handleToggleEvent(ev.id)}
                         className={`flex items-start gap-2 p-2.5 rounded-lg border transition cursor-pointer ${
                           isChecked 
-                            ? 'bg-primary-container/5 border-primary-container/40' 
-                            : 'bg-surface-container-low border-outline-variant/20 hover:bg-surface-container'
+                            ? 'bg-primary-container/5 border-primary-strong/40' 
+                            : 'bg-surface-container-low border-outline-variant hover:bg-surface-container'
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => {}}
-                          className="mt-0.5 accent-primary-container cursor-pointer"
+                          className="mt-0.5 accent-primary-strong cursor-pointer"
                         />
                         <div>
                           <span className="font-mono font-bold text-on-surface block text-[11px]">{ev.label}</span>
@@ -1549,7 +1549,7 @@ function verifyWebhook(payload, signatureHeader, secret) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-outline-variant/20 mt-4">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-4">
                 <button
                   type="button"
                   onClick={() => setWebhookModalOpen(false)}
@@ -1574,7 +1574,7 @@ function verifyWebhook(payload, signatureHeader, secret) {
           TOAST FEEDBACK
           ───────────────────────────────────────────────────────────── */}
       {toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border border-outline-variant/30 text-xs font-medium">
+        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border-[0.5px] border-outline-variant text-xs font-medium">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>,

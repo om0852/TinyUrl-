@@ -185,17 +185,17 @@ export async function GET(
 <svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a" />
-      <stop offset="50%" stop-color="#1e1b4b" />
-      <stop offset="100%" stop-color="#311042" />
+      <stop offset="0%" stop-color="#0b0f06" />
+      <stop offset="50%" stop-color="#1a2e05" />
+      <stop offset="100%" stop-color="#233b07" />
     </linearGradient>
   </defs>
   <rect width="1200" height="630" fill="url(#g)" />
-  <circle cx="1050" cy="120" r="280" fill="#6366f1" opacity="0.25" filter="blur(60px)" />
+  <circle cx="1050" cy="120" r="280" fill="#84cc16" opacity="0.25" filter="blur(60px)" />
   <circle cx="150" cy="520" r="240" fill="#06b6d4" opacity="0.2" filter="blur(50px)" />
   <g transform="translate(100, 160)">
-    <rect x="0" y="0" width="140" height="34" rx="8" fill="#4f46e5" opacity="0.4" />
-    <text x="70" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#c7d2fe" text-anchor="middle">VERIFIED LINK</text>
+    <rect x="0" y="0" width="140" height="34" rx="8" fill="#65a30d" opacity="0.4" />
+    <text x="70" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="700" fill="#d9f99d" text-anchor="middle">VERIFIED LINK</text>
     <text x="0" y="110" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="52" font-weight="800" fill="#ffffff">${escapeXml(displayTitle)}</text>
     <text x="0" y="180" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="400" fill="#94a3b8">${escapeXml(displayDesc)}</text>
   </g>

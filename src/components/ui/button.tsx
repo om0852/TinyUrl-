@@ -21,23 +21,23 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const base = "inline-flex items-center justify-center font-medium rounded-lg transition-all select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-primary-container/40";
+  const base = "inline-flex items-center justify-center font-medium rounded-md transition-colors select-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-strong/40";
   
   const variants = {
-    primary: "bg-primary-container text-on-primary hover:bg-primary shadow-sm font-semibold active:scale-[0.98]",
-    secondary: "bg-surface-container-low text-on-surface hover:bg-surface-container shadow-xs active:scale-[0.98]",
-    soft: "bg-surface-container-high text-primary hover:bg-primary-fixed font-semibold active:scale-[0.98]",
-    outline: "border border-outline-variant/50 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low shadow-2xs active:scale-[0.98]",
-    ghost: "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface active:scale-[0.98]",
-    danger: "bg-error-container text-error hover:bg-error hover:text-on-error font-semibold shadow-xs active:scale-[0.98]",
-    destructive: "bg-error text-on-error hover:bg-error/90 font-semibold shadow-sm active:scale-[0.98]",
+    primary: "bg-primary-container text-on-primary hover:bg-primary active:bg-primary-strong font-medium",
+    secondary: "bg-surface-container text-on-surface border-[0.5px] border-outline-variant hover:bg-surface-container-high",
+    soft: "bg-primary-fixed/60 text-on-secondary-container hover:bg-primary-fixed font-medium",
+    outline: "border-[0.5px] border-outline-variant bg-surface-container-lowest text-on-surface hover:bg-surface-container",
+    ghost: "text-on-surface-variant hover:bg-surface-container hover:text-on-surface",
+    danger: "bg-error-container text-error hover:bg-error hover:text-on-error font-medium",
+    destructive: "bg-error text-on-error hover:bg-error/90 font-medium",
   };
 
   const sizes = {
-    sm: "h-8 px-2.5 text-xs gap-1.5",
-    default: "h-9 px-3.5 py-2 text-xs sm:text-sm gap-2",
-    lg: "h-10 px-5 text-sm gap-2.5 font-bold",
-    icon: "h-9 w-9 p-0 flex items-center justify-center rounded-lg",
+    sm: "h-[28px] px-2.5 text-xs gap-1.5",
+    default: "h-[34px] px-[15px] text-xs gap-2",
+    lg: "h-[38px] px-5 text-[13px] gap-2.5 font-semibold",
+    icon: "h-[34px] w-[34px] p-0 flex items-center justify-center rounded-full",
   };
 
   const resolvedVariant = variant === "destructive" ? "destructive" : variants[variant] ? variant : "primary";
@@ -81,12 +81,12 @@ export function SplitButton({
   disabled?: boolean;
 }) {
   return (
-    <div className={`inline-flex rounded-lg shadow-sm ${className}`}>
+    <div className={`inline-flex rounded-md ${className}`}>
       <button
         type="button"
         disabled={disabled}
         onClick={onClick}
-        className="px-3.5 py-2 bg-primary-container text-on-primary rounded-l-lg hover:bg-primary transition-colors text-xs font-semibold cursor-pointer disabled:opacity-50"
+        className="px-3.5 py-2 bg-primary-container text-on-primary rounded-l-md hover:bg-primary transition-colors text-xs font-medium cursor-pointer disabled:opacity-50"
       >
         {children}
       </button>
@@ -94,7 +94,7 @@ export function SplitButton({
         type="button"
         disabled={disabled}
         onClick={onDropdownClick}
-        className="px-2 py-2 bg-primary text-on-primary rounded-r-lg hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-center cursor-pointer border-l border-white/20 disabled:opacity-50"
+        className="px-2 py-2 bg-primary text-on-primary rounded-r-md hover:bg-primary-strong transition-colors flex items-center justify-center cursor-pointer border-l border-on-primary/15 disabled:opacity-50"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
@@ -112,7 +112,7 @@ export function IconToolbar({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-1 p-1 bg-surface-container-low rounded-lg w-max border border-outline-variant/30 ${className}`}>
+    <div className={`flex items-center gap-1 p-1 bg-[#F4F4F5] rounded-md w-max ${className}`}>
       {children}
     </div>
   );

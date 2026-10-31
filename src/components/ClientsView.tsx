@@ -147,13 +147,13 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
           <div className="flex items-center gap-2 text-on-surface-variant font-mono text-xs uppercase tracking-wider mb-1">
             <span>WORKSPACE</span>
             <span>/</span>
-            <span className="text-primary-container font-semibold">CLIENT PORTALS</span>
+            <span className="text-primary-ink font-semibold">CLIENT PORTALS</span>
           </div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight">
               Clients
             </h1>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-lime-50 text-lime-700 border border-lime-200">
               <ShieldCheck className="w-3.5 h-3.5" /> Agency White-Label
             </span>
           </div>
@@ -167,10 +167,10 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3 py-2 rounded-lg shadow-xs border border-outline-variant/40 hover:bg-surface-container-low transition cursor-pointer disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3 py-2 rounded-lg shadow-xs border-[0.5px] border-outline-variant hover:bg-surface-container-low transition cursor-pointer disabled:opacity-60"
             title="Synchronize client accounts"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-primary-container ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-primary-ink ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>{isRefreshing ? 'Syncing…' : 'Refresh'}</span>
           </button>
 
@@ -193,13 +193,13 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* KPI 1: Total Clients */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-on-surface-variant font-semibold">Total Clients</span>
               <InfoTooltip text="Total number of client portal accounts created across this agency workspace." />
             </div>
-            <div className="p-2 rounded-lg bg-surface-container-low text-primary-container flex items-center justify-center">
+            <div className="p-2 rounded-lg bg-surface-container-low text-primary-ink flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
           </div>
@@ -208,7 +208,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
               {clientMetrics.total_clients}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700">
+              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-lime-50 text-lime-700">
                 <ShieldCheck className="w-3 h-3" /> Sandboxed
               </span>
               <span className="text-xs text-on-surface-variant font-medium">
@@ -219,7 +219,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
         </div>
 
         {/* KPI 2: Active This Month */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-on-surface-variant font-semibold">Active This Month</span>
@@ -245,7 +245,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
         </div>
 
         {/* KPI 3: Total Logins */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-on-surface-variant font-semibold">Total Logins</span>
@@ -271,7 +271,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
         </div>
 
         {/* KPI 4: Most Used Domain */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-on-surface-variant font-semibold">Most Used Domain</span>
@@ -299,7 +299,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
       </div>
 
       {/* 3. FILTERING & QUOTA BAR */}
-      <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 flex-1 max-w-md">
           <div className="relative w-full">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -308,12 +308,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
               placeholder="Search clients by name, company, email, or domain..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface border border-outline-variant/30 outline-none focus:ring-2 focus:ring-primary-container"
+              className="w-full pl-9 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
             />
           </div>
 
           {/* Status Filter */}
-          <div className="inline-flex rounded-lg bg-surface-container-low p-0.5 text-xs font-medium border border-outline-variant/30 shrink-0">
+          <div className="inline-flex rounded-lg bg-surface-container-low p-0.5 text-xs font-medium border-[0.5px] border-outline-variant shrink-0">
             {(['all', 'active', 'suspended'] as const).map((st) => (
               <button
                 key={st}
@@ -321,7 +321,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                 onClick={() => setStatusFilter(st)}
                 className={`px-2.5 py-1 rounded-md transition cursor-pointer capitalize ${
                   statusFilter === st
-                    ? 'bg-surface-container-lowest text-primary-container font-bold shadow-xs'
+                    ? 'bg-surface-container-lowest text-primary-ink font-bold shadow-xs'
                     : 'text-on-surface-variant hover:text-on-surface'
                 }`}
               >
@@ -334,7 +334,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
         {/* Quota Counter (0 / Unlimited) */}
         <div className="flex items-center gap-2 text-xs text-on-surface-variant font-medium self-start sm:self-auto shrink-0">
           <span>Client Quota:</span>
-          <span className="inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded bg-surface-container-high text-primary-container">
+          <span className="inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded bg-surface-container-high text-primary-ink">
             {clientMetrics.total_clients} / Unlimited
           </span>
           <InfoTooltip text="Agency subscription includes unlimited client portals with custom branding." />
@@ -342,7 +342,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
       </div>
 
       {/* 4. CLIENT ACCOUNTS TABLE */}
-      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant/40">
+      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-on-surface tracking-tight">
@@ -371,12 +371,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                 <th className="py-3 px-4 text-right rounded-r-lg">Actions</th>
               </tr>
             </thead>
-            <tbody className="text-xs divide-y divide-outline-variant/20">
+            <tbody className="text-xs divide-y divide-outline-variant">
               {filteredClients.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-on-surface-variant">
                     <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                      <div className="w-12 h-12 rounded-xl bg-surface-container-low text-primary-container flex items-center justify-center mb-3">
+                      <div className="w-12 h-12 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center mb-3">
                         <Building2 className="w-6 h-6 text-outline" />
                       </div>
                       <h4 className="text-sm font-bold text-on-surface">No Client Accounts Yet</h4>
@@ -422,7 +422,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                         <div className="flex items-center gap-3">
                           <div 
                             className="w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs"
-                            style={{ backgroundColor: client.brand_color || '#4f46e5' }}
+                            style={{ backgroundColor: client.brand_color || '#65a30d' }}
                           >
                             {avatarInitials}
                           </div>
@@ -436,7 +436,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                       {/* Assigned Resources */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-container font-mono">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-ink font-mono">
                             <Link2 className="w-3 h-3" />
                             {assignedLinksCount} link{assignedLinksCount === 1 ? '' : 's'}
                           </span>
@@ -488,7 +488,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
 
                       {/* Portal Login URL */}
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-container font-semibold">
+                        <div className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-ink font-semibold">
                           <span className="truncate max-w-[160px]" title={portalUrl}>
                             {portalDomain}/portal
                           </span>
@@ -504,7 +504,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                             href={`/portal/dashboard?client_id=${client.id}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="p-1 hover:bg-surface-container rounded transition cursor-pointer text-outline hover:text-primary-container"
+                            className="p-1 hover:bg-surface-container rounded transition cursor-pointer text-outline hover:text-primary-ink"
                             title="Impersonate &amp; preview client portal"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
@@ -559,7 +559,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
         </div>
 
         {/* Mobile Cards View (Phones & Small Tablets) */}
-        <div className="block md:hidden divide-y divide-outline-variant/20 rounded-lg border border-outline-variant/20 bg-surface-container-lowest overflow-hidden">
+        <div className="block md:hidden divide-y-[0.5px] divide-outline-variant rounded-lg border-[0.5px] border-outline-variant bg-surface-container-lowest overflow-hidden">
           {filteredClients.length === 0 ? (
             <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
               <Building2 className="w-8 h-8 text-outline mx-auto mb-2 opacity-50" />
@@ -600,7 +600,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                     <div className="flex items-center gap-3">
                       <div 
                         className="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs"
-                        style={{ backgroundColor: client.brand_color || '#4f46e5' }}
+                        style={{ backgroundColor: client.brand_color || '#65a30d' }}
                       >
                         {avatarInitials}
                       </div>
@@ -620,7 +620,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
 
                   {/* Badges / Scoping */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-container font-mono">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-ink font-mono">
                       <Link2 className="w-3 h-3" />
                       {assignedLinksCount} link{assignedLinksCount === 1 ? '' : 's'}
                     </span>
@@ -643,8 +643,8 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                   </div>
 
                   {/* Portal Login Link */}
-                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-container-low border border-outline-variant/20 text-xs">
-                    <span className="font-mono text-primary font-semibold truncate" title={portalUrl}>
+                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant text-xs">
+                    <span className="font-mono text-primary-ink font-semibold truncate" title={portalUrl}>
                       {portalDomain}/portal
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
@@ -660,7 +660,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                         href={`/portal/dashboard?client_id=${client.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="p-1 hover:bg-surface-container rounded transition text-outline hover:text-primary cursor-pointer"
+                        className="p-1 hover:bg-surface-container rounded transition text-outline hover:text-primary-ink cursor-pointer"
                         title="Open Portal"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -669,7 +669,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                   </div>
 
                   {/* Footer actions */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 text-xs">
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant text-xs">
                     <span className="text-[11px] text-on-surface-variant font-mono">
                       Logins: <strong className="text-on-surface">{client.total_logins || 0}</strong> &bull; {client.last_login_at ? new Date(client.last_login_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never active'}
                     </span>
@@ -720,12 +720,12 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
       {/* Delete Confirmation Modal */}
       {clientToDelete && (
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isDeleting) setClientToDelete(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border border-outline-variant/40 text-on-surface">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant text-on-surface">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
@@ -742,7 +742,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
               Are you sure you want to delete this client portal account? The client will immediately lose access to their dashboard. Their assigned short links will remain active in your agency workspace.
             </p>
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant/20">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant">
               <button
                 type="button"
                 disabled={isDeleting}

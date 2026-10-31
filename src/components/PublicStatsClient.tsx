@@ -120,10 +120,10 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
       <div className="h-1.5 w-full bg-gradient-to-r from-primary to-secondary" />
 
       {/* Navigation Bar */}
-      <header className="border-b border-outline-variant/30 bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-40">
+      <header className="border-b border-outline-variant bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center font-bold shadow-md">
+            <div className="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold shadow-md">
               <Link2 className="w-5 h-5" />
             </div>
             <div>
@@ -152,7 +152,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               href={`https://${host}/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-secondary text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+              className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-secondary text-on-primary text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
             >
               <span>Visit Link</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -166,7 +166,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
         {loading ? (
           <div className="space-y-6 animate-fade-in">
             {/* Link Header Context Card Skeleton */}
-            <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-[0.5px] border-outline-variant flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-2 flex-1">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-7 w-64" />
@@ -184,7 +184,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
             {/* Distribution Cards Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border border-outline-variant/30 space-y-4">
+                <div key={i} className="bg-surface-container-lowest p-6 rounded-2xl shadow-xs border-[0.5px] border-outline-variant space-y-4">
                   <Skeleton className="h-5 w-40" />
                   <div className="space-y-3">
                     {Array.from({ length: 4 }).map((_, j) => (
@@ -201,10 +201,10 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
         ) : (
           <>
             {/* Link Header Context Card */}
-            <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-[0.5px] border-outline-variant flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex flex-col gap-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-primary px-2.5 py-0.5 rounded-md bg-surface-container">
+              <span className="text-xs font-mono font-bold text-primary-ink px-2.5 py-0.5 rounded-md bg-surface-container">
                 /{slug}
               </span>
               <span className="text-xs text-on-surface-variant">Created {new Date(link.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
@@ -213,24 +213,24 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               {link.title || `Short Link /${slug}`}
             </h1>
             <p className="text-xs text-on-surface-variant truncate max-w-2xl">
-              Target: <a href={link.destination_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">{link.destination_url}</a>
+              Target: <a href={link.destination_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary-ink">{link.destination_url}</a>
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
-            <div className="flex flex-col items-end bg-surface-container-low px-4 py-2.5 rounded-xl border border-outline-variant/20">
+            <div className="flex flex-col items-end bg-surface-container-low px-4 py-2.5 rounded-xl border border-outline-variant">
               <span className="text-[11px] font-semibold text-on-surface-variant uppercase">Overall Opens</span>
-              <span className="font-mono text-2xl font-extrabold text-primary">{totalClicks.toLocaleString()}</span>
+              <span className="font-mono text-2xl font-extrabold text-primary-ink">{totalClicks.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
         {/* 4 Core Summary Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-on-surface-variant">Total Clicks</span>
-              <div className="w-8 h-8 rounded-lg bg-surface-container text-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-surface-container text-primary-ink flex items-center justify-center">
                 <MousePointerClick className="w-4 h-4" />
               </div>
             </div>
@@ -240,7 +240,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
             </span>
           </div>
 
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-on-surface-variant">Unique Visitors</span>
               <div className="w-8 h-8 rounded-lg bg-surface-container text-secondary flex items-center justify-center">
@@ -253,7 +253,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
             </span>
           </div>
 
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-on-surface-variant">Repeat Rate</span>
               <div className="w-8 h-8 rounded-lg bg-surface-container text-amber-600 flex items-center justify-center">
@@ -264,7 +264,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
             <span className="text-[11px] text-on-surface-variant mt-1">Loyal / return audience</span>
           </div>
 
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-on-surface-variant">Top Country</span>
               <div className="w-8 h-8 rounded-lg bg-surface-container text-emerald-600 flex items-center justify-center">
@@ -281,20 +281,20 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
         </div>
 
         {/* Time Series Bezier Chart */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/30">
+        <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
               <h2 className="text-base font-bold text-on-surface">Click Velocity &amp; Daily Engagement</h2>
               <p className="text-xs text-on-surface-variant">Interactive timeline of visitor opens over time</p>
             </div>
-            <div className="flex items-center bg-surface-container rounded-lg p-1 border border-outline-variant/20 self-start sm:self-auto">
+            <div className="flex items-center bg-surface-container rounded-lg p-1 border-[0.5px] border-outline-variant self-start sm:self-auto">
               {(['24h', '7d', '30d'] as const).map(r => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setDateRange(r)}
                   className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                    dateRange === r ? 'bg-surface-container-lowest text-primary shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'
+                    dateRange === r ? 'bg-surface-container-lowest text-primary-ink shadow-xs font-bold' : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
                   {r === '24h' ? '24 Hours' : r === '7d' ? '7 Days' : '30 Days'}
@@ -304,7 +304,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
           </div>
 
           {totalClicks === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 border border-dashed border-outline-variant/40 rounded-xl bg-surface-container-low/30">
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 border-[0.5px] border-dashed border-outline-variant rounded-xl bg-surface-container-low/30">
               <BarChart3 className="w-8 h-8 text-outline mb-2" />
               <span className="text-sm font-bold text-on-surface">No click telemetry recorded yet</span>
               <span className="text-xs text-on-surface-variant mt-1">Visit or share the link to see real-time velocity curves</span>
@@ -323,20 +323,20 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 240">
                 <defs>
                   <linearGradient id="publicAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.25" />
-                    <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.00" />
+                    <stop offset="0%" stopColor="#65a30d" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#65a30d" stopOpacity="0.00" />
                   </linearGradient>
                 </defs>
-                <line x1="0" y1="60" x2="1000" y2="60" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
-                <line x1="0" y1="140" x2="1000" y2="140" stroke="#f1f3ff" strokeWidth="1" strokeDasharray="4 4" />
-                <line x1="0" y1="220" x2="1000" y2="220" stroke="#e1e8fd" strokeWidth="1" />
+                <line x1="0" y1="60" x2="1000" y2="60" stroke="#fafafa" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="140" x2="1000" y2="140" stroke="#fafafa" strokeWidth="1" strokeDasharray="4 4" />
+                <line x1="0" y1="220" x2="1000" y2="220" stroke="#e3e3e3" strokeWidth="1" />
                 {svgPaths.areaFill && <path d={svgPaths.areaFill} fill="url(#publicAreaGrad)" />}
-                {svgPaths.mainLine && <path d={svgPaths.mainLine} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" />}
+                {svgPaths.mainLine && <path d={svgPaths.mainLine} fill="none" stroke="#65a30d" strokeWidth="3" strokeLinecap="round" />}
                 {activePoint && (
                   <g>
-                    <line x1={activePoint.x} y1="20" x2={activePoint.x} y2="220" stroke="#4f46e5" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
-                    <circle cx={activePoint.x} cy={activePoint.y} r="10" fill="#4f46e5" opacity="0.2" />
-                    <circle cx={activePoint.x} cy={activePoint.y} r="5" fill="#4f46e5" stroke="#ffffff" strokeWidth="2" />
+                    <line x1={activePoint.x} y1="20" x2={activePoint.x} y2="220" stroke="#65a30d" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
+                    <circle cx={activePoint.x} cy={activePoint.y} r="10" fill="#65a30d" opacity="0.2" />
+                    <circle cx={activePoint.x} cy={activePoint.y} r="5" fill="#65a30d" stroke="#ffffff" strokeWidth="2" />
                   </g>
                 )}
               </svg>
@@ -357,11 +357,11 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
         {/* 2-Column Split: Geographic & Technical Breakdowns */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Countries & Cities */}
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Globe2 className="w-4 h-4 text-primary" />
+                  <Globe2 className="w-4 h-4 text-primary-ink" />
                   <h3 className="text-sm font-bold text-on-surface">Top Geographic Markets</h3>
                 </div>
                 <span className="text-xs text-on-surface-variant font-mono">{metrics?.top_countries?.length || 0} regions</span>
@@ -377,7 +377,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
                       <div key={c.country} className="flex flex-col gap-1">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-medium text-on-surface flex items-center gap-1.5">
-                            <MapPin className="w-3.5 h-3.5 text-primary" />
+                            <MapPin className="w-3.5 h-3.5 text-primary-ink" />
                             <span>{c.country}</span>
                           </span>
                           <span className="font-mono font-bold text-on-surface">
@@ -394,35 +394,35 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-outline-variant/20 flex items-center justify-between text-[11px] text-on-surface-variant">
+            <div className="mt-4 pt-3 border-t-[0.5px] border-outline-variant flex items-center justify-between text-[11px] text-on-surface-variant">
               <span>Cities: {metrics?.top_cities?.map(ct => ct.city).slice(0, 3).join(', ') || 'Global network'}</span>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             </div>
           </div>
 
           {/* Devices & Browsers */}
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/30 flex flex-col justify-between">
+          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-primary" />
+                  <Smartphone className="w-4 h-4 text-primary-ink" />
                   <h3 className="text-sm font-bold text-on-surface">Device &amp; Browser Distribution</h3>
                 </div>
                 <span className="text-xs text-on-surface-variant">Hardware breakdown</span>
               </div>
 
               <div className="grid grid-cols-3 gap-2.5 mb-4">
-                <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant/20 text-center">
-                  <Smartphone className="w-4 h-4 text-primary mx-auto mb-1" />
+                <div className="bg-surface-container-low p-3 rounded-xl border-[0.5px] border-outline-variant text-center">
+                  <Smartphone className="w-4 h-4 text-primary-ink mx-auto mb-1" />
                   <span className="text-[10px] text-on-surface-variant block font-medium">Mobile</span>
                   <span className="font-mono font-bold text-sm text-on-surface">{metrics?.devices?.mobile || '0%'}</span>
                 </div>
-                <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant/20 text-center">
+                <div className="bg-surface-container-low p-3 rounded-xl border-[0.5px] border-outline-variant text-center">
                   <Laptop className="w-4 h-4 text-outline mx-auto mb-1" />
                   <span className="text-[10px] text-on-surface-variant block font-medium">Desktop</span>
                   <span className="font-mono font-bold text-sm text-on-surface">{metrics?.devices?.desktop || '0%'}</span>
                 </div>
-                <div className="bg-surface-container-low p-3 rounded-xl border border-outline-variant/20 text-center">
+                <div className="bg-surface-container-low p-3 rounded-xl border-[0.5px] border-outline-variant text-center">
                   <Tablet className="w-4 h-4 text-outline mx-auto mb-1" />
                   <span className="text-[10px] text-on-surface-variant block font-medium">Tablet</span>
                   <span className="font-mono font-bold text-sm text-on-surface">{metrics?.devices?.tablet || '0%'}</span>
@@ -431,13 +431,13 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
 
               {/* Operating System & Browser items */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs py-1 border-b border-outline-variant/15">
+                <div className="flex items-center justify-between text-xs py-1 border-b border-outline-variant">
                   <span className="text-on-surface-variant">Top Operating Systems:</span>
                   <span className="font-semibold text-on-surface">
                     {metrics?.operating_systems?.map(o => `${o.os} (${o.pct}%)`).slice(0, 3).join(', ') || 'iOS, Android, Windows'}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-xs py-1 border-b border-outline-variant/15">
+                <div className="flex items-center justify-between text-xs py-1 border-b border-outline-variant">
                   <span className="text-on-surface-variant">Top Web Browsers:</span>
                   <span className="font-semibold text-on-surface">
                     {metrics?.browsers?.map(b => `${b.browser} (${b.pct}%)`).slice(0, 3).join(', ') || 'Chrome, Safari, Edge'}
@@ -452,7 +452,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-outline-variant/20 text-[11px] text-on-surface-variant flex items-center justify-between">
+            <div className="mt-4 pt-3 border-t-[0.5px] border-outline-variant text-[11px] text-on-surface-variant flex items-center justify-between">
               <span>Bot filtering active: {metrics?.bot_clicks_filtered || 0} scrapers blocked</span>
               <span className="font-mono text-emerald-600 font-semibold">100% Verified Telemetry</span>
             </div>
@@ -460,10 +460,10 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
         </div>
 
         {/* Live Click Stream Log */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant/30">
+        <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-sm border border-outline-variant">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
+              <Clock className="w-4 h-4 text-primary-ink" />
               <h3 className="text-sm font-bold text-on-surface">Live Click Activity Stream</h3>
             </div>
             <span className="text-xs text-on-surface-variant font-mono">{recentClicks.length} events logged</span>
@@ -480,7 +480,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
                   <th className="py-2.5 px-3 rounded-r-lg">Referrer</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-outline-variant/20 font-mono">
+              <tbody className="divide-y divide-outline-variant font-mono">
                 {recentClicks.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-6 text-center text-on-surface-variant font-sans text-xs">
@@ -527,7 +527,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
           </div>
           <a
             href="/"
-            className="px-6 py-2.5 bg-white text-primary font-bold text-xs rounded-xl shadow-md hover:bg-white/90 transition-all shrink-0 cursor-pointer"
+            className="px-6 py-2.5 bg-white text-primary-ink font-bold text-xs rounded-xl shadow-md hover:bg-white/90 transition-all shrink-0 cursor-pointer"
           >
             Create Free Short Link &rarr;
           </a>

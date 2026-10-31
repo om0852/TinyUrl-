@@ -9,6 +9,11 @@ import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
 import { resolveSmartTargetUrl } from '@/lib/geo';
 import { isPlatformHost } from '@/lib/domainHelper';
 
+// Lime brand: fills carry dark ink text; lime-700 is the readable text/icon shade on white
+const BRAND_FILL = '#a3e635';
+const BRAND_INK = '#4d7c0f';
+const ON_BRAND = '#1a2e05';
+
 /* ─── Animated Progress Bar ─── */
 function AnimatedProgressBar({
   duration = 2000,
@@ -54,7 +59,7 @@ function AnimatedProgressBar({
 
   return (
     <div className="w-full space-y-2">
-      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-container, #e9edff)' }}>
+      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-container, #f0f0f0)' }}>
         <div
           ref={barRef}
           className="h-full rounded-full transition-[width] duration-75 ease-linear"
@@ -64,7 +69,7 @@ function AnimatedProgressBar({
       <span
         ref={labelRef}
         className="block text-center text-xs tracking-wide"
-        style={{ color: 'var(--on-surface-variant, #464555)' }}
+        style={{ color: 'var(--on-surface-variant, #666666)' }}
       >
         Preparing redirect…
       </span>
@@ -81,15 +86,15 @@ function ConduitAnimation({ appName, appColor }: { appName?: string; appColor?: 
         <div
           className="w-14 h-14 rounded-lg flex items-center justify-center relative shadow-sm"
           style={{
-            backgroundColor: 'var(--surface-container, #e9edff)',
-            border: '1px solid var(--outline-variant, #c7c4d8)',
+            backgroundColor: 'var(--surface-container, #f0f0f0)',
+            border: '1px solid var(--outline-variant, #dcdcdc)',
           }}
         >
           <div
             className="absolute inset-0 rounded-lg animate-ping opacity-20"
-            style={{ backgroundColor: appColor || 'var(--primary, #4f46e5)' }}
+            style={{ backgroundColor: appColor || BRAND_FILL }}
           />
-          <Link2 className="w-6 h-6" style={{ color: appColor || 'var(--primary, #4f46e5)' }} />
+          <Link2 className="w-6 h-6" style={{ color: appColor || BRAND_INK }} />
         </div>
       </div>
 
@@ -97,18 +102,18 @@ function ConduitAnimation({ appName, appColor }: { appName?: string; appColor?: 
       <div className="flex-1 mx-3 relative flex items-center justify-center">
         <div
           className="w-full h-1 rounded-full overflow-hidden relative"
-          style={{ backgroundColor: 'var(--surface-container, #e9edff)' }}
+          style={{ backgroundColor: 'var(--surface-container, #f0f0f0)' }}
         >
           <div
             className="h-full rounded-full animate-pulse w-full"
-            style={{ backgroundColor: appColor || 'var(--primary, #4f46e5)' }}
+            style={{ backgroundColor: appColor || BRAND_FILL }}
           />
         </div>
         <div
           className="absolute w-2.5 h-2.5 rounded-full animate-ping"
           style={{
-            backgroundColor: appColor || 'var(--primary, #4f46e5)',
-            boxShadow: `0 0 12px ${appColor || 'var(--primary, #4f46e5)'}`,
+            backgroundColor: appColor || BRAND_FILL,
+            boxShadow: `0 0 12px ${appColor || BRAND_FILL}`,
           }}
         />
       </div>
@@ -118,9 +123,9 @@ function ConduitAnimation({ appName, appColor }: { appName?: string; appColor?: 
         <div
           className="w-14 h-14 rounded-lg flex items-center justify-center relative shadow-md"
           style={{
-            backgroundColor: appColor || 'var(--primary, #4f46e5)',
-            color: 'white',
-            boxShadow: `0 4px 14px ${appColor || 'var(--primary, #4f46e5)'}33`,
+            backgroundColor: appColor || BRAND_FILL,
+            color: appColor ? 'white' : ON_BRAND,
+            boxShadow: `0 4px 14px ${appColor || BRAND_FILL}33`,
           }}
         >
           {appName ? (
@@ -139,7 +144,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="min-h-screen flex flex-col justify-between items-center"
-      style={{ backgroundColor: 'var(--background, #f9f9ff)', color: 'var(--foreground, #141b2b)' }}
+      style={{ backgroundColor: 'var(--background, #f4fae8)', color: 'var(--foreground, #1a1a1a)' }}
     >
       {/* Header Logo Pill */}
       <header className="w-full pt-8 px-8 flex justify-center">
@@ -150,15 +155,15 @@ function PageShell({ children }: { children: React.ReactNode }) {
             boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
           }}
         >
-          <Link2 className="w-[18px] h-[18px]" style={{ color: 'var(--primary, #4f46e5)' }} />
-          <span className="text-sm font-semibold tracking-tight" style={{ color: 'var(--foreground, #141b2b)' }}>
+          <Link2 className="w-[18px] h-[18px]" style={{ color: BRAND_INK }} />
+          <span className="text-sm font-semibold tracking-tight" style={{ color: 'var(--foreground, #1a1a1a)' }}>
             TinyURL
           </span>
           <span
             className="text-xs px-1.5 rounded font-mono"
             style={{
-              backgroundColor: 'var(--muted, #f1f3ff)',
-              color: 'var(--muted-foreground, #464555)',
+              backgroundColor: 'var(--muted, #fafafa)',
+              color: 'var(--muted-foreground, #666666)',
             }}
           >
             bridge
@@ -173,7 +178,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
           <div className="relative w-full max-w-xl flex flex-col items-center">
             <div
               className="absolute -top-16 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full blur-3xl pointer-events-none -z-10"
-              style={{ backgroundColor: 'rgba(79, 70, 229, 0.07)' }}
+              style={{ backgroundColor: 'rgba(132, 204, 22, 0.07)' }}
             />
             <div
               className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-96 h-40 rounded-full blur-2xl pointer-events-none -z-10"
@@ -639,15 +644,15 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
           style={{
             backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(79, 70, 229, 0.05)',
+            boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
           }}
         >
           <ConduitAnimation />
           <div className="flex flex-col items-center mt-4 text-center space-y-2">
-            <h1 className="text-2xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground, #141b2b)' }}>
+            <h1 className="text-2xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground, #1a1a1a)' }}>
               Connecting…
             </h1>
-            <p className="text-sm" style={{ color: 'var(--muted-foreground, #464555)' }}>
+            <p className="text-sm" style={{ color: 'var(--muted-foreground, #666666)' }}>
               Resolving your short link
             </p>
           </div>
@@ -666,7 +671,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
           style={{
             backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(79, 70, 229, 0.05)',
+            boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
           }}
         >
           {/* Error Icon */}
@@ -677,23 +682,23 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
               border: '1px solid rgba(186, 26, 26, 0.15)',
             }}
           >
-            <AlertTriangle className="w-8 h-8" style={{ color: '#ba1a1a' }} />
+            <AlertTriangle className="w-8 h-8" style={{ color: '#e5243b' }} />
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1" style={{ color: 'var(--foreground, #141b2b)' }}>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1" style={{ color: 'var(--foreground, #1a1a1a)' }}>
             Link Not Found
           </h1>
-          <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground, #464555)' }}>
-            The short link <code className="font-mono px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--muted, #f1f3ff)', color: 'var(--primary, #4f46e5)' }}>/{code}</code> does not exist or has expired.
+          <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground, #666666)' }}>
+            The short link <code className="font-mono px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--muted, #fafafa)', color: BRAND_INK }}>/{code}</code> does not exist or has expired.
           </p>
 
           {isPlatform && (
             <button
               onClick={() => router.push('/')}
-              className="w-full max-w-xs py-3 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
+              className="w-full max-w-xs py-3 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
               style={{
-                backgroundColor: 'var(--primary, #4f46e5)',
-                boxShadow: '0 4px 14px rgba(79, 70, 229, 0.25)',
+                backgroundColor: BRAND_FILL,
+                boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
               }}
             >
               Return to Homepage <ArrowRight className="w-4 h-4" />
@@ -718,7 +723,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
             <span className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate">
               {link?.title || 'Masked Destination'}
             </span>
-            <span className="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded-full font-mono shrink-0">
+            <span className="text-[10px] text-lime-700 bg-lime-50 dark:bg-lime-950/40 px-2 py-0.5 rounded-full font-mono shrink-0">
               /{code} (Masked Frame)
             </span>
           </div>
@@ -733,7 +738,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
               href={resolvedTarget}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1 bg-lime-400 hover:bg-lime-500 text-on-primary rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
             >
               <span>Open in Full Tab</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -811,11 +816,11 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
                 border: '1px solid rgba(186, 26, 26, 0.2)',
               }}
             >
-              <Shield className="w-6 h-6" style={{ color: '#ba1a1a' }} />
+              <Shield className="w-6 h-6" style={{ color: '#e5243b' }} />
             </div>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: 'var(--foreground, #141b2b)' }}>Security Alert</h2>
-              <p className="text-xs font-semibold" style={{ color: '#ba1a1a' }}>Flagged by threat scanner</p>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--foreground, #1a1a1a)' }}>Security Alert</h2>
+              <p className="text-xs font-semibold" style={{ color: '#e5243b' }}>Flagged by threat scanner</p>
             </div>
           </div>
 
@@ -827,7 +832,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
               border: '1px solid rgba(186, 26, 26, 0.1)',
             }}
           >
-            <p className="font-semibold" style={{ color: '#ba1a1a' }}>Target URL:</p>
+            <p className="font-semibold" style={{ color: '#e5243b' }}>Target URL:</p>
             <p
               className="font-mono text-xs break-all p-2 rounded"
               style={{
@@ -838,9 +843,9 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
             >
               {link.destination_url}
             </p>
-            <div className="pt-2" style={{ borderTop: '1px solid var(--border, #e1e8fd)' }}>
-              <p className="font-semibold mb-1" style={{ color: 'var(--foreground, #141b2b)' }}>Threat Reasons:</p>
-              <ul className="list-disc list-inside space-y-0.5" style={{ color: 'var(--muted-foreground, #464555)' }}>
+            <div className="pt-2" style={{ borderTop: '1px solid var(--border, #e3e3e3)' }}>
+              <p className="font-semibold mb-1" style={{ color: 'var(--foreground, #1a1a1a)' }}>Threat Reasons:</p>
+              <ul className="list-disc list-inside space-y-0.5" style={{ color: 'var(--muted-foreground, #666666)' }}>
                 {link.risk_reasons?.map((reason, i) => (
                   <li key={i}>{reason}</li>
                 )) || <li>Potential phishing, credential harvesting, or malware vector</li>}
@@ -855,9 +860,9 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
                 onClick={() => router.push('/')}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
                 style={{
-                  backgroundColor: 'var(--muted, #f1f3ff)',
-                  color: 'var(--foreground, #141b2b)',
-                  border: '1px solid var(--border, #e1e8fd)',
+                  backgroundColor: 'var(--muted, #fafafa)',
+                  color: 'var(--foreground, #1a1a1a)',
+                  border: '1px solid var(--border, #e3e3e3)',
                 }}
               >
                 Go to Safety
@@ -866,7 +871,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
             <button
               onClick={() => window.location.replace(link.destination_url)}
               className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-white"
-              style={{ backgroundColor: 'rgba(186, 26, 26, 0.8)' }}
+              style={{ backgroundColor: '#ff4359' }}
             >
               Proceed Anyway
             </button>
@@ -886,23 +891,23 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
           style={{
             backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(79, 70, 229, 0.05)',
-            border: '1px solid var(--border, #e1e8fd)',
+            boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
+            border: '1px solid var(--border, #e3e3e3)',
           }}
         >
           <div
             className="w-14 h-14 rounded-lg flex items-center justify-center mb-4"
             style={{
-              backgroundColor: 'rgba(79, 70, 229, 0.08)',
-              border: '1px solid rgba(79, 70, 229, 0.15)',
+              backgroundColor: 'rgba(132, 204, 22, 0.08)',
+              border: '1px solid rgba(132, 204, 22, 0.15)',
             }}
           >
-            <Lock className="w-6 h-6" style={{ color: 'var(--primary, #4f46e5)' }} />
+            <Lock className="w-6 h-6" style={{ color: BRAND_INK }} />
           </div>
 
-          <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--foreground, #141b2b)' }}>Protected Link</h2>
-          <p className="text-sm mb-5" style={{ color: 'var(--muted-foreground, #464555)' }}>
-            Enter password to access <strong style={{ color: 'var(--foreground, #141b2b)' }}>{link.title}</strong>
+          <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--foreground, #1a1a1a)' }}>Protected Link</h2>
+          <p className="text-sm mb-5" style={{ color: 'var(--muted-foreground, #666666)' }}>
+            Enter password to access <strong style={{ color: 'var(--foreground, #1a1a1a)' }}>{link.title}</strong>
           </p>
 
           <form onSubmit={handlePasswordSubmit} className="w-full max-w-xs space-y-4">
@@ -914,13 +919,13 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
                 onChange={(e) => setPasswordInput(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all"
                 style={{
-                  backgroundColor: 'var(--muted, #f1f3ff)',
-                  border: `1.5px solid ${passwordError ? '#ba1a1a' : 'var(--border, #e1e8fd)'}`,
-                  color: 'var(--foreground, #141b2b)',
+                  backgroundColor: 'var(--muted, #fafafa)',
+                  border: `1.5px solid ${passwordError ? '#e5243b' : 'var(--border, #e3e3e3)'}`,
+                  color: 'var(--foreground, #1a1a1a)',
                 }}
               />
               {passwordError && (
-                <p className="text-xs text-left mt-1.5" style={{ color: '#ba1a1a' }}>
+                <p className="text-xs text-left mt-1.5" style={{ color: '#e5243b' }}>
                   Incorrect password. Please try again.
                 </p>
               )}
@@ -928,10 +933,10 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
 
             <button
               type="submit"
-              className="w-full py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
+              className="w-full py-2.5 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
               style={{
-                backgroundColor: 'var(--primary, #4f46e5)',
-                boxShadow: '0 4px 14px rgba(79, 70, 229, 0.25)',
+                backgroundColor: BRAND_FILL,
+                boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
               }}
             >
               Continue to Link <ArrowRight className="w-4 h-4" />
@@ -954,36 +959,36 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
         className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
         style={{
           backgroundColor: 'rgba(255,255,255,0.95)',
-          boxShadow: '0 10px 40px rgba(79, 70, 229, 0.05)',
+          boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
         }}
       >
         {/* Conduit Animation */}
         <ConduitAnimation
           appName={appDeepLink?.appName}
-          appColor={appDeepLink?.color || 'var(--primary, #4f46e5)'}
+          appColor={appDeepLink?.color}
         />
 
         {/* Typography */}
         <div className="flex flex-col items-center mt-4 text-center">
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground, #141b2b)' }}>
+          <h1 className="text-2xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground, #1a1a1a)' }}>
             Redirecting you now…
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground, #464555)' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground, #666666)' }}>
             Taking you to{' '}
-            <span className="font-medium" style={{ color: 'var(--foreground, #141b2b)' }}>
+            <span className="font-medium" style={{ color: 'var(--foreground, #1a1a1a)' }}>
               {getDestinationHost(resolvedTarget)}
             </span>
           </p>
         </div>
 
         {/* Short Code & Safety Badge */}
-        <div className="flex items-center gap-3 mt-4 text-xs" style={{ color: 'var(--muted-foreground, #464555)' }}>
+        <div className="flex items-center gap-3 mt-4 text-xs" style={{ color: 'var(--muted-foreground, #666666)' }}>
           <span className="flex items-center gap-1 font-medium" style={{ color: '#16a34a' }}>
             <Shield className="w-3.5 h-3.5" /> Verified Safe
           </span>
           <span
             className="font-mono text-[11px] px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: 'var(--muted, #f1f3ff)', color: 'var(--muted-foreground, #464555)' }}
+            style={{ backgroundColor: 'var(--muted, #fafafa)', color: 'var(--muted-foreground, #666666)' }}
           >
             /{code}
           </span>
@@ -1015,16 +1020,16 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
         <div className="w-full mt-5">
           {appDeepLink ? (
             <div className="w-full space-y-2">
-              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--muted, #f1f3ff)' }}>
+              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--muted, #fafafa)' }}>
                 <div
                   className="h-full transition-all duration-1000 ease-linear rounded-full"
                   style={{
-                    backgroundColor: appDeepLink.color || 'var(--primary, #4f46e5)',
+                    backgroundColor: appDeepLink.color || BRAND_FILL,
                     width: `${((4 - countdown) / 4) * 100}%`,
                   }}
                 />
               </div>
-              <p className="text-[11px] text-center" style={{ color: 'var(--muted-foreground, #464555)' }}>
+              <p className="text-[11px] text-center" style={{ color: 'var(--muted-foreground, #666666)' }}>
                 {countdown > 0 ? (
                   <span>Launching {appDeepLink.appName}… web fallback in {countdown}s</span>
                 ) : (
@@ -1035,7 +1040,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           ) : (
             <AnimatedProgressBar
               duration={2000}
-              color="var(--primary, #4f46e5)"
+              color={BRAND_FILL}
             />
           )}
         </div>
@@ -1048,8 +1053,8 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
               onClick={() => tryRedirectToApp()}
               className="w-full py-3.5 px-4 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.97] shadow-lg cursor-pointer"
               style={{
-                backgroundColor: appDeepLink.color || 'var(--primary, #4f46e5)',
-                boxShadow: `0 4px 14px ${appDeepLink.color || 'var(--primary, #4f46e5)'}33`,
+                backgroundColor: appDeepLink.color || BRAND_FILL,
+                boxShadow: `0 4px 14px ${appDeepLink.color || BRAND_FILL}33`,
               }}
             >
               {appDeepLink.app === 'youtube' ? (
@@ -1070,7 +1075,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
                   window.location.replace(resolvedTarget);
                 }}
                 className="text-xs transition cursor-pointer inline-flex items-center gap-1"
-                style={{ color: 'var(--muted-foreground, #464555)' }}
+                style={{ color: 'var(--muted-foreground, #666666)' }}
               >
                 <span>Continue in Web Browser</span>
                 <ArrowRight className="w-3 h-3" />
@@ -1085,10 +1090,10 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
                 onClick={() => {
                   window.location.replace(resolvedTarget);
                 }}
-                className="w-full max-w-xs py-2.5 px-4 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
+                className="w-full max-w-xs py-2.5 px-4 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
                 style={{
-                  backgroundColor: 'var(--primary, #4f46e5)',
-                  boxShadow: '0 4px 14px rgba(79, 70, 229, 0.25)',
+                  backgroundColor: BRAND_FILL,
+                  boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
                 }}
               >
                 <span>Continue Now</span>

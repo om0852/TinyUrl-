@@ -54,7 +54,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
 
       {isOpen && (
         <div
-          className={`absolute top-full mt-1.5 z-50 w-56 rounded-xl bg-surface-container-lowest shadow-xl border border-outline-variant/40 p-1.5 flex flex-col gap-0.5 animate-fade-in ${
+          className={`absolute top-full mt-1.5 z-50 w-56 rounded-xl bg-surface-container-lowest shadow-xl border-[0.5px] border-outline-variant p-1.5 flex flex-col gap-0.5 animate-fade-in ${
             align === 'right' ? 'right-0' : 'left-0'
           }`}
         >
@@ -84,7 +84,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer select-none text-left ${
                     item.active
-                      ? 'bg-surface-container-high text-primary-container'
+                      ? 'bg-surface-container-high text-primary-ink'
                       : item.destructive
                       ? 'text-error hover:bg-error-container/20'
                       : 'text-on-surface hover:bg-surface-container-low hover:text-on-surface'
@@ -101,7 +101,7 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({
                         {item.shortcut}
                       </span>
                     )}
-                    {item.active && <Check className="w-4 h-4 text-primary-container" />}
+                    {item.active && <Check className="w-4 h-4 text-primary-ink" />}
                   </div>
                 </button>
               );

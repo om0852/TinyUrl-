@@ -43,19 +43,19 @@ export const Modal: React.FC<ModalProps> = ({
   if (!isOpen || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000A73] backdrop-blur-[5px] animate-fade-in">
       <div 
         className="fixed inset-0" 
         onClick={onClose}
         aria-hidden="true"
       />
       
-      <div className={`relative w-full ${maxWidth} rounded-xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden z-10 max-h-[90vh]`}>
+      <div className={`relative w-full ${maxWidth} rounded-xl bg-surface-container-lowest shadow-2xl border-[0.5px] border-outline-variant flex flex-col overflow-hidden z-10 max-h-[90vh]`}>
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-outline-variant/30 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b-[0.5px] border-outline-variant shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {icon && (
-              <div className="w-8 h-8 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary-container shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-primary-container/10 flex items-center justify-center text-primary-ink shrink-0">
                 {icon}
               </div>
             )}
@@ -82,7 +82,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-outline-variant/30 shrink-0 bg-surface-container-lowest">
+          <div className="flex items-center justify-end gap-2 px-5 py-3 border-t-[0.5px] border-outline-variant shrink-0 bg-surface-container-lowest">
             {footer}
           </div>
         )}
@@ -132,10 +132,10 @@ export const DangerConfirmDialog: React.FC<DangerDialogProps> = ({
   if (!isOpen || typeof document === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000A73] backdrop-blur-[5px] animate-fade-in">
       <div className="fixed inset-0" onClick={onClose} aria-hidden="true" />
       
-      <div className="relative w-full max-w-[480px] rounded-xl bg-surface-container-lowest shadow-2xl border border-outline-variant/40 p-6 flex flex-col gap-4 z-10">
+      <div className="relative w-full max-w-[480px] rounded-xl bg-surface-container-lowest shadow-2xl border-[0.5px] border-outline-variant p-6 flex flex-col gap-4 z-10">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-lg bg-error-container/40 flex items-center justify-center text-error shrink-0">
             <AlertTriangle className="w-6 h-6" />
@@ -151,7 +151,7 @@ export const DangerConfirmDialog: React.FC<DangerDialogProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-outline-variant/30">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-outline-variant">
           <Button
             type="button"
             variant="secondary"

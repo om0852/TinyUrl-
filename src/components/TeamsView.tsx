@@ -252,14 +252,14 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
         <nav className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium">
           <span 
             onClick={() => onNavigateTab && onNavigateTab('overview')} 
-            className="hover:text-primary-container cursor-pointer transition-colors"
+            className="hover:text-primary-ink cursor-pointer transition-colors"
           >
             Workspace
           </span>
           <ChevronRight className="w-3.5 h-3.5 text-outline-variant" />
           <span 
             onClick={() => onNavigateTab && onNavigateTab('settings')} 
-            className="hover:text-primary-container cursor-pointer transition-colors"
+            className="hover:text-primary-ink cursor-pointer transition-colors"
           >
             Settings
           </span>
@@ -285,9 +285,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
               type="button"
               onClick={handleManualRefresh}
               disabled={refreshing}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-lg border border-outline-variant/60 shadow-xs hover:bg-surface-container-low transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-lg border-[0.5px] border-outline-variant shadow-xs hover:bg-surface-container-low transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
             >
-              <RefreshCw className={`w-4 h-4 text-primary-container ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 text-primary-ink ${refreshing ? 'animate-spin' : ''}`} />
               <span>{refreshing ? 'Syncing...' : 'Sync'}</span>
             </button>
 
@@ -309,7 +309,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         
         {/* Card 1: Current Workspace */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-xl p-5 border-[0.5px] border-outline-variant shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-wider text-on-surface-variant font-medium">
@@ -319,29 +319,29 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 <span className="text-xl font-bold text-on-surface truncate max-w-[150px]">
                   {currentWorkspace.name}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
-                  <Sparkles className="w-2.5 h-2.5 text-primary" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-lime-500/10 via-purple-500/10 to-lime-500/10 text-primary-ink border border-primary-strong/20 shadow-2xs">
+                  <Sparkles className="w-2.5 h-2.5 text-primary-ink" />
                   <span>{currentWorkspace.plan || 'pro'}</span>
                 </span>
               </div>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-ink shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4 pt-3 flex items-center justify-between border-t border-surface-container-low text-xs">
-            <span className="font-mono text-primary-container font-medium truncate max-w-[140px]">
+            <span className="font-mono text-primary-ink font-medium truncate max-w-[140px]">
               /{currentWorkspace.slug}
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase tracking-wider bg-surface-container-high text-on-surface-variant border border-outline-variant/30">
-              <Key className="w-2.5 h-2.5 text-primary" />
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold uppercase tracking-wider bg-surface-container-high text-on-surface-variant border border-outline-variant">
+              <Key className="w-2.5 h-2.5 text-primary-ink" />
               <span>{userRole}</span>
             </span>
           </div>
         </div>
 
         {/* Card 2: Active Collaborators */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-xl p-5 border-[0.5px] border-outline-variant shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-wider text-on-surface-variant font-medium">
@@ -351,7 +351,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 {activeMembersCount}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-container shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-ink shrink-0">
               <Users className="w-5 h-5" />
             </div>
           </div>
@@ -363,7 +363,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
         </div>
 
         {/* Card 3: Pending Invitations */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/50 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+        <div className="bg-surface-container-lowest rounded-xl p-5 border-[0.5px] border-outline-variant shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
           <div className="flex items-start justify-between">
             <div className="flex flex-col">
               <span className="text-xs uppercase tracking-wider text-on-surface-variant font-medium">
@@ -388,7 +388,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
         <div className={`rounded-xl p-5 border shadow-sm hover:shadow-md transition-all flex flex-col justify-between ${
           incomingInvitations.length > 0 
             ? 'bg-amber-500/10 border-amber-500/30' 
-            : 'bg-surface-container-lowest border-outline-variant/50'
+            : 'bg-surface-container-lowest border-outline-variant'
         }`}>
           <div className="flex items-start justify-between">
             <div className="flex flex-col">
@@ -438,15 +438,15 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             {incomingInvitations.map((inv) => (
               <div 
                 key={inv.id}
-                className="bg-surface-container-low/60 border border-outline-variant/30 rounded-xl p-4 flex flex-col justify-between gap-3 hover:border-amber-500/30 transition"
+                className="bg-surface-container-low/60 border-[0.5px] border-outline-variant rounded-xl p-4 flex flex-col justify-between gap-3 hover:border-amber-500/30 transition"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <span className="font-bold text-sm text-on-surface flex items-center gap-1.5 truncate">
-                      <Building2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <Building2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span className="truncate">{inv.workspace_name || 'Collaborative Workspace'}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 shrink-0">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary/10 text-primary-ink border border-primary-strong/20 shrink-0">
                       Role: {inv.role}
                     </span>
                   </div>
@@ -461,7 +461,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/20">
+                <div className="flex items-center gap-2 pt-2 border-t border-outline-variant">
                   <button
                     type="button"
                     disabled={processingToken === inv.token}
@@ -494,7 +494,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             onClick={() => setActiveSubTab('members')}
             className={`inline-flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-semibold transition-colors cursor-pointer ${
               activeSubTab === 'members'
-                ? 'border-primary-container text-primary-container'
+                ? 'border-primary-strong text-primary-ink'
                 : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant'
             }`}
           >
@@ -507,7 +507,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             onClick={() => setActiveSubTab('history')}
             className={`inline-flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-semibold transition-colors cursor-pointer ${
               activeSubTab === 'history'
-                ? 'border-primary-container text-primary-container'
+                ? 'border-primary-strong text-primary-ink'
                 : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant'
             }`}
           >
@@ -520,7 +520,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             onClick={() => setActiveSubTab('matrix')}
             className={`inline-flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-semibold transition-colors cursor-pointer ${
               activeSubTab === 'matrix'
-                ? 'border-primary-container text-primary-container'
+                ? 'border-primary-strong text-primary-ink'
                 : 'border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant'
             }`}
           >
@@ -532,7 +532,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
       {/* ── Section 4 & 5: Tab 1 Content: Workspace Detail Subheader, Filter Controls & Collaborator Table ── */}
       {activeSubTab === 'members' && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-surface-container-lowest rounded-xl border-[0.5px] border-outline-variant shadow-sm overflow-hidden flex flex-col">
           
           {/* Workspace Detail Subheader / Context Bar & Filter Controls */}
           <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-surface-container-low">
@@ -543,8 +543,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                 <h2 className="text-lg font-bold text-on-surface truncate">
                   {currentWorkspace.name}
                 </h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10 text-primary border border-primary/20 shadow-2xs">
-                  <Sparkles className="w-2.5 h-2.5 text-primary" />
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-gradient-to-r from-lime-500/10 via-purple-500/10 to-lime-500/10 text-primary-ink border border-primary-strong/20 shadow-2xs">
+                  <Sparkles className="w-2.5 h-2.5 text-primary-ink" />
                   <span>{currentWorkspace.plan || 'pro'}</span>
                 </span>
 
@@ -572,7 +572,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
               </div>
 
               <div className="flex items-center gap-2 text-xs text-on-surface-variant">
-                <span className="font-mono font-medium text-primary-container truncate">
+                <span className="font-mono font-medium text-primary-ink truncate">
                   Slug: /{currentWorkspace.slug}
                 </span>
                 <span>•</span>
@@ -589,7 +589,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   onClick={() => setRoleFilter('all')}
                   className={`px-3 py-1 rounded-md text-xs transition-colors cursor-pointer ${
                     roleFilter === 'all'
-                      ? 'font-semibold bg-surface-container-lowest text-primary-container shadow-xs'
+                      ? 'font-semibold bg-surface-container-lowest text-primary-ink shadow-xs'
                       : 'font-medium text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -600,7 +600,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   onClick={() => setRoleFilter('admin')}
                   className={`px-3 py-1 rounded-md text-xs transition-colors cursor-pointer ${
                     roleFilter === 'admin'
-                      ? 'font-semibold bg-surface-container-lowest text-primary-container shadow-xs'
+                      ? 'font-semibold bg-surface-container-lowest text-primary-ink shadow-xs'
                       : 'font-medium text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -611,7 +611,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   onClick={() => setRoleFilter('editor')}
                   className={`px-3 py-1 rounded-md text-xs transition-colors cursor-pointer ${
                     roleFilter === 'editor'
-                      ? 'font-semibold bg-surface-container-lowest text-primary-container shadow-xs'
+                      ? 'font-semibold bg-surface-container-lowest text-primary-ink shadow-xs'
                       : 'font-medium text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -622,7 +622,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   onClick={() => setRoleFilter('viewer')}
                   className={`px-3 py-1 rounded-md text-xs transition-colors cursor-pointer ${
                     roleFilter === 'viewer'
-                      ? 'font-semibold bg-surface-container-lowest text-primary-container shadow-xs'
+                      ? 'font-semibold bg-surface-container-lowest text-primary-ink shadow-xs'
                       : 'font-medium text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -639,7 +639,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search collaborator..."
-                  className="w-full pl-9 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full pl-9 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-strong"
                 />
               </div>
 
@@ -685,7 +685,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                           <span className="font-semibold text-on-surface truncate">
                             {currentUser?.name || 'Workspace User'}
                           </span>
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 shadow-2xs">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary-ink border border-primary-strong/20 shadow-2xs">
                             You
                           </span>
                         </div>
@@ -709,15 +709,15 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
                   <td className="py-3.5 px-4 text-xs">
                     <div className="flex items-center gap-1.5 text-on-surface-variant">
-                      <Link2 className="w-4 h-4 text-primary-container shrink-0" />
+                      <Link2 className="w-4 h-4 text-primary-ink shrink-0" />
                       <span className="font-medium text-on-surface">Primary Session</span>
                     </div>
                   </td>
 
                   <td className="py-3.5 px-5 text-right">
                     <div className="inline-flex items-center justify-end gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant font-medium bg-surface-container-high/80 border border-outline-variant/40 px-2.5 py-1 rounded-md shadow-2xs">
-                        <ShieldCheck className="w-3.5 h-3.5 text-primary-container" />
+                      <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant font-medium bg-surface-container-high/80 border-[0.5px] border-outline-variant px-2.5 py-1 rounded-md shadow-2xs">
+                        <ShieldCheck className="w-3.5 h-3.5 text-primary-ink" />
                         <span>{userRole === 'owner' ? 'Workspace Owner' : userRole === 'admin' ? 'Workspace Admin' : 'Collaborator'}</span>
                       </span>
                     </div>
@@ -756,7 +756,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                             <select
                               value={m.role}
                               onChange={(e) => updateMemberRole(m.id, e.target.value as WorkspaceRole)}
-                              className="px-2.5 py-1 rounded-md text-xs font-semibold capitalize border border-outline-variant/40 bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-container cursor-pointer shadow-2xs"
+                              className="px-2.5 py-1 rounded-md text-xs font-semibold capitalize border-[0.5px] border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-strong cursor-pointer shadow-2xs"
                             >
                               <option value="admin">Admin</option>
                               <option value="editor">Editor</option>
@@ -786,14 +786,14 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                         <td className="py-3.5 px-4 text-xs">
                           {isMemberOwner ? (
                             <div className="flex items-center gap-1.5 text-on-surface-variant">
-                              <BadgeCheck className="w-4 h-4 text-primary-container shrink-0" />
+                              <BadgeCheck className="w-4 h-4 text-primary-ink shrink-0" />
                               <span className="font-medium text-on-surface">Primary Lead</span>
                             </div>
                           ) : isPending && inviteLink ? (
                             <button
                               type="button"
                               onClick={() => handleCopyLink(inviteLink, m.id)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-surface-container-high hover:bg-surface-container text-primary-container transition cursor-pointer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-surface-container-high hover:bg-surface-container text-primary-ink transition cursor-pointer"
                             >
                               {copiedToken === m.id ? (
                                 <>
@@ -816,7 +816,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                         <td className="py-3.5 px-5 text-right">
                           <div className="inline-flex items-center justify-end gap-2">
                             {isMemberOwner ? (
-                              <span className="text-xs text-primary-container font-semibold bg-primary-fixed/60 px-2.5 py-0.5 rounded-full">
+                              <span className="text-xs text-primary-ink font-semibold bg-primary-fixed/60 px-2.5 py-0.5 rounded-full">
                                 Workspace Owner
                               </span>
                             ) : hasPermission(userRole, 'members:remove') ? (
@@ -866,7 +866,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                       <span className="font-semibold text-sm text-on-surface truncate">
                         {currentUser?.name || 'Workspace User'}
                       </span>
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary-ink border border-primary-strong/20">
                         You
                       </span>
                     </div>
@@ -880,7 +880,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   <span>Active</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 text-xs">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant text-xs">
                 <span>{renderRoleBadge(userRole)}</span>
                 <span className="text-[11px] text-on-surface-variant font-medium">
                   {userRole === 'owner' ? 'Workspace Owner' : userRole === 'admin' ? 'Workspace Admin' : 'Collaborator'}
@@ -921,7 +921,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-outline-variant/15 text-xs flex-wrap">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant text-xs flex-wrap">
                       <div className="flex items-center gap-2">
                         {isMemberOwner ? (
                           renderRoleBadge('owner')
@@ -929,7 +929,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                           <select
                             value={m.role}
                             onChange={(e) => updateMemberRole(m.id, e.target.value as WorkspaceRole)}
-                            className="px-2 py-1 rounded text-xs font-semibold capitalize border border-outline-variant/40 bg-surface-container-lowest text-on-surface"
+                            className="px-2 py-1 rounded text-xs font-semibold capitalize border-[0.5px] border-outline-variant bg-surface-container-lowest text-on-surface"
                           >
                             <option value="admin">Admin</option>
                             <option value="editor">Editor</option>
@@ -943,7 +943,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                           <button
                             type="button"
                             onClick={() => handleCopyLink(inviteLink, m.id)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-surface-container-high text-primary-container"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-surface-container-high text-primary-ink"
                           >
                             {copiedToken === m.id ? (
                               <span className="text-emerald-600 font-bold">Copied</span>
@@ -993,20 +993,20 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
       {/* ── TAB 2: INVITATION HISTORY & AUDIT LOG ── */}
       {activeSubTab === 'history' && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm p-5 space-y-4">
+        <div className="bg-surface-container-lowest rounded-xl border-[0.5px] border-outline-variant shadow-sm p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-on-surface">Workspace Invitation Audit Log</h3>
               <p className="text-xs text-on-surface-variant mt-0.5">Trace chronological invitations issued, accepted, revoked, or expired.</p>
             </div>
-            {loadingHistory && <RefreshCw className="w-4 h-4 animate-spin text-primary-container" />}
+            {loadingHistory && <RefreshCw className="w-4 h-4 animate-spin text-primary-ink" />}
           </div>
 
           {/* Desktop Audit Log Table */}
           <div className="hidden md:block overflow-x-auto w-full">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-outline-variant/30 bg-surface-container-low text-on-surface-variant uppercase tracking-wider font-semibold">
+                <tr className="border-b border-outline-variant bg-surface-container-low text-on-surface-variant uppercase tracking-wider font-semibold">
                   <th className="py-3 px-4">Invitee</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4">Status</th>
@@ -1059,7 +1059,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
           </div>
 
           {/* Mobile Cards for Audit Log */}
-          <div className="block md:hidden divide-y divide-surface-container-low rounded-lg border border-outline-variant/30 overflow-hidden">
+          <div className="block md:hidden divide-y-[0.5px] divide-surface-container-low rounded-lg border-[0.5px] border-outline-variant overflow-hidden">
             {historyLogs.map((log) => (
               <div key={log.id} className="p-3.5 flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
@@ -1080,7 +1080,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                     <span>{log.status}</span>
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-on-surface-variant pt-1 border-t border-outline-variant/15 flex-wrap gap-1">
+                <div className="flex items-center justify-between text-[11px] text-on-surface-variant pt-1 border-t-[0.5px] border-outline-variant flex-wrap gap-1">
                   <span>Role: {renderRoleBadge(log.role)}</span>
                   <span>Sent {new Date(log.created_at).toLocaleDateString()}</span>
                 </div>
@@ -1098,7 +1098,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
 
       {/* ── TAB 3: ROLE PERMISSIONS MATRIX ── */}
       {activeSubTab === 'matrix' && (
-        <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/50 shadow-sm p-5 sm:p-6 space-y-6">
+        <div className="bg-surface-container-lowest rounded-xl border-[0.5px] border-outline-variant shadow-sm p-5 sm:p-6 space-y-6">
           <div>
             <h3 className="text-base font-bold text-on-surface">Role-Based Access Control (RBAC) Matrix</h3>
             <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
@@ -1110,7 +1110,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
             {(['owner', 'admin', 'editor', 'viewer'] as WorkspaceRole[]).map((roleKey) => {
               const meta = ROLE_DESCRIPTIONS[roleKey];
               return (
-                <div key={roleKey} className="bg-surface-container-low/50 border border-outline-variant/40 rounded-xl p-4 flex flex-col justify-between">
+                <div key={roleKey} className="bg-surface-container-low/50 border-[0.5px] border-outline-variant rounded-xl p-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-bold text-sm text-on-surface">{meta.title}</span>
@@ -1123,7 +1123,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                     </p>
                   </div>
 
-                  <div className="space-y-2 pt-3 border-t border-outline-variant/20 text-xs">
+                  <div className="space-y-2 pt-3 border-t-[0.5px] border-outline-variant text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-on-surface-variant">Create Links &amp; QR:</span>
                       <span className="font-semibold">{roleKey !== 'viewer' ? 'Yes' : 'No'}</span>
@@ -1167,10 +1167,10 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
       {/* ── Edit Workspace Modal ── */}
       {editWsModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000A73] backdrop-blur-[5px] animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setEditWsModalOpen(false); }}
         >
-          <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">
+          <div className="bg-surface-container-lowest border-[0.5px] border-outline-variant rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-on-surface">Rename Workspace</h3>
               <button 
@@ -1189,14 +1189,14 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                   required
                   value={editWsName}
                   onChange={(e) => setEditWsName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-surface-container-low border border-outline-variant/40 text-xs text-on-surface focus:outline-none focus:border-primary-container"
+                  className="w-full px-3 py-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant text-xs text-on-surface focus:outline-none focus:border-primary-strong"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-on-surface mb-1">Workspace URL Slug</label>
                 <div className="flex items-center">
-                  <span className="px-3 py-2 bg-surface-container-high border border-r-0 border-outline-variant/40 rounded-l-lg text-xs font-mono text-on-surface-variant">
+                  <span className="px-3 py-2 bg-surface-container-high border-[0.5px] border-r-0 border-outline-variant rounded-l-lg text-xs font-mono text-on-surface-variant">
                     /
                   </span>
                   <input
@@ -1204,7 +1204,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
                     required
                     value={editWsSlug}
                     onChange={(e) => setEditWsSlug(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-r-lg bg-surface-container-low border border-outline-variant/40 text-xs font-mono text-on-surface focus:outline-none focus:border-primary-container"
+                    className="flex-1 px-3 py-2 rounded-r-lg bg-surface-container-low border-[0.5px] border-outline-variant text-xs font-mono text-on-surface focus:outline-none focus:border-primary-strong"
                   />
                 </div>
               </div>
@@ -1233,7 +1233,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({ onNavigateTab }) => {
       {/* ── Delete Confirmation Modal ── */}
       {deleteConfirmOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000A73] backdrop-blur-[5px] animate-fade-in"
           onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirmOpen(false); }}
         >
           <div className="bg-surface-container-lowest border border-red-500/30 rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">

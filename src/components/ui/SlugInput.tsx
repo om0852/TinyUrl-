@@ -37,10 +37,10 @@ export const SlugInput: React.FC<SlugInputProps> = ({
         </label>
       )}
       <div className={`flex rounded-xl shadow-xs overflow-hidden bg-surface-container-lowest border transition-colors ${
-        error ? 'border-error ring-2 ring-error/20' : 'border-outline-variant/50 focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20'
+        error ? 'border-error ring-2 ring-error/20' : 'border-outline-variant focus-within:border-primary-strong focus-within:ring-2 focus-within:ring-primary-strong/20'
       }`}>
         {displayPrefix && (
-          <span className="px-3.5 py-2.5 bg-surface-container text-on-surface-variant font-mono text-xs flex items-center select-none border-r border-outline-variant/30">
+          <span className="px-3.5 py-2.5 bg-surface-container text-on-surface-variant font-mono text-xs flex items-center select-none border-r border-outline-variant">
             {displayPrefix}
           </span>
         )}
@@ -57,7 +57,7 @@ export const SlugInput: React.FC<SlugInputProps> = ({
             type="button"
             onClick={onCheck}
             disabled={!value || disabled}
-            className="px-3 py-2 bg-surface-container-low text-primary-container hover:bg-surface-container font-semibold text-xs border-l border-outline-variant/30 transition-colors cursor-pointer disabled:opacity-40"
+            className="px-3 py-2 bg-surface-container-low text-primary-ink hover:bg-surface-container font-semibold text-xs border-l-[0.5px] border-outline-variant transition-colors cursor-pointer disabled:opacity-40"
           >
             {checkStatus === 'available' ? (
               <span className="flex items-center gap-1 text-emerald-600">

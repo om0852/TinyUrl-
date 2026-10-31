@@ -203,8 +203,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
       return {
         label: detected.appName,
         platform: detected.app,
-        bg: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300',
-        dot: 'bg-indigo-600'
+        bg: 'bg-lime-100 text-lime-800 dark:bg-lime-950 dark:text-lime-300',
+        dot: 'bg-lime-400'
       };
     }
 
@@ -302,7 +302,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
       }
       const detected = detectAppDeepLink(link.destination_url);
       if (detected && detected.appName && detected.appName !== 'Web Destination') {
-        return { name: detected.appName, color: 'bg-indigo-600', dot: 'bg-indigo-600' };
+        return { name: detected.appName, color: 'bg-lime-400', dot: 'bg-lime-400' };
       }
       return { name: 'Direct & Others', color: 'bg-outline', dot: 'bg-outline' };
     };
@@ -554,7 +554,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-2.5 flex-wrap">
               <h1 className="text-2xl font-bold text-on-surface tracking-tight whitespace-nowrap">Links</h1>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-surface-container-high text-primary font-semibold whitespace-nowrap shrink-0">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-surface-container-high text-primary-ink font-semibold whitespace-nowrap shrink-0">
                 {links.length} active links
               </span>
               {brokenLinksCount > 0 && (
@@ -587,16 +587,16 @@ export const LinksView: React.FC<LinksViewProps> = ({
               type="button"
               onClick={handleScanHealth}
               disabled={isScanningHealth}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-lg text-xs font-semibold shadow-xs border-[0.5px] border-outline-variant cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-60"
               title="Automated health check to detect 404s, 500s, DNS issues, and broken destination URLs"
             >
-              <Activity className={`w-3.5 h-3.5 ${isScanningHealth ? 'animate-spin text-primary-container' : 'text-outline'}`} />
+              <Activity className={`w-3.5 h-3.5 ${isScanningHealth ? 'animate-spin text-primary-ink' : 'text-outline'}`} />
               <span>{isScanningHealth ? 'Scanning Health...' : 'Scan Links Health'}</span>
             </button>
             <button
               type="button"
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-lg text-xs font-semibold shadow-xs border border-outline-variant/40 cursor-pointer whitespace-nowrap shrink-0"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-lowest text-on-surface hover:bg-surface-container-low transition-colors rounded-lg text-xs font-semibold shadow-xs border-[0.5px] border-outline-variant cursor-pointer whitespace-nowrap shrink-0"
             >
               <FileDown className="w-4 h-4 text-outline" />
               <span>Export CSV</span>
@@ -605,7 +605,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* 2. FILTER & SEARCH BAR ROW */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center bg-surface-container-lowest p-2 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] border border-outline-variant/40">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center bg-surface-container-lowest p-2 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.04)] border border-outline-variant">
           
           {/* Search Input (5 cols) */}
           <div className="md:col-span-5 relative flex items-center">
@@ -618,9 +618,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 setCurrentPage(1);
               }}
               placeholder="Search by title, short URL, or tag..."
-              className="w-full pl-9 pr-14 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container transition-all"
+              className="w-full pl-9 pr-14 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface placeholder:text-on-surface-variant border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong transition-all"
             />
-            <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-outline bg-surface-container-lowest rounded shadow-xs pointer-events-none border border-outline-variant/30">
+            <kbd className="absolute right-2.5 px-1.5 py-0.5 text-[10px] font-mono text-outline bg-surface-container-lowest rounded shadow-xs pointer-events-none border border-outline-variant">
               ⌘K
             </kbd>
           </div>
@@ -636,7 +636,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   setPlatformFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-lg cursor-pointer border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-lg cursor-pointer border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong"
               >
                 <option value="all">All Platforms</option>
                 <option value="youtube">YouTube</option>
@@ -656,7 +656,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   setStatusFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-lg cursor-pointer border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                className="appearance-none bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium pl-3 pr-8 py-2 rounded-lg cursor-pointer border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong"
               >
                 <option value="all">Status: All</option>
                 <option value="active">Active Only</option>
@@ -671,7 +671,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <div className="relative">
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium px-3 py-2 rounded-lg border border-outline-variant/30 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium px-3 py-2 rounded-lg border-[0.5px] border-outline-variant transition-colors cursor-pointer"
               >
                 <Calendar className="w-3.5 h-3.5 text-outline" />
                 <span>Last 30 days</span>
@@ -687,10 +687,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
         {/* Card 1: Total Clicks */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Total Clicks (30d)</span>
-            <TrendingUp className="w-4 h-4 text-primary-container" />
+            <TrendingUp className="w-4 h-4 text-primary-ink" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold font-mono text-on-surface tracking-tight">
@@ -710,13 +710,13 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* Card 2: Top Link */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Top Performing Link</span>
             <Flame className="w-4 h-4 text-amber-500" />
           </div>
           <div className="flex flex-col mt-1 min-w-0">
-            <span className="font-mono text-xs font-bold text-primary-container truncate">
+            <span className="font-mono text-xs font-bold text-primary-ink truncate">
               {topPerformingLink ? `${originDomain}/${topPerformingLink.custom_slug || topPerformingLink.short_code}` : 'No links yet'}
             </span>
             <span className="text-base font-bold text-on-surface mt-0.5">
@@ -729,17 +729,17 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* Card 3: Top Channel */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Top Channel</span>
-            <Video className="w-4 h-4 text-primary-container" />
+            <Video className="w-4 h-4 text-primary-ink" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold text-on-surface">
               {topChannel ? topChannel.name : 'No traffic yet'}
             </span>
             {topChannel && (
-              <span className="text-xs font-bold text-primary-container">{topChannel.pct}%</span>
+              <span className="text-xs font-bold text-primary-ink">{topChannel.pct}%</span>
             )}
           </div>
           <div className="mt-3">
@@ -756,7 +756,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         </div>
 
         {/* Card 4: Quota / Capacity */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 flex flex-col justify-between">
+        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
             <span>Active Short Links</span>
             <Link2 className="w-4 h-4 text-outline" />
@@ -770,7 +770,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <button 
               type="button"
               onClick={() => onNavigateTab && onNavigateTab('pricing')}
-              className="text-primary-container font-semibold hover:underline cursor-pointer"
+              className="text-primary-ink font-semibold hover:underline cursor-pointer"
             >
               Upgrade plan
             </button>
@@ -783,10 +783,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Main Links Table (8 cols desktop) */}
-        <div className="lg:col-span-8 bg-surface-container-lowest rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40 overflow-hidden">
+        <div className="lg:col-span-8 bg-surface-container-lowest rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant overflow-hidden">
           
           {/* Table Header Bar */}
-          <div className="px-5 py-4 bg-surface-container-lowest flex items-center justify-between border-b border-outline-variant/30">
+          <div className="px-5 py-4 bg-surface-container-lowest flex items-center justify-between border-b border-outline-variant">
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-on-surface">Active Campaign Links</span>
               <span className="text-xs text-on-surface-variant hidden sm:inline">&bull; Sorted by most clicks</span>
@@ -802,7 +802,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 className="p-1.5 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"
                 title="Refresh Table"
               >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-primary' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-primary-ink' : ''}`} />
               </button>
               <button
                 type="button"
@@ -819,13 +819,13 @@ export const LinksView: React.FC<LinksViewProps> = ({
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[720px]">
               <thead>
-                <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/30">
+                <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">
                   <th className="py-3 px-3 w-10 text-center" scope="col">
                     <input
                       type="checkbox"
                       checked={isAllOnPageSelected}
                       onChange={toggleSelectAllPage}
-                      className="rounded border-outline-variant/60 text-primary-container focus:ring-primary-container cursor-pointer w-4 h-4"
+                      className="rounded border-outline-variant text-primary-ink focus:ring-primary-strong cursor-pointer w-4 h-4"
                       aria-label="Select all links on current page"
                     />
                   </th>
@@ -836,7 +836,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   <th className="py-3 px-5 text-right whitespace-nowrap" scope="col">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-xs divide-y divide-outline-variant/20">
+              <tbody className="text-xs divide-y divide-outline-variant">
                 {paginatedLinks.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-on-surface-variant">
@@ -893,7 +893,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                                 return next;
                               });
                             }}
-                            className="rounded border-outline-variant/60 text-primary-container focus:ring-primary-container cursor-pointer w-4 h-4"
+                            className="rounded border-outline-variant text-primary-ink focus:ring-primary-strong cursor-pointer w-4 h-4"
                             aria-label={`Select ${link.title || link.short_code}`}
                           />
                         </td>
@@ -907,11 +907,11 @@ export const LinksView: React.FC<LinksViewProps> = ({
                             
                             {/* Short link slug + Copy */}
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="font-mono text-xs text-primary-container font-semibold truncate">
+                              <span className="font-mono text-xs text-primary-ink font-semibold truncate">
                                 {displayHost}/{shortSlug}
                               </span>
                               {linkedDomain && (
-                                <span className="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-container font-medium text-[10px]">
+                                <span className="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-ink font-medium text-[10px]">
                                   Branded
                                 </span>
                               )}
@@ -919,7 +919,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                                 type="button"
                                 onClick={() => handleCopy(link.id, link.short_code, link.custom_slug, link.domain_id)}
                                 title="Copy short link"
-                                className="text-outline hover:text-primary-container transition-colors cursor-pointer p-0.5"
+                                className="text-outline hover:text-primary-ink transition-colors cursor-pointer p-0.5"
                               >
                                 {isCopied ? (
                                   <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -934,7 +934,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                               href={link.destination_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-[11px] text-on-surface-variant truncate hover:text-primary-container flex items-center gap-1 mt-0.5 group-hover:text-on-surface transition-colors"
+                              className="text-[11px] text-on-surface-variant truncate hover:text-primary-ink flex items-center gap-1 mt-0.5 group-hover:text-on-surface transition-colors"
                             >
                               <span className="truncate">{link.destination_url}</span>
                               <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
@@ -970,7 +970,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                                 {link.rules.map(r => (
                                   <span 
                                     key={r.id} 
-                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant/30"
+                                    className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant"
                                   >
                                     <span>{r.condition === 'android' ? '🤖 Android' : r.condition === 'ios' ? '🍏 iOS' : `${r.rule_type}: ${r.condition}`}</span>
                                   </span>
@@ -1023,7 +1023,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                                 setEditingLink(link);
                               }}
                               title={canEditLinks ? "Edit Link" : "Edit Link (Requires Editor or higher)"}
-                              className="p-1.5 text-outline hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-outline hover:text-primary-ink hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
@@ -1088,7 +1088,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
 
           {/* Mobile Card List (Screens < 768px) */}
-          <div className="block md:hidden divide-y divide-outline-variant/20">
+          <div className="block md:hidden divide-y divide-outline-variant">
             {paginatedLinks.length === 0 ? (
               <div className="py-12 px-4 text-center text-on-surface-variant flex flex-col items-center justify-center gap-2">
                 <Link2 className="w-8 h-8 text-outline/60" />
@@ -1132,7 +1132,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                               return next;
                             });
                           }}
-                          className="rounded border-outline-variant/60 text-primary-container focus:ring-primary-container cursor-pointer w-4 h-4 mt-0.5 shrink-0"
+                          className="rounded border-outline-variant text-primary-ink focus:ring-primary-strong cursor-pointer w-4 h-4 mt-0.5 shrink-0"
                           aria-label={`Select ${link.title || link.short_code}`}
                         />
                         <div className="min-w-0 flex-1">
@@ -1140,19 +1140,19 @@ export const LinksView: React.FC<LinksViewProps> = ({
                             {link.title || 'Untitled Short Link'}
                           </h4>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                            <span className="font-mono text-xs font-semibold text-primary-container">
+                            <span className="font-mono text-xs font-semibold text-primary-ink">
                               {displayHost}/{shortSlug}
                             </span>
                             <button
                               type="button"
                               onClick={() => handleCopy(link.id, link.short_code, link.custom_slug, link.domain_id)}
                               title="Copy short link"
-                              className="text-outline hover:text-primary-container transition-colors cursor-pointer p-0.5"
+                              className="text-outline hover:text-primary-ink transition-colors cursor-pointer p-0.5"
                             >
                               {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                             </button>
                             {linkedDomain && (
-                              <span className="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-container font-medium text-[10px]">
+                              <span className="px-1.5 py-0.5 rounded bg-primary-container/10 text-primary-ink font-medium text-[10px]">
                                 Branded
                               </span>
                             )}
@@ -1171,7 +1171,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                       href={link.destination_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] text-on-surface-variant truncate hover:text-primary-container flex items-center gap-1"
+                      className="text-[11px] text-on-surface-variant truncate hover:text-primary-ink flex items-center gap-1"
                     >
                       <span className="truncate">{link.destination_url}</span>
                       <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
@@ -1207,7 +1207,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         {link.rules.map(r => (
                           <span 
                             key={r.id} 
-                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant/30"
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant border border-outline-variant"
                           >
                             <span>{r.condition === 'android' ? '🤖 Android' : r.condition === 'ios' ? '🍏 iOS' : `${r.rule_type}: ${r.condition}`}</span>
                           </span>
@@ -1216,7 +1216,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                     )}
 
                     {/* Bottom Row: Clicks, Date & Action Toolbar */}
-                    <div className="flex items-center justify-between pt-2 border-t border-outline-variant/20 text-xs">
+                    <div className="flex items-center justify-between pt-2 border-t-[0.5px] border-outline-variant text-xs">
                       <div className="flex items-center gap-2.5">
                         <span className="font-mono text-xs font-bold text-on-surface">
                           {getLinkClicks(link).toLocaleString()} clicks
@@ -1237,7 +1237,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                             }
                             setEditingLink(link);
                           }}
-                          className="p-1.5 text-outline hover:text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-outline hover:text-primary-ink hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
                           title="Edit Link"
                         >
                           <Edit3 className="w-4 h-4" />
@@ -1293,7 +1293,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
 
           {/* Pagination Footer */}
-          <div className="px-5 py-3.5 bg-surface-container-low flex items-center justify-between text-on-surface-variant text-xs border-t border-outline-variant/30">
+          <div className="px-5 py-3.5 bg-surface-container-low flex items-center justify-between text-on-surface-variant text-xs border-t border-outline-variant">
             <span>
               Showing <strong className="text-on-surface font-semibold">{filteredLinks.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, filteredLinks.length)}</strong> of {filteredLinks.length} links
             </span>
@@ -1302,7 +1302,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface disabled:text-outline disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant/30"
+                className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface disabled:text-outline disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant"
               >
                 Previous
               </button>
@@ -1310,7 +1310,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface disabled:text-outline disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant/30"
+                className="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface disabled:text-outline disabled:cursor-not-allowed hover:bg-surface-container transition-colors shadow-xs text-xs font-semibold cursor-pointer border border-outline-variant"
               >
                 Next
               </button>
@@ -1323,7 +1323,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
         <div className="lg:col-span-4 flex flex-col gap-6">
           
           {/* Top Referrers Breakdown Card */}
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant/40">
+          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border border-outline-variant">
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-on-surface">Top Referrers</span>
@@ -1361,7 +1361,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
               )}
             </div>
 
-            <div className="mt-5 pt-4 border-t border-outline-variant/30 flex items-center justify-between text-xs">
+            <div className="mt-5 pt-4 border-t-[0.5px] border-outline-variant flex items-center justify-between text-xs">
               <span className="text-on-surface-variant">Real-time click tracking on</span>
               <button
                 type="button"
@@ -1369,7 +1369,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   setSelectedAnalyticsLinkId(null);
                   onNavigateTab && onNavigateTab('analytics');
                 }}
-                className="text-primary-container font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-primary-ink font-semibold hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>Full analytics</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -1378,8 +1378,8 @@ export const LinksView: React.FC<LinksViewProps> = ({
           </div>
 
           {/* Quick Pro Tips Card */}
-          <div className="bg-surface-container-low p-4 rounded-xl flex items-start gap-3 border border-outline-variant/30">
-            <Lightbulb className="w-5 h-5 text-primary-container shrink-0 mt-0.5" />
+          <div className="bg-surface-container-low p-4 rounded-xl flex items-start gap-3 border border-outline-variant">
+            <Lightbulb className="w-5 h-5 text-primary-ink shrink-0 mt-0.5" />
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-on-surface">Pro tip: UTM Tagging &amp; App Routing</span>
               <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
@@ -1395,12 +1395,12 @@ export const LinksView: React.FC<LinksViewProps> = ({
       {/* 5. INTERACTIVE QR CODE MODAL */}
       {mounted && selectedQrLink && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) setSelectedQrLink(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-5 shadow-2xl border border-outline-variant/40 relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-5 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in max-h-[90vh] overflow-y-auto custom-scrollbar">
             
             {/* Close Button */}
             <button
@@ -1413,17 +1413,17 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
             <h4 className="text-sm font-bold text-on-surface mb-0.5">Dynamic QR Code</h4>
             <p className="text-[11px] text-on-surface-variant mb-3">
-              Vector QR for <span className="font-mono text-primary-container font-semibold">{selectedQrLink.fullUrl}</span>
+              Vector QR for <span className="font-mono text-primary-ink font-semibold">{selectedQrLink.fullUrl}</span>
             </p>
 
             {/* QR Graphic */}
-            <div className="w-36 h-36 mx-auto p-2 bg-surface-container-lowest rounded-xl shadow-xs border border-outline-variant/30 flex items-center justify-center mb-3.5">
+            <div className="w-36 h-36 mx-auto p-2 bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant flex items-center justify-center mb-3.5">
               <QRCodeSVG
                 id="table-qr-svg"
                 value={selectedQrLink.fullUrl}
                 size={124}
                 level="H"
-                fgColor="#141b2b"
+                fgColor="#1a1a1a"
                 bgColor="#ffffff"
               />
             </div>
@@ -1439,7 +1439,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
               <button
                 type="button"
                 onClick={() => downloadQr('png')}
-                className="py-2.5 px-3 rounded-xl bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer border border-outline-variant/30"
+                className="py-2.5 px-3 rounded-xl bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition-colors cursor-pointer border border-outline-variant"
               >
                 PNG (Hi-Res)
               </button>
@@ -1452,7 +1452,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
       {/* Floating Batch Selection Bar */}
       {selectedLinkIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border border-border/80 shadow-2xl rounded-xl px-4 sm:px-5 py-2.5 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md w-[calc(100vw-2rem)] max-w-lg">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/95 border-[0.5px] border-outline-variant shadow-2xl rounded-xl px-4 sm:px-5 py-2.5 sm:py-3 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4 text-xs font-semibold animate-fade-in backdrop-blur-md w-[calc(100vw-2rem)] max-w-lg">
           <div className="flex items-center gap-2 text-foreground font-bold shrink-0">
             <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px]">
               {selectedLinkIds.size}
@@ -1464,9 +1464,9 @@ export const LinksView: React.FC<LinksViewProps> = ({
             <button
               type="button"
               onClick={handleBulkExportSelected}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border border-border/60 text-xs"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-secondary/90 hover:bg-secondary text-foreground font-semibold cursor-pointer transition shadow-xs border-[0.5px] border-outline-variant text-xs"
             >
-              <FileDown className="w-3.5 h-3.5 text-primary" />
+              <FileDown className="w-3.5 h-3.5 text-primary-ink" />
               <span>Export CSV</span>
             </button>
             <button
@@ -1498,12 +1498,12 @@ export const LinksView: React.FC<LinksViewProps> = ({
       {/* 6. REPAIR BROKEN LINK MODAL */}
       {mounted && repairingLink && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isSubmittingRepair) setRepairingLink(null);
           }}
         >
-          <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-outline-variant/40 relative animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-2xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
             {/* Close Button */}
             <button
               type="button"
@@ -1549,10 +1549,10 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   value={repairNewDestUrl}
                   onChange={(e) => setRepairNewDestUrl(e.target.value)}
                   placeholder="https://example.com/new-working-url"
-                  className="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong"
                 />
                 <p className="text-[11px] text-on-surface-variant mt-1">
-                  When visitors click <span className="font-mono text-primary-container font-semibold">/{repairingLink.custom_slug || repairingLink.short_code}</span>, they will be seamlessly routed here.
+                  When visitors click <span className="font-mono text-primary-ink font-semibold">/{repairingLink.custom_slug || repairingLink.short_code}</span>, they will be seamlessly routed here.
                 </p>
               </div>
 
@@ -1565,7 +1565,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                   value={repairFallbackUrl}
                   onChange={(e) => setRepairFallbackUrl(e.target.value)}
                   placeholder="https://backup.example.com or homepage"
-                  className="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs border border-outline-variant/40 focus:outline-none focus:ring-2 focus:ring-primary-container"
+                  className="w-full px-3.5 py-2.5 bg-surface-container-low text-on-surface rounded-xl text-xs border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong"
                 />
                 <p className="text-[11px] text-on-surface-variant mt-1">
                   Automatic safety net: if destination fails in the future, visitors will be redirected here instead of seeing a dead error page.

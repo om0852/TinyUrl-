@@ -38,12 +38,12 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
       <div className="fixed inset-0" onClick={onClose} />
 
-      <div className="relative bg-card border border-border/60 w-full max-w-2xl rounded-xl p-5 shadow-2xl space-y-4 text-foreground z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div className="relative bg-card border-[0.5px] border-outline-variant w-full max-w-2xl rounded-xl p-5 shadow-2xl space-y-4 text-foreground z-10 max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-border/40">
+        <div className="flex items-center justify-between pb-3 border-b border-outline-variant">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary-ink flex items-center justify-center border border-primary-strong/20">
               <ImageIcon className="w-4 h-4" />
             </div>
             <div>
@@ -51,7 +51,7 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
                 Dynamic OpenGraph Social Card Studio
               </h3>
               <p className="text-xs text-muted-foreground">
-                Preview and customize social card for <code className="text-primary font-mono font-semibold">/{shortCode}</code>
+                Preview and customize social card for <code className="text-primary-ink font-mono font-semibold">/{shortCode}</code>
               </p>
             </div>
           </div>
@@ -72,7 +72,7 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
               type="text"
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
-              className="w-full h-10 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+              className="w-full h-10 px-3 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
             />
           </div>
 
@@ -86,8 +86,8 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
                   onClick={() => setTheme(t)}
                   className={`h-10 rounded-lg border text-center font-bold capitalize text-xs transition cursor-pointer ${
                     theme === t
-                      ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25'
-                      : 'bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted'
+                      ? 'bg-primary text-primary-foreground border-primary-strong shadow-md shadow-primary/25'
+                      : 'bg-muted/40 text-muted-foreground border-outline-variant hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   {t}
@@ -101,7 +101,7 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-semibold text-foreground">
             <span>Edge Rendering Preview</span>
-            <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg border border-border/40">
+            <div className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-lg border border-outline-variant">
               {(['x', 'linkedin', 'slack'] as const).map((p) => (
                 <button
                   key={p}
@@ -119,7 +119,7 @@ export const SocialCardModal: React.FC<SocialCardModalProps> = ({
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
+          <div className="rounded-lg border-[0.5px] border-outline-variant overflow-hidden bg-background">
             <img
               src={ogUrl}
               alt="Social Card Preview"

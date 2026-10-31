@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
         ? 'linear-gradient(135deg, #002113 0%, #005338 60%, #003723 100%)'
         : theme === 'purple'
         ? 'linear-gradient(135deg, #25005a 0%, #712ae2 60%, #3b0764 100%)'
-        : 'linear-gradient(135deg, #0f0069 0%, #3525cd 50%, #4f46e5 100%)';
+        : 'linear-gradient(135deg, #0b0f06 0%, #1a2e05 50%, #365314 100%)';
 
     const accentColor =
-      theme === 'emerald' ? '#4edea3' : theme === 'purple' ? '#d2bbff' : '#c3c0ff';
+      theme === 'emerald' ? '#4edea3' : theme === 'purple' ? '#d2bbff' : '#d9f99d';
 
     return new ImageResponse(
       (

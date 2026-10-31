@@ -40,7 +40,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         onClick={onClose} 
       />
 
-      <div className="bg-card border border-border/60 w-full max-w-md rounded-xl p-6 shadow-2xl space-y-5 text-foreground relative z-10">
+      <div className="bg-card border-[0.5px] border-outline-variant w-full max-w-md rounded-xl p-6 shadow-2xl space-y-5 text-foreground relative z-10">
         
         {/* Close Button */}
         <button
@@ -51,8 +51,8 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         </button>
 
         {/* Header */}
-        <div className="flex items-center gap-3 pb-3 border-b border-border/40">
-          <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center shrink-0 border border-primary/20">
+        <div className="flex items-center gap-3 pb-3 border-b border-outline-variant">
+          <div className="w-8 h-8 bg-primary/10 text-primary-ink rounded-lg flex items-center justify-center shrink-0 border border-primary-strong/20">
             <Layers className="w-4 h-4" />
           </div>
           <div>
@@ -78,7 +78,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
                 placeholder="e.g. Growth &amp; Security Operations"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full h-10 px-3.5 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
+                className="w-full h-10 px-3.5 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
               />
             </div>
 
@@ -95,8 +95,8 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
                     onClick={() => setPlan(p)}
                     className={`h-9 rounded-lg border text-center font-bold capitalize text-xs transition cursor-pointer ${
                       plan === p
-                        ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/25'
-                        : 'bg-muted/40 text-muted-foreground border-border/60 hover:text-foreground hover:bg-muted'
+                        ? 'bg-primary text-primary-foreground border-primary-strong shadow-md shadow-primary/25'
+                        : 'bg-muted/40 text-muted-foreground border-outline-variant hover:text-foreground hover:bg-muted'
                     }`}
                   >
                     {p}

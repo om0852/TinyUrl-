@@ -376,11 +376,11 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
       </div>
 
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/40">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-outline-variant">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black tracking-tight text-foreground flex items-center gap-2.5">
-              <span className="p-2 rounded-lg bg-primary/10 text-primary">
+              <span className="p-2 rounded-lg bg-primary/10 text-primary-ink">
                 <QrCode className="w-6 h-6" />
               </span>
               Vector QR Code Studio &amp; Logo Designer
@@ -410,13 +410,13 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
           <Card className="p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Link2 className="w-4 h-4 text-primary" />
+                <Link2 className="w-4 h-4 text-primary-ink" />
                 <h3 className="text-sm font-bold text-foreground">1. Destination Content</h3>
               </div>
               <span className="text-[11px] text-muted-foreground">What does this QR code open?</span>
             </div>
 
-            <div className="grid grid-cols-2 p-1 bg-muted/60 rounded-lg border border-border/60 text-xs font-semibold">
+            <div className="grid grid-cols-2 p-1 bg-muted/60 rounded-lg border-[0.5px] border-outline-variant text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setSourceMode('link')}
@@ -451,7 +451,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                   <select
                     value={selectedLinkId}
                     onChange={(e) => setSelectedLinkId(e.target.value)}
-                    className="w-full h-10 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground outline-none transition cursor-pointer font-medium"
+                    className="w-full h-10 px-3 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground outline-none transition cursor-pointer font-medium"
                   >
                     {links.map(l => (
                       <option key={l.id} value={l.id}>
@@ -460,7 +460,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                     ))}
                   </select>
                 ) : (
-                  <div className="p-3 rounded-lg bg-muted/40 border border-border/40 text-xs text-muted-foreground">
+                  <div className="p-3 rounded-lg bg-muted/40 border-[0.5px] border-outline-variant text-xs text-muted-foreground">
                     No short links found in this workspace. Switch to Custom URL or create a link first.
                   </div>
                 )}
@@ -473,7 +473,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                   value={customUrl}
                   onChange={(e) => setCustomUrl(e.target.value)}
                   placeholder="https://yourbrand.com/app or any text..."
-                  className="w-full h-10 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs text-foreground outline-none font-mono"
+                  className="w-full h-10 px-3 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground outline-none font-mono"
                 />
               </div>
             )}
@@ -483,13 +483,13 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
           <Card className="p-5 shadow-xs space-y-5">
             
             {/* Studio Navigation Bar */}
-            <div className="flex items-center gap-2 p-1 bg-muted/60 rounded-lg border border-border/60">
+            <div className="flex items-center gap-2 p-1 bg-muted/60 rounded-lg border border-outline-variant">
               <button
                 type="button"
                 onClick={() => setActiveStudioTab('logo')}
                 className={`flex-1 py-2 rounded-md text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   activeStudioTab === 'logo'
-                    ? 'bg-background text-primary shadow-xs'
+                    ? 'bg-background text-primary-ink shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -503,7 +503,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 onClick={() => setActiveStudioTab('design')}
                 className={`flex-1 py-2 rounded-md text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   activeStudioTab === 'design'
-                    ? 'bg-background text-primary shadow-xs'
+                    ? 'bg-background text-primary-ink shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -516,7 +516,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 onClick={() => setActiveStudioTab('frame')}
                 className={`flex-1 py-2 rounded-md text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
                   activeStudioTab === 'frame'
-                    ? 'bg-background text-primary shadow-xs'
+                    ? 'bg-background text-primary-ink shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -545,9 +545,9 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                   />
 
                   {logoSrc ? (
-                    <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 flex items-center justify-between gap-4">
+                    <div className="p-4 rounded-lg border border-primary-strong/30 bg-primary/5 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-background border border-border/60 p-1 flex items-center justify-center shrink-0 shadow-xs">
+                        <div className="w-12 h-12 rounded-lg bg-background border-[0.5px] border-outline-variant p-1 flex items-center justify-center shrink-0 shadow-xs">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={logoSrc} alt="Uploaded logo" className="max-w-full max-h-full object-contain" />
                         </div>
@@ -570,7 +570,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           className="text-[11px] font-semibold"
                           title="Extract and apply color palette from this logo"
                         >
-                          <Wand2 className="w-3.5 h-3.5 mr-1 text-primary" />
+                          <Wand2 className="w-3.5 h-3.5 mr-1 text-primary-ink" />
                           <span>{isExtractingColor ? 'Matching…' : 'Match Palette'}</span>
                         </Button>
 
@@ -592,11 +592,11 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                       onClick={() => fileInputRef.current?.click()}
                       className={`p-6 rounded-lg border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer text-center ${
                         isDragOver
-                          ? 'border-primary bg-primary/10 scale-[1.01]'
-                          : 'border-border/80 bg-muted/30 hover:bg-muted/60 hover:border-primary/50'
+                          ? 'border-primary-strong bg-primary/10 scale-[1.01]'
+                          : 'border-outline-variant bg-muted/30 hover:bg-muted/60 hover:border-primary-strong/50'
                       }`}
                     >
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary-ink flex items-center justify-center">
                         <Upload className="w-5 h-5" />
                       </div>
                       <div className="space-y-0.5">
@@ -630,8 +630,8 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                         onClick={() => handleApplyPresetLogo(brand)}
                         className={`p-2 rounded-lg border flex items-center gap-2 transition cursor-pointer text-left ${
                           logoName === brand.name
-                            ? 'border-primary bg-primary/10 text-foreground font-bold shadow-xs'
-                            : 'border-border/60 bg-background hover:bg-muted/60 text-muted-foreground'
+                            ? 'border-primary-strong bg-primary/10 text-foreground font-bold shadow-xs'
+                            : 'border-outline-variant bg-background hover:bg-muted/60 text-muted-foreground'
                         }`}
                       >
                         <div className="w-5 h-5 shrink-0 flex items-center justify-center">
@@ -646,10 +646,10 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
 
                 {/* Logo Customization Sliders (only visible when logo is present) */}
                 {logoSrc && (
-                  <div className="p-4 rounded-lg bg-muted/40 border border-border/40 space-y-3">
+                  <div className="p-4 rounded-lg bg-muted/40 border-[0.5px] border-outline-variant space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-foreground">Logo Proportion</span>
-                      <span className="font-mono text-primary font-bold">{logoSizePercent}% of QR code</span>
+                      <span className="font-mono text-primary-ink font-bold">{logoSizePercent}% of QR code</span>
                     </div>
                     <input
                       type="range"
@@ -657,7 +657,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                       max="32"
                       value={logoSizePercent}
                       onChange={(e) => setLogoSizePercent(Number(e.target.value))}
-                      className="w-full accent-primary cursor-pointer"
+                      className="w-full accent-primary-strong cursor-pointer"
                     />
                     <div className="flex items-center justify-between pt-1">
                       <label className="text-[11px] text-muted-foreground flex items-center gap-2 cursor-pointer">
@@ -665,7 +665,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           type="checkbox"
                           checked={excavateLogo}
                           onChange={(e) => setExcavateLogo(e.target.checked)}
-                          className="rounded text-primary accent-primary"
+                          className="rounded text-primary-ink accent-primary-strong"
                         />
                         <span>Excavate Background (Clears QR pixels behind logo for clarity)</span>
                       </label>
@@ -697,8 +697,8 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           onClick={() => handleApplyTheme(preset)}
                           className={`p-3 rounded-lg border text-left transition-all cursor-pointer relative ${
                             isSelected
-                              ? 'border-primary ring-2 ring-primary/30 shadow-xs'
-                              : 'border-border/60 hover:border-primary/40'
+                              ? 'border-primary-strong ring-2 ring-primary-strong/30 shadow-xs'
+                              : 'border-outline-variant hover:border-primary-strong/40'
                           }`}
                           style={{ backgroundColor: preset.bgColor }}
                         >
@@ -728,7 +728,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
 
                 {/* Fine-Tuned Color Pickers */}
                 <div className="grid grid-cols-2 gap-4 pt-1">
-                  <div className="p-3.5 rounded-lg bg-muted/40 border border-border/40">
+                  <div className="p-3.5 rounded-lg bg-muted/40 border border-outline-variant">
                     <label className="block text-xs font-semibold text-foreground mb-2">QR Code Modules (Foreground)</label>
                     <div className="flex items-center gap-2.5">
                       <input
@@ -738,7 +738,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           setFgColor(e.target.value);
                           setSelectedThemeId('custom');
                         }}
-                        className="w-9 h-9 rounded-lg border border-border/60 cursor-pointer bg-transparent"
+                        className="w-9 h-9 rounded-lg border-[0.5px] border-outline-variant cursor-pointer bg-transparent"
                       />
                       <input
                         type="text"
@@ -747,12 +747,12 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           setFgColor(e.target.value);
                           setSelectedThemeId('custom');
                         }}
-                        className="w-24 px-2 py-1 bg-background border border-border/60 rounded-md font-mono text-xs uppercase text-foreground"
+                        className="w-24 px-2 py-1 bg-background border-[0.5px] border-outline-variant rounded-md font-mono text-xs uppercase text-foreground"
                       />
                     </div>
                   </div>
 
-                  <div className="p-3.5 rounded-lg bg-muted/40 border border-border/40">
+                  <div className="p-3.5 rounded-lg bg-muted/40 border border-outline-variant">
                     <label className="block text-xs font-semibold text-foreground mb-2">Background Canvas</label>
                     <div className="flex items-center gap-2.5">
                       <input
@@ -762,7 +762,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           setBgColor(e.target.value);
                           setSelectedThemeId('custom');
                         }}
-                        className="w-9 h-9 rounded-lg border border-border/60 cursor-pointer bg-transparent"
+                        className="w-9 h-9 rounded-lg border-[0.5px] border-outline-variant cursor-pointer bg-transparent"
                       />
                       <input
                         type="text"
@@ -771,14 +771,14 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           setBgColor(e.target.value);
                           setSelectedThemeId('custom');
                         }}
-                        className="w-24 px-2 py-1 bg-background border border-border/60 rounded-md font-mono text-xs uppercase text-foreground"
+                        className="w-24 px-2 py-1 bg-background border-[0.5px] border-outline-variant rounded-md font-mono text-xs uppercase text-foreground"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Error Correction Level */}
-                <div className="p-3.5 rounded-lg bg-muted/40 border border-border/40 space-y-2">
+                <div className="p-3.5 rounded-lg bg-muted/40 border-[0.5px] border-outline-variant space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-foreground">Error Correction Level</span>
                     <Badge variant="primary" className="text-[10px]">
@@ -793,8 +793,8 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                         onClick={() => setErrorLevel(lvl)}
                         className={`py-1.5 rounded-lg font-bold text-xs border transition cursor-pointer ${
                           errorLevel === lvl
-                            ? 'bg-primary text-on-primary border-primary shadow-xs'
-                            : 'bg-background text-muted-foreground border-border/60 hover:text-foreground'
+                            ? 'bg-primary text-on-primary border-primary-strong shadow-xs'
+                            : 'bg-background text-muted-foreground border-outline-variant hover:text-foreground'
                         }`}
                       >
                         {lvl} {lvl === 'H' && '★'}
@@ -835,8 +835,8 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           onClick={() => setFrameStyle(f.id as QrFrameStyle)}
                           className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 text-center transition cursor-pointer ${
                             isSelected
-                              ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs'
-                              : 'border-border/60 bg-background hover:bg-muted/60 text-muted-foreground'
+                              ? 'border-primary-strong bg-primary/10 text-primary-ink font-bold shadow-xs'
+                              : 'border-outline-variant bg-background hover:bg-muted/60 text-muted-foreground'
                           }`}
                         >
                           <Icon className="w-5 h-5" />
@@ -848,14 +848,14 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 </div>
 
                 {frameStyle !== 'none' && (
-                  <div className="p-4 rounded-lg bg-muted/40 border border-border/40 space-y-2">
+                  <div className="p-4 rounded-lg bg-muted/40 border-[0.5px] border-outline-variant space-y-2">
                     <label className="font-semibold text-foreground block">Call-to-Action Banner Text</label>
                     <input
                       type="text"
                       value={frameCtaText}
                       onChange={(e) => setFrameCtaText(e.target.value)}
                       placeholder="e.g. SCAN ME or ORDER NOW"
-                      className="w-full h-10 px-3 bg-background border border-border/60 focus:border-primary rounded-lg text-xs font-bold uppercase tracking-wider text-foreground outline-none"
+                      className="w-full h-10 px-3 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs font-bold uppercase tracking-wider text-foreground outline-none"
                     />
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       <span className="text-[10px] text-muted-foreground self-center mr-1">Quick text:</span>
@@ -864,7 +864,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                           type="button"
                           key={txt}
                           onClick={() => setFrameCtaText(txt)}
-                          className="px-2 py-0.5 rounded-md bg-background border border-border/60 hover:bg-muted text-[10px] font-medium text-foreground transition cursor-pointer"
+                          className="px-2 py-0.5 rounded-md bg-background border-[0.5px] border-outline-variant hover:bg-muted text-[10px] font-medium text-foreground transition cursor-pointer"
                         >
                           {txt}
                         </button>
@@ -883,15 +883,15 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
         <div className="lg:col-span-5 space-y-6">
           <Card className="p-6 shadow-sm flex flex-col items-center justify-center text-center space-y-6 sticky top-6">
             
-            <div className="w-full flex items-center justify-between pb-3 border-b border-border/40">
+            <div className="w-full flex items-center justify-between pb-3 border-b border-outline-variant">
               <span className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <Sparkles className="w-3.5 h-3.5 text-primary-ink" />
                 <span>Live Interactive Preview</span>
               </span>
 
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground">Size:</span>
-                <span className="font-mono text-xs text-primary font-bold">{qrSize}px</span>
+                <span className="font-mono text-xs text-primary-ink font-bold">{qrSize}px</span>
               </div>
             </div>
 
@@ -903,14 +903,14 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 id="qr-preview-container"
                 className={`transition-all relative flex flex-col items-center justify-center max-w-full ${
                   frameStyle === 'none'
-                    ? 'p-5 rounded-xl shadow-lg border border-border/60'
+                    ? 'p-5 rounded-xl shadow-lg border border-outline-variant'
                     : frameStyle === 'bottom-badge'
-                    ? 'p-6 rounded-xl shadow-xl border border-border/60 space-y-4'
+                    ? 'p-6 rounded-xl shadow-xl border-[0.5px] border-outline-variant space-y-4'
                     : frameStyle === 'top-header'
-                    ? 'p-6 rounded-xl shadow-xl border border-border/60 space-y-4'
+                    ? 'p-6 rounded-xl shadow-xl border-[0.5px] border-outline-variant space-y-4'
                     : frameStyle === 'phone-mockup'
                     ? 'p-6 rounded-xl shadow-2xl border-4 space-y-4'
-                    : 'p-6 rounded-xl shadow-xl backdrop-blur-md border border-border/60 space-y-3'
+                    : 'p-6 rounded-xl shadow-xl backdrop-blur-md border-[0.5px] border-outline-variant space-y-3'
                 }`}
                 style={{
                   backgroundColor: bgColor,
@@ -984,8 +984,8 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
             </div>
 
             {/* Target Value & Quick Copy Bar */}
-            <div className="w-full max-w-sm p-2.5 rounded-lg bg-muted/50 border border-border/40 flex items-center justify-between gap-2">
-              <span className="font-mono text-xs text-primary font-bold truncate max-w-[240px]">
+            <div className="w-full max-w-sm p-2.5 rounded-lg bg-muted/50 border-[0.5px] border-outline-variant flex items-center justify-between gap-2">
+              <span className="font-mono text-xs text-primary-ink font-bold truncate max-w-[240px]">
                 {activeQrValue}
               </span>
               <button
@@ -1011,7 +1011,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                 step="20"
                 value={qrSize}
                 onChange={(e) => setQrSize(Number(e.target.value))}
-                className="w-full accent-primary cursor-pointer"
+                className="w-full accent-primary-strong cursor-pointer"
               />
             </div>
 
@@ -1035,7 +1035,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                   onClick={handleDownloadSvg}
                   className="text-xs font-semibold"
                 >
-                  <Download className="w-3.5 h-3.5 mr-1 text-primary" />
+                  <Download className="w-3.5 h-3.5 mr-1 text-primary-ink" />
                   <span>Vector SVG</span>
                 </Button>
 
@@ -1052,7 +1052,7 @@ export const QrCodeView: React.FC<QrCodeViewProps> = () => {
                     </>
                   ) : (
                     <>
-                      <Copy className="w-3.5 h-3.5 mr-1 text-primary" />
+                      <Copy className="w-3.5 h-3.5 mr-1 text-primary-ink" />
                       <span>Copy Image</span>
                     </>
                   )}

@@ -62,18 +62,18 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   if (!isOpen) return null;
 
   const navigationItems: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'Workspace Overview (Dashboard)', icon: <LayoutDashboard className="w-4 h-4 text-primary" /> },
-    { id: 'links', label: 'All Short Links (Directory)', icon: <Link2 className="w-4 h-4 text-primary" /> },
+    { id: 'overview', label: 'Workspace Overview (Dashboard)', icon: <LayoutDashboard className="w-4 h-4 text-primary-ink" /> },
+    { id: 'links', label: 'All Short Links (Directory)', icon: <Link2 className="w-4 h-4 text-primary-ink" /> },
     { id: 'analytics', label: 'Usage & Analytics Engine', icon: <BarChart3 className="w-4 h-4 text-blue-500" /> },
     { id: 'routing', label: 'OpeninApp & Dynamic Routing', icon: <Smartphone className="w-4 h-4 text-emerald-500" /> },
-    { id: 'qr', label: 'Dynamic QR Code Studio', icon: <QrCode className="w-4 h-4 text-primary" /> },
+    { id: 'qr', label: 'Dynamic QR Code Studio', icon: <QrCode className="w-4 h-4 text-primary-ink" /> },
     { id: 'campaigns', label: 'Campaigns & UTM Tagging', icon: <FolderKanban className="w-4 h-4 text-amber-500" /> },
     { id: 'teams', label: 'Teams & Workspaces Collaboration', icon: <Users className="w-4 h-4 text-emerald-500" /> },
     { id: 'ai', label: 'AI Slug & Traffic Insights', icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
     { id: 'security', label: 'Security & Zero-Phish Scanner', icon: <ShieldCheck className="w-4 h-4 text-emerald-500" /> },
-    { id: 'settings', label: 'Workspace Settings & Profile', icon: <Settings className="w-4 h-4 text-indigo-500" /> },
+    { id: 'settings', label: 'Workspace Settings & Profile', icon: <Settings className="w-4 h-4 text-lime-700" /> },
     { id: 'api', label: 'API & Developer Keys', icon: <Code2 className="w-4 h-4 text-muted-foreground" /> },
-    { id: 'bulk', label: 'Bulk Shortener', icon: <Layers className="w-4 h-4 text-primary" /> },
+    { id: 'bulk', label: 'Bulk Shortener', icon: <Layers className="w-4 h-4 text-primary-ink" /> },
   ];
 
   const filteredNav = navigationItems.filter(item => 
@@ -103,11 +103,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         onClick={onClose} 
       />
 
-      <div className="relative w-full max-w-xl bg-card border border-border/60 rounded-xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh] text-foreground">
+      <div className="relative w-full max-w-xl bg-card border-[0.5px] border-outline-variant rounded-xl shadow-2xl overflow-hidden z-10 flex flex-col max-h-[80vh] text-foreground">
         
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-border/40 gap-3 bg-muted/20">
-          <Search className="w-4 h-4 text-primary shrink-0" />
+        <div className="flex items-center px-4 py-3.5 border-b-[0.5px] border-outline-variant gap-3 bg-muted/20">
+          <Search className="w-4 h-4 text-primary-ink shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -116,7 +116,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             placeholder="Type a command, search links, or jump to view... (ESC to close)"
             className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground/60 outline-none"
           />
-          <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border border-border/60 rounded shadow-2xs">
+          <kbd className="px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground bg-muted border-[0.5px] border-outline-variant rounded shadow-2xs">
             ESC
           </kbd>
         </div>
@@ -137,7 +137,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
               className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted transition group cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
-                <span className="p-1 rounded-md bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition">
+                <span className="p-1 rounded-md bg-primary/10 text-primary-ink group-hover:bg-primary group-hover:text-primary-foreground transition">
                   <Plus className="w-3.5 h-3.5" />
                 </span>
                 <span>Create New Shortlink</span>
@@ -196,7 +196,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                           <span className="text-xs font-semibold text-foreground truncate">
                             {link.title}
                           </span>
-                          <span className="font-mono text-[10px] text-primary">
+                          <span className="font-mono text-[10px] text-primary-ink">
                             /{link.short_code}
                           </span>
                         </div>

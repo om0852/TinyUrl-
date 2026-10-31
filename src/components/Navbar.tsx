@@ -22,7 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
   };
 
   return (
-    <header className="sticky top-0 right-0 z-20 w-full pl-60 bg-surface-container-lowest/80 backdrop-blur-md border-b border-outline-variant shadow-sm">
+    <header className="sticky top-0 right-0 z-20 w-full pl-60 bg-surface-container-lowest/80 backdrop-blur-md border-b-[0.5px] border-outline-variant shadow-sm">
       <div className="flex items-center justify-between px-space-lg h-16 w-full">
         
         {/* Left: Global Search Command Bar (⌘K) */}
@@ -36,10 +36,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
               onClick={onOpenCommandPalette}
               readOnly
               placeholder="Search links, tags, or domains... (⌘K / Ctrl+K)"
-              className="w-full pl-9 pr-16 py-2 bg-surface rounded-lg border border-outline-variant/60 font-body-md text-body-md text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-xs cursor-pointer"
+              className="w-full pl-9 pr-16 py-2 bg-surface rounded-lg border-[0.5px] border-outline-variant font-body-md text-body-md text-on-surface placeholder-on-surface-variant focus:outline-none focus:ring-2 focus:ring-primary-strong/20 focus:border-primary-strong transition-all text-xs cursor-pointer"
             />
             <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 pointer-events-none">
-              <kbd className="font-code-sm text-[10px] px-1.5 py-0.5 bg-surface-container-low border border-outline-variant/70 rounded text-on-surface-variant shadow-xs">
+              <kbd className="font-code-sm text-[10px] px-1.5 py-0.5 bg-surface-container-low border-[0.5px] border-outline-variant rounded text-on-surface-variant shadow-xs">
                 ⌘K
               </kbd>
             </div>
@@ -50,7 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
         <div className="flex items-center space-x-3">
           
           {/* Secondary Action: Health status pill */}
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-surface-container text-tertiary border border-outline-variant/30">
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-surface-container text-tertiary border border-outline-variant">
             <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200 animate-ping"></span>
             <span className="font-label-sm text-label-sm font-semibold">
               System Healthy: {domains.length} {domains.length === 1 ? 'Domain' : 'Domains'}
@@ -107,7 +107,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenCreateModal, onOpenCommand
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-52 bg-surface-container-lowest rounded-xl border border-outline-variant/60 p-2 shadow-xl z-50 space-y-1 text-xs">
+                  <div className="absolute top-full right-0 mt-2 w-52 bg-surface-container-lowest rounded-xl border-[0.5px] border-outline-variant p-2 shadow-xl z-50 space-y-1 text-xs">
                     <div className="px-3 py-2 border-b border-surface-container">
                       <p className="font-bold text-on-surface truncate font-headline-sm text-xs">{currentUser.name}</p>
                       <p className="text-[10px] text-on-surface-variant truncate font-body-sm">{currentUser.email}</p>

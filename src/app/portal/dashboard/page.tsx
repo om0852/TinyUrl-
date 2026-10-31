@@ -220,7 +220,7 @@ function ClientPortalDashboardContent() {
     }
   };
 
-  const brandColor = session?.brand_color || '#6366f1';
+  const brandColor = session?.brand_color || '#65a30d';
   const filteredLinks = links.filter((l) => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
@@ -257,7 +257,7 @@ function ClientPortalDashboardContent() {
               <span className="font-bold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">
                 {session?.company_name || 'Client Portal'}
               </span>
-              <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              <span className="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase rounded-full bg-lime-400/10 text-lime-700 dark:text-lime-700 border border-lime-500/20">
                 Sandboxed Client
               </span>
             </div>
@@ -277,7 +277,7 @@ function ClientPortalDashboardContent() {
             title="Refresh Data"
             className="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-indigo-500' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-lime-700' : ''}`} />
           </button>
 
           <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
@@ -300,11 +300,11 @@ function ClientPortalDashboardContent() {
       {/* Main Portal View */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* Welcome & Permission Notice */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-indigo-900/10 via-violet-900/5 to-transparent border border-indigo-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 rounded-2xl bg-gradient-to-r from-lime-700/10 via-lime-700/5 to-transparent border border-lime-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <span>Welcome, {session?.name || 'Partner'}</span>
-              <span className="text-indigo-500">✨</span>
+              <span className="text-lime-700">✨</span>
             </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
               This client dashboard gives you isolated access to review performance metrics and live clicks for your brand&apos;s assigned short links.
@@ -322,14 +322,14 @@ function ClientPortalDashboardContent() {
           <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
               <span>Assigned Links</span>
-              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <div className="p-2 rounded-lg bg-lime-400/10 text-lime-700 dark:text-lime-700">
                 <Link2 className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-bold mt-2 text-slate-900 dark:text-white flex items-baseline gap-2">
               <span>{metrics.total_assigned_links}</span>
               {metrics.total_assigned_campaigns > 0 && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-lime-400/10 text-lime-700 dark:text-lime-700 border border-lime-500/20">
                   {metrics.total_assigned_campaigns} campaign{metrics.total_assigned_campaigns === 1 ? '' : 's'}
                 </span>
               )}
@@ -357,7 +357,7 @@ function ClientPortalDashboardContent() {
           <div className="p-5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
               <span>Unique Visitors</span>
-              <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <div className="p-2 rounded-lg bg-lime-400/10 text-lime-700 dark:text-lime-700">
                 <Users className="w-4 h-4" />
               </div>
             </div>
@@ -381,7 +381,7 @@ function ClientPortalDashboardContent() {
             </div>
             <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
               <div 
-                className="bg-indigo-600 h-full rounded-full transition-all duration-300"
+                className="bg-lime-400 h-full rounded-full transition-all duration-300"
                 style={{ width: `${Math.min(100, (metrics.quota_used / Math.max(1, metrics.quota_max)) * 100)}%` }}
               />
             </div>
@@ -410,14 +410,14 @@ function ClientPortalDashboardContent() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search assigned links..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-lime-500 text-slate-900 dark:text-white"
               />
             </div>
           </div>
 
           {loading ? (
             <div className="p-12 text-center">
-              <div className="inline-block w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-3" />
+              <div className="inline-block w-8 h-8 border-2 border-lime-500 border-t-transparent rounded-full animate-spin mb-3" />
               <p className="text-xs text-slate-400">Loading your scoped links & analytics...</p>
             </div>
           ) : filteredLinks.length === 0 ? (
@@ -457,7 +457,7 @@ function ClientPortalDashboardContent() {
                             const campName = camp?.name || link.utm_campaign;
                             if (!campName) return null;
                             return (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-lime-400/10 text-lime-700 dark:text-lime-700 border border-lime-500/20">
                                 {campName}
                               </span>
                             );
@@ -466,12 +466,12 @@ function ClientPortalDashboardContent() {
 
                         {/* Short code pill & Copy */}
                         <div className="flex items-center gap-2 flex-wrap text-xs">
-                          <code className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded font-mono font-medium">
+                          <code className="text-lime-700 dark:text-lime-700 bg-lime-50 dark:bg-lime-950/50 px-2 py-0.5 rounded font-mono font-medium">
                             {shortUrl}
                           </code>
                           <button
                             onClick={() => handleCopy(shortUrl, link.id)}
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-lime-700 dark:hover:text-lime-700 transition-colors"
                           >
                             {copiedId === link.id ? (
                               <>
@@ -489,7 +489,7 @@ function ClientPortalDashboardContent() {
                             href={shortUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-lime-700 dark:hover:text-lime-700 transition-colors"
                           >
                             <ExternalLink className="w-3 h-3" />
                             <span>Test Redirect</span>
@@ -503,7 +503,7 @@ function ClientPortalDashboardContent() {
                             href={link.destination_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline truncate max-w-md inline-flex items-center gap-1"
+                            className="text-slate-700 dark:text-slate-300 hover:text-lime-700 dark:hover:text-lime-700 hover:underline truncate max-w-md inline-flex items-center gap-1"
                           >
                             <span>{link.destination_url}</span>
                             <ArrowUpRight className="w-3 h-3 flex-shrink-0" />
@@ -529,7 +529,7 @@ function ClientPortalDashboardContent() {
                               setNewDestinationUrl(link.destination_url);
                               setEditError('');
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 transition-all shadow-sm"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 hover:border-lime-500 hover:text-lime-700 dark:hover:text-lime-700 bg-white dark:bg-slate-900 transition-all shadow-sm"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                             <span>Edit Target URL</span>
@@ -541,7 +541,7 @@ function ClientPortalDashboardContent() {
                             onClick={() => setSelectedLinkAnalytics(isSelected ? null : link.id)}
                             className={`p-2 rounded-xl border transition-colors ${
                               isSelected 
-                                ? 'bg-indigo-600 text-white border-indigo-600' 
+                                ? 'bg-lime-400 text-on-primary border-lime-500' 
                                 : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                             }`}
                             title="Toggle Clicks Detail"
@@ -556,7 +556,7 @@ function ClientPortalDashboardContent() {
                     {isSelected && session?.can_view_analytics && (
                       <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl p-4 animate-fade-in">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-2">
-                          <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />
+                          <BarChart3 className="w-3.5 h-3.5 text-lime-700" />
                           <span>Recent Visitor Activity for this Link</span>
                         </h4>
                         
@@ -609,7 +609,7 @@ function ClientPortalDashboardContent() {
 
       {/* Edit Destination Modal */}
       {editingLink && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#00000A73] backdrop-blur-[5px] animate-fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up">
             <button
               onClick={() => setEditingLink(null)}
@@ -619,7 +619,7 @@ function ClientPortalDashboardContent() {
             </button>
 
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-lime-400/10 text-lime-700 dark:text-lime-700 flex items-center justify-center">
                 <Edit3 className="w-5 h-5" />
               </div>
               <div>
@@ -656,7 +656,7 @@ function ClientPortalDashboardContent() {
                   value={newDestinationUrl}
                   onChange={(e) => setNewDestinationUrl(e.target.value)}
                   placeholder="https://yourbrand.com/new-landing-page"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-lime-500"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
                   Traffic hitting your short link will be routed to this new URL immediately.
@@ -674,7 +674,7 @@ function ClientPortalDashboardContent() {
                 <button
                   type="submit"
                   disabled={savingEdit || editSuccess}
-                  className="px-4 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] rounded-xl transition-all shadow-md shadow-indigo-500/20 disabled:opacity-50 flex items-center gap-2"
+                  className="px-4 py-2 text-xs font-medium text-on-primary bg-lime-400 hover:bg-lime-500 active:scale-[0.98] rounded-xl transition-all shadow-md shadow-lime-500/20 disabled:opacity-50 flex items-center gap-2"
                 >
                   {savingEdit ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -695,7 +695,7 @@ export default function ClientPortalDashboardPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-lime-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <ClientPortalDashboardContent />
