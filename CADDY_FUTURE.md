@@ -78,6 +78,16 @@ Create a file named `Caddyfile` on your VPS:
     header_up X-Forwarded-Host {host}
     header_up X-Forwarded-Proto https
 
+    # Real visitor IP + geolocation (see "Visitor IP & Location Analytics" below).
+    # Vercel overwrites X-Forwarded-For and geolocates THIS VM, so without these
+    # headers every custom-domain click is recorded at the Caddy server's location.
+    header_up X-Edge-Proxy-Secret {env.EDGE_PROXY_SECRET}
+    header_up X-Client-IP {remote_host}
+    # Requires a GeoIP Caddy module (placeholder names depend on the module you build in):
+    # header_up X-Client-Country {geoip_country_code}
+    # header_up X-Client-Region  {geoip_subdivision_code}
+    # header_up X-Client-City    {geoip_city_name}
+
     # Proxy to your Next.js application
     reverse_proxy https://your-nextjs-app.vercel.app {
         header_up Host your-nextjs-app.vercel.app
@@ -170,7 +180,30 @@ When you decide to switch:
 
 ---
 
-## 6. Summary Comparison
+## 6. Visitor IP & Location Analytics Behind Caddy
+
+When Caddy sits in front of Vercel, Vercel sees the **Caddy VM** as the client: it overwrites `X-Forwarded-For` and fills `x-vercel-ip-country/region/city` with the VM's location (for example California). Click analytics and geo smart-routing on custom domains then show the server's location instead of the visitor's.
+
+The app (`src/lib/geo.ts`) accepts these headers from Caddy **only when `X-Edge-Proxy-Secret` matches the `EDGE_PROXY_SECRET` env var**:
+
+| Header | Value | Used for |
+| :--- | :--- | :--- |
+| `X-Edge-Proxy-Secret` | shared secret (same value in Caddy env and Vercel env) | trust check |
+| `X-Client-IP` | `{remote_host}` | visitor hash / unique-visitor detection |
+| `X-Client-Country` | ISO 3166-1 alpha-2 (`IN`, `US`) | country |
+| `X-Client-Region` | ISO subdivision code (`MH`) or full name (`Maharashtra`) | state / region |
+| `X-Client-City` | city name (URL-encoded or plain) | city |
+
+Setup:
+1. Generate a secret (`openssl rand -hex 32`) and set `EDGE_PROXY_SECRET` both in the Caddy environment and in the Vercel project env vars.
+2. Build Caddy with a GeoIP module and a MaxMind GeoLite2-City database, and map its placeholders to the `X-Client-*` headers above (check that module's README for the exact placeholder names).
+3. Redeploy. Until `EDGE_PROXY_SECRET` is set on Vercel, the app ignores these headers and behaves exactly as before.
+
+If only `X-Client-IP` is sent (no GeoIP module), visitor uniqueness is fixed but custom-domain clicks are stored as `Unknown` location (password/splash pages fall back to the browser's timezone estimate) instead of the VM's location.
+
+---
+
+## 7. Summary Comparison
 
 | Metric | Cloudflare for SaaS (Current) | Caddy Cluster (Future) |
 | :--- | :--- | :--- |

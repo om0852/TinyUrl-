@@ -100,13 +100,70 @@ export const US_STATES: Record<string, string> = {
   'DC': 'District of Columbia'
 };
 
+type HeaderGetter = (name: string) => string | null | undefined;
+
+// Headers set by our own edge proxy (Caddy) in front of Vercel. Vercel geolocates the
+// connecting IP and overwrites X-Forwarded-For, so behind Caddy every x-vercel-ip-* value
+// describes the Caddy VM instead of the visitor. These are only honoured when the shared
+// secret matches EDGE_PROXY_SECRET, otherwise anyone could spoof their location/IP.
+const EDGE_PROXY_SECRET_HEADER = 'x-edge-proxy-secret';
+const EDGE_CLIENT_IP_HEADER = 'x-client-ip';
+const EDGE_CLIENT_COUNTRY_HEADER = 'x-client-country';
+const EDGE_CLIENT_REGION_HEADER = 'x-client-region';
+const EDGE_CLIENT_CITY_HEADER = 'x-client-city';
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+/**
+ * Returns true when the request was forwarded by our own edge proxy (verified via shared secret).
+ * Always false when EDGE_PROXY_SECRET is not configured, so default behaviour is unchanged.
+ */
+export function isTrustedEdgeProxyRequest(getHeader: HeaderGetter): boolean {
+  const secret = (typeof process !== 'undefined' && process.env?.EDGE_PROXY_SECRET) || '';
+  if (!secret) return false;
+  const provided = (getHeader(EDGE_PROXY_SECRET_HEADER) || '').trim();
+  return !!provided && constantTimeEqual(provided, secret);
+}
+
+/**
+ * Real visitor IP as reported by our trusted edge proxy, or null when the request
+ * did not come through it (callers keep their existing IP detection in that case).
+ */
+export function getTrustedEdgeClientIp(getHeader: HeaderGetter): string | null {
+  if (!isTrustedEdgeProxyRequest(getHeader)) return null;
+  const ip = (getHeader(EDGE_CLIENT_IP_HEADER) || '').split(',')[0].trim();
+  return ip || null;
+}
+
 /**
  * Extracts and normalizes country, state/region, and city information from incoming request headers.
  */
-export function extractGeoFromHeaders(getHeader: (name: string) => string | null | undefined): VisitorGeoInfo {
-  const rawCountry = getHeader('x-vercel-ip-country') || getHeader('cf-ipcountry') || '';
-  const rawRegion = getHeader('x-vercel-ip-country-region') || getHeader('cf-region') || '';
-  const rawCity = getHeader('x-vercel-ip-city') || getHeader('cf-ipcity') || '';
+export function extractGeoFromHeaders(getHeader: HeaderGetter): VisitorGeoInfo {
+  let rawCountry: string;
+  let rawRegion: string;
+  let rawCity: string;
+
+  if (isTrustedEdgeProxyRequest(getHeader)) {
+    // Never fall back to x-vercel-ip-* here: behind the proxy those describe the proxy VM.
+    rawCountry = (getHeader(EDGE_CLIENT_COUNTRY_HEADER) || '').trim();
+    rawRegion = (getHeader(EDGE_CLIENT_REGION_HEADER) || '').trim();
+    rawCity = (getHeader(EDGE_CLIENT_CITY_HEADER) || '').trim();
+    // GeoIP modules emit placeholders like "!", "No Country" or "No City" when the IP is unknown
+    if (!/^[A-Za-z]{2}$/.test(rawCountry)) rawCountry = '';
+    if (/^no\s+(city|region|state)$/i.test(rawCity) || rawCity === '!') rawCity = '';
+    if (/^no\s+(city|region|state)$/i.test(rawRegion) || rawRegion === '!') rawRegion = '';
+  } else {
+    rawCountry = getHeader('x-vercel-ip-country') || getHeader('cf-ipcountry') || '';
+    rawRegion = getHeader('x-vercel-ip-country-region') || getHeader('cf-region') || '';
+    rawCity = getHeader('x-vercel-ip-city') || getHeader('cf-ipcity') || '';
+  }
 
   const countryCode = rawCountry.trim().toUpperCase();
   let countryName = '';
@@ -123,9 +180,17 @@ export function extractGeoFromHeaders(getHeader: (name: string) => string | null
     }
   }
 
-  const regionCode = rawRegion.trim().toUpperCase();
+  // Vercel/Cloudflare send ISO subdivision codes ("MH"); some GeoIP proxies send full names ("Maharashtra")
+  let decodedRegion = rawRegion.trim();
+  try {
+    decodedRegion = decodeURIComponent(decodedRegion);
+  } catch {}
+  const isRegionFullName = decodedRegion.length > 3;
+  const regionCode = isRegionFullName ? '' : decodedRegion.toUpperCase();
   let regionName = '';
-  if (countryCode === 'IN' && INDIAN_STATES[regionCode]) {
+  if (isRegionFullName) {
+    regionName = decodedRegion;
+  } else if (countryCode === 'IN' && INDIAN_STATES[regionCode]) {
     regionName = INDIAN_STATES[regionCode];
   } else if (countryCode === 'US' && US_STATES[regionCode]) {
     regionName = US_STATES[regionCode];

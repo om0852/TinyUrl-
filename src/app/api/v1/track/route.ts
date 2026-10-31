@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { TrackApiRequest, TrackApiResponse, Link } from '@/lib/types';
-import { extractGeoFromHeaders } from '@/lib/geo';
+import { extractGeoFromHeaders, getTrustedEdgeClientIp } from '@/lib/geo';
 import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 export async function POST(request: Request) {
@@ -59,14 +59,19 @@ export async function POST(request: Request) {
 
         const resolvedCode = (headerGeo.countryCode || click.country_code || '').trim().toUpperCase() || 'Unknown';
         const resolvedCountry = (headerGeo.countryName || click.country || (resolvedCode !== 'Unknown' ? resolvedCode : 'Unknown')).trim();
-        const resolvedRegion = (headerGeo.regionName || click.region || '').trim() || null;
-        const resolvedCity = (headerGeo.city || click.city || 'Direct').trim();
+        // When the server resolved the country, take region/city from the same source only. The
+        // browser's values are a timezone guess (e.g. any IST visitor -> Mumbai) and mixing them
+        // produced impossible rows like a real US country with a guessed Indian city.
+        const hasServerGeo = !!headerGeo.countryCode;
+        const resolvedRegion = (hasServerGeo ? headerGeo.regionName : (click.region || '')).trim() || null;
+        const resolvedCity = ((hasServerGeo ? headerGeo.city : click.city) || 'Direct').trim();
 
-        // 1. Extract real client IP from standard proxy and CDN headers
+        // 1. Extract real client IP: verified edge proxy first, then standard proxy and CDN headers
+        const trustedIp = getTrustedEdgeClientIp(name => request.headers.get(name));
         const forwarded = request.headers.get('x-forwarded-for');
         const realIp = request.headers.get('x-real-ip');
         const cfIp = request.headers.get('cf-connecting-ip');
-        const clientIp = (cfIp || (forwarded ? forwarded.split(',')[0].trim() : '') || realIp || '127.0.0.1').trim();
+        const clientIp = (trustedIp || cfIp || (forwarded ? forwarded.split(',')[0].trim() : '') || realIp || '127.0.0.1').trim();
         const userAgent = (request.headers.get('user-agent') || '').slice(0, 500);
         const language = (request.headers.get('accept-language')?.split(',')[0]?.split(';')[0]?.trim() || 'en-US').slice(0, 64);
 
