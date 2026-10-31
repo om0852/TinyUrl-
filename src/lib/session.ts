@@ -1,0 +1,80 @@
+import crypto from 'crypto';
+
+// Signed, HttpOnly session cookie issued after a successful password check.
+// The browser sends it automatically on same-origin requests; page scripts cannot read it,
+// and it cannot be forged without the server secret. Format: base64url(payload).base64url(hmac)
+
+export const SESSION_COOKIE = 'snip_session';
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+
+interface SessionPayload {
+  email: string;
+  exp: number; // unix seconds
+}
+
+function sessionSecret(): string {
+  const explicit = process.env.SESSION_SECRET || process.env.JWT_SECRET;
+  if (explicit) return explicit;
+  // Fall back to a key derived from a secret every deployment already has, so a missing
+  // SESSION_SECRET never locks everyone out. Set SESSION_SECRET to rotate sessions independently.
+  const dbUrl = process.env.DATABASE_URL || '';
+  return crypto.createHash('sha256').update(`snip-session:${dbUrl}`).digest('hex');
+}
+
+function sign(data: string): string {
+  return crypto.createHmac('sha256', sessionSecret()).update(data).digest('base64url');
+}
+
+export function createSessionToken(email: string): string {
+  const payload: SessionPayload = {
+    email: email.trim().toLowerCase(),
+    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${body}.${sign(body)}`;
+}
+
+export function verifySessionToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const [body, mac] = token.split('.');
+  if (!body || !mac) return null;
+
+  const expected = sign(body);
+  const a = Buffer.from(mac);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as SessionPayload;
+    if (!payload.email || typeof payload.exp !== 'number') return null;
+    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload.email;
+  } catch {
+    return null;
+  }
+}
+
+function readCookie(request: Request, name: string): string | null {
+  const header = request.headers.get('cookie');
+  if (!header) return null;
+  for (const part of header.split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return decodeURIComponent(rest.join('='));
+  }
+  return null;
+}
+
+/** Email of the signed-in user for this request, or null when there is no valid session. */
+export function getSessionEmail(request: Request): string | null {
+  return verifySessionToken(readCookie(request, SESSION_COOKIE));
+}
+
+export function sessionCookieOptions(maxAge = SESSION_TTL_SECONDS) {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge,
+  };
+}

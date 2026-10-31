@@ -397,6 +397,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const currentUserRef = React.useRef(currentUser);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
+  // Session headers for workspace-scoped reads. In production the API rejects requests
+  // without x-user-email (401), so plain fetches return nothing and lists look empty after
+  // a refresh. Reads go through refs so the memoized refreshers below never go stale.
+  // Lets early effects call logout(), which is declared further down
+  const logoutRef = React.useRef<(() => void) | null>(null);
+
+  const sessionHeaders = useCallback((workspaceId?: string): Record<string, string> => {
+    const headers: Record<string, string> = {};
+    const email = currentUserRef.current?.email;
+    if (email) headers['x-user-email'] = email;
+    const wsId = workspaceId || currentWorkspaceRef.current?.id;
+    if (wsId) headers['x-workspace-id'] = wsId;
+    return headers;
+  }, []);
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
   const { showToast } = useToast();
@@ -516,7 +531,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsLinksLoading(true);
       try {
-        const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success && Array.isArray(d.links)) {
@@ -551,7 +566,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     inFlightRequestsRef.current.set(cacheKey, task);
     return task;
-  }, []);
+  }, [sessionHeaders]);
 
   // 2. Targeted Analytics Refresher with Deduplication & TTL
   const refreshAnalytics = useCallback(async (force = false) => {
@@ -570,7 +585,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsAnalyticsLoading(true);
       try {
-        const res = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success && Array.isArray(d.recent_clicks)) {
@@ -627,7 +642,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     inFlightRequestsRef.current.set(cacheKey, task);
     return task;
-  }, []);
+  }, [sessionHeaders]);
 
   // 3. Targeted Campaigns Refresher
   const refreshCampaigns = useCallback(async (force = false) => {
@@ -646,7 +661,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsCampaignsLoading(true);
       try {
-        const res = await fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/v1/campaigns?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success && Array.isArray(d.campaigns)) {
@@ -671,7 +686,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     inFlightRequestsRef.current.set(cacheKey, task);
     return task;
-  }, []);
+  }, [sessionHeaders]);
 
   // 4. Targeted Clients Refresher
   const refreshClients = useCallback(async (force = false) => {
@@ -690,7 +705,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsClientsLoading(true);
       try {
-        const res = await fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/v1/clients?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success) {
@@ -709,7 +724,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     inFlightRequestsRef.current.set(cacheKey, task);
     return task;
-  }, []);
+  }, [sessionHeaders]);
 
   // 5. Targeted Team Members Refresher
   const refreshTeamMembers = useCallback(async (force = false) => {
@@ -728,7 +743,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsTeamLoading(true);
       try {
-        const res = await apiFetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await apiFetch(`/api/v1/workspaces/members?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success) {
@@ -814,7 +829,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const task = (async () => {
       setIsDomainsLoading(true);
       try {
-        const res = await fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/v1/domains?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) });
         if (res.ok) {
           const d = await res.json().catch(() => null);
           if (d?.success && Array.isArray(d.domains)) {
@@ -840,7 +855,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     inFlightRequestsRef.current.set(cacheKey, task);
     return task;
-  }, []);
+  }, [sessionHeaders]);
 
   // 8. Targeted Settings (API Keys & Webhooks & Domains) Refresher
   const refreshSettings = useCallback(async (force = false) => {
@@ -861,11 +876,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         await Promise.all([
           refreshDomains(force),
-          fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' })
+          fetch(`/api/v1/api-keys?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) })
             .then(r => r.json())
             .then(d => { if (d?.success && Array.isArray(d.keys)) setApiKeys(d.keys); })
             .catch(() => {}),
-          fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store' })
+          fetch(`/api/v1/webhooks?workspace_id=${encodeURIComponent(activeWsId)}`, { cache: 'no-store', headers: sessionHeaders(activeWsId) })
             .then(r => r.json())
             .then(d => { if (d?.success && Array.isArray(d.webhooks)) setWebhooks(d.webhooks); })
             .catch(() => {})
@@ -881,7 +896,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     inFlightRequestsRef.current.set(cacheKey, task);
     return task;
-  }, [refreshDomains]);
+  }, [refreshDomains, sessionHeaders]);
 
   // General Unified Refresh (Refreshes Core Telemetry without redundant requests)
   const refreshData = useCallback(async (force = false) => {
@@ -945,6 +960,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (user && user.email) {
+        // A user saved in localStorage is not proof of login: the API trusts only the signed
+        // session cookie. Accounts signed in before sessions existed (or with an expired one)
+        // are sent back to the login screen instead of seeing empty, failing dashboards.
+        const savedEmail = user.email.toLowerCase();
+        fetch('/api/v1/auth', { cache: 'no-store' })
+          .then(async res => {
+            const d = await res.json().catch(() => null);
+            if (res.status === 401 || (d?.email && d.email !== savedEmail)) {
+              logoutRef.current?.();
+              showToast('sync', 'Please sign in again', 'Your session has expired. Sign in to continue.');
+            }
+          })
+          .catch(() => {});
+
         // 1. Account-scoped workspaces
         const wsKey = getUserStorageKey('url_shortener_workspaces', user.email);
         const savedWs = localStorage.getItem(wsKey);
@@ -1265,6 +1294,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch {}
   };
 
+  const rollbackOptimisticLink = (linkId: string, reason: string) => {
+    setLinks(prev => {
+      const next = prev.filter(l => l.id !== linkId);
+      try {
+        localStorage.setItem(getUserStorageKey('url_shortener_links', currentUserRef.current?.email), JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    invalidateStoreCache('links');
+    showToast('error', 'Link not saved', reason);
+  };
+
   const saveClicksState = (newClicks: ClickEvent[]) => {
     setClicks(newClicks);
     try {
@@ -1513,8 +1554,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           og_image_url: newLink.og_image_url
         })
       })
-      .then(res => res.json())
-      .then(data => {
+      .then(async res => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success) {
+          // The optimistic row was never stored; drop it instead of letting it vanish on refresh
+          rollbackOptimisticLink(newLink.id, data?.error || `Server responded with ${res.status}.`);
+          return;
+        }
         if (data?.data?.id && data.data.id !== newLink.id) {
           setLinks(prev => {
             const updated = prev.map(l => l.id === newLink.id ? { ...l, id: data.data.id } : l);
@@ -1525,6 +1571,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .catch(err => {
         console.warn('Background link sync warning:', err);
+        rollbackOptimisticLink(newLink.id, 'Network error while saving the link. Please try again.');
       });
     }
 
@@ -2772,6 +2819,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 
   const logout = () => {
+    // Expire the HttpOnly session cookie (scripts cannot clear it themselves)
+    fetch('/api/v1/auth', { method: 'DELETE' }).catch(() => {});
     setCurrentUser(null);
     const guestWs: Workspace = {
       id: generateId('ws_guest'),
@@ -2808,6 +2857,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch {}
   };
+  useEffect(() => { logoutRef.current = logout; });
 
   // Workspace creation
   const createWorkspace = (name: string, plan: 'free' | 'pro' | 'enterprise' = 'pro') => {

@@ -228,6 +228,7 @@ export async function POST(request: Request) {
           utm_campaign = COALESCE(EXCLUDED.utm_campaign, links.utm_campaign),
           utm_term = COALESCE(EXCLUDED.utm_term, links.utm_term),
           utm_content = COALESCE(EXCLUDED.utm_content, links.utm_content)
+        WHERE links.workspace_id IS NOT DISTINCT FROM EXCLUDED.workspace_id
         RETURNING id`,
         [
           newLink.id,
@@ -270,7 +271,13 @@ export async function POST(request: Request) {
         }, { status: 409 });
       }
     } catch (dbErr) {
-      console.warn('PostgreSQL write fallback:', dbErr);
+      // Never report success for a link that was not persisted: the client would show it,
+      // and it would disappear on the next refresh.
+      console.error('PostgreSQL link insert failed:', dbErr);
+      return NextResponse.json<ShortenApiResponse>({
+        success: false,
+        error: 'The link could not be saved. Please try again.'
+      }, { status: 500 });
     }
 
     // Cache in Edge & Redis cache for instant distributed lookup

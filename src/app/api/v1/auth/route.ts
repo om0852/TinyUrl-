@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql, initializeDatabase } from '@/lib/postgres';
 import { AuthApiRequest, AuthApiResponse } from '@/lib/types';
+import { SESSION_COOKIE, createSessionToken, getSessionEmail, sessionCookieOptions } from '@/lib/session';
 
 function hashPassword(password: string, salt: string, iterations = 210000): string {
   return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
@@ -132,10 +133,14 @@ export async function POST(request: Request) {
           VALUES ($1, $2, $3, $4, $5, 'owner')
         `, [userId, cleanName, cleanEmail, passwordHash, salt]);
       } catch (insertErr) {
-        console.warn('PostgreSQL user insert fallback:', insertErr);
+        console.error('PostgreSQL user insert failed:', insertErr);
+        return NextResponse.json<AuthApiResponse>({
+          success: false,
+          error: 'Could not create the account. Please try again.'
+        }, { status: 500 });
       }
 
-      return NextResponse.json<AuthApiResponse>({
+      const signupRes = NextResponse.json<AuthApiResponse>({
         success: true,
         user: {
           id: userId,
@@ -146,6 +151,8 @@ export async function POST(request: Request) {
         },
         message: 'Account successfully registered.'
       }, { status: 201 });
+      signupRes.cookies.set(SESSION_COOKIE, createSessionToken(cleanEmail), sessionCookieOptions());
+      return signupRes;
 
     } else if (action === 'login') {
       try {
@@ -169,7 +176,7 @@ export async function POST(request: Request) {
 
           const initials = (userRow.name || cleanEmail).split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'U';
 
-          return NextResponse.json<AuthApiResponse>({
+          const loginRes = NextResponse.json<AuthApiResponse>({
             success: true,
             user: {
               id: userRow.id,
@@ -180,6 +187,8 @@ export async function POST(request: Request) {
             },
             message: 'Authentication successful.'
           });
+          loginRes.cookies.set(SESSION_COOKIE, createSessionToken(String(userRow.email || cleanEmail)), sessionCookieOptions());
+          return loginRes;
         }
       } catch (dbErr) {
         console.warn('PostgreSQL user lookup fallback:', dbErr);
@@ -204,4 +213,20 @@ export async function POST(request: Request) {
       error: msg 
     }, { status: 500 });
   }
+}
+
+/** Returns the signed-in user's email when the session cookie is valid (401 otherwise). */
+export async function GET(request: Request) {
+  const email = getSessionEmail(request);
+  if (!email) {
+    return NextResponse.json({ success: false, error: 'No active session.' }, { status: 401 });
+  }
+  return NextResponse.json({ success: true, email });
+}
+
+/** Logout: expire the session cookie. */
+export async function DELETE() {
+  const res = NextResponse.json({ success: true });
+  res.cookies.set(SESSION_COOKIE, '', sessionCookieOptions(0));
+  return res;
 }

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { Permission, hasPermission } from '@/lib/rbac';
 import { WorkspaceRole } from '@/lib/types';
+import { getSessionEmail } from '@/lib/session';
 
 export interface CallerContext {
   userEmail: string;
@@ -216,10 +217,14 @@ export async function verifyWorkspacePermission(
       };
     }
 
-    // 2. Identify Caller Email
-    let userEmail = (options.userEmail || headerEmail || '').trim().toLowerCase();
+    // 2. Identify Caller Email from the signed session cookie. The x-user-email header is
+    // client-controlled (anyone can send any address), so production never trusts it;
+    // local development still accepts it for convenience.
+    const isProduction = process.env.NODE_ENV === 'production';
+    const sessionEmail = getSessionEmail(request);
+    let userEmail = (options.userEmail || sessionEmail || (isProduction ? '' : headerEmail) || '').trim().toLowerCase();
     if (!userEmail) {
-      if (process.env.NODE_ENV === 'production') {
+      if (isProduction) {
         return {
           success: false,
           response: NextResponse.json({
@@ -308,7 +313,7 @@ export async function verifyWorkspacePermission(
     if (!resolvedRole) {
       if (userEmail === 'owner@workspace.local' || targetWsId === 'ws_default') {
         // In production, unauthenticated guests are granted editor privileges at most, preventing administrative tampering
-        if (process.env.NODE_ENV === 'production' && (!headerEmail || headerEmail === 'owner@workspace.local')) {
+        if (isProduction && (!sessionEmail || sessionEmail === 'owner@workspace.local')) {
           resolvedRole = 'editor';
         } else {
           resolvedRole = 'owner';

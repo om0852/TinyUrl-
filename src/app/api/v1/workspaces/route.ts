@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { Workspace } from '@/lib/types';
+import { getSessionEmail } from '@/lib/session';
 
 interface RawWorkspaceRow {
   id: string;
@@ -15,7 +16,11 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const email = searchParams.get('email') || request.headers.get('x-user-email');
+    // Only list the signed-in user's own workspaces in production; the email query/header is
+    // client-controlled and would otherwise reveal any account's workspaces.
+    const sessionEmail = getSessionEmail(request);
+    const requestedEmail = searchParams.get('email') || request.headers.get('x-user-email');
+    const email = process.env.NODE_ENV === 'production' ? sessionEmail : (sessionEmail || requestedEmail);
 
     let rows: RawWorkspaceRow[] = [];
     if (id) {

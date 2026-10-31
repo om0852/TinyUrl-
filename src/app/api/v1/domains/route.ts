@@ -4,6 +4,7 @@ import dns from 'dns';
 import { sql } from '@/lib/postgres';
 import { Domain } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { getSessionEmail } from '@/lib/session';
 import { 
   addCustomHostnameToCloudflare, 
   getCustomHostnameFromCloudflare, 
@@ -134,7 +135,7 @@ export async function POST(request: Request) {
     }
 
     // User email for ownership audit
-    const creatorEmail = request.headers.get('x-user-email') || 'authorized_user';
+    const creatorEmail = getSessionEmail(request) || 'authorized_user';
 
     // Generate unique DNS TXT verification token
     const tokenHex = crypto.randomBytes(12).toString('hex');
