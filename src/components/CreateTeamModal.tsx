@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { X, Layers, Check } from 'lucide-react';
 import { Button } from './ui/button';
@@ -33,7 +34,9 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
     }, 1000);
   };
 
-  return (
+  // Portal to <body>: an ancestor with a transform or filter would otherwise trap this
+  // fixed overlay inside the scrolling dashboard panel.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
       <div 
         className="fixed inset-0" 
@@ -116,6 +119,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
         )}
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

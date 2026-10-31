@@ -174,9 +174,11 @@
 }
 
 /* Micro-animations */
+/* Opacity only: any transform on this wrapper (even translateY(0), or mid-animation) makes it
+   the containing block for position:fixed children, trapping dialogs inside scroll panels. */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .animate-fade-in {

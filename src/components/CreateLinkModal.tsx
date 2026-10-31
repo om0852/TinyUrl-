@@ -1,47 +1,43 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { QRCodeSVG } from 'qrcode.react';
-import { 
-  X, 
-  Link2, 
-  Copy, 
-  Check, 
-  ExternalLink, 
-  ShieldAlert, 
+import {
+  X,
+  Link2,
+  Copy,
+  Check,
+  ExternalLink,
+  ShieldAlert,
   ShieldCheck,
   AlertCircle,
   RefreshCw,
-  Lock,
-  CheckCircle2, 
-  Smartphone, 
-  Sliders, 
-  ChevronDown, 
-  ChevronUp, 
-  EyeOff, 
-  Share2, 
-  QrCode, 
-  Sparkles, 
+  CheckCircle2,
+  Smartphone,
+  ChevronDown,
+  QrCode,
+  Sparkles,
   Image as ImageIcon,
-  MessageCircle,
-  CheckCheck,
   Clipboard,
-  Zap,
   UploadCloud,
   Loader2,
   Trash2,
-  Cloud
+  FileText,
+  BarChart3,
+  Settings2
 } from 'lucide-react';
-import { InfoTooltip } from '@/components/ui';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { generateId, generateBase62Code, buildUtmUrl, normalizeUrl } from '@/lib/db';
-import { resolveDisplayImageUrl, isVercelBlobUrl, compressImageForUpload } from '@/lib/blobStorage';
+import { resolveDisplayImageUrl, compressImageForUpload } from '@/lib/blobStorage';
 
 interface CreateLinkModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+type SectionId = 'details' | 'tracking' | 'social' | 'protection' | 'redirect';
 
 interface GeneratedItem {
   id: string;
@@ -88,13 +84,13 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [selectedDomainId, setSelectedDomainId] = useState(primaryDomain?.id || 'dom_platform');
 
   // Tab State: Channel & Routing, Social Preview (OG), Shield & Access
-  const [activeTab, setActiveTab] = useState<'targeting' | 'social' | 'security'>('targeting');
+  // Optional settings live in collapsed sections; only one is open at a time
+  const [openSection, setOpenSection] = useState<SectionId | null>(null);
 
   // Open Graph & Social Media Preview Meta Tags
   const [ogTitle, setOgTitle] = useState('');
   const [ogDescription, setOgDescription] = useState('');
   const [ogImageUrl, setOgImageUrl] = useState('');
-  const [socialPreviewTab, setSocialPreviewTab] = useState<'whatsapp' | 'twitter'>('twitter');
   const [isUploadingOgImage, setIsUploadingOgImage] = useState(false);
   const [uploadStorageType, setUploadStorageType] = useState<'vercel_blob' | 'inline' | null>(null);
   const ogFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -147,14 +143,12 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   const [channel, setChannel] = useState('Direct');
 
   // Advanced accordion state inside Channel & Routing
-  const [showUtmBuilder, setShowUtmBuilder] = useState(false);
   const [enableUtm, setEnableUtm] = useState(false);
   const [utmSource, setUtmSource] = useState('');
   const [utmMedium, setUtmMedium] = useState('');
   const [utmCampaign, setUtmCampaign] = useState('');
   const [utmTerm, setUtmTerm] = useState('');
   const [utmContent, setUtmContent] = useState('');
-  const [showAdvancedRouting, setShowAdvancedRouting] = useState(false);
   const [neverExpires, setNeverExpires] = useState(true);
   const [expiresAt, setExpiresAt] = useState('');
   const [maxClicks, setMaxClicks] = useState('');
@@ -259,7 +253,6 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       return;
     }
     setEnableUtm(true);
-    setShowUtmBuilder(true);
     const campObj = campaigns.find(c => c.id === selectedCampaignId);
     const campName = campObj ? campObj.name.toLowerCase().replace(/[^a-z0-9]/g, '_') : (utmCampaign || 'promo');
     setUtmCampaign(campName);
@@ -316,16 +309,9 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     }
   }, [password, redirectType]);
 
-  // Characters saved calculation
-  const livePreviewSlug = customSlug.trim() || 'launch-om';
+  // Without a custom slug the server generates one, so the preview shows a placeholder
+  const livePreviewSlug = customSlug.trim();
   const liveShortUrl = `https://${resolvedHost}/${livePreviewSlug}`;
-
-  const charsSaved = useMemo(() => {
-    if (!destinationUrl.trim()) return 42;
-    const destLen = destinationUrl.trim().length;
-    const shortLen = liveShortUrl.length;
-    return Math.max(0, destLen - shortLen);
-  }, [destinationUrl, liveShortUrl]);
 
   // Slug availability check
   const isSlugTaken = customSlug.trim() 
@@ -400,8 +386,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
     setUtmTerm('');
     setUtmContent('');
     setEnableUtm(false);
-    setShowUtmBuilder(false);
-    setShowAdvancedRouting(false);
+    setOpenSection(null);
     setErrorMsg('');
     setGeneratedResults([]);
     setActiveQrModalUrl(null);
@@ -410,7 +395,7 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
 
   const handleGenerateDynamicOg = () => {
     const fallbackTitle = ogTitle.trim() || title.trim() || 'Exclusive Short Link';
-    const dynamicOgUrl = `/api/og?title=${encodeURIComponent(fallbackTitle)}&slug=${encodeURIComponent(resolvedHost)}&theme=purple`;
+    const dynamicOgUrl = `/api/og?title=${encodeURIComponent(fallbackTitle)}&slug=${encodeURIComponent(resolvedHost)}`;
     setOgImageUrl(dynamicOgUrl);
   };
 
@@ -641,778 +626,332 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
   };
 
   const detectedApp = destinationUrl ? detectAppDeepLink(destinationUrl) : null;
-  const previewOgTitle = ogTitle.trim() || title.trim() || 'Launch Om — Creator Growth Kit & Masterclass';
-  const previewOgDescription = ogDescription.trim() || 'Get 20+ automated conversion workflows, custom link analytics, and dedicated support.';
-  const previewOgImage = resolveDisplayImageUrl(ogImageUrl) || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80';
+  const previewOgImage = resolveDisplayImageUrl(ogImageUrl);
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-on-surface/40 backdrop-blur-sm transition-all duration-200 animate-fade-in">
-      <div 
-        className="fixed inset-0"
-        onClick={resetAndClose}
-      />
+  const fieldCls = 'w-full h-[34px] px-3 bg-surface-container-lowest text-on-surface text-xs rounded-md border-[0.5px] border-outline-variant placeholder:text-outline focus:outline-none focus:border-primary-strong focus:ring-2 focus:ring-primary-strong/20 transition-colors';
+  const selectCls = `${fieldCls} appearance-none pr-8 cursor-pointer`;
+  const labelCls = 'block text-xs font-medium text-on-surface mb-1';
 
-      <div className="relative w-full max-w-2xl mx-auto bg-surface-container-lowest rounded-xl shadow-xl overflow-hidden transition-all duration-200 border-[0.5px] border-outline-variant flex flex-col max-h-[92vh] z-10 text-on-surface">
-        
-        {/* Top Decorative Subtle Accent */}
-        <div className="h-1 w-full bg-gradient-to-r from-primary to-secondary shrink-0" />
+  const redirectLabels: Record<string, string> = {
+    '301': 'Direct (301)',
+    '302': 'Temporary (302)',
+    mask: 'Masked frame',
+    splash: 'Splash screen',
+  };
+  const sectionSummaries: Record<SectionId, string> = {
+    details: [title.trim(), campaigns.find(c => c.id === selectedCampaignId)?.name, linkNotes.trim() ? 'Note' : '']
+      .filter(Boolean).join(' · ') || 'Title, campaign, note',
+    tracking: utmSource.trim() || utmMedium.trim() || utmCampaign.trim()
+      ? `UTM ${[utmSource, utmMedium].filter(s => s.trim()).join(' / ')}`
+      : channel !== 'Direct' ? channel : 'Off',
+    social: ogImageUrl ? 'Custom image' : ogDescription.trim() ? 'Custom text' : 'Default',
+    protection: [password.trim() ? 'Password' : '', shieldProtection ? 'Bot shield' : '', hideReferrer ? 'Hide referrer' : '']
+      .filter(Boolean).join(' · ') || 'Off',
+    redirect: [
+      redirectLabels[currentRedirectionValue],
+      !neverExpires && expiresAt ? 'Expires' : '',
+      maxClicks ? `${maxClicks} clicks max` : '',
+      iosTargetUrl.trim() || androidTargetUrl.trim() ? 'Device targets' : '',
+    ].filter(Boolean).join(' · '),
+  };
 
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface-container-lowest shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center text-primary-ink shadow-sm shrink-0">
-              <Link2 className="w-5 h-5" />
+  const renderSection = (id: SectionId, icon: React.ReactNode, label: string, body: React.ReactNode) => {
+    const isOpenSection = openSection === id;
+    return (
+      <div className="border-b-[0.5px] border-outline-variant last:border-b-0">
+        <button
+          type="button"
+          onClick={() => setOpenSection(isOpenSection ? null : id)}
+          aria-expanded={isOpenSection}
+          className="w-full h-[44px] flex items-center gap-3 px-1 text-left cursor-pointer group"
+        >
+          <span className="w-7 h-7 rounded-md bg-surface-container text-on-surface-variant group-hover:text-on-surface flex items-center justify-center shrink-0">
+            {icon}
+          </span>
+          <span className="text-[13px] font-medium text-on-surface shrink-0">{label}</span>
+          <span className="flex-1 min-w-0 text-right text-xs text-outline truncate">{sectionSummaries[id]}</span>
+          <ChevronDown className={`w-4 h-4 text-outline shrink-0 transition-transform ${isOpenSection ? 'rotate-180' : ''}`} />
+        </button>
+        {isOpenSection && <div className="pb-4 pt-1 px-1 space-y-3 animate-fade-in">{body}</div>}
+      </div>
+    );
+  };
+
+  const renderToggle = (checked: boolean, onChange: (v: boolean) => void, label: string, hint: string) => (
+    <label className="flex items-center justify-between gap-4 cursor-pointer">
+      <span className="min-w-0">
+        <span className="block text-xs font-medium text-on-surface">{label}</span>
+        <span className="block text-[11px] text-outline">{hint}</span>
+      </span>
+      <span className="relative inline-flex shrink-0">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="sr-only peer" />
+        <span className="w-[40px] h-[22px] rounded-full bg-surface-dim peer-checked:bg-primary-container transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary-strong/40" />
+        <span className="absolute top-[2px] left-[2px] w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-[18px]" />
+      </span>
+    </label>
+  );
+
+  // Portal to <body>: an ancestor with a transform or filter would otherwise trap this
+  // fixed overlay inside the scrolling dashboard panel.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#00000A73] backdrop-blur-[5px] animate-fade-in">
+      <div className="fixed inset-0" onClick={resetAndClose} />
+
+      <div className="relative w-full max-w-[560px] mx-auto bg-surface-container-lowest rounded-xl shadow-2xl overflow-hidden border-[0.5px] border-outline-variant flex flex-col max-h-[90vh] z-10 text-on-surface">
+
+        {/* Header */}
+        <div className="h-[56px] px-5 flex items-center justify-between gap-3 border-b-[0.5px] border-outline-variant shrink-0">
+          <h2 className="text-[15px] font-semibold text-on-surface">New short link</h2>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs" role="tablist" aria-label="Link mode">
+              {(['single', 'multiple'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === m}
+                  onClick={() => setMode(m)}
+                  className={`h-[26px] px-3 rounded-[4px] transition-colors cursor-pointer ${
+                    mode === m ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {m === 'single' ? 'Single' : 'Bulk'}
+                </button>
+              ))}
             </div>
-            <div className="min-w-0">
-              <h2 className="font-bold text-lg text-on-surface tracking-tight">Create Short Link</h2>
-            </div>
-          </div>
-
-          {/* Mode Switcher Pill & Close */}
-          <div className="flex items-center justify-between md:justify-end gap-2">
-            <div className="inline-flex bg-surface-container rounded-lg text-xs font-semibold py-0.5 px-1" id="modeSelector">
-              <button
-                type="button"
-                onClick={() => setMode('single')}
-                className={`px-3 py-1 rounded-md transition-all duration-150 cursor-pointer ${
-                  mode === 'single'
-                    ? 'bg-primary text-on-primary shadow-sm font-bold'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Single Link
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('multiple')}
-                className={`px-3 py-1 rounded-md transition-all duration-150 cursor-pointer ${
-                  mode === 'multiple'
-                    ? 'bg-primary text-on-primary shadow-sm font-bold'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Batch Mode
-              </button>
-            </div>
-
             <button
               type="button"
               onClick={resetAndClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
-              title="Close Dialog"
+              aria-label="Close"
+              className="size-[30px] rounded-full flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <form 
+        {/* Body */}
+        <form
+          id="createLinkForm"
           onSubmit={(e) => { e.preventDefault(); executeShorten(); }}
-          className="p-4 sm:p-5 pt-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1"
+          className="px-5 py-4 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1 min-h-0"
         >
           {errorMsg && (
-            <div className="p-2.5 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded-lg flex items-center gap-2 font-medium text-xs border border-red-200 dark:border-red-900/40">
-              <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
+            <div className="px-3 py-2 bg-error-container text-on-error-container rounded-md flex items-center gap-2 text-xs border-[0.5px] border-error/30">
+              <ShieldAlert className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* HERO ZONE (80/20 Rule: Main Destination URL & Slug) */}
-          <div className="bg-surface-container-low p-4 rounded-xl space-y-3.5 border border-outline-variant">
-            {/* Destination URL */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="font-semibold text-xs text-on-surface flex items-center gap-1.5" htmlFor="destinationUrl">
-                  <span>Destination URL</span>
-                  <span className="text-red-500 font-bold">*</span>
-                  <InfoTooltip text="The target web address where visitors will be routed" />
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-on-surface-variant flex items-center gap-1" id="urlValidationStatus">
-                    <ShieldCheck className="w-3.5 h-3.5 text-secondary" />
-                    <span>SSL Autodetect</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handlePaste}
-                    className="text-xs font-semibold text-primary-ink hover:text-secondary flex items-center gap-0.5 cursor-pointer"
-                  >
-                    <Clipboard className="w-3.5 h-3.5" />
-                    <span>Paste</span>
-                  </button>
-                </div>
-              </div>
-
-              {mode === 'single' ? (
-                <div className="relative flex items-center">
-                  <div className="absolute left-3.5 flex items-center pointer-events-none text-on-surface-variant">
-                    <Link2 className="w-4 h-4" />
-                  </div>
-                  <input
-                    id="destinationUrl"
-                    type="url"
-                    required
-                    value={destinationUrl}
-                    onChange={(e) => setDestinationUrl(e.target.value)}
-                    placeholder="https://yourbrand.com/products/summer-sale-2025"
-                    className="w-full pl-10 pr-24 py-2.5 bg-surface-container-lowest text-on-surface text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary-strong/20 transition-all font-mono"
-                  />
-                  <div className="absolute right-2 flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={generateMagicSlug}
-                      title="Auto-generate AI magic slug"
-                      className="px-2.5 py-1 bg-surface-container text-primary-ink hover:bg-surface-container-high rounded-md text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Auto</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="relative">
-                  <textarea
-                    id="destinationUrl"
-                    rows={4}
-                    value={multipleUrls}
-                    onChange={(e) => setMultipleUrls(e.target.value)}
-                    placeholder="Paste multiple links separated by comma or new lines..."
-                    className="w-full p-3 pb-8 bg-surface-container-lowest text-on-surface text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary-strong/20 transition-all font-mono custom-scrollbar resize-y"
-                  />
-                  <div className="absolute right-2.5 bottom-2 flex items-center gap-2">
-                    <span className="text-[11px] font-medium text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md border border-outline-variant">
-                      {parsedMultipleUrls.length} {parsedMultipleUrls.length === 1 ? 'URL' : 'URLs'} detected
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {detectedApp && (
-                <div className="flex items-center gap-1.5 p-1.5 mt-2 bg-surface-container-lowest rounded-lg text-xs font-medium text-on-surface border border-outline-variant">
-                  <Smartphone className="w-3.5 h-3.5 text-primary-ink shrink-0" />
-                  <span>OpeninApp: Direct native launch enabled for <strong>{detectedApp.appName}</strong></span>
-                </div>
-              )}
+          {/* 1. Destination */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-on-surface" htmlFor="destinationUrl">
+                {mode === 'single' ? 'Destination URL' : 'Destination URLs'}
+              </label>
+              <button
+                type="button"
+                onClick={handlePaste}
+                className="text-xs text-primary-ink hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Clipboard className="w-3.5 h-3.5" />
+                <span>Paste</span>
+              </button>
             </div>
 
-            {/* Custom Domain + Slug Assembly */}
-            <div>
-              <label className="flex items-center gap-1.5 text-xs font-semibold text-on-surface mb-1.5">
-                <span>Shortened Routing Link</span>
-                <InfoTooltip text="Your custom branded domain and vanity slug" />
-              </label>
+            {mode === 'single' ? (
+              <input
+                id="destinationUrl"
+                type="url"
+                required
+                autoFocus
+                value={destinationUrl}
+                onChange={(e) => setDestinationUrl(e.target.value)}
+                placeholder="https://example.com/your-long-link"
+                className={`${fieldCls} h-[40px] text-[13px]`}
+              />
+            ) : (
+              <>
+                <textarea
+                  id="destinationUrl"
+                  rows={5}
+                  value={multipleUrls}
+                  onChange={(e) => setMultipleUrls(e.target.value)}
+                  placeholder={'One URL per line\nhttps://example.com/a\nhttps://example.com/b'}
+                  className="w-full p-3 bg-surface-container-lowest text-on-surface text-xs font-mono rounded-md border-[0.5px] border-outline-variant placeholder:text-outline focus:outline-none focus:border-primary-strong focus:ring-2 focus:ring-primary-strong/20 custom-scrollbar resize-y"
+                />
+                <p className="mt-1 text-[11px] text-outline">
+                  {parsedMultipleUrls.length} {parsedMultipleUrls.length === 1 ? 'link' : 'links'} detected · slugs are generated automatically
+                </p>
+              </>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-2">
-                {/* Domain Selector */}
-                <div className="md:col-span-5 relative">
+            {detectedApp && (
+              <p className="mt-1.5 text-[11px] text-on-surface-variant flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-primary-ink shrink-0" />
+                <span>Opens in the {detectedApp.appName} app on phones</span>
+              </p>
+            )}
+          </div>
+
+          {/* 2. Short link (single only) */}
+          {mode === 'single' && (
+            <div>
+              <label className={labelCls} htmlFor="slugInput">Short link</label>
+              <div className="flex items-stretch h-[34px] rounded-md border-[0.5px] border-outline-variant bg-surface-container-lowest focus-within:border-primary-strong focus-within:ring-2 focus-within:ring-primary-strong/20 transition-colors">
+                <div className="relative shrink-0 max-w-[48%]">
                   <select
                     id="domainSelect"
+                    aria-label="Domain"
                     value={selectedDomainId || primaryDomain?.id || 'dom_platform'}
                     onChange={(e) => setSelectedDomainId(e.target.value)}
-                    className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-lowest text-on-surface font-mono text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong/20 transition-all cursor-pointer font-medium"
+                    className="h-full w-full appearance-none pl-3 pr-7 bg-surface-container text-on-surface text-xs rounded-l-md border-r-[0.5px] border-outline-variant focus:outline-none cursor-pointer truncate"
                   >
                     {availableDomains.map(d => (
                       <option key={d.id} value={d.id} disabled={!d.verified}>
-                        {d.hostname} {d.is_default || d.id === 'dom_platform' ? '(Primary)' : (d.verified ? '' : '(Pending DNS)')}
+                        {d.hostname}{d.verified ? '' : ' (pending DNS)'}
                       </option>
                     ))}
                   </select>
-                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-outline" />
                 </div>
-
-                {/* Custom Slug Input */}
-                <div className="md:col-span-7 relative flex items-center">
-                  <div className="absolute left-3 text-on-surface-variant font-mono text-xs pointer-events-none select-none">/</div>
-                  <input
-                    id="slugInput"
-                    type="text"
-                    value={customSlug}
-                    onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
-                    placeholder="custom-slug"
-                    className="w-full pl-6 pr-20 py-2 bg-surface-container-lowest text-primary-ink font-mono text-xs font-bold rounded-lg shadow-sm border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong/20 transition-all"
-                  />
-                  <div className="absolute right-2.5 flex items-center gap-1">
-                    {customSlug.trim() ? (
-                      isSlugTaken ? (
-                        <>
-                          <AlertCircle className="w-3.5 h-3.5 text-red-500" />
-                          <span className="text-[11px] font-semibold text-red-500 font-mono">Taken</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span className="text-[11px] font-semibold text-emerald-600 font-mono">Valid</span>
-                        </>
-                      )
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={generateMagicSlug}
-                        className="text-[11px] text-on-surface-variant hover:text-primary-ink font-medium"
-                      >
-                        Auto
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <span className="pl-2 flex items-center text-xs text-outline select-none">/</span>
+                <input
+                  id="slugInput"
+                  type="text"
+                  value={customSlug}
+                  onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '-'))}
+                  placeholder="auto-generated"
+                  className="flex-1 min-w-0 px-1 bg-transparent text-xs text-on-surface placeholder:text-outline focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={generateMagicSlug}
+                  title="Suggest a slug"
+                  className="px-2.5 flex items-center gap-1 text-[11px] text-primary-ink hover:bg-surface-container rounded-r-md cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Suggest</span>
+                </button>
               </div>
-
-              {/* Sub-bar: SSL edge note + chars saved + Quick Upload Link */}
-              <div className="flex items-center justify-between mt-1.5 text-xs text-on-surface-variant">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>SSL verified on edge</span>
-                </span>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('social')}
-                    className="text-xs text-primary-ink hover:underline font-semibold flex items-center gap-1 cursor-pointer bg-primary/10 px-2 py-0.5 rounded-md"
-                  >
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    <span>Upload Social Image</span>
-                  </button>
-                  <span className="font-mono text-xs text-on-surface-variant font-medium">
-                    {charsSaved} chars saved
-                  </span>
-                </div>
-              </div>
+              {customSlug.trim() && (
+                <p className={`mt-1 text-[11px] flex items-center gap-1 ${isSlugTaken ? 'text-error' : 'text-emerald-700'}`}>
+                  {isSlugTaken ? <AlertCircle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                  <span>{isSlugTaken ? 'This slug is already taken' : 'Available'}</span>
+                </p>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Progressive Disclosure: Segmented Settings Tabs */}
-          <div className="space-y-3">
-            {/* Tab Navigation Bar */}
-            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-outline-variant">
-              <button
-                type="button"
-                onClick={() => setActiveTab('targeting')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'targeting'
-                    ? 'bg-surface-container-lowest text-primary-ink shadow-sm font-bold'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>Channel &amp; Routing</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('social')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'social'
-                    ? 'bg-surface-container-lowest text-primary-ink shadow-sm font-bold'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                <UploadCloud className="w-3.5 h-3.5 text-primary-ink" />
-                <span>Social Card &amp; Thumbnail</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('security')}
-                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  activeTab === 'security'
-                    ? 'bg-surface-container-lowest text-primary-ink shadow-sm font-bold'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Shield &amp; Access</span>
-              </button>
-            </div>
-
-            {/* TAB CONTENT 1: Channel & Routing */}
-            {activeTab === 'targeting' && (
-              <div className="space-y-3.5 animate-fade-in">
-                {/* Target Platform Channel Pills */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="font-semibold text-xs text-on-surface flex items-center gap-1.5">
-                      <span>Target Platform Channel</span>
-                      <InfoTooltip text="Select target channel for deep-linking and attribution" />
-                    </label>
-                    <span className="text-xs text-on-surface-variant">App deep-links enabled</span>
+          {/* 3. Optional settings */}
+          <div>
+            <p className="text-[11px] font-medium text-outline uppercase tracking-wider mb-0.5">Optional</p>
+            <div className="border-y-[0.5px] border-outline-variant">
+              {renderSection('details', <FileText className="w-3.5 h-3.5" />, 'Details', (
+                <>
+                  <div>
+                    <label className={labelCls} htmlFor="linkTitle">Title</label>
+                    <input id="linkTitle" type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Shown in your links list" className={fieldCls} />
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls} htmlFor="campaignSelect">Campaign</label>
+                      <div className="relative">
+                        <select
+                          id="campaignSelect"
+                          value={selectedCampaignId}
+                          onChange={(e) => {
+                            const newId = e.target.value;
+                            setSelectedCampaignId(newId);
+                            const camp = campaigns.find(c => c.id === newId);
+                            if (camp) setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+                          }}
+                          className={selectCls}
+                        >
+                          <option value="">None</option>
+                          {campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-outline" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="linkNotes">Note</label>
+                      <input id="linkNotes" type="text" value={linkNotes} onChange={(e) => setLinkNotes(e.target.value)} placeholder="Only your team sees this" className={fieldCls} />
+                    </div>
+                  </div>
+                </>
+              ))}
 
+              {renderSection('tracking', <BarChart3 className="w-3.5 h-3.5" />, 'UTM tracking', (
+                <>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      { label: 'General', val: 'Direct' },
-                      { label: 'YouTube', val: 'YouTube' },
-                      { label: 'TikTok', val: 'TikTok' },
-                      { label: 'Instagram', val: 'Instagram' },
-                      { label: 'X (Twitter)', val: 'X (Twitter)' },
-                      { label: 'WhatsApp', val: 'WhatsApp' },
-                      { label: 'Affiliate / Bio', val: 'Affiliate' },
-                    ].map((item) => (
-                      <button
-                        key={item.val}
-                        type="button"
-                        onClick={() => setChannel(item.val)}
-                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          channel === item.val
-                            ? 'bg-primary text-on-primary shadow-sm'
-                            : 'bg-surface-container text-on-surface hover:bg-surface-container-high'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2-Column: Campaign Tag & Redirection Engine */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Campaign Tag */}
-                  <div>
-                    <label className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1" htmlFor="campaignSelect">
-                      <span>Campaign Tag</span>
-                      <InfoTooltip text="Assign this link to an active marketing campaign or sponsor" />
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="campaignSelect"
-                        value={selectedCampaignId}
-                        onChange={(e) => {
-                          const newId = e.target.value;
-                          setSelectedCampaignId(newId);
-                          const camp = campaigns.find(c => c.id === newId);
-                          if (camp) {
-                            setUtmCampaign(camp.name.toLowerCase().replace(/[^a-z0-9]/g, '_'));
-                          }
-                        }}
-                        className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-low text-on-surface text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong/20 cursor-pointer font-medium"
-                      >
-                        <option value="">None (General Link)</option>
-                        {campaigns.map(c => (
-                          <option key={c.id} value={c.id}>{c.name} ({c.description || 'Campaign'})</option>
-                        ))}
-                      </select>
-                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
-                        <ChevronDown className="w-4 h-4" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Redirection Engine */}
-                  <div>
-                    <label className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1" htmlFor="redirectType">
-                      <span>Redirection Engine</span>
-                      <InfoTooltip text="Choose HTTP redirect status code: 301 permanent or 302/307 temporary" />
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="redirectType"
-                        value={currentRedirectionValue}
-                        onChange={(e) => handleRedirectionEngineChange(e.target.value)}
-                        className="w-full appearance-none pl-3 pr-8 py-2 bg-surface-container-low text-on-surface text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong/20 cursor-pointer font-medium"
-                      >
-                        <option value="301" disabled={!!password.trim()}>
-                          Direct (301 Permanent - Fast) {password.trim() ? '(Disabled with Password)' : ''}
-                        </option>
-                        <option value="302" disabled={!!password.trim()}>
-                          Temporary (302 Found) {password.trim() ? '(Disabled with Password)' : ''}
-                        </option>
-                        <option value="mask">iFrame / Masked Title</option>
-                        <option value="splash">Branded Splash Screen (2s)</option>
-                      </select>
-                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant flex items-center">
-                        <ChevronDown className="w-4 h-4" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {password.trim() && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                    🔒 Direct redirection is disabled because a password is set. Choose Splash or Frame to prompt visitors for the password.
-                  </p>
-                )}
-                {redirectType === 'frame' && (destinationUrl.toLowerCase().includes('google.com') || destinationUrl.toLowerCase().includes('youtube.com') || destinationUrl.toLowerCase().includes('twitter.com') || destinationUrl.toLowerCase().includes('x.com')) && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                    ⚠️ Note: Google Docs/Drive and social sites block iframe embedding (X-Frame-Options: SAMEORIGIN) and will show a 403 error. Splash or Direct redirect is recommended for this domain.
-                  </p>
-                )}
-
-                {/* Internal Search Note */}
-                <div>
-                  <label className="flex items-center gap-1.5 font-semibold text-xs text-on-surface mb-1" htmlFor="linkNotes">
-                    <span>Internal Reference Note</span>
-                    <InfoTooltip text="Internal private note for your team or organization" />
-                  </label>
-                  <input
-                    id="linkNotes"
-                    type="text"
-                    value={linkNotes}
-                    onChange={(e) => setLinkNotes(e.target.value)}
-                    placeholder="e.g. Bio link placement for Sarah's vlog series"
-                    className="w-full px-3 py-2 bg-surface-container-low text-on-surface text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary-strong/20"
-                  />
-                </div>
-
-                {/* Campaign UTM Builder Accordion */}
-                <div className="p-3 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sliders className="w-3.5 h-3.5 text-primary-ink" />
-                      <span className="font-semibold text-xs text-on-surface">Campaign UTM Builder &amp; Tracking</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowUtmBuilder(!showUtmBuilder);
-                        if (!enableUtm && !showUtmBuilder) setEnableUtm(true);
-                      }}
-                      className="text-xs text-primary-ink font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>{showUtmBuilder ? 'Hide UTMs' : 'Customize UTMs'}</span>
-                      {showUtmBuilder ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-
-                  {/* Quick Presets */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-outline-variant">
-                    <span className="text-[11px] text-on-surface-variant font-medium mr-1">Presets:</span>
-                    {[
-                      { key: 'youtube', label: 'YouTube' },
-                      { key: 'instagram', label: 'Instagram' },
-                      { key: 'tiktok', label: 'TikTok' },
-                      { key: 'twitter', label: 'X / Twitter' },
-                      { key: 'whatsapp', label: 'WhatsApp' },
-                      { key: 'email', label: 'Email' },
-                      { key: 'google_ads', label: 'Google Ads' }
-                    ].map((p) => (
+                      { key: 'youtube', label: 'YouTube', source: 'youtube' },
+                      { key: 'instagram', label: 'Instagram', source: 'instagram' },
+                      { key: 'tiktok', label: 'TikTok', source: 'tiktok' },
+                      { key: 'twitter', label: 'X', source: 'twitter' },
+                      { key: 'whatsapp', label: 'WhatsApp', source: 'whatsapp' },
+                      { key: 'email', label: 'Email', source: 'newsletter' },
+                      { key: 'google_ads', label: 'Google Ads', source: 'google' },
+                    ].map(p => (
                       <button
                         key={p.key}
                         type="button"
-                        onClick={() => applyUtmPreset(p.key as any)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-semibold border transition-all cursor-pointer ${
-                          utmSource === (p.key === 'twitter' ? 'twitter' : p.key === 'email' ? 'newsletter' : p.key === 'google_ads' ? 'google' : p.key)
-                            ? 'bg-primary text-on-primary border-primary-strong shadow-xs'
-                            : 'bg-surface-container-lowest text-on-surface-variant hover:text-on-surface border-outline-variant'
+                        onClick={() => applyUtmPreset(p.key as Parameters<typeof applyUtmPreset>[0])}
+                        className={`h-[26px] px-2.5 rounded-full text-[11px] border-[0.5px] transition-colors cursor-pointer ${
+                          utmSource === p.source
+                            ? 'bg-primary-fixed border-primary-strong text-on-secondary-container font-medium'
+                            : 'bg-surface-container-lowest border-outline-variant text-on-surface-variant hover:text-on-surface'
                         }`}
                       >
                         {p.label}
                       </button>
                     ))}
                     {(utmSource || utmMedium || utmCampaign) && (
-                      <button
-                        type="button"
-                        onClick={() => applyUtmPreset('clear')}
-                        className="text-[10px] text-red-500 font-semibold hover:underline ml-auto cursor-pointer"
-                      >
+                      <button type="button" onClick={() => applyUtmPreset('clear')} className="h-[26px] px-2 text-[11px] text-error hover:underline cursor-pointer">
                         Clear
                       </button>
                     )}
                   </div>
-
-                  {showUtmBuilder && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 animate-fade-in">
-                      <div>
-                        <label className="text-[11px] font-semibold text-on-surface block mb-0.5">UTM Source</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Source', value: utmSource, set: setUtmSource, ph: 'youtube' },
+                      { label: 'Medium', value: utmMedium, set: setUtmMedium, ph: 'social' },
+                      { label: 'Campaign', value: utmCampaign, set: setUtmCampaign, ph: 'summer_sale' },
+                    ].map(f => (
+                      <div key={f.label}>
+                        <label className="block text-[11px] text-on-surface-variant mb-0.5">{f.label}</label>
                         <input
                           type="text"
-                          value={utmSource}
-                          onChange={(e) => { setUtmSource(e.target.value); setEnableUtm(true); }}
-                          placeholder="google, youtube"
-                          className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-strong"
+                          value={f.value}
+                          onChange={(e) => { f.set(e.target.value); setEnableUtm(true); }}
+                          placeholder={f.ph}
+                          className={`${fieldCls} h-[30px] font-mono`}
                         />
                       </div>
-                      <div>
-                        <label className="text-[11px] font-semibold text-on-surface block mb-0.5">UTM Medium</label>
-                        <input
-                          type="text"
-                          value={utmMedium}
-                          onChange={(e) => { setUtmMedium(e.target.value); setEnableUtm(true); }}
-                          placeholder="cpc, bio, social"
-                          className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-strong"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-semibold text-on-surface block mb-0.5">UTM Campaign</label>
-                        <input
-                          type="text"
-                          value={utmCampaign}
-                          onChange={(e) => { setUtmCampaign(e.target.value); setEnableUtm(true); }}
-                          placeholder="summer_sale"
-                          className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-strong"
-                        />
-                      </div>
-                      {previewWithUtm && (
-                        <div className="col-span-1 sm:col-span-3 p-1.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant text-[10px] font-mono text-primary-ink truncate">
-                          Final Target: {previewWithUtm}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Smart Device Targeting & Limits Accordion */}
-                <div className="p-3 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant flex flex-col gap-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Smartphone className="w-3.5 h-3.5 text-primary-ink" />
-                      <span className="font-semibold text-xs text-on-surface">Smart Device Targeting &amp; Limits</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAdvancedRouting(!showAdvancedRouting)}
-                      className="text-xs text-primary-ink font-semibold hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>{showAdvancedRouting ? 'Hide Details' : 'Configure'}</span>
-                      {showAdvancedRouting ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
+                    ))}
                   </div>
-
-                  {showAdvancedRouting && (
-                    <div className="space-y-2.5 pt-1 border-t-[0.5px] border-outline-variant animate-fade-in">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[11px] font-semibold text-on-surface block mb-0.5">🍎 iOS Destination</label>
-                          <input
-                            type="url"
-                            value={iosTargetUrl}
-                            onChange={(e) => setIosTargetUrl(e.target.value)}
-                            placeholder="https://apps.apple.com/app/..."
-                            className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-strong"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-semibold text-on-surface block mb-0.5">🤖 Android Destination</label>
-                          <input
-                            type="url"
-                            value={androidTargetUrl}
-                            onChange={(e) => setAndroidTargetUrl(e.target.value)}
-                            placeholder="https://play.google.com/store/apps/..."
-                            className="w-full px-2 py-1.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant font-mono text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-primary-strong"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-t border-outline-variant">
-                        <div className="flex items-center gap-2">
-                          <label className="flex items-center gap-1.5 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={neverExpires}
-                              onChange={(e) => setNeverExpires(e.target.checked)}
-                              className="rounded accent-primary-strong w-3.5 h-3.5 cursor-pointer"
-                            />
-                            <span className="text-xs font-semibold text-on-surface">Never expires</span>
-                          </label>
-                          {!neverExpires && (
-                            <input
-                              type="datetime-local"
-                              value={expiresAt}
-                              onChange={(e) => setExpiresAt(e.target.value)}
-                              className="px-2 py-1 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant text-xs text-on-surface"
-                            />
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-on-surface-variant">Max Clicks Limit:</span>
-                          <input
-                            type="number"
-                            min="1"
-                            value={maxClicks}
-                            onChange={(e) => setMaxClicks(e.target.value)}
-                            placeholder="Unlimited"
-                            className="w-24 px-2 py-1 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant text-xs text-on-surface font-mono"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                  {previewWithUtm && (
+                    <p className="text-[11px] font-mono text-on-surface-variant truncate" title={previewWithUtm}>{previewWithUtm}</p>
                   )}
-                </div>
-              </div>
-            )}
+                </>
+              ))}
 
-            {/* TAB CONTENT 2: Social Media Meta (OG) Preview */}
-            {activeTab === 'social' && (
-              <div className="space-y-3.5 animate-fade-in">
-                <div className="bg-surface-container-low p-4 rounded-xl space-y-3.5 border border-outline-variant">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-sm text-on-surface">Interactive Open Graph Preview</h3>
-                      <p className="text-xs text-on-surface-variant">Customize how your link looks when shared on Twitter, WhatsApp, iMessage, and Slack.</p>
-                    </div>
-                    <span className="text-xs font-semibold text-primary-ink bg-surface-container px-2.5 py-1 rounded-md">Live Sync</span>
-                  </div>
-
-                  {/* Platform Switcher */}
-                  <div className="flex items-center justify-center gap-1 bg-surface-container-lowest p-1 rounded-lg border-[0.5px] border-outline-variant max-w-xs mx-auto">
-                    <button
-                      type="button"
-                      onClick={() => setSocialPreviewTab('twitter')}
-                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                        socialPreviewTab === 'twitter'
-                          ? 'bg-primary text-on-primary shadow-xs font-bold'
-                          : 'text-on-surface-variant hover:text-on-surface'
-                      }`}
-                    >
-                      X / Facebook / Slack
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSocialPreviewTab('whatsapp')}
-                      className={`flex-1 py-1 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                        socialPreviewTab === 'whatsapp'
-                          ? 'bg-emerald-600 text-white shadow-xs font-bold'
-                          : 'text-on-surface-variant hover:text-on-surface'
-                      }`}
-                    >
-                      <MessageCircle className="w-3 h-3" />
-                      <span>WhatsApp</span>
-                    </button>
-                  </div>
-
-                  {/* Social Card Mockup */}
-                  {socialPreviewTab === 'twitter' ? (
-                    <div className="bg-surface-container-lowest rounded-xl overflow-hidden shadow-sm max-w-lg mx-auto border border-outline-variant">
-                      <div className="relative h-44 bg-slate-950 overflow-hidden flex items-center justify-center">
-                        {/* Ambient blurred backdrop so any aspect ratio is displayed in full */}
-                        <div 
-                          className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-40 scale-110 pointer-events-none"
-                          style={{ backgroundImage: `url(${previewOgImage})` }}
-                        />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
-                          className="relative z-10 max-w-full max-h-full object-contain" 
-                          src={previewOgImage} 
-                          alt="Open Graph preview" 
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                        <div className="absolute bottom-2 right-2 flex items-center gap-1.5 z-20">
-                          <button 
-                            type="button"
-                            onClick={() => ogFileInputRef.current?.click()}
-                            className="px-2.5 py-1 bg-primary hover:bg-primary/90 text-on-primary rounded text-xs font-semibold flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer shadow-sm"
-                          >
-                            <UploadCloud className="w-3.5 h-3.5" />
-                            <span>Upload Image</span>
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={handleGenerateDynamicOg}
-                            className="px-2.5 py-1 bg-black/70 hover:bg-black text-white rounded text-xs font-medium flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer"
-                          >
-                            <Sparkles className="w-3.5 h-3.5 text-primary-fixed" />
-                            <span>Auto-Generate</span>
-                          </button>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-surface-container-lowest space-y-1">
-                        <span className="font-mono text-xs text-on-surface-variant uppercase tracking-wider block font-medium">
-                          {resolvedHost}
-                        </span>
-                        <input
-                          type="text"
-                          value={ogTitle || title}
-                          onChange={(e) => setOgTitle(e.target.value)}
-                          placeholder="Card Title"
-                          className="font-bold text-sm text-on-surface w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
-                        />
-                        <input
-                          type="text"
-                          value={ogDescription}
-                          onChange={(e) => setOgDescription(e.target.value)}
-                          placeholder="Card Description"
-                          className="text-xs text-on-surface-variant w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    /* WhatsApp Chat Bubble Mockup */
-                    <div className="bg-[#e7fedb] dark:bg-[#005c4b]/30 p-3 rounded-xl border border-emerald-500/20 shadow-xs flex flex-col gap-1.5 text-left max-w-lg mx-auto">
-                      <div className="relative group overflow-hidden rounded-lg bg-emerald-950/20 flex items-center justify-center h-36">
-                        <div 
-                          className="absolute inset-0 bg-cover bg-center filter blur-lg opacity-40 scale-110 pointer-events-none"
-                          style={{ backgroundImage: `url(${previewOgImage})` }}
-                        />
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={previewOgImage}
-                          alt="Thumbnail preview"
-                          className="relative z-10 max-w-full max-h-full object-contain rounded-lg"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                        <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                          <button 
-                            type="button"
-                            onClick={() => ogFileInputRef.current?.click()}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold flex items-center gap-1 backdrop-blur-sm transition-all cursor-pointer shadow-sm"
-                          >
-                            <UploadCloud className="w-3.5 h-3.5" />
-                            <span>Upload Image</span>
-                          </button>
-                        </div>
-                      </div>
-                      <input
-                        type="text"
-                        value={ogTitle || title}
-                        onChange={(e) => setOgTitle(e.target.value)}
-                        placeholder="Card Title"
-                        className="font-bold text-xs text-gray-900 dark:text-gray-100 w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
-                      />
-                      <input
-                        type="text"
-                        value={ogDescription}
-                        onChange={(e) => setOgDescription(e.target.value)}
-                        placeholder="Card Description"
-                        className="text-[11px] text-gray-600 dark:text-gray-300 w-full bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
-                      />
-                      <div className="flex items-center justify-between text-[11px] text-emerald-800 dark:text-emerald-400 font-mono pt-1 border-t border-emerald-600/15">
-                        <span className="truncate">https://{resolvedHost}/{livePreviewSlug}</span>
-                        <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Upload Image or Enter URL */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-primary-ink" />
-                        <span>Card Thumbnail Image (og:image)</span>
-                        <InfoTooltip text="Upload high-resolution preview image or enter custom image URL. 1200x630px recommended for social cards." />
-                      </label>
-                      {ogImageUrl && (
-                        <button
-                          type="button"
-                          onClick={() => { setOgImageUrl(''); setUploadStorageType(null); }}
-                          className="text-[11px] text-red-500 hover:text-red-600 flex items-center gap-1 cursor-pointer font-medium"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span>Remove</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Hidden file input */}
-                    <input
-                      ref={ogFileInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleOgImageUpload(file);
-                      }}
-                    />
-
-                    {/* Drag & Drop / Click Upload Box */}
+              {renderSection('social', <ImageIcon className="w-3.5 h-3.5" />, 'Social preview', (
+                <>
+                  <input
+                    ref={ogFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleOgImageUpload(file);
+                    }}
+                  />
+                  <div className="rounded-lg border-[0.5px] border-outline-variant overflow-hidden">
                     <div
                       onClick={() => !isUploadingOgImage && ogFileInputRef.current?.click()}
                       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -1422,380 +961,274 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
                         const file = e.dataTransfer.files?.[0];
                         if (file) handleOgImageUpload(file);
                       }}
-                      className={`relative border-2 border-dashed rounded-xl p-3 text-center transition-all cursor-pointer ${
-                        ogImageUrl 
-                          ? 'border-primary-strong/40 bg-primary/5' 
-                          : 'border-outline-variant hover:border-primary-strong/60 bg-surface-container-lowest hover:bg-surface-container-low'
-                      }`}
+                      className="relative h-36 bg-surface-container flex items-center justify-center overflow-hidden cursor-pointer group"
+                      title="Click or drop an image"
                     >
                       {isUploadingOgImage ? (
-                        <div className="py-2 flex flex-col items-center justify-center gap-1.5">
-                          <Loader2 className="w-5 h-5 text-primary-ink animate-spin" />
-                          <span className="text-xs font-medium text-primary-ink">Uploading image to CDN...</span>
-                        </div>
-                      ) : ogImageUrl ? (
-                        <div className="flex items-center justify-between gap-3 text-left">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={resolveDisplayImageUrl(ogImageUrl)}
-                              alt="Thumbnail"
-                              className="w-12 h-9 object-contain bg-surface-container-high rounded-md border-[0.5px] border-outline-variant shrink-0"
-                            />
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-on-surface">Image Ready</span>
-                                {isVercelBlobUrl(ogImageUrl) || uploadStorageType === 'vercel_blob' ? (
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
-                                    <Cloud className="w-2.5 h-2.5" />
-                                    <span>Cloud CDN</span>
-                                  </span>
-                                ) : ogImageUrl.startsWith('data:') ? (
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
-                                    Inline Buffer
-                                  </span>
-                                ) : (
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
-                                    External URL
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-on-surface-variant truncate font-mono mt-0.5 max-w-[240px]">
-                                {ogImageUrl}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              ogFileInputRef.current?.click();
-                            }}
-                            className="px-2 py-1 text-[11px] bg-surface-container hover:bg-surface-container-high text-on-surface rounded-md border-[0.5px] border-outline-variant font-medium shrink-0 cursor-pointer"
-                          >
-                            Replace
-                          </button>
-                        </div>
+                        <Loader2 className="w-5 h-5 text-primary-ink animate-spin" />
                       ) : (
-                        <div className="py-2 flex flex-col items-center justify-center gap-1 text-on-surface-variant">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary-ink flex items-center justify-center mb-0.5">
-                            <UploadCloud className="w-4 h-4" />
-                          </div>
-                          <div className="text-xs font-semibold text-on-surface">
-                            Click to upload image or drag &amp; drop
-                          </div>
-                          <div className="text-[10px] text-on-surface-variant flex items-center gap-1.5">
-                            <span>PNG, JPG, WebP up to 10MB</span>
-                            <span>&bull;</span>
-                            <span className="text-primary-ink font-medium flex items-center gap-0.5">
-                              <Cloud className="w-3 h-3" />
-                              <span>Cloud Storage</span>
+                        <>
+                          {previewOgImage ? (
+                            <img
+                              src={previewOgImage}
+                              alt="Link preview"
+                              className="max-w-full max-h-full object-contain"
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="flex flex-col items-center gap-1 text-outline text-[11px]">
+                              <ImageIcon className="w-5 h-5" />
+                              No image · click or drop to upload
                             </span>
-                          </div>
-                        </div>
+                          )}
+                          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition-colors flex items-center justify-center">
+                            <span className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium flex items-center gap-1.5">
+                              <UploadCloud className="w-4 h-4" />
+                              {ogImageUrl ? 'Replace image' : 'Upload image'}
+                            </span>
+                          </span>
+                        </>
                       )}
                     </div>
-
-                    {/* Direct Image URL input */}
-                    <div className="pt-0.5">
+                    <div className="px-3 py-2.5 border-t-[0.5px] border-outline-variant space-y-0.5">
+                      <span className="block text-[10px] text-outline uppercase tracking-wider">{resolvedHost}</span>
                       <input
                         type="text"
-                        value={ogImageUrl}
-                        onChange={(e) => {
-                          setOgImageUrl(e.target.value);
-                          setUploadStorageType(null);
-                        }}
-                        placeholder="Or paste external image URL (https://...)"
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs rounded-lg border-[0.5px] border-outline-variant font-mono focus:outline-none focus:ring-2 focus:ring-primary-strong/20"
+                        value={ogTitle || title}
+                        onChange={(e) => setOgTitle(e.target.value)}
+                        placeholder="Preview title"
+                        aria-label="Preview title"
+                        className="w-full bg-transparent text-[13px] font-semibold text-on-surface placeholder:text-outline focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={ogDescription}
+                        onChange={(e) => setOgDescription(e.target.value)}
+                        placeholder="Preview description"
+                        aria-label="Preview description"
+                        className="w-full bg-transparent text-xs text-on-surface-variant placeholder:text-outline focus:outline-none"
                       />
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-end gap-1.5 text-xs text-on-surface-variant">
-                    <InfoTooltip text="Edge CDN caches generated cards for fast delivery" />
-                    <span>Rich previews are cached at edge nodes for 48 hours</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB CONTENT 3: Shield & Security */}
-            {activeTab === 'security' && (
-              <div className="space-y-3 animate-fade-in">
-                {/* Bot Shield Crawlers Toggle */}
-                <div className="p-4 bg-surface-container-low rounded-xl flex items-center justify-between gap-4 border border-outline-variant">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-surface-container text-primary-ink flex items-center justify-center shrink-0 mt-0.5">
-                      <ShieldCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-on-surface">Bot Shield &amp; Cloaking</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400">
-                          Recommended
-                        </span>
-                      </div>
-                      <p className="text-xs text-on-surface-variant">Bypass malicious scrapers, verify real humans, and safeguard your ad accounts.</p>
-                    </div>
-                  </div>
-
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <div className="flex items-center gap-2">
                     <input
-                      type="checkbox"
-                      checked={shieldProtection}
-                      onChange={(e) => setShieldProtection(e.target.checked)}
-                      className="sr-only peer"
+                      type="text"
+                      value={ogImageUrl}
+                      onChange={(e) => { setOgImageUrl(e.target.value); setUploadStorageType(null); }}
+                      placeholder="…or paste an image URL"
+                      className={`${fieldCls} font-mono`}
                     />
-                    <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
-                  </label>
-                </div>
-
-                {/* Hide Referrer */}
-                <div className="p-4 bg-surface-container-low rounded-xl flex items-center justify-between gap-4 border border-outline-variant">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-surface-container text-secondary flex items-center justify-center shrink-0 mt-0.5">
-                      <EyeOff className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <span className="font-bold text-sm text-on-surface">Anonymize Referrer Header</span>
-                      <p className="text-xs text-on-surface-variant">Strips outbound document.referrer metadata to keep origin sources confidential.</p>
-                    </div>
-                  </div>
-
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={hideReferrer}
-                      onChange={(e) => setHideReferrer(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
-                  </label>
-                </div>
-
-                {/* Password Protection Field */}
-                <div className="p-4 bg-surface-container-low rounded-xl space-y-2 border border-outline-variant">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-on-surface-variant" />
-                      <label className="font-bold text-sm text-on-surface flex items-center gap-1.5" htmlFor="linkPassword">
-                        <span>Passcode Gate (Optional)</span>
-                        <InfoTooltip text="Require visitors to enter a secret password before redirecting" />
-                      </label>
-                    </div>
-                    <span className="text-xs text-on-surface-variant">Only visitors with this password can redirect</span>
-                  </div>
-                  <input
-                    id="linkPassword"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Leave blank for public access"
-                    className="w-full px-3 py-2 bg-surface-container-lowest text-on-surface text-xs rounded-lg shadow-sm border-[0.5px] border-outline-variant placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary-strong/20"
-                  />
-                  {password.trim() && (
-                    <p className="text-[11px] text-primary-ink font-medium">
-                      🔒 Passcode gate enabled: Visitors will be prompted to enter this passcode on a secure interstitial gate before redirecting.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Live Generated Preview Bar */}
-          <div className="p-2.5 px-3.5 bg-surface-container rounded-lg flex items-center justify-between text-xs font-medium border border-outline-variant">
-            <div className="flex items-center gap-2 min-w-0">
-              <Link2 className="w-4 h-4 text-primary-ink shrink-0" />
-              <span className="text-on-surface-variant shrink-0">Ready URL:</span>
-              <span className="font-mono text-primary-ink font-bold truncate" id="liveUrlPreview">
-                {liveShortUrl}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopyPreview}
-              className="text-xs text-on-surface-variant hover:text-on-surface flex items-center gap-1 shrink-0 font-medium cursor-pointer transition-colors"
-            >
-              {copiedPreview ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedPreview ? 'Copied!' : 'Copy'}</span>
-            </button>
-          </div>
-
-          {/* Instant Generated Short URLs Results Section */}
-          {generatedResults.length > 0 && (
-            <div className="flex flex-col gap-2 p-3.5 bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary-strong/30">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-primary/20 text-primary-ink flex items-center justify-center font-bold">
-                    <Check className="w-3 h-3" />
-                  </div>
-                  <span className="font-bold text-xs text-on-surface">
-                    {generatedResults.length === 1 
-                      ? 'Instant Short URL Generated' 
-                      : `${generatedResults.length} Short URLs Generated`}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {generatedResults.length > 1 && (
                     <button
                       type="button"
-                      onClick={handleCopyAll}
-                      className="px-2.5 py-1 bg-surface-container-lowest hover:bg-surface-container text-on-surface rounded-lg text-[11px] font-semibold shadow-xs border-[0.5px] border-outline-variant flex items-center gap-1.5 transition-colors cursor-pointer"
+                      onClick={handleGenerateDynamicOg}
+                      className="h-[34px] px-3 shrink-0 rounded-md border-[0.5px] border-outline-variant text-xs text-on-surface hover:bg-surface-container flex items-center gap-1.5 cursor-pointer"
                     >
-                      {copiedAll ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedAll ? 'All Copied!' : 'Copy All Links'}</span>
+                      <Sparkles className="w-3.5 h-3.5 text-primary-ink" />
+                      <span>Generate</span>
+                    </button>
+                    {ogImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => { setOgImageUrl(''); setUploadStorageType(null); }}
+                        aria-label="Remove image"
+                        className="size-[34px] shrink-0 rounded-md flex items-center justify-center text-outline hover:text-error hover:bg-error-container cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {ogImageUrl && uploadStorageType === 'inline' && (
+                    <p className="text-[11px] text-amber-700">Stored inline because cloud upload was unavailable.</p>
+                  )}
+                </>
+              ))}
+
+              {renderSection('protection', <ShieldCheck className="w-3.5 h-3.5" />, 'Protection', (
+                <>
+                  <div>
+                    <label className={labelCls} htmlFor="linkPassword">Password</label>
+                    <input
+                      id="linkPassword"
+                      type="password"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Leave empty for a public link"
+                      className={fieldCls}
+                    />
+                    {password.trim() && (
+                      <p className="mt-1 text-[11px] text-on-surface-variant">Visitors enter this password on a splash page before being redirected.</p>
+                    )}
+                  </div>
+                  {renderToggle(shieldProtection, setShieldProtection, 'Bot shield', 'Filter scrapers and bots from your clicks')}
+                  {renderToggle(hideReferrer, setHideReferrer, 'Hide referrer', 'Don’t tell the destination where visitors came from')}
+                </>
+              ))}
+
+              {renderSection('redirect', <Settings2 className="w-3.5 h-3.5" />, 'Redirect & limits', (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls} htmlFor="redirectType">Redirect type</label>
+                      <div className="relative">
+                        <select
+                          id="redirectType"
+                          value={currentRedirectionValue}
+                          onChange={(e) => handleRedirectionEngineChange(e.target.value)}
+                          className={selectCls}
+                        >
+                          <option value="301" disabled={!!password.trim()}>Direct (301)</option>
+                          <option value="302" disabled={!!password.trim()}>Temporary (302)</option>
+                          <option value="mask">Masked frame</option>
+                          <option value="splash">Splash screen</option>
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-outline" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="maxClicks">Click limit</label>
+                      <input id="maxClicks" type="number" min="1" value={maxClicks} onChange={(e) => setMaxClicks(e.target.value)} placeholder="Unlimited" className={fieldCls} />
+                    </div>
+                  </div>
+                  {redirectType === 'frame' && /google\.com|youtube\.com|twitter\.com|x\.com/i.test(destinationUrl) && (
+                    <p className="text-[11px] text-amber-700">This site blocks being shown in a frame. Use Direct or Splash instead.</p>
+                  )}
+                  <div>
+                    <label className="flex items-center gap-2 text-xs text-on-surface cursor-pointer">
+                      <input type="checkbox" checked={!neverExpires} onChange={(e) => setNeverExpires(!e.target.checked)} className="w-3.5 h-3.5 accent-[#65a30d] cursor-pointer" />
+                      <span>Expires on a date</span>
+                    </label>
+                    {!neverExpires && (
+                      <input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} aria-label="Expiry date" className={`${fieldCls} mt-2`} />
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelCls} htmlFor="iosTarget">iPhone destination</label>
+                      <input id="iosTarget" type="url" value={iosTargetUrl} onChange={(e) => setIosTargetUrl(e.target.value)} placeholder="https://apps.apple.com/…" className={fieldCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls} htmlFor="androidTarget">Android destination</label>
+                      <input id="androidTarget" type="url" value={androidTargetUrl} onChange={(e) => setAndroidTargetUrl(e.target.value)} placeholder="https://play.google.com/…" className={fieldCls} />
+                    </div>
+                  </div>
+                </>
+              ))}
+            </div>
+          </div>
+
+          {/* Results after creating */}
+          {generatedResults.length > 0 && (
+            <div className="rounded-lg border-[0.5px] border-primary-strong/50 bg-primary-fixed/40 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-on-secondary-container flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  {generatedResults.length === 1 ? 'Link created' : `${generatedResults.length} links created`}
+                </span>
+                <div className="flex items-center gap-3">
+                  {generatedResults.length > 1 && (
+                    <button type="button" onClick={handleCopyAll} className="text-[11px] text-primary-ink hover:underline cursor-pointer">
+                      {copiedAll ? 'Copied' : 'Copy all'}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setGeneratedResults([])}
-                    className="text-[11px] text-on-surface-variant hover:text-red-500 font-medium transition-colors cursor-pointer"
-                  >
-                    Clear List
+                  <button type="button" onClick={() => setGeneratedResults([])} className="text-[11px] text-outline hover:text-on-surface cursor-pointer">
+                    Clear
                   </button>
                 </div>
               </div>
-
-              {/* Scrollable Generated Links List */}
-              <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+              <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto custom-scrollbar">
                 {generatedResults.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:border-primary-strong/40 transition-colors"
-                  >
+                  <div key={item.id} className="h-[40px] px-2.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant flex items-center gap-2">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono text-xs font-bold text-primary-ink truncate">
-                          {item.shortUrl}
-                        </span>
-                        <span className="text-[10px] text-on-surface-variant px-1.5 py-0.2 rounded bg-surface-container font-mono">
-                          /{item.slug}
-                        </span>
-                        {item.ogTitle && (
-                          <span className="text-[10px] text-primary-ink bg-primary/10 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
-                            <Share2 className="w-2.5 h-2.5" />
-                            <span>OG Meta</span>
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-on-surface-variant truncate block mt-0.5">
-                        &rarr; {item.destinationUrl}
-                      </span>
+                      <span className="block text-xs font-medium text-primary-ink truncate">{item.shortUrl}</span>
+                      <span className="block text-[10px] text-outline truncate">{item.destinationUrl}</span>
                     </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={() => handleCopySingle(item.shortUrl, item.id)}
-                        className="px-2.5 py-1 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-md text-[11px] font-semibold border-[0.5px] border-outline-variant flex items-center gap-1 transition-colors cursor-pointer"
-                      >
-                        {copiedId === item.id ? (
-                          <>
-                            <Check className="w-3 h-3 text-emerald-600" />
-                            <span className="text-emerald-600 font-bold">Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3 h-3" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setActiveQrModalUrl(activeQrModalUrl === item.shortUrl ? null : item.shortUrl)}
-                        title="Show QR Code"
-                        className="p-1 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-md border-[0.5px] border-outline-variant transition-colors cursor-pointer"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                      </button>
-
-                      <a
-                        href={item.shortUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1 bg-surface-container-low hover:bg-surface-container text-on-surface rounded-md border-[0.5px] border-outline-variant transition-colors flex items-center justify-center cursor-pointer"
-                        title="Test Short Link"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopySingle(item.shortUrl, item.id)}
+                      className="h-[28px] px-2.5 rounded-md border-[0.5px] border-outline-variant text-[11px] flex items-center gap-1 hover:bg-surface-container cursor-pointer"
+                    >
+                      {copiedId === item.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedId === item.id ? 'Copied' : 'Copy'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveQrModalUrl(activeQrModalUrl === item.shortUrl ? null : item.shortUrl)}
+                      aria-label="Show QR code"
+                      className="size-[28px] rounded-md border-[0.5px] border-outline-variant flex items-center justify-center hover:bg-surface-container cursor-pointer"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                    </button>
+                    <a
+                      href={item.shortUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Open link"
+                      className="size-[28px] rounded-md border-[0.5px] border-outline-variant flex items-center justify-center hover:bg-surface-container"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
                   </div>
                 ))}
               </div>
-
-              {/* Dynamic QR Code Popup if clicked */}
               {activeQrModalUrl && (
-                <div className="mt-2 p-3 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant flex items-center gap-4 animate-fade-in">
-                  <div className="p-1.5 bg-white rounded-md shadow-xs border-[0.5px] border-outline-variant shrink-0">
-                    <QRCodeSVG
-                      value={activeQrModalUrl}
-                      size={64}
-                      level="M"
-                      fgColor="#1a1a1a"
-                      bgColor="#ffffff"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-xs font-bold text-on-surface block">Dynamic QR Code</span>
-                    <span className="text-[11px] text-on-surface-variant font-mono truncate block">{activeQrModalUrl}</span>
-                    <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">High precision print-ready scan matrix</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveQrModalUrl(null)}
-                    className="p-1 text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer"
-                  >
+                <div className="p-2.5 bg-surface-container-lowest rounded-md border-[0.5px] border-outline-variant flex items-center gap-3">
+                  <QRCodeSVG value={activeQrModalUrl} size={64} level="M" fgColor="#1a1a1a" bgColor="#ffffff" />
+                  <span className="flex-1 min-w-0 text-[11px] text-on-surface-variant truncate">{activeQrModalUrl}</span>
+                  <button type="button" onClick={() => setActiveQrModalUrl(null)} aria-label="Hide QR code" className="size-[28px] rounded-full flex items-center justify-center text-outline hover:text-on-surface cursor-pointer">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               )}
             </div>
           )}
-
-          {/* Modal Footer */}
-          <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest border-t-[0.5px] border-outline-variant shrink-0">
-            {/* Status Indicator */}
-            <div className="flex items-center gap-1.5 text-on-surface-variant">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="text-xs">All workspace links auto-synced with analytics</span>
-            </div>
-
-            {/* Action Controls */}
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={resetAndClose}
-                className="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => executeShorten()}
-                disabled={isSubmitting}
-                className="px-5 py-2 bg-primary hover:bg-secondary active:scale-[0.99] text-on-primary rounded-lg text-xs font-semibold shadow-md flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4" />
-                    <span>{mode === 'single' ? 'Shorten Link' : `Shorten Links (${parsedMultipleUrls.length || 0})`}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </form>
 
+        {/* Footer: always visible */}
+        <div className="px-5 py-3 border-t-[0.5px] border-outline-variant flex items-center gap-3 shrink-0 bg-surface-container-lowest">
+          <div className="flex-1 min-w-0 text-xs">
+            {mode === 'single' && (
+              livePreviewSlug ? (
+                <button
+                  type="button"
+                  onClick={handleCopyPreview}
+                  title="Copy"
+                  className="max-w-full flex items-center gap-1.5 text-primary-ink truncate cursor-pointer hover:underline"
+                >
+                  {copiedPreview ? <Check className="w-3.5 h-3.5 shrink-0" /> : <Link2 className="w-3.5 h-3.5 shrink-0" />}
+                  <span className="truncate">{resolvedHost}/{livePreviewSlug}</span>
+                </button>
+              ) : (
+                <span className="flex items-center gap-1.5 text-outline truncate">
+                  <Link2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{resolvedHost}/…</span>
+                </span>
+              )
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={resetAndClose}
+            className="h-[34px] px-4 rounded-md border-[0.5px] border-outline-variant text-xs text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+          >
+            {generatedResults.length > 0 ? 'Done' : 'Cancel'}
+          </button>
+          <button
+            type="submit"
+            form="createLinkForm"
+            disabled={isSubmitting || (mode === 'single' ? !destinationUrl.trim() || isSlugTaken : parsedMultipleUrls.length === 0)}
+            className="h-[34px] px-5 rounded-md bg-primary-container hover:bg-primary text-on-primary text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+            <span>
+              {isSubmitting
+                ? 'Creating…'
+                : mode === 'single' ? 'Create link' : parsedMultipleUrls.length ? `Create ${parsedMultipleUrls.length} links` : 'Create links'}
+            </span>
+          </button>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
