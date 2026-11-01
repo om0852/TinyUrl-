@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/storeContext';
 import { Link } from '@/lib/types';
 import { Link2, ArrowRight, Shield, AlertTriangle, ExternalLink, Lock, Globe, Zap } from 'lucide-react';
 import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
 import { resolveSmartTargetUrl } from '@/lib/geo';
 import { isPlatformHost } from '@/lib/domainHelper';
+import { PLATFORM_URL } from '@/lib/platformUrl';
 
 // Lime brand: fills carry dark ink text; lime-700 is the readable text/icon shade on white
 const BRAND_FILL = '#a3e635';
@@ -205,7 +206,6 @@ export interface RedirectClientProps {
 }
 
 export function RedirectClient({ code, initialTarget, initialLink, trackToken }: RedirectClientProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { links, logClick } = useStore();
   const isPlatform = typeof window !== 'undefined' ? isPlatformHost(window.location.hostname) : true;
@@ -715,18 +715,20 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
             The short link <code className="font-mono px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--muted, #fafafa)', color: BRAND_INK }}>/{code}</code> does not exist or has expired.
           </p>
 
-          {isPlatform && (
-            <button
-              onClick={() => router.push('/')}
-              className="w-full max-w-xs py-3 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
-              style={{
-                backgroundColor: BRAND_FILL,
-                boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
-              }}
-            >
-              Return to Homepage <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
+          {/* Always the deployed platform, also on custom domains */}
+          <a
+            href={`${PLATFORM_URL}/login`}
+            className="w-full max-w-xs py-3 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
+            style={{
+              backgroundColor: BRAND_FILL,
+              boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
+            }}
+          >
+            Go to dashboard <ArrowRight className="w-4 h-4" />
+          </a>
+          <a href={PLATFORM_URL} className="mt-3 text-xs hover:underline" style={{ color: 'var(--muted-foreground, #666666)' }}>
+            Go to homepage
+          </a>
         </div>
       </PageShell>
     );
@@ -880,7 +882,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
           <div className="flex gap-3 w-full">
             {isPlatform && (
               <button
-                onClick={() => router.push('/')}
+                onClick={() => window.location.assign(PLATFORM_URL)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
                 style={{
                   backgroundColor: 'var(--muted, #fafafa)',

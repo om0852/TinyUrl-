@@ -1,7 +1,7 @@
 import React from 'react';
-import Link from 'next/link';
 import { headers } from 'next/headers';
 import { cleanHost, isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
+import { PLATFORM_URL } from '@/lib/platformUrl';
 import { Link2, AlertCircle, ArrowLeft, Globe, ExternalLink } from 'lucide-react';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
@@ -109,16 +109,30 @@ export default async function NotFound(props?: NotFoundProps) {
             )}
           </p>
 
-          {/* Action Button: Only if customer configured a root website */}
-          {rootRedirectUrl && (
+          <div className="flex flex-col gap-2">
+            {/* The domain owner's own site, when they set a root redirect */}
+            {rootRedirectUrl && (
+              <a
+                href={rootRedirectUrl}
+                className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-lime-400 hover:bg-lime-500 text-on-primary font-medium text-sm transition-all shadow-lg shadow-lime-500/20 active:scale-[0.98]"
+              >
+                <span>Visit main website</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            )}
+            {/* Always the deployed platform, never this custom domain */}
             <a
-              href={rootRedirectUrl}
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-lime-400 hover:bg-lime-500 text-on-primary font-medium text-sm transition-all shadow-lg shadow-lime-500/20 active:scale-[0.98]"
+              href={`${PLATFORM_URL}/login`}
+              className={`inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
+                rootRedirectUrl ? 'border border-slate-700 text-slate-200 hover:bg-slate-800' : 'bg-lime-400 hover:bg-lime-500 text-on-primary shadow-lg shadow-lime-500/20'
+              }`}
             >
-              <span>Visit Main Website</span>
-              <ExternalLink className="w-4 h-4" />
+              <span>Go to dashboard</span>
             </a>
-          )}
+            <a href={PLATFORM_URL} className="text-xs text-slate-400 hover:text-slate-200 hover:underline mt-1">
+              Create your own short links
+            </a>
+          </div>
 
           <div className="mt-6 pt-6 border-t border-slate-800/80 text-[11px] text-slate-500">
             HTTP 404 &bull; Custom Domain Link Engine
@@ -150,13 +164,19 @@ export default async function NotFound(props?: NotFoundProps) {
           The short link or page you are looking for doesn&apos;t exist, has expired, or was relocated.
         </p>
 
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-lime-400 hover:bg-lime-500 text-on-primary font-semibold text-sm transition-all shadow-lg shadow-lime-500/25 active:scale-[0.98]"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to TinyURL Console</span>
-        </Link>
+        {/* Always the deployed platform, whichever host showed this page */}
+        <div className="flex flex-col gap-2">
+          <a
+            href={`${PLATFORM_URL}/login`}
+            className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-lime-400 hover:bg-lime-500 text-on-primary font-semibold text-sm transition-all shadow-lg shadow-lime-500/25 active:scale-[0.98]"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Go to dashboard</span>
+          </a>
+          <a href={PLATFORM_URL} className="text-xs text-slate-400 hover:text-slate-200 hover:underline mt-1">
+            Go to homepage
+          </a>
+        </div>
       </div>
     </div>
   );
