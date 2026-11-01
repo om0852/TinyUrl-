@@ -2145,26 +2145,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       return d;
     });
+    const before = domains;
     saveDomainsState(updated);
-
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await apiFetch('/api/v1/domains', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: idOrHostname,
-            action: 'update_config',
-            root_redirect_url: updates.root_redirect_url,
-            is_primary: updates.is_primary
-          })
-        });
-        const data = await res.json().catch(() => ({}));
-        return !!data?.success;
-      } catch {
-        return false;
-      }
+    const error = await confirmCampaignWrite(apiFetch('/api/v1/domains', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: idOrHostname,
+        action: 'update_config',
+        root_redirect_url: updates.root_redirect_url,
+        is_primary: updates.is_primary
+      })
+    }));
+    if (error) {
+      saveDomainsState(before);
+      showToast('error', 'Domain not updated', error);
+      return false;
     }
+    invalidateStoreCache('domains');
     return true;
   };
 
@@ -2177,18 +2175,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    const remaining = domains.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname);
-    saveDomainsState(remaining);
-
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await apiFetch(`/api/v1/domains?id=${encodeURIComponent(idOrHostname)}`, { method: 'DELETE' });
-        const data = await res.json().catch(() => ({}));
-        return !!data?.success;
-      } catch {
-        return false;
-      }
+    const before = domains;
+    saveDomainsState(domains.filter(d => d.id !== idOrHostname && d.hostname !== idOrHostname));
+    const error = await confirmCampaignWrite(apiFetch(`/api/v1/domains?id=${encodeURIComponent(idOrHostname)}`, { method: 'DELETE' }));
+    if (error) {
+      saveDomainsState(before);
+      showToast('error', 'Domain not removed', error);
+      return false;
     }
+    invalidateStoreCache('domains');
     return true;
   };
 

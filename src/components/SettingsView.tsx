@@ -1,35 +1,24 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
+import { hasPermission } from '@/lib/rbac';
 import { Domain } from '@/lib/types';
 import {
-  Camera,
   Check,
   Copy,
-  Server,
   Globe2,
-  Info,
-  Mail,
-  Plus,
+  Link2,
+  Users,
   RefreshCw,
-  Smartphone,
-  Video,
-  CheckCircle2,
   Trash2,
-  ExternalLink,
-  ShieldCheck,
-  AlertCircle,
-  X,
-  Zap,
-  SlidersHorizontal,
-  Sparkles,
-  Layers,
-  Lock,
-  User,
-  Globe,
-  Edit3
+  Edit3,
+  Star,
+  ChevronDown,
+  ChevronUp,
+  X
 } from 'lucide-react';
 import { SkeletonSettingsView } from '@/components/ui/Skeleton';
 
@@ -37,12 +26,17 @@ interface SettingsViewProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-type SettingsTab = 'profile' | 'domains' | 'social' | 'privacy' | 'billing';
+type SettingsTab = 'general' | 'domains';
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => {
+const EDGE_PROXY_IP = process.env.NEXT_PUBLIC_EDGE_PROXY_IP || '159.54.139.45';
+const CNAME_TARGET = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
+
+const slugify = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+export const SettingsView: React.FC<SettingsViewProps> = () => {
   const {
-    currentUser,
     currentWorkspace,
+    currentUserRole,
     domains,
     links,
     teamMembers,
@@ -53,1412 +47,348 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigateTab }) => 
     updateWorkspace,
     checkPermissionOrToast,
     refreshSettings,
-    isSettingsLoading,
-    isDomainsLoading,
-    isInitialLoading
+    isInitialLoading,
+    currentUser
   } = useStore();
+  const { showToast } = useToast();
 
   const [mounted, setMounted] = useState(false);
-  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('profile');
-
-
-  // Profile Form state
-  const [displayName, setDisplayName] = useState(
-    currentWorkspace?.name || currentUser?.name || 'My Workspace'
-  );
-  const [vanityHandle, setVanityHandle] = useState('workspace');
-  const [contactEmail, setContactEmail] = useState(currentUser?.email || '');
-  const [languageRegion, setLanguageRegion] = useState('en-US');
-  const [customAvatar, setCustomAvatar] = useState<string | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-
-  // Social Channels state
-  const [socialChannels, setSocialChannels] = useState({
-    youtube: { handle: '', enabled: true },
-    instagram: { handle: '', enabled: true },
-    tiktok: { handle: '', enabled: true },
-    twitter: { handle: '', enabled: true }
-  });
-
-  // Privacy & Tracking Preferences
-  const [privacyPreferences, setPrivacyPreferences] = useState({
-    cookieless: true,
-    utmAuto: true,
-    alerts: true,
-  });
-
-  // Save changes state feedback
-  const [isSaving, setIsSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-  const [copiedHandle, setCopiedHandle] = useState(false);
-  const [copiedWsId, setCopiedWsId] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Add Domain Modal & DNS Verification States
-  const [addDomainModalOpen, setAddDomainModalOpen] = useState(false);
-  const [newDomainHostname, setNewDomainHostname] = useState('');
-  const [newDomainRootRedirect, setNewDomainRootRedirect] = useState('');
-  const [isAddingDomain, setIsAddingDomain] = useState(false);
-  const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
-  const [expandedDnsDomainId, setExpandedDnsDomainId] = useState<string | null>(null);
-  const [copiedTokenDomainId, setCopiedTokenDomainId] = useState<string | null>(null);
-  const [copiedCnameDomainId, setCopiedCnameDomainId] = useState<string | null>(null);
-  const [copiedIpDomainId, setCopiedIpDomainId] = useState<string | null>(null);
-
-  // Edit Domain Configuration state
-  const [editingDomain, setEditingDomain] = useState<Domain | null>(null);
-  const [editRootRedirectUrl, setEditRootRedirectUrl] = useState('');
-  const [isSavingDomain, setIsSavingDomain] = useState(false);
-
-  const edgeProxyIp = process.env.NEXT_PUBLIC_EDGE_PROXY_IP || '159.54.139.45';
-  const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
-
-  // Upgrade Plan Modal
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
+  const [tab, setTab] = useState<SettingsTab>('general');
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
 
   useEffect(() => {
     setMounted(true);
     refreshSettings();
   }, [refreshSettings]);
 
-  // Load workspace-isolated settings from localStorage or defaults
+  const canEditWorkspace = hasPermission(currentUserRole, 'settings:manage');
+  const canManageDomains = hasPermission(currentUserRole, 'domains:manage');
+
+  // ── General ──
+  const [name, setName] = useState(currentWorkspace?.name || '');
+  const [slug, setSlug] = useState(currentWorkspace?.slug || '');
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
-    if (!currentWorkspace?.id) return;
-    const storageKey = `workspace_settings_${currentWorkspace.id}`;
+    setName(currentWorkspace?.name || '');
+    setSlug(currentWorkspace?.slug || '');
+  }, [currentWorkspace?.id, currentWorkspace?.name, currentWorkspace?.slug]);
+  const dirty = name.trim() !== (currentWorkspace?.name || '') || slugify(slug) !== (currentWorkspace?.slug || '');
 
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.vanityHandle) setVanityHandle(parsed.vanityHandle);
-        if (parsed.contactEmail) setContactEmail(parsed.contactEmail);
-        if (parsed.languageRegion) setLanguageRegion(parsed.languageRegion);
-        if (parsed.customAvatar) setCustomAvatar(parsed.customAvatar);
-        if (parsed.socialChannels) setSocialChannels(parsed.socialChannels);
-        if (parsed.privacyPreferences) setPrivacyPreferences(parsed.privacyPreferences);
-      } else {
-        const defaultHandle = currentWorkspace.slug || (currentUser?.name ? currentUser.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'workspace');
-        setVanityHandle(defaultHandle);
-        setContactEmail(currentUser?.email || '');
-      }
-    } catch { }
-
-    setDisplayName(currentWorkspace.name || 'My Workspace');
-  }, [currentWorkspace?.id, currentUser?.email]);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  const handleCopyHandle = () => {
-    const fullUrl = `https://${originDomain}/${vanityHandle}`;
-    navigator.clipboard.writeText(fullUrl).catch(() => { });
-    setCopiedHandle(true);
-    showToast(`Copied vanity URL: ${fullUrl}`);
-    setTimeout(() => setCopiedHandle(false), 2000);
-  };
-
-  const handleCopyWsId = () => {
-    if (!currentWorkspace?.id) return;
-    navigator.clipboard.writeText(currentWorkspace.id).catch(() => { });
-    setCopiedWsId(true);
-    showToast(`Copied Workspace ID: ${currentWorkspace.id}`);
-    setTimeout(() => setCopiedWsId(false), 2000);
-  };
-
-  // Avatar Upload Handler
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Image file must be under 2MB.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setCustomAvatar(result);
-      showToast('Profile photo updated.');
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleRemoveAvatar = () => {
-    setCustomAvatar(null);
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
-    showToast('Profile photo removed.');
-  };
-
-  // Real Save Changes Action
-  const handleSaveAll = async () => {
-    if (!checkPermissionOrToast('settings:manage', 'save workspace settings')) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // 1. Update workspace in PostgreSQL and state
-      if (currentWorkspace?.id && displayName.trim()) {
-        await updateWorkspace(currentWorkspace.id, displayName.trim(), vanityHandle.trim());
-      }
-
-      // 2. Persist workspace settings in localStorage
-      const storageKey = `workspace_settings_${currentWorkspace?.id || 'default'}`;
-      const payload = {
-        vanityHandle: vanityHandle.trim(),
-        contactEmail: contactEmail.trim(),
-        languageRegion,
-        customAvatar,
-        socialChannels,
-        privacyPreferences,
-        updatedAt: new Date().toISOString()
-      };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
-
-      setSavedSuccess(true);
-      showToast('Settings saved successfully.');
-      setTimeout(() => setSavedSuccess(false), 2500);
-    } catch (err) {
-      console.warn('Failed to save settings:', err);
-      showToast('Failed to save changes. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // DNS Verification for Domain (Supports live DNS check and Developer Demo Simulation)
-  const handleTestDomainDns = async (domainId: string, hostname: string, simulateBypass = false) => {
-    setVerifyingDomainId(domainId);
-    try {
-      const res = await verifyDomain(domainId, simulateBypass);
-      if (res.verified) {
-        showToast(`Domain ${hostname} verified! Organization ownership (TXT) & Edge routing (CNAME) active.`);
-      } else {
-        showToast(res.message || `DNS verification pending for ${hostname}.`);
-      }
-    } catch {
-      showToast(`DNS check failed for ${hostname}.`);
-    } finally {
-      setVerifyingDomainId(null);
-    }
-  };
-
-  // Handle Add Domain
-  const handleSaveNewDomain = async (e: React.FormEvent) => {
+  const saveGeneral = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDomainHostname.trim()) return;
-
-    if (!checkPermissionOrToast('domains:manage', 'add custom domains')) {
-      return;
-    }
-
-    setIsAddingDomain(true);
-    try {
-      const cleanHost = newDomainHostname.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-      const created = await addDomain(cleanHost, false, newDomainRootRedirect.trim() || undefined);
-      if (created) {
-        showToast(`Registered ${cleanHost}. Please configure DNS records below to verify organization ownership.`);
-        setNewDomainHostname('');
-        setNewDomainRootRedirect('');
-        setAddDomainModalOpen(false);
-        setExpandedDnsDomainId(created.id);
-      } else {
-        showToast(`Domain registration failed.`);
-      }
-    } finally {
-      setIsAddingDomain(false);
-    }
+    if (!dirty || !name.trim() || saving) return;
+    if (!checkPermissionOrToast('settings:manage', 'change workspace settings')) return;
+    setSaving(true);
+    const ok = await updateWorkspace(currentWorkspace.id, name.trim(), slugify(slug) || slugify(name));
+    setSaving(false);
+    if (ok) showToast('success', 'Workspace saved');
   };
 
-  // Handle Set Primary Domain
-  const handleSetPrimaryDomain = async (domainId: string, hostname: string) => {
-    if (!checkPermissionOrToast('domains:manage', 'configure custom domains')) {
-      return;
-    }
-    const success = await updateDomainConfig(domainId, { is_primary: true });
-    if (success) {
-      showToast(`${hostname} set as default workspace domain.`);
-    }
-  };
+  // ── Domains ──
+  const [newHost, setNewHost] = useState('');
+  const [newRedirect, setNewRedirect] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [checkingId, setCheckingId] = useState<string | null>(null);
+  const [openDnsId, setOpenDnsId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Domain | null>(null);
+  const [editRedirect, setEditRedirect] = useState('');
+  const [savingDomain, setSavingDomain] = useState(false);
+  const [toDelete, setToDelete] = useState<Domain | null>(null);
 
-  // Handle Delete Domain
-  const handleDeleteDomain = async (domainId: string, hostname: string) => {
-    if (!checkPermissionOrToast('domains:manage', 'delete custom domains')) {
-      return;
-    }
-    await deleteDomain(domainId);
-    showToast(`Domain ${hostname} removed.`);
-  };
-
-  // Handle Save Domain Configuration (e.g. Root Redirect URL)
-  const handleSaveDomainConfig = async (e: React.FormEvent) => {
+  const handleAddDomain = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingDomain) return;
-    setIsSavingDomain(true);
-    try {
-      const success = await updateDomainConfig(editingDomain.id, {
-        root_redirect_url: editRootRedirectUrl.trim() || undefined
-      });
-      if (success) {
-        showToast(`Domain ${editingDomain.hostname} configuration updated.`);
-        setEditingDomain(null);
-      } else {
-        showToast(`Failed to update domain configuration.`);
-      }
-    } finally {
-      setIsSavingDomain(false);
+    if (!newHost.trim() || adding) return;
+    if (!checkPermissionOrToast('domains:manage', 'add custom domains')) return;
+    setAdding(true);
+    const host = newHost.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    const created = await addDomain(host, false, newRedirect.trim() || undefined);
+    setAdding(false);
+    if (created) {
+      setNewHost('');
+      setNewRedirect('');
+      setOpenDnsId(created.id);
+      showToast('success', `${host} added`, 'Add the DNS records below, then check DNS.');
     }
   };
 
-  // Active domains list for current workspace
-  const displayDomains: Domain[] = useMemo(() => {
-    return domains;
-  }, [domains]);
+  const handleCheckDns = async (d: Domain) => {
+    setCheckingId(d.id);
+    try {
+      const res = await verifyDomain(d.id);
+      showToast(res.verified ? 'success' : 'error', res.verified ? `${d.hostname} is verified` : `${d.hostname} not verified yet`, res.message);
+      if (res.verified) setOpenDnsId(prev => (prev === d.id ? null : prev));
+    } finally {
+      setCheckingId(null);
+    }
+  };
+
+  const saveRedirect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing || savingDomain) return;
+    setSavingDomain(true);
+    // An empty value clears the redirect
+    const ok = await updateDomainConfig(editing.id, { root_redirect_url: editRedirect.trim() });
+    setSavingDomain(false);
+    if (ok) {
+      showToast('success', 'Domain updated', editing.hostname);
+      setEditing(null);
+    }
+  };
 
   if (!mounted || (isInitialLoading && !currentUser)) {
-    return (
-      <div className="flex flex-col w-full max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in text-on-surface">
-        <SkeletonSettingsView />
-      </div>
-    );
+    return <SkeletonSettingsView />;
   }
 
+  const iconBtn = 'size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50';
+  const input = 'h-[34px] px-3 bg-surface-container-low rounded-md text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:border-on-surface-variant disabled:opacity-60';
+  const primaryBtn = 'h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+  const verifiedCount = domains.filter(d => d.verified).length;
+
+  const statusOf = (d: Domain): [string, string] => {
+    if (d.verified) return ['bg-emerald-500', 'Verified'];
+    if (d.routing_verified && !d.ownership_verified) return ['bg-amber-500', 'Needs TXT record'];
+    if (d.ownership_verified && !d.routing_verified) return ['bg-amber-500', 'Needs A or CNAME record'];
+    return ['bg-amber-500', 'Waiting for DNS'];
+  };
+
+  const dnsRow = (type: string, host: string, value: string, key: string, done?: boolean) => (
+    <tr key={key} className="border-b-[0.5px] border-outline-variant last:border-b-0">
+      <td className="py-2 px-3 font-mono">{type}</td>
+      <td className="py-2 px-3 font-mono break-all">{host}</td>
+      <td className="py-2 px-3 font-mono break-all">{value}</td>
+      <td className="py-2 px-3 text-right whitespace-nowrap">
+        {done && <Check className="w-3.5 h-3.5 inline text-emerald-600 mr-1" aria-label="Found" />}
+        <button type="button" onClick={() => copy(value, key)} aria-label={`Copy ${type} value`} className="p-1 text-on-surface-variant hover:text-on-surface cursor-pointer">
+          {copied === key ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+      </td>
+    </tr>
+  );
+
   return (
-    <div className="flex flex-col w-full max-w-6xl mx-auto space-y-6 pb-24 animate-fade-in text-on-surface">
+    <div className="flex flex-col w-full gap-[15px] pb-16 animate-fade-in text-on-surface">
 
-      {/* 1. PAGE HEADER */}
-      <div className="flex flex-col gap-1 pt-1">
-        <div className="flex items-center gap-2 text-on-surface-variant font-mono text-xs uppercase tracking-wider">
-          <span>WORKSPACE</span>
-          <span>/</span>
-          <span className="text-primary-ink font-semibold">SETTINGS</span>
-        </div>
-
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight">
-              Settings &amp; Workspace Profile
-            </h1>
-            <p className="text-xs sm:text-sm text-on-surface-variant mt-1 max-w-2xl">
-              Configure your workspace brand, custom branded domains, social channel handles, and link privacy preferences.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            <span className="inline-flex items-center gap-2 px-2.5 py-1 bg-surface-container-high rounded-md text-xs text-on-surface font-semibold border-[0.5px] border-outline-variant shadow-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>{currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'Pro Active'}</span>
-            </span>
-
-            <button
-              type="button"
-              onClick={handleCopyWsId}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface rounded-md text-xs font-mono font-medium border-[0.5px] border-outline-variant transition cursor-pointer"
-              title="Click to copy Workspace ID"
-            >
-              <span>{currentWorkspace?.id || 'ws_default'}</span>
-              {copiedWsId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. SETTINGS HORIZONTAL TABS */}
-      <div className="bg-surface-container-low p-1 rounded-xl flex items-center gap-1 overflow-x-auto scrollbar-none max-w-full shadow-xs border-[0.5px] border-outline-variant text-xs font-bold">
-        {[
-          { id: 'profile', label: 'Workspace Profile', icon: User },
-          { id: 'domains', label: `Branded Domains (${domains.length})`, icon: Globe },
-          { id: 'social', label: 'Social Channels', icon: Video },
-          { id: 'privacy', label: 'Tracking & Privacy', icon: ShieldCheck },
-          { id: 'billing', label: 'Billing & Quotas', icon: Sparkles }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeSettingsTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveSettingsTab(tab.id as SettingsTab)}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${isActive
-                  ? 'bg-surface-container-lowest text-primary-ink shadow-xs font-extrabold'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60'
-                }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 3. TAB 1: CREATOR & WORKSPACE PROFILE */}
-      {activeSettingsTab === 'profile' && (
-        <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 flex flex-col gap-6 animate-fade-in">
-          <div className="flex items-start justify-between pb-3 border-b border-outline-variant">
-            <div>
-              <h2 className="text-base font-bold text-on-surface">Workspace Brand &amp; Profile</h2>
-              <p className="text-xs text-on-surface-variant mt-0.5">
-                Public presence details used across all generated bio links, Open Graph cards, and landing pages.
-              </p>
-            </div>
-            <span className="font-mono text-xs text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md border border-outline-variant">
-              ID: {currentWorkspace?.id || 'ws_default'}
-            </span>
-          </div>
-
-          {/* Avatar Uploader & Info */}
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 p-4 rounded-lg bg-surface-container-low border border-outline-variant">
-            <div className="relative group shrink-0">
-              <input
-                type="file"
-                ref={avatarInputRef}
-                onChange={handleAvatarFileChange}
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-              />
-              <div
-                onClick={() => avatarInputRef.current?.click()}
-                className="w-20 h-20 rounded-xl overflow-hidden shadow-xs bg-primary-container text-on-primary flex items-center justify-center text-2xl font-bold border-2 border-surface-container-lowest cursor-pointer hover:opacity-90 transition relative"
-                title="Click to change photo"
-              >
-                {customAvatar ? (
-                  <img src={customAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                ) : currentUser?.avatar ? (
-                  currentUser.avatar
-                ) : (
-                  (currentUser?.name || 'W').charAt(0).toUpperCase()
-                )}
-                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition text-white">
-                  <Camera className="w-5 h-5" />
-                </div>
-              </div>
-              <span className="absolute -bottom-1 -right-1 bg-surface-container-lowest p-1 rounded-full shadow-xs text-primary-ink border border-outline-variant">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              </span>
-            </div>
-
-            <div className="flex-1 flex flex-col gap-1 text-center sm:text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-base font-bold text-on-surface">
-                  {displayName || currentWorkspace?.name || 'Workspace Owner'}
-                </span>
-                <span className="px-2 py-0.5 bg-surface-container-high rounded-md text-xs text-primary-ink font-semibold w-fit mx-auto sm:mx-0">
-                  {currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'Pro Active'}
-                </span>
-              </div>
-              <p className="text-xs text-on-surface-variant">Recommended size: 400&times;400px. JPG, PNG or WebP under 2MB.</p>
-
-              <div className="flex items-center gap-2 mt-2 justify-center sm:justify-start">
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  className="px-3 py-1.5 bg-surface-container-lowest text-xs font-semibold text-on-surface rounded-lg shadow-xs border-[0.5px] border-outline-variant hover:bg-surface-container transition-all cursor-pointer"
-                >
-                  Upload new photo
-                </button>
-                {customAvatar && (
-                  <button
-                    type="button"
-                    onClick={handleRemoveAvatar}
-                    className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 transition-colors cursor-pointer"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Profile Form Fields Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-
-            {/* Workspace Display Name */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface flex items-center justify-between">
-                <span>Workspace Display Name</span>
-                <span className="text-[11px] text-on-surface-variant font-normal">Brand identity</span>
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Acme Marketing Studio"
-                className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-low text-xs text-on-surface border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong transition-all"
-              />
-            </div>
-
-            {/* Default Vanity Handle */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface flex items-center justify-between">
-                <span>Default Vanity Slug / Alias</span>
-                <span className="text-[11px] text-on-surface-variant font-normal">Bio hub URL prefix</span>
-              </label>
-              <div className="flex rounded-lg bg-surface-container-low overflow-hidden border-[0.5px] border-outline-variant focus-within:ring-2 focus-within:ring-primary-strong transition-all">
-                <span className="px-3 py-2 font-mono text-xs text-on-surface-variant select-none bg-surface-container border-r border-outline-variant">
-                  {originDomain}/
-                </span>
-                <input
-                  type="text"
-                  value={vanityHandle}
-                  onChange={(e) => setVanityHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                  className="flex-1 px-3 py-2 bg-transparent font-mono text-xs text-primary-ink font-bold focus:outline-none"
-                  placeholder="brand-name"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyHandle}
-                  className="px-3 text-on-surface-variant hover:text-primary-ink transition-colors cursor-pointer"
-                  title="Copy Vanity Link"
-                >
-                  {copiedHandle ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Contact & Notification Email */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface">Contact &amp; Notification Email</label>
-              <div className="relative flex items-center">
-                <Mail className="w-4 h-4 text-outline absolute left-3 pointer-events-none" />
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="contact@yourcompany.com"
-                  className="w-full pl-9 pr-3.5 py-2.5 rounded-lg bg-surface-container-low text-xs text-on-surface border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Primary Language & Region */}
-            <div className="flex flex-col gap-1.5">
-              <label className="font-semibold text-on-surface">Primary Language &amp; Region</label>
-              <div className="relative flex items-center">
-                <Globe2 className="w-4 h-4 text-outline absolute left-3 pointer-events-none" />
-                <select
-                  value={languageRegion}
-                  onChange={(e) => setLanguageRegion(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 rounded-lg bg-surface-container-low text-xs text-on-surface border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong appearance-none transition-all cursor-pointer"
-                >
-                  <option value="en-US">English (United States - en-US)</option>
-                  <option value="en-GB">English (United Kingdom - en-GB)</option>
-                  <option value="es-ES">Spanish (es-ES)</option>
-                  <option value="de-DE">German (de-DE)</option>
-                  <option value="fr-FR">French (fr-FR)</option>
-                  <option value="hi-IN">Hindi (India - hi-IN)</option>
-                </select>
-                <span className="pointer-events-none absolute right-3 text-outline text-[11px]">▼</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 4. TAB 2: BRANDED CUSTOM DOMAINS */}
-      {activeSettingsTab === 'domains' && (
-        <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 flex flex-col gap-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-outline-variant">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-base font-bold text-on-surface">Branded Custom Domains</h2>
-                <span className="px-2 py-0.5 rounded-md bg-secondary-fixed text-on-secondary-fixed-variant text-[11px] font-bold">
-                  {domains.length} / 5 Connected
-                </span>
-              </div>
-              <p className="text-xs text-on-surface-variant mt-0.5">
-                Route short URLs using your organization&apos;s own branded domain (e.g. <code className="font-mono text-primary-ink">go.yourbrand.com</code>) with automated SSL and ownership validation.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setAddDomainModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Connect New Domain</span>
-            </button>
-          </div>
-
-          {/* Domains Table / Cards */}
-          <div className="space-y-4 text-xs">
-            {displayDomains.length === 0 ? (
-              <div className="rounded-lg bg-surface-container-low p-8 border-[0.5px] border-outline-variant text-center flex flex-col items-center justify-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shadow-xs">
-                  <Globe className="w-6 h-6" />
-                </div>
-                <div className="max-w-md">
-                  <h3 className="text-sm font-bold text-on-surface">No Custom Domains Connected</h3>
-                  <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                    Connect your organization&apos;s custom domain (e.g. <span className="font-mono text-primary-ink">links.yourbrand.com</span>) to route short links under your brand with automated Edge SSL certificates.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAddDomainModalOpen(true)}
-                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary-container text-on-primary hover:bg-primary text-xs font-bold transition shadow-xs cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Connect Your First Domain</span>
-                </button>
-              </div>
-            ) : (
-              displayDomains.map((dom) => {
-                const isDefaultPrimary = dom.is_default || dom.id === 'dom_primary_default';
-                const isExpanded = expandedDnsDomainId === dom.id;
-                const subdomainHost = dom.hostname.includes('.') ? dom.hostname.split('.')[0] : '@';
-                const txtToken = dom.verify_token || `tinyurl-verification=tiny_${dom.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}`;
-                const cnameTarget = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
-
-                return (
-                  <div
-                    key={dom.id}
-                    className="rounded-lg bg-surface-container-low p-4 sm:p-5 flex flex-col gap-4 border-[0.5px] border-outline-variant transition-all shadow-xs"
-                  >
-                    {/* Card Header */}
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                      <div className="flex items-start gap-3.5">
-                        <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0 shadow-xs">
-                          <Globe className="w-5 h-5" />
-                        </div>
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-sm font-bold text-on-surface">
-                              {dom.hostname}
-                            </span>
-
-                            {/* Ownership Badge */}
-                            {dom.ownership_verified || dom.verified ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">
-                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>Ownership Verified</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold">
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-                                <span>Ownership Pending (TXT)</span>
-                              </span>
-                            )}
-
-                            {/* Routing & SSL Badge */}
-                            {dom.verified ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[11px] font-semibold">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                                <span>Edge TLS 1.3 Active</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant border-[0.5px] border-outline-variant text-[11px] font-medium">
-                                <span>Routing Pending (CNAME)</span>
-                              </span>
-                            )}
-
-                            {isDefaultPrimary && (
-                              <span className="px-2 py-0.5 rounded bg-primary-container text-on-primary text-[10px] font-bold uppercase tracking-wider">
-                                Default Primary
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Root Redirect Info */}
-                          <div className="flex items-center gap-2 text-on-surface-variant text-xs flex-wrap">
-                            <span>Root Destination:</span>
-                            <span className="font-mono font-medium text-on-surface bg-surface-container px-2 py-0.5 rounded text-[11px]">
-                              {dom.root_redirect_url || `https://${dom.hostname} (Default)`}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 flex-wrap self-end md:self-center">
-                        {dom.id !== 'dom_platform' && (
-                          <button
-                            type="button"
-                            onClick={() => setExpandedDnsDomainId(isExpanded ? null : dom.id)}
-                            className="px-3 py-1.5 bg-surface-container text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container-high transition-colors shadow-xs border-[0.5px] border-outline-variant cursor-pointer"
-                          >
-                            {isExpanded ? 'Hide DNS Records' : 'View DNS Records'}
-                          </button>
-                        )}
-
-                        {dom.id !== 'dom_platform' && (
-                          <button
-                            type="button"
-                            disabled={verifyingDomainId === dom.id}
-                            onClick={() => handleTestDomainDns(dom.id, dom.hostname, false)}
-                            className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-lg hover:bg-primary transition-all shadow-xs cursor-pointer disabled:opacity-50"
-                          >
-                            {verifyingDomainId === dom.id ? 'Checking DNS...' : 'Verify Live DNS'}
-                          </button>
-                        )}
-
-                        {!isDefaultPrimary && dom.id !== 'dom_primary_default' && dom.id !== 'dom_platform' && (
-                          <button
-                            type="button"
-                            onClick={() => handleSetPrimaryDomain(dom.id, dom.hostname)}
-                            className="px-2.5 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-medium rounded-lg hover:bg-surface-container border-[0.5px] border-outline-variant transition cursor-pointer"
-                          >
-                            Set Primary
-                          </button>
-                        )}
-
-                        {dom.id !== 'dom_platform' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingDomain(dom);
-                              setEditRootRedirectUrl(dom.root_redirect_url || '');
-                            }}
-                            className="p-1.5 text-outline hover:text-primary-ink hover:bg-surface-container rounded-lg border-[0.5px] border-outline-variant transition cursor-pointer"
-                            title="Edit Root Redirect & Domain Configuration"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {dom.id !== 'dom_primary_default' && dom.id !== 'dom_platform' && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDomain(dom.id, dom.hostname)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition cursor-pointer"
-                            title="Remove domain"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Expandable DNS Records Drawer */}
-                    {isExpanded && (
-                      <div className="pt-3 border-t-[0.5px] border-outline-variant flex flex-col gap-3 animate-fade-in bg-surface-container-lowest p-3.5 rounded-lg border-[0.5px] border-outline-variant">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-outline-variant">
-                          <span className="font-bold text-on-surface text-xs flex items-center gap-1.5">
-                            <Server className="w-4 h-4 text-primary-ink" />
-                            <span>DNS Records Required for {dom.hostname}</span>
-                          </span>
-                          <span className="text-[11px] text-on-surface-variant">Configure in your DNS provider (Cloudflare, GoDaddy, Namecheap, Hostinger)</span>
-                        </div>
-
-                        {/* Apex vs Subdomain Quick Tip */}
-                        <div className="p-2.5 rounded-md bg-primary-container/10 border border-primary-strong/20 text-[11px] text-on-surface leading-relaxed">
-                          💡 <strong>DNS Guide:</strong> If using a <strong>Root/Apex domain</strong> (e.g. <span className="font-mono text-primary-ink">{dom.hostname}</span>), add the <strong>A Record</strong> below. If using a <strong>Subdomain</strong> (e.g. <span className="font-mono text-primary-ink">links.{dom.hostname}</span>), add the <strong>CNAME Record</strong>.
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-
-                          {/* Record 1: A Record (Recommended for Root Domains) */}
-                          <div className="p-3 rounded-md bg-surface-container-low border border-emerald-200/60 dark:border-emerald-800/40 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                                <span>A Record</span>
-                                <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-bold">A (Root @)</span>
-                              </span>
-                              <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">For Apex Domain</span>
-                            </div>
-                            <div className="space-y-1 font-mono text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-outline">Host/Name:</span>
-                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
-                                  @
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-outline shrink-0">IP Target:</span>
-                                <span className="text-primary-ink font-semibold bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                  {edgeProxyIp}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(edgeProxyIp);
-                                    setCopiedIpDomainId(dom.id);
-                                    setTimeout(() => setCopiedIpDomainId(null), 2000);
-                                  }}
-                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
-                                  title="Copy IP Address"
-                                >
-                                  {copiedIpDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Record 2: CNAME Record (For Subdomains) */}
-                          <div className="p-3 rounded-md bg-surface-container-low border border-blue-200/60 dark:border-blue-800/40 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                                <span>CNAME Record</span>
-                                <span className="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 text-[10px] font-bold">CNAME</span>
-                              </span>
-                              <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium">For Subdomain</span>
-                            </div>
-                            <div className="space-y-1 font-mono text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-outline">Host/Name:</span>
-                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
-                                  {subdomainHost}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-outline shrink-0">Target:</span>
-                                <span className="text-primary-ink font-semibold truncate bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                  {cnameTarget}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(cnameTarget);
-                                    setCopiedCnameDomainId(dom.id);
-                                    setTimeout(() => setCopiedCnameDomainId(null), 2000);
-                                  }}
-                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
-                                  title="Copy CNAME target"
-                                >
-                                  {copiedCnameDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Record 3: Ownership Challenge TXT */}
-                          <div className="p-3 rounded-md bg-surface-container-low border border-amber-200/60 dark:border-amber-800/40 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-on-surface text-[11px] flex items-center gap-1">
-                                <span>Ownership TXT</span>
-                                <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 text-[10px] font-bold">TXT</span>
-                              </span>
-                              <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">Authorization</span>
-                            </div>
-                            <div className="space-y-1 font-mono text-[11px]">
-                              <div className="flex items-center justify-between">
-                                <span className="text-outline">Host/Name:</span>
-                                <span className="text-on-surface font-semibold bg-surface-container px-1.5 py-0.5 rounded">
-                                  _tinyurl-challenge
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between gap-1">
-                                <span className="text-outline shrink-0">Value:</span>
-                                <span className="text-primary-ink font-semibold truncate bg-surface-container px-1.5 py-0.5 rounded flex-1 text-right">
-                                  {txtToken}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(txtToken);
-                                    setCopiedTokenDomainId(dom.id);
-                                    setTimeout(() => setCopiedTokenDomainId(null), 2000);
-                                  }}
-                                  className="p-1 hover:bg-surface-container rounded cursor-pointer text-outline hover:text-on-surface"
-                                  title="Copy TXT verification token"
-                                >
-                                  {copiedTokenDomainId === dom.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              }))}
-          </div>
-
-          {/* Inline DNS Quick Info Notice */}
-          <div className="p-4 rounded-lg bg-surface-container-low flex items-start gap-3 border-[0.5px] border-outline-variant text-xs">
-            <Info className="w-4 h-4 text-primary-ink shrink-0 mt-0.5" />
-            <div className="text-on-surface leading-relaxed flex-1">
-              <strong className="font-semibold">Enterprise Domain Verification:</strong> To guarantee security and prevent unauthorized domain hijacking, we verify that your organization controls the DNS zone via the <code className="font-mono px-1.5 py-0.5 bg-surface-container-lowest rounded border border-outline-variant">TXT</code> challenge before provisioning automated Edge TLS certificates.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 5. TAB 3: SOCIAL CHANNELS & ATTRIBUTION */}
-      {activeSettingsTab === 'social' && (
-        <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 flex flex-col gap-6 animate-fade-in">
-          <div>
-            <h2 className="text-base font-bold text-on-surface">Social Channel Integrations</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              Connect your social distribution handles for automated video description sync, link trees, and audience attribution.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-
-            {/* YouTube */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-600 shrink-0">
-                    <Video className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-on-surface block">YouTube Channel</span>
-                    <span className="text-[11px] text-on-surface-variant">Auto-sync video descriptions &amp; cards</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={socialChannels.youtube.enabled}
-                    onChange={(e) => setSocialChannels(s => ({ ...s, youtube: { ...s.youtube, enabled: e.target.checked } }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-              <input
-                type="text"
-                placeholder="@yourchannel or channel URL"
-                value={socialChannels.youtube.handle}
-                onChange={(e) => setSocialChannels(s => ({ ...s, youtube: { ...s.youtube, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-strong"
-              />
-            </div>
-
-            {/* Instagram */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-600 shrink-0">
-                    <Camera className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-on-surface block">Instagram Bio</span>
-                    <span className="text-[11px] text-on-surface-variant">Bio link auto-updater active</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={socialChannels.instagram.enabled}
-                    onChange={(e) => setSocialChannels(s => ({ ...s, instagram: { ...s.instagram, enabled: e.target.checked } }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-              <input
-                type="text"
-                placeholder="@instagram_handle"
-                value={socialChannels.instagram.handle}
-                onChange={(e) => setSocialChannels(s => ({ ...s, instagram: { ...s.instagram, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-strong"
-              />
-            </div>
-
-            {/* TikTok */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-lime-400/10 flex items-center justify-center text-lime-700 shrink-0">
-                    <Smartphone className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="font-bold text-on-surface block">TikTok Profile</span>
-                    <span className="text-[11px] text-on-surface-variant">Profile link click telemetry</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={socialChannels.tiktok.enabled}
-                    onChange={(e) => setSocialChannels(s => ({ ...s, tiktok: { ...s.tiktok, enabled: e.target.checked } }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-              <input
-                type="text"
-                placeholder="@tiktok_creator"
-                value={socialChannels.tiktok.handle}
-                onChange={(e) => setSocialChannels(s => ({ ...s, tiktok: { ...s.tiktok, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-strong"
-              />
-            </div>
-
-            {/* X / Twitter */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center text-on-surface font-bold text-sm shrink-0 border border-outline-variant">
-                    𝕏
-                  </div>
-                  <div>
-                    <span className="font-bold text-on-surface block">X / Twitter</span>
-                    <span className="text-[11px] text-on-surface-variant">Pinned post auto-syncing</span>
-                  </div>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                  <input
-                    type="checkbox"
-                    checked={socialChannels.twitter.enabled}
-                    onChange={(e) => setSocialChannels(s => ({ ...s, twitter: { ...s.twitter, enabled: e.target.checked } }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-                </label>
-              </div>
-              <input
-                type="text"
-                placeholder="@x_handle"
-                value={socialChannels.twitter.handle}
-                onChange={(e) => setSocialChannels(s => ({ ...s, twitter: { ...s.twitter, handle: e.target.value } }))}
-                className="w-full px-3 py-2 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface font-mono outline-none focus:ring-2 focus:ring-primary-strong"
-              />
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 6. TAB 4: TRACKING & PRIVACY PREFERENCES */}
-      {activeSettingsTab === 'privacy' && (
-        <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 flex flex-col gap-6 animate-fade-in">
-          <div>
-            <h2 className="text-base font-bold text-on-surface">Tracking &amp; Privacy Preferences</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              Standardize campaign attribution and ensure compliance with GDPR, CCPA, and privacy frameworks.
-            </p>
-          </div>
-
-          <div className="divide-y divide-outline-variant flex flex-col text-xs">
-
-            {/* Preference 1: Cookie-less */}
-            <div className="py-4 first:pt-0 flex items-start justify-between gap-4">
-              <div className="flex flex-col gap-1 max-w-xl">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-on-surface text-xs">Cookie-less Analytics Processing</span>
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold text-[10px]">
-                    GDPR &amp; CCPA Compliant
-                  </span>
-                </div>
-                <p className="text-on-surface-variant text-[11px] leading-relaxed">
-                  Hash visitor IP addresses server-side so audience members are never tracked with invasive third-party cookie banners.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
-                <input
-                  type="checkbox"
-                  checked={privacyPreferences.cookieless}
-                  onChange={(e) => setPrivacyPreferences(p => ({ ...p, cookieless: e.target.checked }))}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-            {/* Preference 2: UTM auto population */}
-            <div className="py-4 flex items-start justify-between gap-4">
-              <div className="flex flex-col gap-1 max-w-xl">
-                <span className="font-bold text-on-surface text-xs">Default UTM Campaign Auto-population</span>
-                <p className="text-on-surface-variant text-[11px] leading-relaxed">
-                  Automatically append source, medium, and campaign metadata into link destinations when clicks originate from social channels.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
-                <input
-                  type="checkbox"
-                  checked={privacyPreferences.utmAuto}
-                  onChange={(e) => setPrivacyPreferences(p => ({ ...p, utmAuto: e.target.checked }))}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-            {/* Preference 3: Expiration Alerts */}
-            <div className="py-4 last:pb-0 flex items-start justify-between gap-4">
-              <div className="flex flex-col gap-1 max-w-xl">
-                <span className="font-bold text-on-surface text-xs">Link Expiration &amp; Downtime Alerts</span>
-                <p className="text-on-surface-variant text-[11px] leading-relaxed">
-                  Dispatches warnings whenever campaign links expire or remote sponsor endpoints throw 404 or SSL handshake errors.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
-                <input
-                  type="checkbox"
-                  checked={privacyPreferences.alerts}
-                  onChange={(e) => setPrivacyPreferences(p => ({ ...p, alerts: e.target.checked }))}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* 7. TAB 5: BILLING & RESOURCE QUOTAS */}
-      {activeSettingsTab === 'billing' && (
-        <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 flex flex-col gap-6 animate-fade-in">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-outline-variant">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-on-surface">Workspace Plan &amp; Quotas</h2>
-                <span className="px-2 py-0.5 rounded-md bg-secondary-fixed text-on-secondary-fixed-variant text-[11px] font-bold">
-                  {currentWorkspace?.plan ? `${currentWorkspace.plan.toUpperCase()} Plan` : 'PRO Plan'}
-                </span>
-              </div>
-              <p className="text-xs text-on-surface-variant mt-0.5">
-                Workspace resources, usage limits, and collaborative permissions.
-              </p>
-            </div>
-            <div className="text-left sm:text-right">
-              <span className="text-2xl font-black text-on-surface">$29</span>
-              <span className="text-xs text-on-surface-variant"> / month</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {/* Links Quota */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between">
-              <div>
-                <span className="text-xs text-on-surface-variant font-medium">Active Short Links</span>
-                <div className="text-xl font-bold text-on-surface mt-1">{links.length} Active</div>
-              </div>
-              <span className="text-[11px] text-emerald-600 font-semibold mt-2">Active tier limit: Unlimited</span>
-            </div>
-
-            {/* Custom Domains Quota */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between">
-              <div>
-                <span className="text-xs text-on-surface-variant font-medium">Custom Branded Domains</span>
-                <div className="text-xl font-bold text-on-surface mt-1">{domains.length} of 3 Used</div>
-              </div>
-              <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-2">
-                <div className="bg-primary-container h-full rounded-full" style={{ width: `${Math.min(100, (domains.length / 3) * 100)}%` }} />
-              </div>
-            </div>
-
-            {/* Team Collaborators Quota */}
-            <div className="p-4 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex flex-col justify-between">
-              <div>
-                <span className="text-xs text-on-surface-variant font-medium">Team Collaborators</span>
-                <div className="text-xl font-bold text-on-surface mt-1">{teamMembers.length} Members</div>
-              </div>
-              <span className="text-[11px] text-primary-ink font-semibold mt-2">Role-based access enforced</span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-2 flex-wrap gap-2 text-xs">
-            <span className="text-on-surface-variant">
-              Invoices are automatically generated and linked to your workspace billing account.
-            </span>
-            <button
-              type="button"
-              onClick={() => setUpgradeModalOpen(true)}
-              className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary transition shadow-xs cursor-pointer"
-            >
-              Manage Subscription Plan
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 8. PERSISTENT STICKY BOTTOM ACTION BAR */}
-      <div className="sticky bottom-4 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-3 sm:p-4 rounded-xl shadow-xl border-[0.5px] border-outline-variant flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-        <div className="flex items-center gap-2 text-on-surface-variant text-xs">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Workspace: <strong className="text-on-surface">{currentWorkspace?.name || 'My Workspace'}</strong></span>
-        </div>
-
-        <div className="flex items-center justify-end gap-2.5 self-end sm:self-auto">
+      <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs self-start" role="tablist" aria-label="Settings sections">
+        {([['general', 'General'], ['domains', `Domains`]] as const).map(([id, label]) => (
           <button
+            key={id}
             type="button"
-            onClick={() => {
-              setDisplayName(currentWorkspace?.name || 'My Workspace');
-              setVanityHandle(currentWorkspace?.slug || 'workspace');
-              showToast('Reset form to current saved state.');
-            }}
-            className="px-3.5 py-2 rounded-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low transition-all cursor-pointer"
+            role="tab"
+            aria-selected={tab === id}
+            onClick={() => setTab(id)}
+            className={`h-[26px] px-3 rounded-[4px] transition-colors cursor-pointer ${tab === id ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
           >
-            Reset
+            {label}{id === 'domains' && <span className="text-outline"> {domains.length}</span>}
           </button>
+        ))}
+      </div>
 
-          <button
-            type="button"
-            disabled={isSaving}
-            onClick={handleSaveAll}
-            className="px-4 py-2 rounded-lg text-xs bg-primary-container text-on-primary font-bold hover:bg-primary transition-all shadow-md shadow-primary-container/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-          >
-            {isSaving ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : savedSuccess ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-300" />
-                <span>Saved!</span>
-              </>
+      {/* ── General ── */}
+      {tab === 'general' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px] items-start">
+          <form onSubmit={saveGeneral} className="lg:col-span-7 rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-3">
+            <h2 className="text-[14px] font-semibold text-on-surface">Workspace</h2>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-on-surface-variant">Name</span>
+              <input type="text" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} disabled={!canEditWorkspace} className={input} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-on-surface-variant">URL slug</span>
+              <input type="text" maxLength={48} value={slug} onChange={(e) => setSlug(e.target.value)} onBlur={() => setSlug(s => slugify(s))} disabled={!canEditWorkspace} className={`${input} font-mono`} />
+            </label>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] text-on-surface-variant">Workspace ID</span>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 min-w-0 h-[34px] px-3 flex items-center rounded-md bg-surface-container-low border-[0.5px] border-outline-variant text-xs font-mono text-on-surface-variant truncate">{currentWorkspace?.id}</code>
+                <button type="button" onClick={() => copy(currentWorkspace?.id || '', 'wsid')} title="Copy workspace ID" aria-label="Copy workspace ID" className={iconBtn}>
+                  {copied === 'wsid' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+              <span className="text-[11px] text-outline">Used as <code>workspace_id</code> in API calls.</span>
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <span className="text-[11px] text-outline">{canEditWorkspace ? '' : 'Only the owner can change these.'}</span>
+              {canEditWorkspace && <button type="submit" disabled={!dirty || saving || !name.trim()} className={primaryBtn}>{saving ? 'Saving…' : 'Save'}</button>}
+            </div>
+          </form>
+
+          <div className="lg:col-span-5 rounded-xl border-[0.5px] border-outline-variant p-[15px]">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-on-surface">Usage</h2>
+              <span className="text-[11px] px-2 py-[1px] rounded-full bg-surface-container text-on-surface-variant capitalize">{currentWorkspace?.plan || 'free'} plan</span>
+            </div>
+            <div className="mt-2 flex flex-col">
+              {[
+                { icon: <Link2 className="w-4 h-4" />, label: 'Links', value: links.length },
+                { icon: <Globe2 className="w-4 h-4" />, label: 'Custom domains', value: domains.length, hint: `${verifiedCount} verified` },
+                { icon: <Users className="w-4 h-4" />, label: 'Members', value: Math.max(1, teamMembers.filter(m => m.status === 'active').length) },
+              ].map(row => (
+                <div key={row.label} className="flex items-center gap-[10px] py-2.5 border-b-[0.5px] border-outline-variant last:border-b-0">
+                  <div className="grid size-[32px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{row.icon}</div>
+                  <span className="flex-1 text-xs text-on-surface">{row.label}{row.hint && <span className="text-outline"> · {row.hint}</span>}</span>
+                  <span className="text-xs font-semibold tabular-nums text-on-surface">{row.value.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Domains ── */}
+      {tab === 'domains' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px] items-start">
+          {canManageDomains && (
+            <form onSubmit={handleAddDomain} className="lg:col-span-4 rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-3">
+              <h2 className="text-[14px] font-semibold text-on-surface">Add domain</h2>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-on-surface-variant">Domain</span>
+                <input type="text" required value={newHost} onChange={(e) => setNewHost(e.target.value)} placeholder="go.yourbrand.com" className={`${input} font-mono`} />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-on-surface-variant">Root redirect <span className="text-outline">(optional)</span></span>
+                <input type="url" value={newRedirect} onChange={(e) => setNewRedirect(e.target.value)} placeholder="https://yourbrand.com" className={input} />
+                <span className="text-[11px] text-outline">Where the bare domain goes, without a slug.</span>
+              </label>
+              <button type="submit" disabled={adding} className={primaryBtn}>{adding ? 'Adding…' : 'Add domain'}</button>
+            </form>
+          )}
+
+          <div className={`${canManageDomains ? 'lg:col-span-8' : 'lg:col-span-12'} rounded-xl border-[0.5px] border-outline-variant overflow-hidden`}>
+            <div className="px-[15px] py-3 border-b-[0.5px] border-outline-variant flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-on-surface">Domains</h2>
+              <span className="text-xs text-outline">{verifiedCount} of {domains.length} verified</span>
+            </div>
+            {domains.length === 0 ? (
+              <p className="py-10 px-6 text-center text-xs text-on-surface-variant">No custom domains yet. Links use the main domain until you add one.</p>
             ) : (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>Save Changes</span>
-              </>
+              <div className="flex flex-col">
+                {domains.map(d => {
+                  const [dot, label] = statusOf(d);
+                  const dnsOpen = openDnsId === d.id;
+                  const isApex = d.hostname.split('.').length <= 2;
+                  return (
+                    <div key={d.id} className="border-b-[0.5px] border-outline-variant last:border-b-0">
+                      <div className="px-[15px] py-2.5 flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-medium text-on-surface font-mono truncate">{d.hostname}</span>
+                            {d.is_default && <span className="text-[10px] px-1.5 py-[1px] rounded-full bg-primary-fixed text-on-secondary-container">Default</span>}
+                          </div>
+                          <div className="text-[11px] text-outline truncate flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                            <span>{label}</span>
+                            {d.root_redirect_url && <span className="truncate">· root → {d.root_redirect_url}</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {!d.verified && (
+                            <button type="button" onClick={() => setOpenDnsId(dnsOpen ? null : d.id)} aria-expanded={dnsOpen} className="h-[30px] px-2.5 rounded-md text-xs text-primary-ink hover:bg-surface-container inline-flex items-center gap-0.5 cursor-pointer">
+                              DNS records {dnsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            </button>
+                          )}
+                          {canManageDomains && (
+                            <>
+                              <button type="button" onClick={() => handleCheckDns(d)} disabled={checkingId === d.id} title="Check DNS" aria-label="Check DNS" className={iconBtn}>
+                                <RefreshCw className={`w-3.5 h-3.5 ${checkingId === d.id ? 'animate-spin' : ''}`} />
+                              </button>
+                              {!d.is_default && d.verified && (
+                                <button type="button" onClick={async () => { if (await updateDomainConfig(d.id, { is_primary: true })) showToast('success', `${d.hostname} is now the default`); }} title="Make default" aria-label="Make default" className={iconBtn}>
+                                  <Star className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <button type="button" onClick={() => { setEditing(d); setEditRedirect(d.root_redirect_url || ''); }} title="Edit root redirect" aria-label="Edit root redirect" className={iconBtn}>
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button type="button" onClick={() => setToDelete(d)} title="Remove domain" aria-label="Remove domain" className={`${iconBtn} hover:!text-error hover:!bg-error-container`}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {dnsOpen && !d.verified && (
+                        <div className="px-[15px] pb-3 animate-fade-in">
+                          <p className="text-[11px] text-on-surface-variant mb-2">
+                            Add these at your DNS provider, then press Check DNS. Use the {isApex ? 'A' : 'CNAME'} record for {isApex ? 'a root domain' : 'a subdomain'}, plus the TXT record.
+                          </p>
+                          <div className="overflow-x-auto rounded-md border-[0.5px] border-outline-variant">
+                            <table className="w-full text-left text-[11px] min-w-[460px]">
+                              <thead>
+                                <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
+                                  <th className="py-1.5 px-3 font-medium">Type</th>
+                                  <th className="py-1.5 px-3 font-medium">Name</th>
+                                  <th className="py-1.5 px-3 font-medium">Value</th>
+                                  <th className="py-1.5 px-3" />
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {isApex
+                                  ? dnsRow('A', '@', EDGE_PROXY_IP, `a_${d.id}`, d.routing_verified)
+                                  : dnsRow('CNAME', d.hostname.split('.')[0], CNAME_TARGET, `c_${d.id}`, d.routing_verified)}
+                                {d.verify_token && dnsRow('TXT', `_tinyurl-challenge.${d.hostname}`, d.verify_token, `t_${d.id}`, d.ownership_verified)}
+                              </tbody>
+                            </table>
+                          </div>
+                          <p className="mt-1.5 text-[11px] text-outline">DNS changes can take a few minutes to an hour to show up.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
-          </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 9. MODAL: ADD CUSTOM DOMAIN */}
-      {addDomainModalOpen && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setAddDomainModalOpen(false);
-          }}
-        >
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setAddDomainModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-1">
-              <Globe className="w-5 h-5 text-primary-ink" />
-              <h3 className="text-base font-bold text-on-surface">Connect Branded Custom Domain</h3>
+      {/* Edit root redirect */}
+      {editing && createPortal(
+        <div className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setEditing(null); }}>
+          <form onSubmit={saveRedirect} className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-on-surface font-mono">{editing.hostname}</h3>
+              <button type="button" onClick={() => setEditing(null)} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Connect your branded domain or subdomain to generate shortlinks under your company name with automated Edge SSL.
-            </p>
-
-            <form onSubmit={handleSaveNewDomain} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1">
-                  Domain Hostname <span className="text-error">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. go.yourcompany.com or links.brand.org"
-                  value={newDomainHostname}
-                  onChange={(e) => setNewDomainHostname(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1 flex items-center justify-between">
-                  <span>Root URL Redirection (Optional)</span>
-                  <span className="text-[10px] text-on-surface-variant font-normal">When visitors visit /</span>
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://yourcompany.com"
-                  value={newDomainRootRedirect}
-                  onChange={(e) => setNewDomainRootRedirect(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                />
-                <span className="text-[11px] text-on-surface-variant mt-1 block">
-                  Redirects users who open the root domain directly without a short slug.
-                </span>
-              </div>
-
-              <div className="p-3 bg-surface-container-low rounded-lg space-y-2 border-[0.5px] border-outline-variant text-xs">
-                <span className="font-bold text-on-surface flex items-center gap-1.5">
-                  <Server className="w-4 h-4 text-primary-ink" />
-                  <span>DNS Setup Options to Route Traffic:</span>
-                </span>
-                <div className="space-y-1.5 text-[11px] font-mono">
-                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-md border border-outline-variant">
-                    <div>
-                      <span className="font-bold text-emerald-700 mr-1.5">Option 1 (Root @):</span>
-                      <span className="text-on-surface-variant font-sans">A Record pointing to</span>
-                    </div>
-                    <span className="font-bold text-primary-ink">{edgeProxyIp}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 bg-surface-container-lowest rounded-md border border-outline-variant">
-                    <div>
-                      <span className="font-bold text-blue-700 mr-1.5">Option 2 (Subdomain):</span>
-                      <span className="text-on-surface-variant font-sans">CNAME pointing to</span>
-                    </div>
-                    <span className="font-bold text-primary-ink">{cnameTarget}</span>
-                  </div>
-                </div>
-                <p className="text-[11px] text-on-surface-variant leading-relaxed pt-1">
-                  Automated Edge SSL certificates are issued on-the-fly once either of these records is detected.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-4">
-                <button
-                  type="button"
-                  onClick={() => setAddDomainModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAddingDomain}
-                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs disabled:opacity-50"
-                >
-                  {isAddingDomain ? 'Registering...' : 'Register Domain'}
-                </button>
-              </div>
-            </form>
-          </div>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-on-surface-variant">Root redirect</span>
+              <input type="url" value={editRedirect} onChange={(e) => setEditRedirect(e.target.value)} placeholder="https://yourbrand.com" className={input} />
+              <span className="text-[11px] text-outline">Leave empty to remove it.</span>
+            </label>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" onClick={() => setEditing(null)} className="h-[34px] px-4 rounded-md text-xs text-on-surface-variant hover:bg-surface-container-low cursor-pointer">Cancel</button>
+              <button type="submit" disabled={savingDomain} className={primaryBtn}>{savingDomain ? 'Saving…' : 'Save'}</button>
+            </div>
+          </form>
         </div>,
         document.body
       )}
 
-      {/* 10. MODAL: UPGRADE / PLAN DETAILS */}
-      {upgradeModalOpen && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setUpgradeModalOpen(false);
-          }}
-        >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setUpgradeModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-1 text-primary-ink">
-              <Sparkles className="w-5 h-5" />
-              <h3 className="text-base font-bold text-on-surface">Subscription &amp; Enterprise Tiers</h3>
-            </div>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Current active tier: <strong>{currentWorkspace?.plan?.toUpperCase() || 'PRO CREATOR'}</strong>
-            </p>
-
-            <div className="space-y-3 text-xs">
-              <div className="p-3.5 rounded-lg bg-surface-container-low border border-primary-strong/30 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-on-surface block text-sm">Pro Creator ($29/mo)</span>
-                  <span className="text-on-surface-variant">Unlimited links, 3 custom domains, zero-trust shield</span>
-                </div>
-                <span className="px-2 py-0.5 rounded-md bg-primary-container text-on-primary font-bold text-[11px]">
-                  Active
-                </span>
-              </div>
-
-              <div className="p-3.5 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-on-surface block text-sm">Enterprise Dedicated ($199/mo)</span>
-                  <span className="text-on-surface-variant">Unlimited custom domains, dedicated IP pools, custom SLA</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUpgradeModalOpen(false);
-                    showToast('Enterprise inquiry dispatched to support.');
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high font-bold text-on-surface text-xs transition cursor-pointer"
-                >
-                  Contact Sales
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end pt-4 border-t-[0.5px] border-outline-variant mt-4">
+      {/* Remove domain */}
+      {toDelete && createPortal(
+        <div className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setToDelete(null); }}>
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-6 shadow-2xl border-[0.5px] border-outline-variant">
+            <h3 className="text-base font-semibold text-on-surface">Remove {toDelete.hostname}?</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">Short links on this domain stop working. The links stay in your workspace.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setToDelete(null)} className="h-[34px] px-4 rounded-md text-xs text-on-surface-variant hover:bg-surface-container-low cursor-pointer">Cancel</button>
               <button
                 type="button"
-                onClick={() => setUpgradeModalOpen(false)}
-                className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
+                onClick={async () => { const d = toDelete; setToDelete(null); if (await deleteDomain(d.id)) showToast('success', `${d.hostname} removed`); }}
+                className="h-[34px] px-4 rounded-md bg-error text-on-error text-xs font-medium hover:opacity-90 cursor-pointer"
               >
-                Close
+                Remove
               </button>
             </div>
           </div>
         </div>,
         document.body
       )}
-
-      {/* MODAL: EDIT DOMAIN CONFIGURATION */}
-      {editingDomain && mounted && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setEditingDomain(null);
-          }}
-        >
-          <div className="bg-surface rounded-2xl border-[0.5px] border-outline-variant shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
-            <div className="px-5 py-4 border-b-[0.5px] border-outline-variant flex items-center justify-between bg-surface-container-low">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary-ink flex items-center justify-center">
-                  <Globe className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-on-surface">Edit Domain Config</h3>
-                  <span className="font-mono text-xs text-primary-ink font-semibold">{editingDomain.hostname}</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingDomain(null)}
-                className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg hover:bg-surface-container transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveDomainConfig} className="p-5 flex flex-col gap-4 text-xs">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-on-surface text-xs">Root Destination URL</label>
-                <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                  Visitors accessing <span className="font-mono text-primary-ink">https://{editingDomain.hostname}/</span> directly without a short slug will be automatically redirected to this URL.
-                </p>
-                <input
-                  type="url"
-                  value={editRootRedirectUrl}
-                  onChange={(e) => setEditRootRedirectUrl(e.target.value)}
-                  placeholder={`https://example.com/homepage`}
-                  className="w-full px-3 py-2 bg-surface-container-lowest rounded-xl text-xs text-on-surface border-[0.5px] border-outline-variant focus:outline-none focus:ring-2 focus:ring-primary-strong/40 font-mono"
-                />
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-2 border-t border-outline-variant">
-                <button
-                  type="button"
-                  onClick={() => setEditingDomain(null)}
-                  className="px-3.5 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-xs font-semibold transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingDomain}
-                  className="px-4 py-2 bg-primary hover:bg-primary/90 text-on-primary rounded-xl text-xs font-bold shadow-xs transition cursor-pointer disabled:opacity-50"
-                >
-                  {isSavingDomain ? 'Saving...' : 'Save Configuration'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* 11. FLOATING NOTIFICATION TOAST */}
-      {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-3.5 py-2 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border-[0.5px] border-outline-variant text-xs font-medium">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
-        </div>,
-        document.body
-      )}
-
     </div>
   );
 };

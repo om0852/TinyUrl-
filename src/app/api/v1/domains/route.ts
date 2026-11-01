@@ -5,18 +5,19 @@ import { sql } from '@/lib/postgres';
 import { Domain } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { getSessionEmail } from '@/lib/session';
-import { 
-  addCustomHostnameToCloudflare, 
-  getCustomHostnameFromCloudflare, 
-  removeCustomHostnameFromCloudflare, 
+import { linkCache } from '@/lib/cache';
+import {
+  addCustomHostnameToCloudflare,
+  getCustomHostnameFromCloudflare,
+  removeCustomHostnameFromCloudflare,
   isCloudflareConfigured,
-  getCloudflareCnameTarget 
+  getCloudflareCnameTarget
 } from '@/lib/cloudflare';
-import { 
-  addDomainToVercel, 
-  verifyDomainOnVercel, 
-  removeDomainFromVercel, 
-  isVercelConfigured 
+import {
+  addDomainToVercel,
+  verifyDomainOnVercel,
+  removeDomainFromVercel,
+  isVercelConfigured
 } from '@/lib/vercel';
 
 interface RawDomainRow {
@@ -32,6 +33,17 @@ interface RawDomainRow {
   root_redirect_url?: string | null;
   created_by?: string | null;
   created_at?: string | null;
+}
+
+// Root redirects are followed by the edge, so only web addresses are allowed
+function isWebUrl(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  try {
+    const u = new URL(value.trim());
+    return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
+  } catch {
+    return false;
+  }
 }
 
 const RESERVED_DOMAINS = new Set([
@@ -99,9 +111,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Hostname is required.' }, { status: 400 });
     }
 
-    const cleanWsId = (workspace_id && typeof workspace_id === 'string' && workspace_id.trim()) 
-      ? workspace_id.trim() 
-      : 'ws_default';
+    if (!workspace_id || typeof workspace_id !== 'string' || !workspace_id.trim()) {
+      return NextResponse.json({ success: false, error: 'workspace_id is required.' }, { status: 400 });
+    }
+    const cleanWsId = workspace_id.trim();
+    if (root_redirect_url && !isWebUrl(root_redirect_url)) {
+      return NextResponse.json({ success: false, error: 'Root redirect must be an http:// or https:// address.' }, { status: 422 });
+    }
 
     // RBAC: Requires domains:manage permission (owner, admin only)
     const authResult = await verifyWorkspacePermission(request, 'domains:manage', {
@@ -112,7 +128,7 @@ export async function POST(request: Request) {
     }
 
     // Clean and normalize hostname
-    let cleanHost = hostname.trim().toLowerCase()
+    const cleanHost = hostname.trim().toLowerCase()
       .replace(/^https?:\/\//i, '')
       .replace(/\/.*$/, '')
       .replace(/:\d+$/, '');
@@ -120,9 +136,9 @@ export async function POST(request: Request) {
     // Hostname syntax validation
     const hostnameRegex = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$|^localhost$/i;
     if (!hostnameRegex.test(cleanHost)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: `Invalid hostname format "${cleanHost}". Please enter a valid fully qualified domain or subdomain (e.g. go.yourcompany.com).` 
+      return NextResponse.json({
+        success: false,
+        error: `Invalid hostname format "${cleanHost}". Please enter a valid fully qualified domain or subdomain (e.g. go.yourcompany.com).`
       }, { status: 422 });
     }
 
@@ -162,7 +178,7 @@ export async function POST(request: Request) {
     // Upsert domain with unverified status until DNS challenge passes
     const rows = (await sql.query(
       `INSERT INTO domains (
-         id, workspace_id, hostname, verified, ssl_status, is_primary, 
+         id, workspace_id, hostname, verified, ssl_status, is_primary,
          verify_token, ownership_verified, routing_verified, root_redirect_url, created_by, created_at
        )
        VALUES ($1, $2, $3, false, 'pending', $4, $5, false, false, $6, $7, NOW())
@@ -173,12 +189,12 @@ export async function POST(request: Request) {
            root_redirect_url = COALESCE(EXCLUDED.root_redirect_url, domains.root_redirect_url)
        RETURNING *`,
       [
-        cleanId, 
-        cleanWsId, 
-        cleanHost, 
-        !!is_default, 
-        verifyToken, 
-        root_redirect_url || null, 
+        cleanId,
+        cleanWsId,
+        cleanHost,
+        !!is_default,
+        verifyToken,
+        root_redirect_url || null,
         creatorEmail
       ]
     )) as unknown as RawDomainRow[];
@@ -276,13 +292,13 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      id, 
-      hostname, 
-      simulate_bypass, 
-      root_redirect_url, 
-      is_primary, 
-      action 
+    const {
+      id,
+      hostname,
+      simulate_bypass,
+      root_redirect_url,
+      is_primary,
+      action
     } = body;
 
     const target = id || hostname;
@@ -313,14 +329,23 @@ export async function PATCH(request: Request) {
 
     // Handle simple configuration update without DNS re-check
     if (action === 'update_config') {
+      if (root_redirect_url && !isWebUrl(root_redirect_url)) {
+        return NextResponse.json({ success: false, error: 'Root redirect must be an http:// or https:// address.' }, { status: 422 });
+      }
+      // "" clears the root redirect; undefined leaves it as is
+      const clearRedirect = root_redirect_url === '';
+      if (is_primary === true) {
+        await sql.query(`UPDATE domains SET is_primary = false WHERE workspace_id = $1 AND id <> $2`, [authResult.context.workspaceId, currentDomain.id]);
+      }
       const updated = (await sql.query(
         `UPDATE domains
-         SET root_redirect_url = COALESCE($1, root_redirect_url),
+         SET root_redirect_url = CASE WHEN $4 THEN NULL ELSE COALESCE($1, root_redirect_url) END,
              is_primary = COALESCE($2, is_primary)
-         WHERE id = $3
+         WHERE id = $3 AND workspace_id = $5
          RETURNING *`,
-        [root_redirect_url !== undefined ? root_redirect_url : null, is_primary !== undefined ? is_primary : null, currentDomain.id]
+        [root_redirect_url || null, is_primary !== undefined ? is_primary : null, currentDomain.id, clearRedirect, authResult.context.workspaceId]
       )) as unknown as RawDomainRow[];
+      await linkCache.delete(`domain_${cleanHost.toLowerCase()}`);
 
       return NextResponse.json({
         success: true,
@@ -367,10 +392,10 @@ export async function PATCH(request: Request) {
     const EXPECTED_CNAMES = [
       configuredTarget,
       'creataurus.work.gd',
-      'cname.tinyurl.dev', 
+      'cname.tinyurl.dev',
       'tiny-url-self.vercel.app'
     ];
-    const isCnameMatched = resolvedCnames.some(c => 
+    const isCnameMatched = resolvedCnames.some(c =>
       EXPECTED_CNAMES.some(exp => c.toLowerCase().includes(exp.toLowerCase()))
     );
     const isIpMatched = resolvedIps.includes(edgeProxyIp) || resolvedIps.includes('159.54.139.45');
@@ -402,27 +427,16 @@ export async function PATCH(request: Request) {
       } catch {}
     }
 
-    // Live HTTPS TLS Handshake Probe (Active verification)
-    try {
-      const probeController = new AbortController();
-      const probeTimeout = setTimeout(() => probeController.abort(), 2500);
-      const probeRes = await fetch(`https://${cleanHost}`, {
-        method: 'HEAD',
-        signal: probeController.signal
-      }).catch(() => null);
-      clearTimeout(probeTimeout);
-      if (probeRes) {
-        routingVerified = true;
-      }
-    } catch {}
-
-    // C. Developer Demo / Localhost / DuckDNS bypass
-    const isDuckDns = cleanHost.endsWith('.duckdns.org') && (resolvedIps.length > 0 || isIpMatched);
-    const isLocalOrTest = cleanHost.includes('localhost') || 
-                          cleanHost.endsWith('.test') || 
-                          cleanHost.endsWith('.local') || 
-                          isDuckDns ||
-                          simulate_bypass === true;
+    // C. Shortcuts that skip the TXT proof. In production only a DuckDNS name already pointing
+    // at the edge qualifies (simulate_bypass used to verify any domain for anyone).
+    const isDev = process.env.NODE_ENV !== 'production';
+    const isDuckDns = cleanHost.endsWith('.duckdns.org') && isIpMatched;
+    const isLocalOrTest = isDuckDns || (isDev && (
+      cleanHost.includes('localhost') ||
+      cleanHost.endsWith('.test') ||
+      cleanHost.endsWith('.local') ||
+      simulate_bypass === true
+    ));
 
     if (isLocalOrTest) {
       ownershipVerified = true;
@@ -459,10 +473,11 @@ export async function PATCH(request: Request) {
         finalSslStatus,
         ownershipVerified,
         routingVerified,
-        root_redirect_url !== undefined ? root_redirect_url : null,
+        root_redirect_url && isWebUrl(root_redirect_url) ? root_redirect_url : null,
         currentDomain.id
       ]
     )) as unknown as RawDomainRow[];
+    await linkCache.delete(`domain_${cleanHost.toLowerCase()}`);
 
     const updatedRow = rows && rows.length > 0 ? rows[0] : null;
 
@@ -521,9 +536,13 @@ export async function DELETE(request: Request) {
     }
 
     const rows = (await sql.query(
-      `DELETE FROM domains WHERE id = $1 OR LOWER(hostname) = LOWER($1) RETURNING *`,
-      [cleanId]
+      `DELETE FROM domains WHERE (id = $1 OR LOWER(hostname) = LOWER($1)) AND workspace_id = $2 RETURNING *`,
+      [cleanId, authResult.context.workspaceId]
     )) as unknown as RawDomainRow[];
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'Domain not found.' }, { status: 404 });
+    }
+    await linkCache.delete(`domain_${String(rows[0].hostname || '').toLowerCase()}`);
 
     if (rows && rows.length > 0 && rows[0].hostname) {
       const deletedHost = rows[0].hostname;
