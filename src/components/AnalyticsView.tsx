@@ -1181,6 +1181,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
                       </div>
                     ))}
                   </div>
+                  {/* Custom-domain locations come from the DB-IP Lite database (CC BY 4.0 requires this credit) */}
+                  <a href="https://db-ip.com" target="_blank" rel="noreferrer" className="mt-2 text-[10px] text-outline hover:underline self-start">
+                    IP Geolocation by DB-IP
+                  </a>
                 </div>
               </div>
             </div>
