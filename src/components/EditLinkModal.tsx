@@ -39,7 +39,7 @@ interface EditLinkModalProps {
 }
 
 export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onClose }) => {
-  const { updateLink, campaigns, domains, links } = useStore();
+  const { updateLink, campaigns, domains, links, currentWorkspace } = useStore();
   const { showToast } = useToast();
 
   const primaryDomain = domains.find(d => d.is_default && d.verified) || domains.find(d => d.verified) || domains[0];
@@ -78,8 +78,11 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
       const formData = new FormData();
       formData.append('file', file);
 
+      // The server checks upload permission in this workspace; without the header it fell back
+      // to the shared ws_default workspace, which nobody belongs to, and answered 403
       const res = await fetch('/api/v1/upload', {
         method: 'POST',
+        headers: { 'x-workspace-id': currentWorkspace?.id || '' },
         body: formData,
       });
 

@@ -51,7 +51,7 @@ interface GeneratedItem {
 }
 
 export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClose }) => {
-  const { createShortLink, links, campaigns, domains } = useStore();
+  const { createShortLink, links, campaigns, domains, currentWorkspace } = useStore();
 
   const originDomain = typeof window !== 'undefined' ? window.location.host : 'localhost:3000';
   const availableDomains = useMemo(() => {
@@ -109,8 +109,11 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
       const formData = new FormData();
       formData.append('file', file);
 
+      // The server checks upload permission in this workspace; without the header it fell back
+      // to the shared ws_default workspace, which nobody belongs to, and answered 403
       const res = await fetch('/api/v1/upload', {
         method: 'POST',
+        headers: { 'x-workspace-id': currentWorkspace?.id || '' },
         body: formData,
       });
 

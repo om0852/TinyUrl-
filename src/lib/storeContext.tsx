@@ -930,6 +930,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [currentUser?.email, refreshLinks, refreshDomains]);
 
+  // The server's list (workspaces the user owns or is an active member of) is the source of
+  // truth. Workspaces kept only in this browser, such as the old shared ws_default or one that
+  // was deleted, answered every request with 403 "not an authorized member" while still selected.
+  const adoptServerWorkspaces = (serverList: Workspace[], targetWsId: string | null, wsKey: string, localWs: Workspace) => {
+    if (serverList.length === 0) {
+      // Nothing on the server yet (e.g. the default workspace was only ever created in this
+      // browser): create it there so the app has a workspace it is allowed to use
+      const create = (withId: boolean) => fetch('/api/v1/workspaces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...(withId ? { id: localWs.id } : {}), name: localWs.name, slug: localWs.slug, plan: localWs.plan })
+      }).then(r => r.json());
+      // The local id can be refused (409) when old data still points at it; then let the
+      // server pick a fresh id
+      create(true)
+        .then(res => (res?.success ? res : create(false)))
+        .then(res => {
+          if (!res?.success) return;
+          const created: Workspace = { ...localWs, id: res.workspace?.id || localWs.id, role: 'owner' };
+          setWorkspaces([created]);
+          setCurrentWorkspace(created);
+          try {
+            localStorage.setItem(wsKey, JSON.stringify([created]));
+            localStorage.setItem('url_shortener_workspaces', JSON.stringify([created]));
+          } catch {}
+        })
+        .catch(() => {});
+      return;
+    }
+    setWorkspaces(serverList);
+    const active = (targetWsId ? serverList.find(w => w.id === targetWsId) : null) || serverList[0];
+    setCurrentWorkspace(active);
+    try {
+      localStorage.setItem(wsKey, JSON.stringify(serverList));
+      localStorage.setItem('url_shortener_workspaces', JSON.stringify(serverList));
+      localStorage.setItem('url_shortener_current_workspace_id', active.id);
+    } catch {}
+  };
+
+
 
   // Initialize dynamic domain & sync localStorage
   useEffect(() => {
@@ -1030,21 +1070,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetch(`/api/v1/workspaces?email=${encodeURIComponent(user.email)}`)
           .then(r => r.json())
           .then(d => {
-            if (d?.success && Array.isArray(d.workspaces) && d.workspaces.length > 0) {
-              setWorkspaces(prev => {
-                const map = new Map(prev.map(w => [w.id, w]));
-                d.workspaces.forEach((nw: Workspace) => map.set(nw.id, nw));
-                const merged = Array.from(map.values());
-                try {
-                  localStorage.setItem(wsKey, JSON.stringify(merged));
-                  localStorage.setItem('url_shortener_workspaces', JSON.stringify(merged));
-                } catch {}
-                return merged;
-              });
-              const activeWs = (targetWsId ? d.workspaces.find((w: Workspace) => w.id === targetWsId) : null) || d.workspaces[0];
-              if (activeWs) {
-                setCurrentWorkspace(activeWs);
-              }
+            if (d?.success && Array.isArray(d.workspaces)) {
+              adoptServerWorkspaces(d.workspaces, targetWsId, wsKey, initialWs);
             }
           }).catch(() => {});
 
@@ -2452,21 +2479,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetch(`/api/v1/workspaces?email=${encodeURIComponent(cleanEmail)}`)
       .then(r => r.json())
       .then(d => {
-        if (d?.success && Array.isArray(d.workspaces) && d.workspaces.length > 0) {
-          setWorkspaces(prev => {
-            const map = new Map(prev.map(w => [w.id, w]));
-            d.workspaces.forEach((nw: Workspace) => map.set(nw.id, nw));
-            const merged = Array.from(map.values());
-            try {
-              localStorage.setItem(wsKey, JSON.stringify(merged));
-              localStorage.setItem('url_shortener_workspaces', JSON.stringify(merged));
-            } catch {}
-            return merged;
-          });
-          if (targetWsId) {
-            const found = d.workspaces.find((w: Workspace) => w.id === targetWsId);
-            if (found) setCurrentWorkspace(found);
-          }
+        if (d?.success && Array.isArray(d.workspaces)) {
+          adoptServerWorkspaces(d.workspaces, targetWsId, wsKey, activeWs);
         }
       }).catch(() => {});
 

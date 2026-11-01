@@ -19,7 +19,10 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 export async function POST(request: Request) {
   try {
-    const wsId = request.headers.get('x-workspace-id') || 'ws_default';
+    const wsId = (request.headers.get('x-workspace-id') || '').trim();
+    if (!wsId) {
+      return NextResponse.json({ success: false, error: 'Missing workspace. Reload the page and try again.' }, { status: 400 });
+    }
     const authResult = await verifyWorkspacePermission(request, 'links:create', {
       workspaceId: wsId
     });
