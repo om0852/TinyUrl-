@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
-import { InfoTooltip } from '@/components/ui';
 import { ClientPortalAccount } from '@/lib/types';
 import { 
   Building2, 
@@ -16,19 +15,12 @@ import {
   Edit2, 
   Search, 
   Globe2, 
-  ShieldCheck, 
-  Link2, 
-  Sparkles, 
   Clock, 
   Lock, 
   Unlock, 
-  MoreVertical,
   Activity,
-  Layers,
-  CheckCircle2,
   AlertTriangle,
-  RefreshCw,
-  Target
+  RefreshCw
 } from 'lucide-react';
 import { CreateClientModal } from './CreateClientModal';
 import { SkeletonClientsView } from '@/components/ui/Skeleton';
@@ -37,7 +29,7 @@ interface ClientsViewProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
+export const ClientsView: React.FC<ClientsViewProps> = () => {
   const { 
     clients, 
     clientMetrics, 
@@ -45,7 +37,6 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
     deleteClient, 
     updateClient, 
     links, 
-    campaigns,
     isClientsLoading,
     isInitialLoading
   } = useStore();
@@ -138,191 +129,98 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
     );
   }
 
+  const openCreate = () => {
+    setClientToEdit(null);
+    setCreateModalOpen(true);
+  };
+  const activeClientsCount = clients.filter(c => c.status === 'active').length;
+  // Most common custom domain among clients; clients without one use the main domain
+  const topDomain = (() => {
+    const counts = new Map<string, number>();
+    clients.forEach(c => { if (c.custom_domain) counts.set(c.custom_domain, (counts.get(c.custom_domain) || 0) + 1); });
+    const best = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+    return best ? best[0] : null;
+  })();
+  const iconBtn = 'size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer';
+  const clientAccess = (client: ClientPortalAccount) => {
+    const directLinkIds = client.assigned_link_ids || [];
+    const assignedCampIds = client.assigned_campaign_ids || [];
+    const campaignLinkIds = links.filter(l => l.campaign_id && assignedCampIds.includes(l.campaign_id)).map(l => l.id);
+    const linksCount = new Set([...directLinkIds, ...campaignLinkIds]).size;
+    const parts = [`${linksCount} ${linksCount === 1 ? 'link' : 'links'}`];
+    if (assignedCampIds.length) parts.push(`${assignedCampIds.length} ${assignedCampIds.length === 1 ? 'campaign' : 'campaigns'}`);
+    const perms = [
+      client.can_view_analytics ? 'Analytics' : '',
+      client.can_edit_destination_url ? 'Edit URLs' : 'Read-only',
+      client.can_create_links ? `Create (max ${client.max_links_quota})` : '',
+    ].filter(Boolean);
+    return { summary: parts.join(' · '), perms };
+  };
+  const initialsFor = (client: ClientPortalAccount) => (client.company_name
+    ? client.company_name.split(' ').map(w => w[0]).join('').slice(0, 2)
+    : client.name.slice(0, 2)).toUpperCase();
+  const lastActive = (client: ClientPortalAccount) => client.last_login_at
+    ? new Date(client.last_login_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'Never';
+  const clientActions = (client: ClientPortalAccount) => (
+    <>
+      <button type="button" onClick={() => handleCopyPortalLink(client)} title="Copy portal login link" aria-label="Copy portal login link" className={iconBtn}>
+        {copiedClientId === client.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+      <a href={`/portal/dashboard?client_id=${client.id}`} target="_blank" rel="noreferrer" title="Preview portal" aria-label="Preview portal" className={iconBtn}>
+        <ExternalLink className="w-3.5 h-3.5" />
+      </a>
+      <button type="button" onClick={() => { setClientToEdit(client); setCreateModalOpen(true); }} title="Edit client" aria-label="Edit client" className={iconBtn}>
+        <Edit2 className="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleToggleStatus(client)}
+        title={client.status === 'active' ? 'Suspend access' : 'Restore access'}
+        aria-label={client.status === 'active' ? 'Suspend access' : 'Restore access'}
+        className={iconBtn}
+      >
+        {client.status === 'active' ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+      </button>
+      <button type="button" onClick={() => setClientToDelete(client)} title="Delete client" aria-label="Delete client" className={`${iconBtn} hover:!text-error hover:!bg-error-container`}>
+        <Trash2 className="w-3.5 h-3.5" />
+      </button>
+    </>
+  );
+  const statusPill = (client: ClientPortalAccount) => (
+    <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant whitespace-nowrap">
+      <span className={`w-1.5 h-1.5 rounded-full ${client.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+      {client.status === 'active' ? 'Active' : 'Suspended'}
+    </span>
+  );
+
   return (
-    <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">
-      
-      {/* 1. HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-col max-w-2xl">
-          <div className="flex items-center gap-2 text-on-surface-variant font-mono text-xs uppercase tracking-wider mb-1">
-            <span>WORKSPACE</span>
-            <span>/</span>
-            <span className="text-primary-ink font-semibold">CLIENT PORTALS</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight">
-              Clients
-            </h1>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-lime-50 text-lime-700 border border-lime-200">
-              <ShieldCheck className="w-3.5 h-3.5" /> Agency White-Label
-            </span>
-          </div>
-          <p className="text-sm sm:text-base text-on-surface-variant mt-1 leading-relaxed">
-            Create isolated, white-labeled client accounts. Clients can log in, view live analytics, and self-serve update their assigned short links without accessing your internal workspace.
-          </p>
-        </div>
+    <div className="flex flex-col w-full gap-[15px] pb-16 animate-fade-in text-on-surface">
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 flex-wrap">
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold px-3 py-2 rounded-lg shadow-xs border-[0.5px] border-outline-variant hover:bg-surface-container-low transition cursor-pointer disabled:opacity-60"
-            title="Synchronize client accounts"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-primary-ink ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>{isRefreshing ? 'Syncing…' : 'Refresh'}</span>
-          </button>
-
-          <button
-            type="button"
-            id="add-client-btn"
-            onClick={() => {
-              setClientToEdit(null);
-              setCreateModalOpen(true);
-            }}
-            className="inline-flex items-center gap-1.5 bg-primary-container text-on-primary text-xs font-bold px-4 py-2 rounded-lg shadow-xs hover:bg-primary transition cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>+ Add Client</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 2. TOP ROW: 4 KPI SUMMARY CARDS (Matching Linko) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* KPI 1: Total Clients */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-on-surface-variant font-semibold">Total Clients</span>
-              <InfoTooltip text="Total number of client portal accounts created across this agency workspace." />
-            </div>
-            <div className="p-2 rounded-lg bg-surface-container-low text-primary-ink flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold font-mono text-on-surface tracking-tight">
-              {clientMetrics.total_clients}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-lime-50 text-lime-700">
-                <ShieldCheck className="w-3 h-3" /> Sandboxed
-              </span>
-              <span className="text-xs text-on-surface-variant font-medium">
-                {clients.filter(c => c.status === 'active').length} active
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 2: Active This Month */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-on-surface-variant font-semibold">Active This Month</span>
-              <InfoTooltip text="Number of clients who have logged in or had active sessions in the current calendar month." />
-            </div>
-            <div className="p-2 rounded-lg bg-surface-container-low text-emerald-600 flex items-center justify-center">
-              <Activity className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold font-mono text-on-surface tracking-tight">
-              {clientMetrics.active_this_month}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700">
-                Live Engagement
-              </span>
-              <span className="text-xs text-on-surface-variant font-medium">
-                {clientMetrics.total_clients > 0 ? `${Math.round((clientMetrics.active_this_month / clientMetrics.total_clients) * 100)}% retention` : '0%'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 3: Total Logins */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-on-surface-variant font-semibold">Total Logins</span>
-              <InfoTooltip text="Cumulative login count across all client accounts. Helps agencies measure if clients actually use their portals." />
-            </div>
-            <div className="p-2 rounded-lg bg-surface-container-low text-blue-600 flex items-center justify-center">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-3xl font-extrabold font-mono text-on-surface tracking-tight">
-              {clientMetrics.total_logins.toLocaleString()}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-blue-700">
-                Client Sessions
-              </span>
-              <span className="text-xs text-on-surface-variant font-medium">
-                Portal engagement
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 4: Most Used Domain */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-on-surface-variant font-semibold">Most Used Domain</span>
-              <InfoTooltip text="Which custom branded domain is hosting the most client portals." />
-            </div>
-            <div className="p-2 rounded-lg bg-surface-container-low text-purple-600 flex items-center justify-center">
-              <Globe2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-lg font-extrabold font-mono text-on-surface tracking-tight truncate" title={clientMetrics.most_used_domain}>
-              {clientMetrics.most_used_domain}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-50 text-purple-700">
-                White-Label CNAME
-              </span>
-              <span className="text-xs text-on-surface-variant font-medium">
-                SSL Active
-              </span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. FILTERING & QUOTA BAR */}
-      <div className="bg-surface-container-lowest p-4 rounded-xl shadow-sm border-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 flex-1 max-w-md">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0 max-w-xl">
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
             <input
               type="text"
-              placeholder="Search clients by name, company, email, or domain..."
+              placeholder="Search clients"
+              aria-label="Search clients"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
+              className="w-full h-[34px] pl-9 pr-3 bg-surface-container-low rounded-full text-xs font-light text-on-surface border-[0.5px] border-outline-variant placeholder:text-outline outline-none focus:border-on-surface-variant"
             />
           </div>
-
-          {/* Status Filter */}
-          <div className="inline-flex rounded-lg bg-surface-container-low p-0.5 text-xs font-medium border-[0.5px] border-outline-variant shrink-0">
+          <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs shrink-0" role="tablist" aria-label="Filter by status">
             {(['all', 'active', 'suspended'] as const).map((st) => (
               <button
                 key={st}
                 type="button"
+                role="tab"
+                aria-selected={statusFilter === st}
                 onClick={() => setStatusFilter(st)}
-                className={`px-2.5 py-1 rounded-md transition cursor-pointer capitalize ${
-                  statusFilter === st
-                    ? 'bg-surface-container-lowest text-primary-ink font-bold shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
+                className={`h-[26px] px-2.5 rounded-[4px] capitalize transition-colors cursor-pointer ${
+                  statusFilter === st ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
                 }`}
               >
                 {st}
@@ -330,384 +228,145 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
             ))}
           </div>
         </div>
-
-        {/* Quota Counter (0 / Unlimited) */}
-        <div className="flex items-center gap-2 text-xs text-on-surface-variant font-medium self-start sm:self-auto shrink-0">
-          <span>Client Quota:</span>
-          <span className="inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded bg-surface-container-high text-primary-ink">
-            {clientMetrics.total_clients} / Unlimited
-          </span>
-          <InfoTooltip text="Agency subscription includes unlimited client portals with custom branding." />
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            title="Refresh"
+            aria-label="Refresh"
+            className="size-[34px] rounded-md border-[0.5px] border-outline-variant grid place-items-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-60"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            type="button"
+            id="add-client-btn"
+            onClick={openCreate}
+            className="h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer flex items-center gap-1.5"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Add client</span>
+          </button>
         </div>
       </div>
 
-      {/* 4. CLIENT ACCOUNTS TABLE */}
-      <div className="bg-surface-container-lowest rounded-xl p-6 shadow-sm border border-outline-variant">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-base font-bold text-on-surface tracking-tight">
-              Client Portal Accounts
-            </h3>
-            <p className="text-xs text-on-surface-variant">
-              Manage client portal credentials, assigned link scopings, and white-label access links
-            </p>
+      {/* Stats */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-[15px]">
+        {[
+          { icon: <Users className="w-5 h-5" />, value: clientMetrics.total_clients.toLocaleString(), label: 'Clients', hint: `${activeClientsCount} active` },
+          { icon: <Activity className="w-5 h-5" />, value: clientMetrics.active_this_month.toLocaleString(), label: 'Active this month', hint: 'Logged in' },
+          { icon: <Clock className="w-5 h-5" />, value: clientMetrics.total_logins.toLocaleString(), label: 'Logins', hint: 'All time' },
+          { icon: <Globe2 className="w-5 h-5" />, value: topDomain || '—', label: 'Top domain', hint: topDomain ? 'Most client portals' : 'Clients use your main domain' },
+        ].map(card => (
+          <div key={card.label} className="flex items-center gap-[10px] rounded-xl border-[0.5px] border-outline-variant p-[15px] min-w-0">
+            <div className="grid size-[40px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{card.icon}</div>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-on-surface truncate" title={card.value}>{card.value}</div>
+              <p className="text-xs text-outline truncate">{card.label} · {card.hint}</p>
+            </div>
           </div>
-          <span className="text-xs font-mono text-on-surface-variant">
-            {filteredClients.length} of {clients.length} clients
-          </span>
+        ))}
+      </div>
+
+      {/* Clients */}
+      <div className="rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+        <div className="px-[15px] py-3 flex items-center justify-between border-b-[0.5px] border-outline-variant">
+          <h2 className="text-[14px] font-semibold text-on-surface">Clients</h2>
+          <span className="text-xs text-outline">{filteredClients.length} of {clients.length}</span>
         </div>
 
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                <th className="py-3 px-4 rounded-l-lg">Client &amp; Brand</th>
-                <th className="py-3 px-4">Assigned Resources</th>
-                <th className="py-3 px-4">Permissions</th>
-                <th className="py-3 px-4 text-center">Logins</th>
-                <th className="py-3 px-4">Last Active</th>
-                <th className="py-3 px-4">Portal Login URL</th>
-                <th className="py-3 px-4 text-right rounded-r-lg">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="text-xs divide-y divide-outline-variant">
-              {filteredClients.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-on-surface-variant">
-                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                      <div className="w-12 h-12 rounded-xl bg-surface-container-low text-primary-ink flex items-center justify-center mb-3">
-                        <Building2 className="w-6 h-6 text-outline" />
-                      </div>
-                      <h4 className="text-sm font-bold text-on-surface">No Client Accounts Yet</h4>
-                      <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                        Create your first white-label client account to start securely sharing short links, campaigns, and live analytics.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClientToEdit(null);
-                          setCreateModalOpen(true);
-                        }}
-                        className="mt-4 px-4 py-2 rounded-lg bg-primary-container text-on-primary text-xs font-bold hover:bg-primary transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        <span>Create Client Account</span>
-                      </button>
-                    </div>
-                  </td>
+        {filteredClients.length === 0 ? (
+          <div className="py-12 px-6 flex flex-col items-center text-center">
+            <div className="grid size-[40px] place-items-center rounded-full bg-primary-fixed text-on-secondary-container">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <h3 className="mt-3 text-[14px] font-semibold text-on-surface">
+              {clients.length === 0 ? 'No clients yet' : 'No matching clients'}
+            </h3>
+            <p className="mt-1 text-xs text-on-surface-variant max-w-xs">
+              {clients.length === 0 ? 'Give a client their own login to see the links and stats you share with them.' : 'Try another search or filter.'}
+            </p>
+            {clients.length === 0 && (
+              <button type="button" onClick={openCreate} className="mt-4 h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer">
+                Add client
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <table className="hidden md:table w-full text-left text-xs">
+              <thead>
+                <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
+                  <th className="py-2.5 px-[15px] font-medium">Client</th>
+                  <th className="py-2.5 px-3 font-medium">Status</th>
+                  <th className="py-2.5 px-3 font-medium">Access</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Logins</th>
+                  <th className="py-2.5 px-3 font-medium">Last active</th>
+                  <th className="py-2.5 px-[15px] font-medium text-right"><span className="sr-only">Actions</span></th>
                 </tr>
-              ) : (
-                filteredClients.map((client) => {
-                  const directLinkIds = client.assigned_link_ids || [];
-                  const assignedCampIds = client.assigned_campaign_ids || [];
-                  const campaignAssociatedLinks = links.filter(l => 
-                    l.campaign_id && assignedCampIds.includes(l.campaign_id)
-                  );
-                  const allResolvedLinkIds = Array.from(new Set([...directLinkIds, ...campaignAssociatedLinks.map(l => l.id)]));
-                  const assignedLinksCount = Math.max(directLinkIds.length, allResolvedLinkIds.length);
-                  const assignedCampaignsCount = assignedCampIds.length;
-                  const isCopied = copiedClientId === client.id;
-                  const portalDomain = client.custom_domain || originDomain;
-                  const portalUrl = `https://${portalDomain}/portal/login?email=${encodeURIComponent(client.email)}`;
-
-                  const avatarInitials = client.company_name
-                    ? client.company_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-                    : client.name.slice(0, 2).toUpperCase();
-
+              </thead>
+              <tbody>
+                {filteredClients.map((client) => {
+                  const access = clientAccess(client);
                   return (
-                    <tr key={client.id} className="hover:bg-surface-container-low/50 transition-colors">
-                      {/* Client & Brand */}
-                      <td className="py-3 px-4 max-w-[220px]">
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-9 h-9 rounded-xl text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs"
-                            style={{ backgroundColor: client.brand_color || '#65a30d' }}
-                          >
-                            {avatarInitials}
+                    <tr key={client.id} className="border-b-[0.5px] border-outline-variant last:border-b-0 hover:bg-surface-container-low transition-colors">
+                      <td className="py-2.5 px-[15px] max-w-[260px]">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="size-[32px] rounded-md text-white grid place-items-center font-semibold text-[11px] shrink-0" style={{ backgroundColor: client.brand_color || '#65a30d' }}>
+                            {initialsFor(client)}
                           </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="font-bold text-on-surface truncate">{client.company_name}</span>
-                            <span className="text-[11px] text-on-surface-variant truncate">{client.name} &bull; {client.email}</span>
+                          <div className="min-w-0">
+                            <div className="font-medium text-on-surface truncate">{client.company_name}</div>
+                            <div className="text-[11px] text-outline truncate">{client.name} · {client.email}</div>
                           </div>
                         </div>
                       </td>
-
-                      {/* Assigned Resources */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-ink font-mono">
-                            <Link2 className="w-3 h-3" />
-                            {assignedLinksCount} link{assignedLinksCount === 1 ? '' : 's'}
-                          </span>
-                          {assignedCampaignsCount > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 font-mono">
-                              <Target className="w-3 h-3" />
-                              {assignedCampaignsCount} campaign{assignedCampaignsCount === 1 ? '' : 's'}
-                            </span>
-                          )}
-                        </div>
+                      <td className="py-2.5 px-3">{statusPill(client)}</td>
+                      <td className="py-2.5 px-3">
+                        <div className="text-on-surface whitespace-nowrap">{access.summary}</div>
+                        <div className="text-[11px] text-outline whitespace-nowrap">{access.perms.join(' · ')}</div>
                       </td>
-
-                      {/* Permissions */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {client.can_view_analytics && (
-                            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-surface-container text-on-surface">
-                              Analytics
-                            </span>
-                          )}
-                          {client.can_edit_destination_url ? (
-                            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Edit URLs
-                            </span>
-                          ) : (
-                            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-surface-container-high text-on-surface-variant">
-                              Read-Only
-                            </span>
-                          )}
-                          {client.can_create_links && (
-                            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-blue-50 text-blue-700">
-                              Create ({client.max_links_quota} max)
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Total Logins */}
-                      <td className="py-3 px-4 text-center font-mono font-bold text-xs text-on-surface whitespace-nowrap">
-                        {(client.total_logins || 0).toLocaleString()}
-                      </td>
-
-                      {/* Last Active */}
-                      <td className="py-3 px-4 whitespace-nowrap text-xs text-on-surface-variant font-mono">
-                        {client.last_login_at 
-                          ? new Date(client.last_login_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
-                          : 'Never'}
-                      </td>
-
-                      {/* Portal Login URL */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 font-mono text-xs text-primary-ink font-semibold">
-                          <span className="truncate max-w-[160px]" title={portalUrl}>
-                            {portalDomain}/portal
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyPortalLink(client)}
-                            className="p-1 hover:bg-surface-container rounded transition cursor-pointer text-outline hover:text-on-surface"
-                            title="Copy Client Login URL"
-                          >
-                            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                          <a
-                            href={`/portal/dashboard?client_id=${client.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="p-1 hover:bg-surface-container rounded transition cursor-pointer text-outline hover:text-primary-ink"
-                            title="Impersonate &amp; preview client portal"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </td>
-
-                      {/* Action Buttons */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setClientToEdit(client);
-                              setCreateModalOpen(true);
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-surface-container text-outline hover:text-on-surface transition cursor-pointer"
-                            title="Edit client configuration &amp; scoping"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(client)}
-                            className={`p-1.5 rounded-lg transition cursor-pointer ${
-                              client.status === 'active' 
-                                ? 'hover:bg-amber-50 text-outline hover:text-amber-700' 
-                                : 'hover:bg-emerald-50 text-amber-600 hover:text-emerald-700'
-                            }`}
-                            title={client.status === 'active' ? 'Suspend client portal' : 'Activate client portal'}
-                          >
-                            {client.status === 'active' ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setClientToDelete(client)}
-                            className="p-1.5 rounded-lg hover:bg-rose-50 text-outline hover:text-rose-700 transition cursor-pointer"
-                            title="Revoke client account"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-on-surface">{(client.total_logins || 0).toLocaleString()}</td>
+                      <td className="py-2.5 px-3 text-on-surface-variant whitespace-nowrap">{lastActive(client)}</td>
+                      <td className="py-2.5 px-[15px]">
+                        <div className="flex items-center justify-end gap-0.5">{clientActions(client)}</div>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
 
-        {/* Mobile Cards View (Phones & Small Tablets) */}
-        <div className="block md:hidden divide-y-[0.5px] divide-outline-variant rounded-lg border-[0.5px] border-outline-variant bg-surface-container-lowest overflow-hidden">
-          {filteredClients.length === 0 ? (
-            <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
-              <Building2 className="w-8 h-8 text-outline mx-auto mb-2 opacity-50" />
-              <p className="font-semibold text-on-surface">No client accounts found</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setClientToEdit(null);
-                  setCreateModalOpen(true);
-                }}
-                className="mt-3 px-3.5 py-1.5 rounded-lg bg-primary-container text-on-primary text-xs font-bold hover:bg-primary transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                <span>Create Client</span>
-              </button>
+            {/* Mobile cards */}
+            <div className="md:hidden flex flex-col">
+              {filteredClients.map((client) => {
+                const access = clientAccess(client);
+                return (
+                  <div key={client.id} className="p-[15px] flex flex-col gap-2 border-b-[0.5px] border-outline-variant last:border-b-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="size-[32px] rounded-md text-white grid place-items-center font-semibold text-[11px] shrink-0" style={{ backgroundColor: client.brand_color || '#65a30d' }}>
+                          {initialsFor(client)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-medium text-on-surface truncate">{client.company_name}</div>
+                          <div className="text-[11px] text-outline truncate">{client.email}</div>
+                        </div>
+                      </div>
+                      {statusPill(client)}
+                    </div>
+                    <div className="text-[11px] text-on-surface-variant">
+                      {access.summary} · {access.perms.join(' · ')} · {(client.total_logins || 0).toLocaleString()} logins · {lastActive(client)}
+                    </div>
+                    <div className="flex items-center gap-0.5 -ml-1.5">{clientActions(client)}</div>
+                  </div>
+                );
+              })}
             </div>
-          ) : (
-            filteredClients.map((client) => {
-              const directLinkIds = client.assigned_link_ids || [];
-              const assignedCampIds = client.assigned_campaign_ids || [];
-              const campaignAssociatedLinks = links.filter(l => 
-                l.campaign_id && assignedCampIds.includes(l.campaign_id)
-              );
-              const allResolvedLinkIds = Array.from(new Set([...directLinkIds, ...campaignAssociatedLinks.map(l => l.id)]));
-              const assignedLinksCount = Math.max(directLinkIds.length, allResolvedLinkIds.length);
-              const assignedCampaignsCount = assignedCampIds.length;
-              const isCopied = copiedClientId === client.id;
-              const portalDomain = client.custom_domain || originDomain;
-              const portalUrl = `https://${portalDomain}/portal/login?email=${encodeURIComponent(client.email)}`;
-
-              const avatarInitials = client.company_name
-                ? client.company_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-                : client.name.slice(0, 2).toUpperCase();
-
-              return (
-                <div key={client.id} className="p-4 flex flex-col gap-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs"
-                        style={{ backgroundColor: client.brand_color || '#65a30d' }}
-                      >
-                        {avatarInitials}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-sm text-on-surface truncate">{client.company_name}</span>
-                        <span className="text-xs text-on-surface-variant truncate">{client.name} &bull; {client.email}</span>
-                      </div>
-                    </div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      client.status === 'active' 
-                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20' 
-                        : 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                    }`}>
-                      {client.status}
-                    </span>
-                  </div>
-
-                  {/* Badges / Scoping */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary-container/10 text-primary-ink font-mono">
-                      <Link2 className="w-3 h-3" />
-                      {assignedLinksCount} link{assignedLinksCount === 1 ? '' : 's'}
-                    </span>
-                    {assignedCampaignsCount > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 font-mono">
-                        <Target className="w-3 h-3" />
-                        {assignedCampaignsCount} campaign{assignedCampaignsCount === 1 ? '' : 's'}
-                      </span>
-                    )}
-                    {client.can_view_analytics && (
-                      <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-surface-container text-on-surface">
-                        Analytics
-                      </span>
-                    )}
-                    {client.can_edit_destination_url && (
-                      <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Edit URLs
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Portal Login Link */}
-                  <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-surface-container-low border-[0.5px] border-outline-variant text-xs">
-                    <span className="font-mono text-primary-ink font-semibold truncate" title={portalUrl}>
-                      {portalDomain}/portal
-                    </span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyPortalLink(client)}
-                        className="p-1 hover:bg-surface-container rounded transition text-outline hover:text-on-surface cursor-pointer"
-                        title="Copy URL"
-                      >
-                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                      <a
-                        href={`/portal/dashboard?client_id=${client.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-1 hover:bg-surface-container rounded transition text-outline hover:text-primary-ink cursor-pointer"
-                        title="Open Portal"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Footer actions */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant text-xs">
-                    <span className="text-[11px] text-on-surface-variant font-mono">
-                      Logins: <strong className="text-on-surface">{client.total_logins || 0}</strong> &bull; {client.last_login_at ? new Date(client.last_login_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Never active'}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setClientToEdit(client);
-                          setCreateModalOpen(true);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-surface-container text-outline hover:text-on-surface transition cursor-pointer"
-                        title="Edit"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStatus(client)}
-                        className="p-1.5 rounded-lg hover:bg-surface-container text-outline hover:text-on-surface transition cursor-pointer"
-                        title="Lock/Unlock"
-                      >
-                        {client.status === 'active' ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setClientToDelete(client)}
-                        className="p-1.5 rounded-lg hover:bg-rose-50 text-outline hover:text-rose-700 transition cursor-pointer"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Modal: Create or Edit Client */}
@@ -731,7 +390,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-on-surface">Revoke Client Portal Account</h3>
+                <h3 className="text-base font-bold text-on-surface">Delete client?</h3>
                 <p className="text-xs text-on-surface-variant">
                   {clientToDelete.company_name} ({clientToDelete.email})
                 </p>
@@ -739,7 +398,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
             </div>
 
             <p className="text-xs text-on-surface-variant leading-relaxed mb-6">
-              Are you sure you want to delete this client portal account? The client will immediately lose access to their dashboard. Their assigned short links will remain active in your agency workspace.
+              They lose access to their portal right away. Their links keep working.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-outline-variant">
@@ -758,7 +417,7 @@ export const ClientsView: React.FC<ClientsViewProps> = ({ onNavigateTab }) => {
                 className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
               >
                 {isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                <span>{isDeleting ? 'Deleting…' : 'Confirm Revoke'}</span>
+                <span>{isDeleting ? 'Deleting…' : 'Delete client'}</span>
               </button>
             </div>
           </div>

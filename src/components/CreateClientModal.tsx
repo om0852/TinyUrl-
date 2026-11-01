@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
-import { InfoTooltip } from '@/components/ui';
 import { ClientPortalAccount } from '@/lib/types';
 import { 
   Building2, 
@@ -19,7 +18,6 @@ import {
   X, 
   Check, 
   Sliders, 
-  Sparkles,
   Lock,
   Layers,
   Search,
@@ -271,15 +269,9 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold text-on-surface">
-                  {clientToEdit ? 'Edit Client Portal' : 'Add White-Label Client Portal'}
+                  {clientToEdit ? 'Edit client' : 'Add client'}
                 </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Sandboxed
-                </span>
               </div>
-              <p className="text-xs text-on-surface-variant">
-                Create an isolated, branded portal account with strictly scoped URLs &amp; permissions
-              </p>
             </div>
           </div>
           <button
@@ -295,10 +287,10 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
         {/* Multi-Step Category Tabs */}
         <div className="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border-[0.5px] border-outline-variant my-4 text-xs overflow-x-auto">
           {[
-            { id: 'info', label: '1. Account Credentials', icon: User },
-            { id: 'scoping', label: '2. Resource Scoping', icon: Link2, badge: selectedLinkIds.length + selectedCampaignIds.length },
-            { id: 'permissions', label: '3. Permissions', icon: ShieldCheck },
-            { id: 'branding', label: '4. White-Label Branding', icon: Palette }
+            { id: 'info', label: 'Account', icon: User },
+            { id: 'scoping', label: 'Links', icon: Link2, badge: selectedLinkIds.length + selectedCampaignIds.length },
+            { id: 'permissions', label: 'Permissions', icon: ShieldCheck },
+            { id: 'branding', label: 'Branding', icon: Palette }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -334,8 +326,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center gap-1 mb-1">
-                    <label className="text-xs font-bold text-on-surface">Client Contact Name</label>
-                    <InfoTooltip text="Full name of the client manager or stakeholder." />
+                    <label className="text-xs font-bold text-on-surface">Contact name</label>
                   </div>
                   <div className="relative">
                     <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -352,8 +343,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
                 <div>
                   <div className="flex items-center gap-1 mb-1">
-                    <label className="text-xs font-bold text-on-surface">Company / Brand Name</label>
-                    <InfoTooltip text="Company or organization name for this portal." />
+                    <label className="text-xs font-bold text-on-surface">Company</label>
                   </div>
                   <div className="relative">
                     <Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -372,8 +362,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center gap-1 mb-1">
-                    <label className="text-xs font-bold text-on-surface">Client Login Email</label>
-                    <InfoTooltip text="The email address your client will use to log in to their isolated portal." />
+                    <label className="text-xs font-bold text-on-surface">Login email</label>
                   </div>
                   <div className="relative">
                     <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -392,9 +381,8 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 <div>
                   <div className="flex items-center gap-1 mb-1">
                     <label className="text-xs font-bold text-on-surface">
-                      {clientToEdit ? 'New Password (leave empty to keep)' : 'Portal Access Password'}
+                      {clientToEdit ? 'New password (optional)' : 'Password'}
                     </label>
-                    <InfoTooltip text="Secure password for client portal login. Share this securely with your customer." />
                   </div>
                   <div className="relative">
                     <Key className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
@@ -409,13 +397,6 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                   </div>
                 </div>
               </div>
-
-              <div className="p-3.5 bg-primary-container/10 border border-primary-strong/20 rounded-xl text-xs text-on-surface flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-primary-ink shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <strong>Strict Sandboxing Guarantee:</strong> When this client logs in via the portal URL, your main workspace sidebar (Billing, API Keys, Team Members, and other clients&rsquo; links) is completely hidden.
-                </div>
-              </div>
             </div>
           )}
 
@@ -425,10 +406,10 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">
-                    Assign Specific Short Links
+                    Links
                   </h3>
                   <p className="text-[11px] text-on-surface-variant">
-                    Selected links will be visible and manageable inside this client&rsquo;s portal ({selectedLinkIds.length} selected)
+                    {selectedLinkIds.length} selected
                   </p>
                 </div>
               </div>
@@ -438,7 +419,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-outline" />
                 <input
                   type="text"
-                  placeholder="Search your workspace links by title or slug..."
+                  placeholder="Search links"
                   value={linkSearchQuery}
                   onChange={(e) => setLinkSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none"
@@ -486,9 +467,8 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="pt-2 border-t border-outline-variant">
                 <div className="flex items-center gap-1 mb-1.5">
                   <h3 className="text-xs font-bold text-on-surface uppercase tracking-wider">
-                    Or Assign Whole Marketing Campaigns
+                    Campaigns
                   </h3>
-                  <InfoTooltip text="Assigning a campaign automatically scopes all links created under that campaign to this client." />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -529,15 +509,15 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           {activeTab === 'permissions' && (
             <div className="space-y-4 animate-fade-in">
               <span className="text-xs font-bold text-on-surface uppercase tracking-wider block">
-                Client Portal Capabilities
+                The client can
               </span>
 
               {/* Permission 1: View Analytics Only */}
               <label className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant flex items-start justify-between cursor-pointer hover:bg-surface-container transition">
                 <div className="flex flex-col pr-4">
-                  <span className="text-xs font-bold text-on-surface">View Real-Time Analytics</span>
+                  <span className="text-xs font-bold text-on-surface">View analytics</span>
                   <span className="text-[11px] text-on-surface-variant mt-0.5">
-                    Client can view click velocity, geographic country/city maps, device/OS breakdowns, and referrer logs for their assigned links.
+                    Clicks, locations, devices and referrers for their links.
                   </span>
                 </div>
                 <input
@@ -552,13 +532,10 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <label className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant flex items-start justify-between cursor-pointer hover:bg-surface-container transition">
                 <div className="flex flex-col pr-4">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-on-surface">Edit Destination URLs (Self-Serve)</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
-                      Popular
-                    </span>
+                    <span className="text-xs font-bold text-on-surface">Edit destination URLs</span>
                   </div>
                   <span className="text-[11px] text-on-surface-variant mt-0.5">
-                    Allows the client to modify where their short links redirect to on the fly without changing the slug or asking agency staff.
+                    Change where their links go. The short link stays the same.
                   </span>
                 </div>
                 <input
@@ -573,9 +550,9 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant space-y-3">
                 <label className="flex items-start justify-between cursor-pointer">
                   <div className="flex flex-col pr-4">
-                    <span className="text-xs font-bold text-on-surface">Allow Creating New Short Links</span>
+                    <span className="text-xs font-bold text-on-surface">Create links</span>
                     <span className="text-[11px] text-on-surface-variant mt-0.5">
-                      Client can create their own new shortened links under their assigned custom domain.
+                      On their portal domain.
                     </span>
                   </div>
                   <input
@@ -588,7 +565,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
                 {canCreateLinks && (
                   <div className="pt-2 border-t-[0.5px] border-outline-variant flex items-center justify-between text-xs">
-                    <span className="font-semibold text-on-surface">Max Links Quota</span>
+                    <span className="font-semibold text-on-surface">Link limit</span>
                     <input
                       type="number"
                       min={1}
@@ -608,8 +585,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
             <div className="space-y-4 animate-fade-in">
               <div>
                 <div className="flex items-center gap-1 mb-1.5">
-                  <label htmlFor="portalDomainSelect" className="text-xs font-bold text-on-surface">Client Portal Domain</label>
-                  <InfoTooltip text="Select the branded domain configured in Settings for this client's portal." />
+                  <label htmlFor="portalDomainSelect" className="text-xs font-bold text-on-surface">Portal domain</label>
                 </div>
                 <div className="relative">
                   <Globe2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
@@ -634,8 +610,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="flex items-center gap-1 mb-1">
-                    <label className="text-xs font-bold text-on-surface">Brand Accent Color</label>
-                    <InfoTooltip text="Custom highlight color for buttons, progress bars, and charts." />
+                    <label className="text-xs font-bold text-on-surface">Brand color</label>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -655,8 +630,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
                 <div>
                   <div className="flex items-center gap-1 mb-1">
-                    <label className="text-xs font-bold text-on-surface">Brand Logo URL (Optional)</label>
-                    <InfoTooltip text="Image URL for the client's logo to replace platform branding in their portal." />
+                    <label className="text-xs font-bold text-on-surface">Logo URL <span className="font-normal text-outline">(optional)</span></label>
                   </div>
                   <input
                     type="url"
@@ -672,19 +646,13 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
               <div className="p-3.5 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant text-xs space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                    Client Portal Access Address
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container/10 text-primary-ink font-semibold">
-                    Sandboxed Portal
+                    Portal login
                   </span>
                 </div>
                 <div className="font-mono text-primary-ink font-semibold text-xs bg-surface-container-lowest px-3 py-2 rounded-lg border-[0.5px] border-outline-variant flex items-center gap-2 overflow-hidden">
                   <Globe2 className="w-3.5 h-3.5 text-primary-ink shrink-0" />
                   <span className="truncate">https://{portalDisplayHost}/portal/login</span>
                 </div>
-                <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                  Provide this address to your client to sign in. Their session is isolated to scoped links and analytics only.
-                </p>
               </div>
             </div>
           )}
@@ -711,7 +679,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                   }}
                   className="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface text-xs font-semibold hover:bg-surface-container-highest transition cursor-pointer"
                 >
-                  Next Step &rarr;
+                  Next
                 </button>
               ) : null}
 
@@ -725,7 +693,7 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>{clientToEdit ? 'Save Changes' : 'Create Client Portal'}</span>
+                    <span>{clientToEdit ? 'Save changes' : 'Create client'}</span>
                   </>
                 )}
               </button>
