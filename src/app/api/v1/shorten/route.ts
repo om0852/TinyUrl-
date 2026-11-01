@@ -8,6 +8,7 @@ import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { hashLinkPassword } from '@/lib/security';
+import { domainAllowed, campaignAllowed } from '@/lib/linkGuards';
 
 export async function POST(request: Request) {
   try {
@@ -152,11 +153,18 @@ export async function POST(request: Request) {
       content: utm_content
     });
 
-    const uniqueId = body.id || `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
+    // A client-made id is kept only when it looks like one (it is matched against short codes elsewhere)
+    const uniqueId = (typeof body.id === 'string' && /^link_[A-Za-z0-9_-]{8,80}$/.test(body.id)) ? body.id : `link_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 
     const cleanCampaignId = campaign_id && typeof campaign_id === 'string' && campaign_id.trim() ? campaign_id.trim() : undefined;
 
     const cleanDomainId = domain_id && typeof domain_id === 'string' && domain_id.trim() ? domain_id.trim() : 'dom_primary';
+    if (!(await domainAllowed(resolvedWorkspaceId, cleanDomainId))) {
+      return NextResponse.json<ShortenApiResponse>({ success: false, error: 'That domain is not in this workspace.' }, { status: 422 });
+    }
+    if (cleanCampaignId && !(await campaignAllowed(resolvedWorkspaceId, cleanCampaignId))) {
+      return NextResponse.json<ShortenApiResponse>({ success: false, error: 'That campaign is not in this workspace.' }, { status: 422 });
+    }
 
     const newLink: Link = {
       id: uniqueId,

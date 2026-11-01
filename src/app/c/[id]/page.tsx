@@ -1,6 +1,6 @@
 import React from 'react';
 import { sql } from '@/lib/postgres';
-import { redirect } from 'next/navigation';
+import { redirect, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ExternalLink, Link2, TrendingUp, CheckCircle, ArrowLeft } from 'lucide-react';
 
@@ -25,10 +25,15 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
       campaign = campRows[0];
     }
 
-    const linkRows = (await sql.query(
-      `SELECT * FROM links WHERE campaign_id = $1 ORDER BY clicks_count DESC`,
-      [cleanId]
-    )) as any[];
+    // Only live, unprotected links of the campaign's own workspace; no destinations are sent
+    // (password-protected and disabled links used to be listed with their real destination)
+    const linkRows = campaign ? ((await sql.query(
+      `SELECT id, short_code, custom_slug, title, clicks_count FROM links
+       WHERE campaign_id = $1 AND workspace_id = $2 AND COALESCE(status, 'active') = 'active'
+         AND password_hash IS NULL AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY clicks_count DESC`,
+      [cleanId, campaign.workspace_id]
+    )) as any[]) : [];
 
     if (linkRows) {
       campaignLinks = linkRows;
@@ -36,6 +41,8 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
   } catch (err) {
     console.warn('Error reading campaign from DB:', err);
   }
+
+  if (!campaign) notFound();
 
   // If there is exactly one link attached, redirect directly to it
   if (campaignLinks.length === 1 && (campaignLinks[0].short_code || campaignLinks[0].custom_slug)) {
@@ -99,7 +106,7 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
                         {link.title || `/${slug}`}
                       </div>
                       <div className="text-xs font-mono text-muted-foreground truncate mt-0.5">
-                        {link.destination_url}
+                        /{slug}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

@@ -127,11 +127,14 @@ export async function middleware(request: NextRequest) {
 
       if (!linkData) {
         const rows = (await sql.query(
-          `SELECT l.* FROM links l
-           LEFT JOIN domains d ON d.id = l.domain_id
-           WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
+          // Only links of the workspace that owns this verified domain: links pinned to it, or
+          // links without a domain. NULL-domain links used to resolve on every custom domain.
+          `SELECT l.* FROM domains d
+           JOIN links l ON l.workspace_id = d.workspace_id
+                       AND (l.domain_id = d.id OR l.domain_id IS NULL)
+           WHERE LOWER(d.hostname) = $1 AND d.verified = true
              AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
-           ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
+           ORDER BY (l.domain_id = d.id) DESC
            LIMIT 1`,
           [currentHost, cleanCode]
         )) as unknown as Array<Link & { rules?: string | LinkRule[] }>;
@@ -274,17 +277,17 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Status and expiration guards
-    if (linkData.status === 'disabled') {
-      return NextResponse.next();
-    }
-
-    if (linkData.expires_at && new Date(linkData.expires_at) < new Date()) {
-      return NextResponse.next();
-    }
-
-    if (linkData.max_clicks && linkData.clicks_count >= linkData.max_clicks) {
-      return NextResponse.next();
+    // Status and expiration guards. These used to fall through to the page, which redirected
+    // (and counted) disabled, expired and used-up links anyway.
+    const inactiveReason = linkData.status === 'disabled' ? 'disabled'
+      : linkData.expires_at && new Date(linkData.expires_at) < new Date() ? 'expired'
+      : linkData.max_clicks && linkData.clicks_count >= linkData.max_clicks ? 'click_limit'
+      : null;
+    if (inactiveReason) {
+      const notFoundUrl = new URL('/not-found', request.url);
+      notFoundUrl.searchParams.set('code', code);
+      notFoundUrl.searchParams.set('reason', inactiveReason);
+      return NextResponse.rewrite(notFoundUrl, { status: 404 });
     }
 
     // If flagged, password protected, or public stats (+), let /r/[code] handle it

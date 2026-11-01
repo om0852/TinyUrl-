@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { sql, initializeDatabase } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { isSafeOutboundUrl } from '@/lib/security';
+import { getPortalClient } from '@/lib/portalAuth';
+import { evictCustomDomainCache } from '@/lib/linkCacheEviction';
 
 export async function PATCH(
   request: Request,
@@ -17,29 +19,17 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Malformed JSON payload.' }, { status: 400 });
     }
 
-    const { client_id, destination_url } = body;
+    const { destination_url } = body;
 
-    if (!client_id || typeof client_id !== 'string') {
-      return NextResponse.json({ success: false, error: 'Field "client_id" is required.' }, { status: 400 });
-    }
     if (!destination_url || typeof destination_url !== 'string' || !destination_url.trim()) {
       return NextResponse.json({ success: false, error: 'Field "destination_url" is required.' }, { status: 400 });
     }
 
-    // 1. Fetch client account
-    const clientRows = await sql.query(
-      `SELECT * FROM client_portals WHERE id = $1 AND status = 'active' LIMIT 1`,
-      [client_id]
-    );
-
-    if (!clientRows || clientRows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Client account not found or suspended.' },
-        { status: 404 }
-      );
+    // 1. The client comes from the signed portal cookie (a client_id in the body was trusted before)
+    const client = await getPortalClient(request);
+    if (!client) {
+      return NextResponse.json({ success: false, error: 'Please sign in to the portal.' }, { status: 401 });
     }
-
-    const client = clientRows[0];
 
     // 2. Permission check
     if (!client.can_edit_destination_url) {
@@ -50,16 +40,12 @@ export async function PATCH(
     }
 
     // 3. Scoping check: is this link assigned to this client?
-    const assignedLinks: string[] = typeof client.assigned_link_ids === 'string'
-      ? JSON.parse(client.assigned_link_ids)
-      : (client.assigned_link_ids || []);
-    const assignedCampaigns: string[] = typeof client.assigned_campaign_ids === 'string'
-      ? JSON.parse(client.assigned_campaign_ids)
-      : (client.assigned_campaign_ids || []);
+    const assignedLinks = client.assigned_link_ids;
+    const assignedCampaigns = client.assigned_campaign_ids;
 
     const linkRows = await sql.query(
-      `SELECT id, short_code, custom_slug, campaign_id, destination_url, workspace_id FROM links WHERE id = $1 LIMIT 1`,
-      [linkId]
+      `SELECT id, short_code, custom_slug, campaign_id, destination_url, workspace_id, domain_id FROM links WHERE id = $1 AND workspace_id = $2 LIMIT 1`,
+      [linkId, client.workspace_id]
     );
 
     if (!linkRows || linkRows.length === 0) {
@@ -93,8 +79,8 @@ export async function PATCH(
 
     // 5. Update destination URL only
     await sql.query(
-      `UPDATE links SET destination_url = $1, updated_at = NOW() WHERE id = $2`,
-      [cleanUrl, linkId]
+      `UPDATE links SET destination_url = $1, updated_at = NOW() WHERE id = $2 AND workspace_id = $3`,
+      [cleanUrl, linkId, client.workspace_id]
     );
 
     // 6. Invalidate Edge & Redis Cache so redirects reflect change immediately
@@ -104,6 +90,8 @@ export async function PATCH(
     if (targetLink.custom_slug) {
       await linkCache.delete(`link_${targetLink.custom_slug.toLowerCase()}`).catch(() => {});
     }
+    // Custom domains cache under link_<host>_<code> too
+    await evictCustomDomainCache(targetLink, [targetLink.short_code, targetLink.custom_slug]);
 
     return NextResponse.json({
       success: true,
@@ -117,7 +105,7 @@ export async function PATCH(
   } catch (error) {
     console.error('Error updating destination URL from portal:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Internal error.' },
+      { success: false, error: 'Could not update the link. Please try again.' },
       { status: 500 }
     );
   }

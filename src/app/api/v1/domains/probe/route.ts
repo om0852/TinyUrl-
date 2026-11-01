@@ -1,4 +1,7 @@
 import { NextResponse } from 'next/server';
+import { sql } from '@/lib/postgres';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { safeFetch } from '@/lib/safeFetch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,7 +24,7 @@ export async function GET(request: Request) {
     if (
       cleanHost === 'localhost' ||
       cleanHost === '127.0.0.1' ||
-      cleanHost.includes('vercel.app') ||
+      cleanHost.endsWith('.vercel.app') ||
       cleanHost === 'tinyurl.dev' ||
       cleanHost === 'creataurus.work.gd'
     ) {
@@ -35,6 +38,18 @@ export async function GET(request: Request) {
       });
     }
 
+    // Only a domain registered in the caller's workspace can be probed, by someone who manages
+    // domains there (this was an open, unauthenticated way to make the server fetch any host)
+    const auth = await verifyWorkspacePermission(request, 'domains:manage', { domainId: cleanHost });
+    if (!auth.success) return auth.response;
+    const registered = (await sql.query(
+      `SELECT 1 FROM domains WHERE LOWER(hostname) = $1 AND workspace_id = $2 LIMIT 1`,
+      [cleanHost, auth.context.workspaceId]
+    ).catch(() => [])) as unknown[];
+    if (registered.length === 0) {
+      return NextResponse.json({ success: false, error: 'Domain not found in this workspace.' }, { status: 404 });
+    }
+
     // Perform live HTTPS TLS probe with 3.5s timeout
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3500);
@@ -45,7 +60,7 @@ export async function GET(request: Request) {
     let errorDetail = '';
 
     try {
-      const probeRes = await fetch(`https://${cleanHost}`, {
+      const probeRes = await safeFetch(`https://${cleanHost}`, {
         method: 'HEAD',
         signal: controller.signal,
         headers: { 'User-Agent': 'TinyURL-Domain-HealthCheck/1.0' },
@@ -73,8 +88,8 @@ export async function GET(request: Request) {
       reachable: reachable,
       http_status: httpStatus || undefined,
       status: sslActive ? 'active' : 'pending',
-      message: sslActive 
-        ? 'SSL certificate is active and Edge proxy is responding.' 
+      message: sslActive
+        ? 'SSL certificate is active and Edge proxy is responding.'
         : `SSL pending: ${errorDetail || 'Domain has not completed SSL issuance.'}`
     });
   } catch (err: unknown) {

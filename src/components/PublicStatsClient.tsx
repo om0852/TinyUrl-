@@ -35,6 +35,8 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
   const [copiedLink, setCopiedLink] = useState(false);
   const [dateRange, setDateRange] = useState<'24h' | '7d' | '30d'>('30d');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  // Chart end time, fixed when the page opens
+  const [openedAt] = useState(() => Date.now());
 
   const slug = link.custom_slug || link.short_code;
   const shortUrl = `https://${host}/${slug}`;
@@ -67,36 +69,33 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
   };
 
   const totalClicks = metrics?.total_clicks || link.clicks_count || 0;
-  const uniqueVisitors = metrics?.unique_visitors || Math.round(totalClicks * 0.74);
-  const repeatRate = metrics?.repeat_rate || (totalClicks > 0 ? `${Math.round(((totalClicks - uniqueVisitors) / totalClicks) * 100)}%` : '0%');
+  // Real figures only (unique visitors used to be invented as 74% of clicks)
+  const uniqueVisitors = metrics?.unique_visitors ?? 0;
+  const repeatRate = metrics?.repeat_rate || '0%';
 
-  // Time Series Chart calculation
+  // Time series from the recorded clicks (this used to draw a made-up sine wave)
   const timeSeriesData = useMemo(() => {
-    const pointsCount = dateRange === '24h' ? 24 : dateRange === '7d' ? 7 : 14;
-    const now = new Date();
-    const data = [];
-    const maxRange = Math.max(5, totalClicks);
-
-    for (let i = 0; i < pointsCount; i++) {
-      let label = '';
-      if (dateRange === '24h') {
-        const hour = (now.getHours() - (pointsCount - 1 - i) + 24) % 24;
-        label = `${hour.toString().padStart(2, '0')}:00`;
-      } else {
-        const d = new Date(now.getTime() - (pointsCount - 1 - i) * (dateRange === '7d' ? 86400000 : 2 * 86400000));
-        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      }
-
-      // Smooth simulated wave anchored on actual clicks
-      const curve = Math.sin((i / (pointsCount - 1)) * Math.PI) * 0.6 + 0.4;
-      const count = totalClicks > 0 ? Math.max(0, Math.round((totalClicks / pointsCount) * curve)) : 0;
+    const pointsCount = dateRange === '24h' ? 24 : dateRange === '7d' ? 7 : 15;
+    const bucketMs = dateRange === '24h' ? 3600000 : dateRange === '7d' ? 86400000 : 2 * 86400000;
+    const end = openedAt;
+    const start = end - pointsCount * bucketMs;
+    const counts = new Array(pointsCount).fill(0);
+    recentClicks.forEach(c => {
+      const t = new Date(c.timestamp).getTime();
+      if (Number.isNaN(t) || t < start || t > end) return;
+      counts[Math.min(pointsCount - 1, Math.floor((t - start) / bucketMs))] += 1;
+    });
+    const maxCount = Math.max(1, ...counts);
+    return counts.map((count, i) => {
+      const bucketStart = new Date(start + i * bucketMs);
+      const label = dateRange === '24h'
+        ? `${bucketStart.getHours().toString().padStart(2, '0')}:00`
+        : bucketStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const x = (i / (pointsCount - 1)) * 1000;
-      const y = totalClicks > 0 ? Math.max(30, Math.min(210, 210 - (count / (maxRange / pointsCount * 2)) * 160)) : 210;
-
-      data.push({ index: i, label, count, x, y });
-    }
-    return data;
-  }, [dateRange, totalClicks]);
+      const y = 210 - (count / maxCount) * 180;
+      return { index: i, label, count, x, y };
+    });
+  }, [dateRange, recentClicks, openedAt]);
 
   const svgPaths = useMemo(() => {
     if (timeSeriesData.length === 0) return { mainLine: '', areaFill: '' };

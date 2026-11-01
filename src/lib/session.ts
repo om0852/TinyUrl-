@@ -78,3 +78,73 @@ export function sessionCookieOptions(maxAge = SESSION_TTL_SECONDS) {
     maxAge,
   };
 }
+
+// ── Client portal session ──
+// Portal clients are not workspace users; they get their own signed HttpOnly cookie carrying the
+// client id. Portal routes read the client only from this cookie (a client_id in the URL or body
+// used to be trusted on its own, so anyone with the id could act as that client).
+
+export const PORTAL_COOKIE = 'snip_portal';
+const PORTAL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+
+interface PortalPayload {
+  cid: string;
+  exp: number;
+}
+
+export function createPortalToken(clientId: string, ttlSeconds = PORTAL_TTL_SECONDS): string {
+  const payload: PortalPayload = { cid: clientId, exp: Math.floor(Date.now() / 1000) + ttlSeconds };
+  const body = Buffer.from(JSON.stringify({ ...payload, kind: 'portal' })).toString('base64url');
+  return `${body}.${sign(body)}`;
+}
+
+/** Client id of the signed-in portal client, or null */
+export function getPortalClientId(request: Request): string | null {
+  const token = readCookie(request, PORTAL_COOKIE);
+  if (!token) return null;
+  const [body, mac] = token.split('.');
+  if (!body || !mac) return null;
+  const a = Buffer.from(mac);
+  const b = Buffer.from(sign(body));
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as PortalPayload & { kind?: string };
+    if (payload.kind !== 'portal' || !payload.cid || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload.cid;
+  } catch {
+    return null;
+  }
+}
+
+export function portalCookieOptions(maxAge = PORTAL_TTL_SECONDS) {
+  return { ...sessionCookieOptions(maxAge) };
+}
+
+// ── Click tracking token ──
+// The redirect page hands the browser a short-lived signed token for the link it rendered;
+// /api/v1/track only records a click that carries one (anyone could post fake clicks before).
+
+const CLICK_TOKEN_TTL_SECONDS = 30 * 60;
+
+export function createClickToken(linkId: string): string {
+  const payload = { kind: 'click', lid: linkId, n: crypto.randomBytes(9).toString('base64url'), exp: Math.floor(Date.now() / 1000) + CLICK_TOKEN_TTL_SECONDS };
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  return `${body}.${sign(body)}`;
+}
+
+/** { linkId, nonce } when the token is genuine and unexpired, else null */
+export function verifyClickToken(token: unknown): { linkId: string; nonce: string } | null {
+  if (typeof token !== 'string') return null;
+  const [body, mac] = token.split('.');
+  if (!body || !mac) return null;
+  const a = Buffer.from(mac);
+  const b = Buffer.from(sign(body));
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  try {
+    const p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { kind?: string; lid?: string; n?: string; exp?: number };
+    if (p.kind !== 'click' || !p.lid || !p.n || !p.exp || p.exp < Math.floor(Date.now() / 1000)) return null;
+    return { linkId: p.lid, nonce: p.n };
+  } catch {
+    return null;
+  }
+}

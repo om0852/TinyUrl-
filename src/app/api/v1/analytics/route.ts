@@ -87,8 +87,8 @@ export async function GET(request: Request) {
   try {
     if (code && code !== 'all') {
       const stats = (await sql.query(`
-        SELECT 
-          COUNT(*)::int as total_clicks,
+        SELECT
+          COUNT(*) FILTER (WHERE NOT COALESCE(is_bot, false))::int as total_clicks,
           COUNT(DISTINCT ip_hash)::int as unique_visitors,
           COUNT(*) FILTER (WHERE is_unique = true)::int as unique_clicks,
           COUNT(*) FILTER (WHERE is_unique = false)::int as repeat_clicks,
@@ -104,8 +104,8 @@ export async function GET(request: Request) {
       if (stats && stats.length > 0) {
         totalClicks = Number(stats[0].total_clicks) || 0;
         uniqueVisitors = Number(stats[0].unique_visitors) || 0;
-        uniqueClicks = Number(stats[0].unique_clicks) || uniqueVisitors;
-        repeatClicks = Number(stats[0].repeat_clicks) || Math.max(0, totalClicks - uniqueVisitors);
+        uniqueClicks = Number(stats[0].unique_clicks) || 0;
+        repeatClicks = Number(stats[0].repeat_clicks) || 0;
         botClicks = Number(stats[0].bot_clicks) || 0;
         avgLatency = Number(stats[0].avg_latency) || 0;
         mobileClicks = Number(stats[0].mobile_clicks) || 0;
@@ -140,8 +140,8 @@ export async function GET(request: Request) {
 
       // Scoped workspace aggregation
       const stats = (await sql.query(`
-        SELECT 
-          COUNT(c.id)::int as total_clicks,
+        SELECT
+          COUNT(c.id) FILTER (WHERE NOT COALESCE(c.is_bot, false))::int as total_clicks,
           COUNT(DISTINCT c.ip_hash)::int as unique_visitors,
           COUNT(c.id) FILTER (WHERE c.is_unique = true)::int as unique_clicks,
           COUNT(c.id) FILTER (WHERE c.is_unique = false)::int as repeat_clicks,
@@ -151,15 +151,15 @@ export async function GET(request: Request) {
           COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'desktop')::int as desktop_clicks,
           COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'tablet')::int as tablet_clicks
         FROM click_events c
-        INNER JOIN links l ON LOWER(c.short_code) = LOWER(l.short_code)
+        INNER JOIN links l ON (c.link_id = l.id OR (c.link_id IS NULL AND LOWER(c.short_code) = LOWER(l.short_code)))
         WHERE l.workspace_id = $1
       `, [workspaceId])) as unknown as ClickStatRow[];
 
       if (stats && stats.length > 0) {
         totalClicks = Number(stats[0].total_clicks) || 0;
         uniqueVisitors = Number(stats[0].unique_visitors) || 0;
-        uniqueClicks = Number(stats[0].unique_clicks) || uniqueVisitors;
-        repeatClicks = Number(stats[0].repeat_clicks) || Math.max(0, totalClicks - uniqueVisitors);
+        uniqueClicks = Number(stats[0].unique_clicks) || 0;
+        repeatClicks = Number(stats[0].repeat_clicks) || 0;
         botClicks = Number(stats[0].bot_clicks) || 0;
         avgLatency = Number(stats[0].avg_latency) || 0;
         mobileClicks = Number(stats[0].mobile_clicks) || 0;
@@ -170,7 +170,7 @@ export async function GET(request: Request) {
       const countries = (await sql.query(`
         SELECT c.country, c.country_code as code, COUNT(c.id)::int as clicks
         FROM click_events c
-        INNER JOIN links l ON LOWER(c.short_code) = LOWER(l.short_code)
+        INNER JOIN links l ON (c.link_id = l.id OR (c.link_id IS NULL AND LOWER(c.short_code) = LOWER(l.short_code)))
         WHERE l.workspace_id = $1
         GROUP BY c.country, c.country_code
         ORDER BY clicks DESC
@@ -207,17 +207,17 @@ export async function GET(request: Request) {
         ? ((await sql.query(`
             SELECT c.*
             FROM click_events c
-            WHERE LOWER(c.short_code) = $1
+            WHERE LOWER(c.short_code) = $1 AND NOT COALESCE(c.is_bot, false)
             ORDER BY c.timestamp DESC
-            LIMIT 100
+            LIMIT 1000
           `, [code])) as unknown as RawClickRow[])
         : ((await sql.query(`
             SELECT DISTINCT c.*
             FROM click_events c
-            INNER JOIN links l ON (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code))
-            WHERE l.workspace_id = $1
+            INNER JOIN links l ON (c.link_id = l.id OR (c.link_id IS NULL AND LOWER(c.short_code) = LOWER(l.short_code)))
+            WHERE l.workspace_id = $1 AND NOT COALESCE(c.is_bot, false)
             ORDER BY c.timestamp DESC
-            LIMIT 100
+            LIMIT 5000
           `, [workspaceId])) as unknown as RawClickRow[]);
 
       if (Array.isArray(events)) {
@@ -444,19 +444,9 @@ export async function GET(request: Request) {
       desktop: `${desktopPct}%`,
       tablet: `${tabletPct}%`
     },
-    browsers: topBrowsers.length > 0 ? topBrowsers : [
-      { browser: 'Chrome', clicks: Math.round(totalClicks * 0.6), pct: 60 },
-      { browser: 'Safari', clicks: Math.round(totalClicks * 0.3), pct: 30 },
-      { browser: 'Edge', clicks: Math.round(totalClicks * 0.1), pct: 10 }
-    ],
-    operating_systems: topOperatingSystems.length > 0 ? topOperatingSystems : [
-      { os: 'iOS', clicks: Math.round(totalClicks * 0.45), pct: 45 },
-      { os: 'Android', clicks: Math.round(totalClicks * 0.35), pct: 35 },
-      { os: 'Windows', clicks: Math.round(totalClicks * 0.2), pct: 20 }
-    ],
-    languages: topLanguages.length > 0 ? topLanguages : [
-      { language: 'en-US', label: 'English (United States)', clicks: totalClicks, pct: 100 }
-    ],
+    browsers: topBrowsers,
+    operating_systems: topOperatingSystems,
+    languages: topLanguages,
     utm_breakdown: {
       sources: Array.from(utmSourceMap.entries()).map(([name, clicks]) => ({ name, clicks })).sort((a, b) => b.clicks - a.clicks),
       mediums: Array.from(utmMediumMap.entries()).map(([name, clicks]) => ({ name, clicks })).sort((a, b) => b.clicks - a.clicks),
@@ -466,6 +456,25 @@ export async function GET(request: Request) {
     },
     hourly_activity: hourlyActivity
   };
+
+  // ?code= is public (the + stats page). Strangers get aggregates and coarse click rows only:
+  // no IP hash, user agent, destination or UTM values.
+  if (code && code !== 'all' && !workspaceId) {
+    const auth = await verifyWorkspacePermission(request, 'analytics:read', { linkId: code });
+    if (!auth.success) {
+      recentClicks = recentClicks.map(c => ({
+        ...c,
+        ip_hash: '',
+        user_agent: undefined,
+        destination_url: undefined,
+        utm_source: undefined,
+        utm_medium: undefined,
+        utm_campaign: undefined,
+        utm_term: undefined,
+        utm_content: undefined
+      }));
+    }
+  }
 
   return NextResponse.json<AnalyticsApiResponse & { recent_clicks?: ClickEvent[] }>({
     success: true,

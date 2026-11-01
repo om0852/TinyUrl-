@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql, initializeDatabase } from '@/lib/postgres';
+import { safeFetch } from '@/lib/safeFetch';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface HealthCheckResult {
@@ -26,7 +27,7 @@ async function probeUrl(targetUrl: string): Promise<{ statusCode: number; reason
 
     let res: Response;
     try {
-      res = await fetch(cleanUrl, {
+      res = await safeFetch(cleanUrl, {
         method: 'HEAD',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; TinyUrlHealthBot/2.0; +https://tinyurl.dev/bot)'
@@ -36,7 +37,7 @@ async function probeUrl(targetUrl: string): Promise<{ statusCode: number; reason
       });
     } catch (headErr) {
       // Some web servers reject HEAD requests; fallback to GET
-      res = await fetch(cleanUrl, {
+      res = await safeFetch(cleanUrl, {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; TinyUrlHealthBot/2.0; +https://tinyurl.dev/bot)'
@@ -107,10 +108,10 @@ async function probeUrl(targetUrl: string): Promise<{ statusCode: number; reason
     const isDns = String(err).includes('ENOTFOUND') || String(err).includes('EAI_AGAIN');
 
     const statusCode = isTimeout ? 504 : isDns ? 502 : 500;
-    const reason = isTimeout 
-      ? 'Connection timed out (>4000ms)' 
-      : isDns 
-        ? 'DNS Resolution Failure (Domain unreachable)' 
+    const reason = isTimeout
+      ? 'Connection timed out (>4000ms)'
+      : isDns
+        ? 'DNS Resolution Failure (Domain unreachable)'
         : 'Host Connection Refused / SSL Handshake Error';
 
     return {
@@ -237,10 +238,11 @@ export async function POST(request: Request) {
 
       // Update link record in database
       await sql.query(
-        `UPDATE links 
-         SET status = $1, 
-             broken_code = $2, 
-             broken_reason = $3, 
+        // Only toggles active <-> broken; disabled, expired and flagged links keep their status
+        `UPDATE links
+         SET status = CASE WHEN status IN ('active', 'broken') OR status IS NULL THEN $1 ELSE status END,
+             broken_code = $2,
+             broken_reason = $3,
              last_health_check = NOW()
          WHERE id = $4`,
         [newStatus, brokenCode, brokenReason, link.id]

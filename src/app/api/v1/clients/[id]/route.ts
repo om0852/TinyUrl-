@@ -8,6 +8,15 @@ function hashPassword(password: string): string {
   return crypto.pbkdf2Sync(password, salt, 210000, 64, 'sha512').toString('hex');
 }
 
+// Only links and campaigns that belong to the client's workspace can be assigned
+async function ownedIds(table: 'links' | 'campaigns', ids: unknown, workspaceId: string): Promise<string[]> {
+  const list = Array.isArray(ids) ? ids.filter((x): x is string => typeof x === 'string' && !!x) : [];
+  if (list.length === 0) return [];
+  const rows = (await sql.query(`SELECT id FROM ${table} WHERE id = ANY($1::text[]) AND workspace_id = $2`, [list, workspaceId]).catch(() => [])) as { id: string }[];
+  const owned = new Set(rows.map(r => r.id));
+  return list.filter(id => owned.has(id));
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -92,20 +101,22 @@ export async function PATCH(
       return authResult.response;
     }
 
-    const updatedName = body.name !== undefined ? body.name.trim() : existing.name;
-    const updatedCompany = body.company_name !== undefined ? body.company_name.trim() : existing.company_name;
-    const updatedStatus = body.status !== undefined ? body.status : existing.status;
+    const updatedName = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : existing.name;
+    const updatedCompany = typeof body.company_name === 'string' && body.company_name.trim() ? body.company_name.trim() : existing.company_name;
+    // Portal routes only admit 'active'; anything else is treated as suspended
+    const updatedStatus = body.status === 'active' || body.status === 'suspended' ? body.status : existing.status;
     const updatedDomain = body.custom_domain !== undefined ? body.custom_domain : existing.custom_domain;
     const updatedLogo = body.brand_logo_url !== undefined ? body.brand_logo_url : existing.brand_logo_url;
     const updatedColor = body.brand_color !== undefined ? body.brand_color : existing.brand_color;
     const updatedCanAnalytics = body.can_view_analytics !== undefined ? Boolean(body.can_view_analytics) : existing.can_view_analytics;
     const updatedCanEditDest = body.can_edit_destination_url !== undefined ? Boolean(body.can_edit_destination_url) : existing.can_edit_destination_url;
     const updatedCanCreate = body.can_create_links !== undefined ? Boolean(body.can_create_links) : existing.can_create_links;
-    const updatedQuota = body.max_links_quota !== undefined ? Number(body.max_links_quota) : existing.max_links_quota;
+    const quotaNum = Number(body.max_links_quota);
+    const updatedQuota = body.max_links_quota !== undefined && Number.isFinite(quotaNum) && quotaNum >= 0 ? Math.floor(quotaNum) : existing.max_links_quota;
     
     let updatedAssignedLinks: string;
     if (body.assigned_link_ids !== undefined) {
-      updatedAssignedLinks = JSON.stringify(Array.isArray(body.assigned_link_ids) ? body.assigned_link_ids : []);
+      updatedAssignedLinks = JSON.stringify(await ownedIds('links', body.assigned_link_ids, existing.workspace_id));
     } else {
       updatedAssignedLinks = typeof existing.assigned_link_ids === 'string'
         ? existing.assigned_link_ids
@@ -114,7 +125,7 @@ export async function PATCH(
 
     let updatedAssignedCampaigns: string;
     if (body.assigned_campaign_ids !== undefined) {
-      updatedAssignedCampaigns = JSON.stringify(Array.isArray(body.assigned_campaign_ids) ? body.assigned_campaign_ids : []);
+      updatedAssignedCampaigns = JSON.stringify(await ownedIds('campaigns', body.assigned_campaign_ids, existing.workspace_id));
     } else {
       updatedAssignedCampaigns = typeof existing.assigned_campaign_ids === 'string'
         ? existing.assigned_campaign_ids
@@ -128,40 +139,6 @@ export async function PATCH(
       updatedPassHash = hashPassword(body.password.trim());
     }
 
-    // Sync any assigned full link objects into PostgreSQL links table
-    if (Array.isArray(body.assigned_links) && body.assigned_links.length > 0) {
-      for (const lnk of body.assigned_links) {
-        if (lnk && lnk.id && lnk.short_code && lnk.destination_url) {
-          await sql.query(
-            `INSERT INTO links (
-              id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count,
-              tags, rules, campaign_id, redirect_type, http_status_code, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
-            ON CONFLICT (short_code) DO UPDATE SET
-              destination_url = EXCLUDED.destination_url,
-              title = COALESCE(EXCLUDED.title, links.title),
-              campaign_id = COALESCE(EXCLUDED.campaign_id, links.campaign_id)`,
-            [
-              lnk.id,
-              lnk.workspace_id || existing.workspace_id,
-              lnk.domain_id || 'dom_platform',
-              lnk.short_code,
-              lnk.custom_slug || lnk.short_code,
-              lnk.destination_url,
-              lnk.title || `Short Link ${lnk.short_code}`,
-              lnk.status || 'active',
-              lnk.clicks_count || 0,
-              JSON.stringify(lnk.tags || []),
-              JSON.stringify(lnk.rules || []),
-              lnk.campaign_id || null,
-              lnk.redirect_type || 'direct',
-              lnk.http_status_code || 301,
-              lnk.created_at || new Date().toISOString()
-            ]
-          ).catch(err => console.warn('Sync assigned link to DB failed on update:', err));
-        }
-      }
-    }
 
     await sql.query(
       `UPDATE client_portals SET

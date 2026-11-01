@@ -200,9 +200,11 @@ export interface RedirectClientProps {
   code: string;
   initialTarget?: string | null;
   initialLink?: Link | null;
+  /** Signed token from the server that lets this page record one click */
+  trackToken?: string;
 }
 
-export function RedirectClient({ code, initialTarget, initialLink }: RedirectClientProps) {
+export function RedirectClient({ code, initialTarget, initialLink, trackToken }: RedirectClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { links, logClick } = useStore();
@@ -401,7 +403,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
   // Deep Link details (OpeninApp feature)
   const appDeepLink = useMemo(() => {
     if (!resolvedTarget) return null;
-    
+
     // Check if configured explicitly or auto-detected
     const isTargetChanged = link?.destination_url && resolvedTarget !== link.destination_url;
     if (link?.deep_link && !isTargetChanged) {
@@ -496,7 +498,7 @@ export function RedirectClient({ code, initialTarget, initialLink }: RedirectCli
           logClick(link.id, {
             short_code: code,
             referrer: effectiveReferrer
-          });
+          }, trackToken);
         } catch (err) {
           console.warn('Click logging error:', err);
         }

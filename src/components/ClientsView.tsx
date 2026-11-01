@@ -167,7 +167,7 @@ export const ClientsView: React.FC<ClientsViewProps> = () => {
       <button type="button" onClick={() => handleCopyPortalLink(client)} title="Copy portal login link" aria-label="Copy portal login link" className={iconBtn}>
         {copiedClientId === client.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
-      <a href={`/portal/dashboard?client_id=${client.id}`} target="_blank" rel="noreferrer" title="Preview portal" aria-label="Preview portal" className={iconBtn}>
+      <a href={`/api/v1/portal/preview?client_id=${encodeURIComponent(client.id)}`} target="_blank" rel="noreferrer" title="Preview portal" aria-label="Preview portal" className={iconBtn}>
         <ExternalLink className="w-3.5 h-3.5" />
       </a>
       <button type="button" onClick={() => { setClientToEdit(client); setCreateModalOpen(true); }} title="Edit client" aria-label="Edit client" className={iconBtn}>

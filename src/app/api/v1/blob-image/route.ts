@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getVercelBlobStream } from '@/lib/blobStorage';
 import { isSafeOutboundUrl } from '@/lib/security';
+import { safeFetch } from '@/lib/safeFetch';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
   // 2. Fallback for public external images: proxy them
   if (!rawBuffer) {
     try {
-      const fetched = await fetch(imageUrl, {
+      const fetched = await safeFetch(imageUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TinyUrl-Bot/1.0)' },
         signal: AbortSignal.timeout(6000),
         redirect: 'manual'
@@ -114,5 +115,6 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.redirect(new URL(imageUrl), 302);
+  // No redirect to arbitrary URLs: this endpoint is not an open redirect
+  return NextResponse.json({ success: false, error: 'Image not available.' }, { status: 404 });
 }

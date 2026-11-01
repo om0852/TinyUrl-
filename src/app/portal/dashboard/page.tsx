@@ -109,19 +109,18 @@ function ClientPortalDashboardContent() {
       const stored = localStorage.getItem('snip_client_session');
       if (stored) {
         setSession(JSON.parse(stored));
-      } else if (queryClientId) {
-        // Fallback session stub with client_id from query
+      } else {
+        // No profile in this browser yet (e.g. an agency preview): the signed portal cookie
+        // identifies the client, and the server fills in the profile and permissions
         setSession({
-          id: queryClientId,
-          name: 'Portal User',
+          id: queryClientId || 'current',
+          name: '',
           email: '',
-          company_name: 'Client Portal',
-          can_view_analytics: true,
-          can_edit_destination_url: true,
+          company_name: '',
+          can_view_analytics: false,
+          can_edit_destination_url: false,
           can_create_links: false,
         });
-      } else {
-        router.replace('/portal/login');
       }
     } catch {
       router.replace('/portal/login');
@@ -135,7 +134,13 @@ function ClientPortalDashboardContent() {
     else setLoading(true);
 
     try {
-      const res = await fetch(`/api/v1/portal/resources?client_id=${encodeURIComponent(session.id)}`);
+      // The server identifies the client from the signed portal cookie
+      const res = await fetch('/api/v1/portal/resources', { cache: 'no-store' });
+      if (res.status === 401) {
+        localStorage.removeItem('snip_client_session');
+        router.replace('/portal/login');
+        return;
+      }
       const data = await res.json();
 
       if (data.success) {
@@ -156,7 +161,7 @@ function ClientPortalDashboardContent() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [session?.id]);
+  }, [session?.id, router]);
 
   useEffect(() => {
     if (session?.id) {
@@ -166,7 +171,7 @@ function ClientPortalDashboardContent() {
 
   const handleLogout = () => {
     localStorage.removeItem('snip_client_session');
-    router.replace('/portal/login');
+    fetch('/api/v1/portal/auth', { method: 'DELETE' }).catch(() => {}).finally(() => router.replace('/portal/login'));
   };
 
   const handleCopy = (text: string, id: string) => {
@@ -194,10 +199,7 @@ function ClientPortalDashboardContent() {
       const res = await fetch(`/api/v1/portal/links/${editingLink.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: session.id,
-          destination_url: newDestinationUrl.trim(),
-        }),
+        body: JSON.stringify({ destination_url: newDestinationUrl.trim() }),
       });
 
       const data = await res.json();

@@ -187,6 +187,7 @@ export async function POST(request: Request) {
            verify_token = COALESCE(domains.verify_token, EXCLUDED.verify_token),
            is_primary = EXCLUDED.is_primary,
            root_redirect_url = COALESCE(EXCLUDED.root_redirect_url, domains.root_redirect_url)
+       WHERE domains.workspace_id = EXCLUDED.workspace_id
        RETURNING *`,
       [
         cleanId,
@@ -200,6 +201,9 @@ export async function POST(request: Request) {
     )) as unknown as RawDomainRow[];
 
     const saved = rows && rows.length > 0 ? rows[0] : null;
+    if (!saved) {
+      return NextResponse.json({ success: false, error: `Domain "${cleanHost}" is registered by another workspace.` }, { status: 409 });
+    }
 
     // Automatically register domain with Cloudflare for SaaS if configured
     let cfOwnershipDetails: { type: string; name: string; value: string } | undefined;
@@ -212,7 +216,7 @@ export async function POST(request: Request) {
         if (cfRes.verified) {
           await sql.query(
             `UPDATE domains SET verified = true, ssl_status = 'active', routing_verified = true, ownership_verified = true WHERE id = $1`,
-            [cleanId]
+            [saved?.id || '']
           ).catch(() => {});
           if (saved) {
             saved.verified = true;
@@ -231,7 +235,7 @@ export async function POST(request: Request) {
         if (vRes.verified) {
           await sql.query(
             `UPDATE domains SET verified = true, ssl_status = 'active', routing_verified = true WHERE id = $1`,
-            [cleanId]
+            [saved?.id || '']
           ).catch(() => {});
           if (saved) {
             saved.verified = true;

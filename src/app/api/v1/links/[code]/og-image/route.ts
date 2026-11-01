@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { getVercelBlobStream } from '@/lib/blobStorage';
 import { linkCache } from '@/lib/cache';
+import { safeFetch } from '@/lib/safeFetch';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
@@ -149,7 +150,7 @@ export async function GET(
     // 3. If og_image_url is an external HTTP/HTTPS URL
     if (!sourceBuffer && rawImage && /^https?:\/\//i.test(rawImage)) {
       try {
-        const proxied = await fetch(rawImage, {
+        const proxied = await safeFetch(rawImage, {
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TinyUrl-Bot/1.0)' },
           signal: AbortSignal.timeout(5000)
         });

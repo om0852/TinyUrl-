@@ -12,6 +12,7 @@ import { PublicStatsClient } from '@/components/PublicStatsClient';
 import { linkCache } from '@/lib/cache';
 import { cleanHost, isPlatformHost } from '@/lib/domainHelper';
 import { detectAppDeepLink } from '@/lib/deepLink';
+import { createClickToken } from '@/lib/session';
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -49,9 +50,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       };
     } else {
       const rows = (await sql.query(
-        `SELECT title, destination_url, short_code, custom_slug, og_title, og_description, og_image_url 
-         FROM links 
-         WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1 
+        `SELECT title, destination_url, short_code, custom_slug, og_title, og_description, og_image_url
+         FROM links
+         WHERE LOWER(short_code) = $1 OR LOWER(custom_slug) = $1
          LIMIT 1`,
         [cleanCode]
       )) as Array<{
@@ -72,7 +73,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     if (link) {
       const title = link.og_title?.trim() || link.title?.trim() || `Link /${link.short_code}`;
       const description = link.og_description?.trim() || `Open link: ${link.destination_url || 'destination'}`;
-      
+
       const headersList = await headers().catch(() => null);
       const rawHost = headersList?.get('x-forwarded-host') || headersList?.get('host') || 'creataurus.work.gd';
       const proto = headersList?.get('x-forwarded-proto') || (rawHost.includes('localhost') ? 'http' : 'https');
@@ -145,7 +146,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
       const rawHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
       const userAgent = headersList.get('user-agent') || '';
       const currentHost = cleanHost(rawHost);
-      
+
       // Comprehensive social crawler detection: WhatsApp, Facebook, Meta external agents, Twitter/X, Telegram, Slack, LinkedIn, Discord, Applebot, Skype, Pinterest
       isSocialCrawler = /whatsapp|facebookexternalhit|meta-externalagent|meta-externalfetcher|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|applebot|skypeuripreview|pinterest/i.test(userAgent);
 
@@ -194,11 +195,12 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
       } else {
         if (!isPlatformDomain) {
           rows = (await sql.query(
-            `SELECT l.* FROM links l
-             LEFT JOIN domains d ON d.id = l.domain_id
-             WHERE (LOWER(d.hostname) = $1 OR l.domain_id IS NULL)
+            `SELECT l.* FROM domains d
+             JOIN links l ON l.workspace_id = d.workspace_id
+                         AND (l.domain_id = d.id OR l.domain_id IS NULL)
+             WHERE LOWER(d.hostname) = $1 AND d.verified = true
                AND (LOWER(l.short_code) = $2 OR LOWER(l.custom_slug) = $2)
-             ORDER BY CASE WHEN LOWER(d.hostname) = $1 THEN 0 ELSE 1 END
+             ORDER BY (l.domain_id = d.id) DESC
              LIMIT 1`,
             [currentHost, cleanCode]
           )) as unknown as typeof rows;
@@ -222,9 +224,25 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
 
       if (rows && rows.length > 0) {
         const row = rows[0];
+
+        // Disabled, expired and used-up links don't redirect or count here either (/r/<code> and
+        // the platform fallback reach this page without the middleware guards). The click limit
+        // is checked against the live count, not the cached one.
+        let liveClicks = Number(row.clicks_count) || 0;
+        if (row.max_clicks) {
+          const fresh = (await sql.query(`SELECT clicks_count FROM links WHERE id = $1`, [row.id]).catch(() => [])) as { clicks_count?: number }[];
+          if (fresh?.[0]) liveClicks = Number(fresh[0].clicks_count) || 0;
+        }
+        const isInactive = row.status === 'disabled'
+          || (row.expires_at && new Date(row.expires_at) < new Date())
+          || (row.max_clicks && liveClicks >= Number(row.max_clicks));
+        if (isInactive && !isPublicStatsRequest) {
+          notFound();
+        }
+
         const isPasswordLocked = !!row.password_hash;
-        const parsedRules: LinkRule[] = isPasswordLocked 
-          ? [] 
+        const parsedRules: LinkRule[] = isPasswordLocked
+          ? []
           : (typeof row.rules === 'string' ? JSON.parse(row.rules) : (Array.isArray(row.rules) ? row.rules : []));
 
         initialLink = {
@@ -306,16 +324,16 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
             <div style={{ padding: '40px', fontFamily: 'var(--font-poppins), system-ui, -apple-system, sans-serif', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
               {displayImg && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img 
-                  src={displayImg} 
-                  alt={ogTitle} 
-                  style={{ width: '100%', maxHeight: '315px', objectFit: 'contain', backgroundColor: '#0b0f06', borderRadius: '10px', marginBottom: '20px', border: '1px solid #dcdcdc' }} 
+                <img
+                  src={displayImg}
+                  alt={ogTitle}
+                  style={{ width: '100%', maxHeight: '315px', objectFit: 'contain', backgroundColor: '#0b0f06', borderRadius: '10px', marginBottom: '20px', border: '1px solid #dcdcdc' }}
                 />
               )}
               <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#1a1a1a', marginBottom: '10px' }}>{ogTitle}</h1>
               <p style={{ fontSize: '15px', color: '#666666', lineHeight: '1.5', marginBottom: '20px' }}>{ogDesc}</p>
-              <a 
-                href={initialTarget || row.destination_url} 
+              <a
+                href={initialTarget || row.destination_url}
                 style={{ display: 'inline-block', backgroundColor: '#a3e635', color: '#1a2e05', padding: '12px 24px', borderRadius: '5px', textDecoration: 'none', fontWeight: 600 }}
               >
                 Continue to Destination &rarr;
@@ -373,10 +391,11 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
             // after() keeps the invocation alive until the writes finish (also when redirect() throws);
             // a bare un-awaited promise can be dropped or delayed once the serverless response is sent.
             after(async () => {
-              // Only judge repeat visits when the IP is the verified visitor IP. Without the trusted
-              // edge proxy, custom-domain traffic all shares the proxy's IP and would look like repeats.
+              // Only judge repeat visits when the IP is the real visitor IP: the verified edge-proxy IP
+              // on custom domains, or the platform domain where the host sets x-forwarded-for itself.
+              // Without either, custom-domain traffic shares the proxy's IP and would look like repeats.
               let isUnique = true;
-              if (trustedIp) {
+              if (trustedIp || isPlatformDomain) {
                 try {
                   const prior = await sql.query(
                     `SELECT 1 FROM click_events WHERE link_id = $1 AND ip_hash = $2 LIMIT 1`,
@@ -425,8 +444,11 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
                 ]
               ).catch((err: unknown) => console.warn('Click insert failed:', err));
 
-              await sql.query(`UPDATE links SET clicks_count = clicks_count + 1 WHERE id = $1`, [row.id])
-                .catch((err: unknown) => console.warn('Click counter update failed:', err));
+              // Bots are kept as events (flagged is_bot) but don't add to the link's click count
+              if (!isBot) {
+                await sql.query(`UPDATE links SET clicks_count = clicks_count + 1 WHERE id = $1`, [row.id])
+                  .catch((err: unknown) => console.warn('Click counter update failed:', err));
+              }
             });
           } catch {}
 
@@ -446,10 +468,11 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
   // Intermediate screen only rendered when link is suspicious, password-protected, or splash/frame!
   return (
     <Suspense fallback={null}>
-      <RedirectClient 
-        code={code} 
-        initialTarget={initialTarget} 
-        initialLink={initialLink} 
+      <RedirectClient
+        code={code}
+        initialTarget={initialTarget}
+        initialLink={initialLink}
+        trackToken={initialLink?.id ? createClickToken(initialLink.id) : undefined}
       />
     </Suspense>
   );

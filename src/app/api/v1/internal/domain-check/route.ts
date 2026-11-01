@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     if (
       cleanHost === 'localhost' ||
       cleanHost === '127.0.0.1' ||
-      cleanHost.includes('vercel.app') ||
+      cleanHost.endsWith('.vercel.app') ||
       cleanHost === 'tinyurl.dev' ||
       cleanHost === primaryBridge ||
       cleanHost === 'creataurus.work.gd'

@@ -76,7 +76,7 @@ interface StoreContextType {
   refreshAnalytics: (force?: boolean) => Promise<void>;
   selectedAnalyticsLinkId: string | null;
   setSelectedAnalyticsLinkId: (id: string | null) => void;
-  
+
   // Loading & Refreshing States
   isRefreshing: boolean;
   isInitialLoading: boolean;
@@ -93,7 +93,7 @@ interface StoreContextType {
   apiKeys: ApiKey[];
   webhooks: Webhook[];
 
-  
+
   // Actions
   createShortLink: (data: {
     destination_url: string;
@@ -124,14 +124,14 @@ interface StoreContextType {
   }) => { link: Link | null; error?: string };
 
 
-  updateLink: (id: string, updates: Partial<Link>) => void;
-  deleteLink: (id: string) => void;
+  updateLink: (id: string, updates: Partial<Link>) => Promise<boolean>;
+  deleteLink: (id: string) => Promise<boolean>;
   resetLinkAnalytics: (linkId?: string) => Promise<{ success: boolean; message?: string }>;
-  addRuleToLink: (linkId: string, rule: { 
-    rule_type?: 'geo' | 'device' | 'ab' | 'smart'; 
-    condition?: string; 
-    target_url: string; 
-    weight?: number; 
+  addRuleToLink: (linkId: string, rule: {
+    rule_type?: 'geo' | 'device' | 'ab' | 'smart';
+    condition?: string;
+    target_url: string;
+    weight?: number;
     geo_type?: 'country' | 'state' | 'city';
     device?: 'all' | 'android' | 'ios' | 'desktop';
     country?: string;
@@ -139,17 +139,17 @@ interface StoreContextType {
     city?: string;
   }) => void;
   removeRuleFromLink: (linkId: string, ruleId: string) => void;
-  logClick: (linkId: string, clientInfo?: Partial<ClickEvent>) => ClickEvent;
-  
+  logClick: (linkId: string, clientInfo?: Partial<ClickEvent>, trackToken?: string) => ClickEvent;
+
   addDomain: (hostname: string, is_default?: boolean, root_redirect_url?: string) => Promise<Domain | null>;
   verifyDomain: (idOrHostname: string, simulateBypass?: boolean) => Promise<{ success: boolean; verified?: boolean; message?: string }>;
   updateDomainConfig: (idOrHostname: string, updates: { root_redirect_url?: string; is_primary?: boolean }) => Promise<boolean>;
   deleteDomain: (idOrHostname: string) => Promise<boolean>;
-  
+
   addCampaign: (name: string, description: string, tags: string[], target_clicks?: number) => Campaign;
   updateCampaign: (id: string, updates: Partial<Campaign>) => void;
   deleteCampaign: (id: string) => void;
-  
+
   // White-Label Client Portal Actions
   addClient: (data: Partial<ClientPortalAccount> & { password?: string }) => Promise<{ success: boolean; client?: ClientPortalAccount; error?: string }>;
   updateClient: (id: string, updates: Partial<ClientPortalAccount> & { password?: string }) => Promise<{ success: boolean; error?: string }>;
@@ -160,7 +160,7 @@ interface StoreContextType {
   addWebhook: (url: string, events: string[]) => Promise<Webhook | null>;
   deleteWebhook: (id: string) => void;
   toggleWebhook: (id: string) => Promise<boolean>;
-  
+
   // Security & AI utilities
   scanUrlSecurity: (url: string) => SecurityReport;
   aiSuggestSlugs: (url: string, title?: string) => string[];
@@ -187,8 +187,8 @@ export const getUserStorageKey = (base: string, email?: string | null): string =
 export const sanitizeUserLinks = (raw: unknown[], workspaceId?: string): Link[] => {
   if (!Array.isArray(raw)) return [];
   const orphanCodes = new Set([
-    'stripe-letter', 'spring-launch', 'mnrxia', 'mytest1', 'get-localhost', 
-    'qdpyeu', 'h8fwlh', '9ouo7e', 'bqobvo', 'uy0ldf', 'kypplo', 'y9cfpx', 
+    'stripe-letter', 'spring-launch', 'mnrxia', 'mytest1', 'get-localhost',
+    'qdpyeu', 'h8fwlh', '9ouo7e', 'bqobvo', 'uy0ldf', 'kypplo', 'y9cfpx',
     'xjdunk', 'yvodcg', '5sqltr', 'urcrsw', 'hffru4', 'vg1fsy', 'idqfg4', 'lkejyy',
     'sale26', 'v2launch', 'audit26', 'dl-app', 'suspicious-link'
   ]);
@@ -538,9 +538,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const remoteValid = sanitizeUserLinks(d.links, activeWsId);
             setLinks(currentActive => {
               const remoteCodes = new Set(remoteValid.map(r => r.short_code.toLowerCase()));
-              const recentLocals = currentActive.filter(l => 
-                l.workspace_id === activeWsId && 
-                !remoteCodes.has(l.short_code.toLowerCase()) && 
+              const recentLocals = currentActive.filter(l =>
+                l.workspace_id === activeWsId &&
+                !remoteCodes.has(l.short_code.toLowerCase()) &&
                 (Date.now() - new Date(l.created_at).getTime() < 15000)
               );
               const latestLinks = [...recentLocals, ...remoteValid];
@@ -1023,7 +1023,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const parsedWs = JSON.parse(savedWs);
             if (Array.isArray(parsedWs)) {
               loadedWs = parsedWs.filter(
-                (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && 
+                (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' &&
                                   w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
               );
             }
@@ -1031,7 +1031,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         // Check if there are workspaces stored globally or in invite acceptance
-        const targetWsId = localStorage.getItem(`url_shortener_current_workspace_id_${user.email}`) || 
+        const targetWsId = localStorage.getItem(`url_shortener_current_workspace_id_${user.email}`) ||
                            localStorage.getItem('url_shortener_current_workspace_id');
         const globalWsRaw = localStorage.getItem('url_shortener_workspaces');
         if (globalWsRaw) {
@@ -1427,10 +1427,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const scanUrlSecurity = (url: string): SecurityReport => {
     const lower = url.toLowerCase();
     const isMalicious = lower.includes('phish') || lower.includes('claim') || lower.includes('.tk') || lower.includes('airdrop-verify');
-    
+
     let risk_score = 0;
     const threat_categories: string[] = [];
-    
+
     if (isMalicious) {
       risk_score = 98;
       threat_categories.push('Social Engineering', 'Credential Harvesting', 'Unverified Top-Level Domain');
@@ -1494,8 +1494,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const secReport = scanUrlSecurity(finalDestUrl);
 
     const defaultDomain = domains.find(d => d.is_default) || domains[0];
-    const resolvedDomainId = (data.domain_id && data.domain_id.trim()) 
-      ? data.domain_id.trim() 
+    const resolvedDomainId = (data.domain_id && data.domain_id.trim())
+      ? data.domain_id.trim()
       : (defaultDomain?.id || 'dom_platform');
     const resolvedWorkspaceId = currentWorkspace?.id || 'ws_default';
 
@@ -1605,26 +1605,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { link: newLink };
   };
 
-  const updateLink = (id: string, updates: Partial<Link>) => {
+  // Resolves to false (and puts the old values back) when the server refuses the change; the
+  // edit dialog used to report success either way
+  const updateLink = async (id: string, updates: Partial<Link>): Promise<boolean> => {
     if (!checkPermissionOrToast('links:edit', 'edit short links')) {
-      return;
+      return false;
     }
+    const before = links;
 
     const updated = links.map(l => (
-      l.id === id || 
-      l.short_code?.toLowerCase() === id.toLowerCase() || 
+      l.id === id ||
+      l.short_code?.toLowerCase() === id.toLowerCase() ||
       (l.custom_slug && l.custom_slug.toLowerCase() === id.toLowerCase())
     ) ? { ...l, ...updates } : l);
     saveLinksState(updated);
 
     if (typeof window !== 'undefined') {
-      const target = updated.find(l => 
-        l.id === id || 
-        l.short_code?.toLowerCase() === id.toLowerCase() || 
+      const target = updated.find(l =>
+        l.id === id ||
+        l.short_code?.toLowerCase() === id.toLowerCase() ||
         (l.custom_slug && l.custom_slug.toLowerCase() === id.toLowerCase())
       );
       if (target) {
-        apiFetch('/api/v1/links', {
+        const error = await confirmCampaignWrite(apiFetch('/api/v1/links', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1642,59 +1645,63 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             risk_score: target.risk_score,
             redirect_type: target.redirect_type,
             http_status_code: target.http_status_code,
-            notes: target.notes,
+            notes: target.notes ?? '',
             shield_protection: target.shield_protection,
             hide_referrer: target.hide_referrer,
             channel: target.channel,
-            og_title: target.og_title,
-            og_description: target.og_description,
-            og_image_url: target.og_image_url,
-            utm_source: target.utm_source,
-            utm_medium: target.utm_medium,
-            utm_campaign: target.utm_campaign,
-            utm_term: target.utm_term,
-            utm_content: target.utm_content,
+            og_title: target.og_title ?? '',
+            og_description: target.og_description ?? '',
+            og_image_url: target.og_image_url ?? '',
+            utm_source: target.utm_source ?? '',
+            utm_medium: target.utm_medium ?? '',
+            utm_campaign: target.utm_campaign ?? '',
+            utm_term: target.utm_term ?? '',
+            utm_content: target.utm_content ?? '',
             password: target.password_hash !== 'PROTECTED' ? target.password_hash : undefined,
             password_hash: target.password_hash !== 'PROTECTED' ? target.password_hash : undefined,
-            expires_at: target.expires_at,
-            max_clicks: target.max_clicks,
-            fallback_url: target.fallback_url,
+            expires_at: target.expires_at ? new Date(target.expires_at).toISOString() : null,
+            max_clicks: target.max_clicks ?? null,
+            fallback_url: target.fallback_url ?? '',
             broken_code: target.broken_code !== undefined ? target.broken_code : undefined,
             broken_reason: target.broken_reason !== undefined ? target.broken_reason : undefined
           })
-        }).catch(err => console.warn('Failed to update link on server:', err));
+        }));
+        if (error) {
+          saveLinksState(before);
+          showToast('error', 'Link not saved', error);
+          return false;
+        }
+        invalidateStoreCache('links');
       }
     }
+    return true;
   };
 
-  const deleteLink = (id: string) => {
+  const deleteLink = async (id: string): Promise<boolean> => {
     if (!checkPermissionOrToast('links:delete', 'delete links')) {
-      return;
+      return false;
     }
 
+    const before = links;
     const target = links.find(l => l.id === id || l.short_code?.toLowerCase() === id.toLowerCase());
-    const updated = links.filter(l => l.id !== id && l.short_code?.toLowerCase() !== id.toLowerCase());
-    saveLinksState(updated);
+    saveLinksState(links.filter(l => l.id !== id && l.short_code?.toLowerCase() !== id.toLowerCase()));
 
     if (typeof window !== 'undefined') {
-      apiFetch(`/api/v1/links?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE'
-      }).catch(err => {
-        console.warn('Failed to delete link on server:', err);
-      });
-
-      if (target?.short_code && target.short_code.toLowerCase() !== id.toLowerCase()) {
-        apiFetch(`/api/v1/links?code=${encodeURIComponent(target.short_code)}`, {
-          method: 'DELETE'
-        }).catch(() => {});
+      const error = await confirmCampaignWrite(apiFetch(`/api/v1/links?id=${encodeURIComponent(target?.id || id)}`, { method: 'DELETE' }));
+      if (error) {
+        saveLinksState(before);
+        showToast('error', 'Link not deleted', error);
+        return false;
       }
+      invalidateStoreCache('links');
     }
+    return true;
   };
 
   const resetLinkAnalytics = async (linkId?: string): Promise<{ success: boolean; message?: string }> => {
     try {
-      const payload: { link_id?: string; workspace_id?: string } = linkId 
-        ? { link_id: linkId } 
+      const payload: { link_id?: string; workspace_id?: string } = linkId
+        ? { link_id: linkId }
         : { workspace_id: currentWorkspace.id };
 
       const res = await apiFetch('/api/v1/analytics/reset', {
@@ -1720,11 +1727,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addRuleToLink = (linkId: string, rule: { 
-    rule_type?: 'geo' | 'device' | 'ab' | 'smart'; 
-    condition?: string; 
-    target_url: string; 
-    weight?: number; 
+  const addRuleToLink = (linkId: string, rule: {
+    rule_type?: 'geo' | 'device' | 'ab' | 'smart';
+    condition?: string;
+    target_url: string;
+    weight?: number;
     geo_type?: 'country' | 'state' | 'city';
     device?: 'all' | 'android' | 'ios' | 'desktop';
     country?: string;
@@ -1784,7 +1791,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Log click event
-  const logClick = (linkId: string, clientInfo?: Partial<ClickEvent>): ClickEvent => {
+  const logClick = (linkId: string, clientInfo?: Partial<ClickEvent>, trackToken?: string): ClickEvent => {
     // 1. Resolve freshest state from localStorage if available
     let currentLinks = [...links];
     let currentClicks = [...clicks];
@@ -1817,8 +1824,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const targetRealId = targetLink ? targetLink.id : linkId;
 
     const geo = detectClientGeo();
-    const resolvedCountry = clientInfo?.country 
-      ? normalizeCountryName(clientInfo.country, clientInfo.country_code) 
+    const resolvedCountry = clientInfo?.country
+      ? normalizeCountryName(clientInfo.country, clientInfo.country_code)
       : geo;
 
     const persistentVid = (clientInfo?.visitor_id || clientInfo?.ip_hash || getPersistentVisitorId()).trim();
@@ -1874,7 +1881,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const payload = JSON.stringify({
         link_id: targetRealId,
         short_code: targetShortCode,
-        click: newClick
+        click: newClick,
+        track_token: trackToken
       });
 
       if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
@@ -2132,24 +2140,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const res = await apiFetch('/api/v1/domains', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            id: idOrHostname, 
-            simulate_bypass: simulateBypass 
+          body: JSON.stringify({
+            id: idOrHostname,
+            simulate_bypass: simulateBypass
           })
         });
         const data = await res.json().catch(() => ({}));
         if (data?.success && data.domain) {
-          const updated = domains.map(d => 
-            (d.id === idOrHostname || d.hostname === idOrHostname) 
-              ? { ...d, ...data.domain } 
+          const updated = domains.map(d =>
+            (d.id === idOrHostname || d.hostname === idOrHostname)
+              ? { ...d, ...data.domain }
               : d
           );
           saveDomainsState(updated);
         }
-        return { 
-          success: !!data?.success, 
-          verified: !!data?.verified, 
-          message: data?.message 
+        return {
+          success: !!data?.success,
+          verified: !!data?.verified,
+          message: data?.message
         };
       } catch (err) {
         return { success: false, message: 'Network error checking DNS' };
@@ -2333,7 +2341,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const aiSuggestSlugs = (url: string, title?: string): string[] => {
     const text = (title || url).toLowerCase().replace(/[^a-z0-9]/g, '-').split('-').filter(Boolean);
     const keywords = text.filter(w => w.length > 2 && !['https', 'http', 'com', 'www', 'and', 'the', 'for'].includes(w));
-    
+
     const k1 = keywords[0] || 'deal';
     const k2 = keywords[1] || 'go';
 
@@ -2354,7 +2362,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const mobileCount = targetClicks.filter(c => c.device === 'mobile').length;
     const mobilePct = Math.round((mobileCount / total) * 100);
-    
+
     // Top country
     const countryMap: Record<string, number> = {};
     targetClicks.forEach(c => { countryMap[c.country] = (countryMap[c.country] || 0) + 1; });
@@ -2437,14 +2445,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const parsedWs = JSON.parse(savedWs);
         if (Array.isArray(parsedWs)) {
           userWorkspaces = parsedWs.filter(
-            (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' && 
+            (w: Workspace) => w.id !== 'ws_1' && w.id !== 'ws_2' &&
                               w.name !== 'Acme Growth Platform' && w.name !== 'Personal Projects'
           );
         }
       } catch {}
     }
 
-    const targetWsId = localStorage.getItem(`url_shortener_current_workspace_id_${cleanEmail}`) || 
+    const targetWsId = localStorage.getItem(`url_shortener_current_workspace_id_${cleanEmail}`) ||
                        localStorage.getItem('url_shortener_current_workspace_id');
     const globalWsRaw = localStorage.getItem('url_shortener_workspaces');
     if (globalWsRaw) {
@@ -2795,7 +2803,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       avatar: initials,
       role: 'owner'
     };
-    
+
     // Auto-create personalized workspace for new signup
     const wsName = `${trimmedName}'s Workspace`;
     const newWs: Workspace = {
@@ -2806,7 +2814,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       plan: 'pro',
       created_at: new Date().toISOString()
     };
-    
+
     const userWorkspaces = [newWs];
     setWorkspaces(userWorkspaces);
     setCurrentWorkspace(newWs);

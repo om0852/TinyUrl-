@@ -412,7 +412,8 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
         utm_content: utmContent.trim() || undefined,
         expires_at: !neverExpires && expiresAt ? new Date(expiresAt).toISOString() : undefined,
         max_clicks: maxClicks && Number(maxClicks) > 0 ? Number(maxClicks) : undefined,
-        rules: linkRules.length > 0 ? linkRules : undefined
+        // An empty list clears the rules (undefined was dropped and the old rules stayed)
+        rules: linkRules
       };
 
       if (clearPassword) {
@@ -423,7 +424,8 @@ export const EditLinkModal: React.FC<EditLinkModalProps> = ({ isOpen, link, onCl
         updates.password_hash = password.trim();
       }
 
-      await updateLink(link.id, updates);
+      // The store shows the server's reason and restores the old values when the save fails
+      if (!(await updateLink(link.id, updates))) return;
 
       showToast(
         'success',

@@ -6,6 +6,8 @@ import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { hashLinkPassword } from '@/lib/security';
 import { evictCustomDomainCache } from '@/lib/linkCacheEviction';
+import { RESERVED_SLUGS } from '@/lib/db';
+import { isWebUrl, domainAllowed, campaignAllowed, slugTaken, SLUG_PATTERN } from '@/lib/linkGuards';
 
 interface RawLinkRow {
   id: string;
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
     let rows: RawLinkRow[] = [];
     if (code && typeof code === 'string' && code.trim()) {
       rows = (await sql.query(`
-        SELECT 
+        SELECT
           l.*,
           COALESCE(l.clicks_count, 0) as resolved_clicks_count
         FROM links l
@@ -72,11 +74,11 @@ export async function GET(request: Request) {
       }
 
       rows = (await sql.query(`
-        SELECT 
+        SELECT
           l.*,
           COALESCE(l.clicks_count, 0) as resolved_clicks_count
         FROM links l
-        WHERE l.workspace_id = $1 
+        WHERE l.workspace_id = $1
         ORDER BY l.created_at DESC
         LIMIT ${searchParams.get('all') === '1' ? 10000 : 100}
       `, [workspaceId.trim()])) as unknown as RawLinkRow[];
@@ -97,8 +99,8 @@ export async function GET(request: Request) {
 
       const formattedLinks: Link[] = rows.map((l: RawLinkRow) => {
         const isPasswordLocked = isPublicCodeQuery && !!l.password_hash;
-        const parsedRules: LinkRule[] = isPasswordLocked 
-          ? [] 
+        const parsedRules: LinkRule[] = isPasswordLocked
+          ? []
           : (typeof l.rules === 'string' ? JSON.parse(l.rules) : (Array.isArray(l.rules) ? l.rules : []));
 
         // Evaluate smart routing destination for visitor device & geo
@@ -189,18 +191,18 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      id, 
-      short_code, 
-      custom_slug, 
-      rules, 
-      status, 
-      title, 
-      destination_url, 
-      campaign_id, 
+    const {
+      id,
+      short_code,
+      custom_slug,
+      rules,
+      status,
+      title,
+      destination_url,
+      campaign_id,
       domain_id,
-      tags, 
-      is_flagged, 
+      tags,
+      is_flagged,
       risk_score,
       redirect_type,
       http_status_code,
@@ -235,14 +237,61 @@ export async function PATCH(request: Request) {
     if (!authResult.success) {
       return authResult.response;
     }
+    const wsId = authResult.context.workspaceId;
+
+    // The row being edited, inside the caller's workspace. Updates used to match id, short code
+    // or slug across every workspace, so a colliding value could change another workspace's link.
+    const currentRows = (await sql.query(
+      `SELECT * FROM links
+       WHERE workspace_id = $2 AND (id = $1 OR LOWER(short_code) = LOWER($1) OR LOWER(custom_slug) = LOWER($1))
+       ORDER BY (id = $1) DESC
+       LIMIT 1`,
+      [lookupId, wsId]
+    )) as unknown as RawLinkRow[];
+    const current = currentRows?.[0];
+    if (!current) {
+      return NextResponse.json({ success: false, error: 'Link not found.' }, { status: 404 });
+    }
+
+    const bad = (error: string) => NextResponse.json({ success: false, error }, { status: 422 });
+    if (destination_url !== undefined && destination_url !== null && destination_url !== '' && !isWebUrl(destination_url)) {
+      return bad('Destination must be an http:// or https:// address.');
+    }
+    if (og_image_url && !isWebUrl(og_image_url)) return bad('Preview image must be an http:// or https:// address.');
+    if (fallback_url && !isWebUrl(fallback_url)) return bad('Fallback must be an http:// or https:// address.');
+    for (const [label, value] of [['Short code', short_code], ['Slug', custom_slug]] as const) {
+      if (!value) continue;
+      const v = String(value).trim();
+      const unchanged = v.toLowerCase() === String(current.short_code || '').toLowerCase() || v.toLowerCase() === String(current.custom_slug || '').toLowerCase();
+      if (unchanged) continue;
+      if (!SLUG_PATTERN.test(v)) return bad(`${label} must be 3-64 letters, numbers, dashes or underscores.`);
+      if (RESERVED_SLUGS.has(v.toLowerCase())) return bad(`"${v}" is reserved.`);
+      if (await slugTaken(v, current.id)) {
+        return NextResponse.json({ success: false, error: `"${v}" is already in use.` }, { status: 409 });
+      }
+    }
+    if (domain_id && !(await domainAllowed(wsId, String(domain_id).trim()))) return bad('That domain is not in this workspace.');
+    if (campaign_id && campaign_id !== '__remove__' && !(await campaignAllowed(wsId, String(campaign_id).trim()))) {
+      return bad('That campaign is not in this workspace.');
+    }
+    if (max_clicks !== undefined && max_clicks !== null && max_clicks !== '' && !Number.isFinite(Number(max_clicks))) {
+      return bad('Max clicks must be a number.');
+    }
+    if (expires_at && Number.isNaN(new Date(expires_at).getTime())) return bad('Expiry date is not valid.');
+    // The app sends the link's current status with every edit (it may be flagged or broken)
+    if (status !== undefined && status !== null && status !== current.status && !['active', 'disabled', 'expired'].includes(String(status))) {
+      return bad('Status must be active, disabled or expired.');
+    }
 
     const rulesJson = Array.isArray(rules) ? JSON.stringify(rules) : (rules === null ? '[]' : null);
     const tagsJson = Array.isArray(tags) ? JSON.stringify(tags) : (tags === null ? '[]' : null);
     const newShortCode = short_code ? String(short_code).trim() : null;
     const newCustomSlug = custom_slug !== undefined ? (custom_slug ? String(custom_slug).trim() : null) : null;
     const newCampaignId = campaign_id !== undefined ? (campaign_id === null || campaign_id === '' || campaign_id === '__remove__' ? '__null__' : String(campaign_id).trim()) : null;
-    const flaggedVal = typeof is_flagged === 'boolean' ? is_flagged : null;
-    const riskScoreVal = typeof risk_score === 'number' ? risk_score : null;
+    // is_flagged / risk_score are set by the security scan only; an edit can't clear a flag
+    void is_flagged; void risk_score;
+    const flaggedVal = null;
+    const riskScoreVal = null;
 
     const cleanDomainId = domain_id ? String(domain_id).trim() : null;
     const cleanRedirectType = redirect_type ? String(redirect_type).trim() : null;
@@ -277,17 +326,17 @@ export async function PATCH(request: Request) {
       : null;
 
     const rows = (await sql.query(
-      `UPDATE links 
+      `UPDATE links
        SET rules = CASE WHEN $1::text IS NOT NULL THEN $1::jsonb ELSE rules END,
            status = COALESCE($2, status),
            title = COALESCE($3, title),
            destination_url = COALESCE($4, destination_url),
            short_code = COALESCE($5, short_code),
            custom_slug = COALESCE($6, custom_slug),
-           campaign_id = CASE 
-             WHEN $8 = '__null__' THEN NULL 
-             WHEN $8::text IS NOT NULL THEN $8 
-             ELSE campaign_id 
+           campaign_id = CASE
+             WHEN $8 = '__null__' THEN NULL
+             WHEN $8::text IS NOT NULL THEN $8
+             ELSE campaign_id
            END,
            tags = CASE WHEN $9::text IS NOT NULL THEN $9::jsonb ELSE tags END,
            is_flagged = COALESCE($10, is_flagged),
@@ -307,20 +356,20 @@ export async function PATCH(request: Request) {
            utm_campaign = CASE WHEN $24::text IS NOT NULL THEN $24 ELSE utm_campaign END,
            utm_term = CASE WHEN $25::text IS NOT NULL THEN $25 ELSE utm_term END,
            utm_content = CASE WHEN $26::text IS NOT NULL THEN $26 ELSE utm_content END,
-           password_hash = CASE 
-             WHEN $27 = '__null__' THEN NULL 
-             WHEN $27::text IS NOT NULL THEN $27 
-             ELSE password_hash 
+           password_hash = CASE
+             WHEN $27 = '__null__' THEN NULL
+             WHEN $27::text IS NOT NULL THEN $27
+             ELSE password_hash
            END,
-           expires_at = CASE 
-             WHEN $28 = '__null__' THEN NULL 
-             WHEN $28::timestamptz IS NOT NULL THEN $28::timestamptz 
-             ELSE expires_at 
+           expires_at = CASE
+             WHEN $28 = '__null__' THEN NULL
+             WHEN $28::timestamptz IS NOT NULL THEN $28::timestamptz
+             ELSE expires_at
            END,
-           max_clicks = CASE 
-             WHEN $29 = -1 THEN NULL 
-             WHEN $29::int IS NOT NULL THEN $29::int 
-             ELSE max_clicks 
+           max_clicks = CASE
+             WHEN $29 = -1 THEN NULL
+             WHEN $29::int IS NOT NULL THEN $29::int
+             ELSE max_clicks
            END,
            fallback_url = CASE
              WHEN $30 = '__null__' THEN NULL
@@ -338,18 +387,16 @@ export async function PATCH(request: Request) {
              ELSE broken_reason
            END,
            updated_at = NOW()
-       WHERE id = $7 
-          OR LOWER(short_code) = LOWER($7) 
-          OR LOWER(custom_slug) = LOWER($7)
+       WHERE id = $7 AND workspace_id = $33
        RETURNING *`,
       [
-        rulesJson, 
-        status || null, 
-        title || null, 
-        destination_url || null, 
-        newShortCode, 
-        newCustomSlug, 
-        lookupId, 
+        rulesJson,
+        status || null,
+        title || null,
+        destination_url || null,
+        newShortCode,
+        newCustomSlug,
+        current.id,
         newCampaignId,
         tagsJson,
         flaggedVal,
@@ -374,7 +421,8 @@ export async function PATCH(request: Request) {
         cleanMaxClicks,
         cleanFallbackUrl,
         cleanBrokenCode,
-        cleanBrokenReason
+        cleanBrokenReason,
+        wsId
       ]
     )) as unknown as RawLinkRow[];
 
@@ -393,7 +441,12 @@ export async function PATCH(request: Request) {
       if (newCustomSlug) {
         await linkCache.delete(`link_${newCustomSlug.toLowerCase()}`);
       }
-      await evictCustomDomainCache(updatedRow, [lookupId, updatedRow.short_code, updatedRow.custom_slug, newShortCode, newCustomSlug]);
+      for (const code of [current.short_code, current.custom_slug]) {
+        if (code) await linkCache.delete(`link_${code.toLowerCase()}`);
+      }
+      const allCodes = [lookupId, current.short_code, current.custom_slug, updatedRow.short_code, updatedRow.custom_slug, newShortCode, newCustomSlug];
+      await evictCustomDomainCache(updatedRow, allCodes);
+      if (current.domain_id !== updatedRow.domain_id) await evictCustomDomainCache(current, allCodes);
 
       const formatted: Link = {
         id: updatedRow.id,
@@ -438,11 +491,7 @@ export async function PATCH(request: Request) {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Link updated successfully.',
-      link: null
-    });
+    return NextResponse.json({ success: false, error: 'Link not found.' }, { status: 404 });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database update error';
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
@@ -476,8 +525,14 @@ export async function DELETE(request: Request) {
     }
 
     const rows = (await sql.query(
-      `DELETE FROM links WHERE id = $1 OR LOWER(short_code) = LOWER($1) RETURNING *`,
-      [cleanId]
+      `DELETE FROM links
+       WHERE id = (
+         SELECT id FROM links
+         WHERE workspace_id = $2 AND (id = $1 OR LOWER(short_code) = LOWER($1) OR LOWER(custom_slug) = LOWER($1))
+         ORDER BY (id = $1) DESC LIMIT 1
+       ) AND workspace_id = $2
+       RETURNING *`,
+      [cleanId, authResult.context.workspaceId]
     )) as unknown as RawLinkRow[];
 
     if (rows && rows.length > 0) {
@@ -491,10 +546,13 @@ export async function DELETE(request: Request) {
       await evictCustomDomainCache(deletedRow, [deletedRow.short_code, deletedRow.custom_slug]);
     }
 
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'Link not found.' }, { status: 404 });
+    }
     return NextResponse.json({
       success: true,
-      message: 'Link deleted successfully from database.',
-      deleted: rows && rows.length > 0 ? rows[0] : null
+      message: 'Link deleted.',
+      deleted: { id: rows[0].id, short_code: rows[0].short_code }
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database delete error';

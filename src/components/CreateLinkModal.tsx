@@ -496,7 +496,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           og_title: ogTitle.trim() || (title.trim() || undefined),
           og_description: ogDescription.trim() || undefined,
           og_image_url: ogImageUrl.trim() || undefined,
-          expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
+          // The local datetime as an absolute time; a bare "2026-11-05T10:00" was read in the server's zone
+          expires_at: !neverExpires && expiresAt ? new Date(expiresAt).toISOString() : undefined,
           max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
           utm_source: (enableUtm || utmSource.trim()) ? utmSource.trim() || undefined : undefined,
           utm_medium: (enableUtm || utmMedium.trim()) ? utmMedium.trim() || undefined : undefined,
@@ -586,7 +587,8 @@ export const CreateLinkModal: React.FC<CreateLinkModalProps> = ({ isOpen, onClos
           og_title: ogTitle.trim() || undefined,
           og_description: ogDescription.trim() || undefined,
           og_image_url: ogImageUrl.trim() || undefined,
-          expires_at: !neverExpires && expiresAt ? expiresAt : undefined,
+          // The local datetime as an absolute time; a bare "2026-11-05T10:00" was read in the server's zone
+          expires_at: !neverExpires && expiresAt ? new Date(expiresAt).toISOString() : undefined,
           max_clicks: maxClicks.trim() ? parseInt(maxClicks, 10) : undefined,
           utm_source: utmSource,
           utm_medium: utmMedium,

@@ -32,6 +32,10 @@ export interface VerifyPermissionOptions {
  * permission in a workspace the caller picks (header/body) and then acting on a resource by id
  * would let anyone with access to their own workspace touch another workspace's data.
  */
+// A resource that exists but has no workspace belongs to nobody: deny instead of falling back
+// to whatever workspace the caller names
+const ORPHANED = '__no_workspace__';
+
 async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Promise<string | null> {
   // Look up by link ID / short_code / custom_slug
   if (options.linkId && typeof options.linkId === 'string' && options.linkId.trim()) {
@@ -39,10 +43,11 @@ async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Pro
     const rows = (await sql.query(
       `SELECT workspace_id FROM links
        WHERE id = $1 OR LOWER(short_code) = LOWER($1) OR LOWER(custom_slug) = LOWER($1)
+       ORDER BY (id = $1) DESC
        LIMIT 1`,
       [clean]
     ).catch(() => [])) as { workspace_id?: string }[];
-    if (rows?.[0]?.workspace_id) return rows[0].workspace_id;
+    if (rows?.length) return rows[0].workspace_id || ORPHANED;
   }
 
   // Fallback: look up by campaign ID
@@ -52,7 +57,7 @@ async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Pro
       `SELECT workspace_id FROM campaigns WHERE id = $1 LIMIT 1`,
       [clean]
     ).catch(() => [])) as { workspace_id?: string }[];
-    if (rows?.[0]?.workspace_id) return rows[0].workspace_id;
+    if (rows?.length) return rows[0].workspace_id || ORPHANED;
   }
 
   // Fallback: look up by domain ID / hostname
@@ -62,7 +67,7 @@ async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Pro
       `SELECT workspace_id FROM domains WHERE id = $1 OR LOWER(hostname) = LOWER($1) LIMIT 1`,
       [clean]
     ).catch(() => [])) as { workspace_id?: string }[];
-    if (rows?.[0]?.workspace_id) return rows[0].workspace_id;
+    if (rows?.length) return rows[0].workspace_id || ORPHANED;
   }
 
   // Fallback: look up by webhook ID
@@ -72,7 +77,7 @@ async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Pro
       `SELECT workspace_id FROM webhooks WHERE id = $1 LIMIT 1`,
       [clean]
     ).catch(() => [])) as { workspace_id?: string }[];
-    if (rows?.[0]?.workspace_id) return rows[0].workspace_id;
+    if (rows?.length) return rows[0].workspace_id || ORPHANED;
   }
 
   // Fallback: look up by API key ID
@@ -82,7 +87,7 @@ async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Pro
       `SELECT workspace_id FROM api_keys WHERE id = $1 LIMIT 1`,
       [clean]
     ).catch(() => [])) as { workspace_id?: string }[];
-    if (rows?.[0]?.workspace_id) return rows[0].workspace_id;
+    if (rows?.length) return rows[0].workspace_id || ORPHANED;
   }
 
   return null;
