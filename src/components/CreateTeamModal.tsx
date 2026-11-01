@@ -6,7 +6,6 @@ import { useStore } from '@/lib/storeContext';
 import { X, Layers, Check } from 'lucide-react';
 import { Button } from './ui/button';
 
-import { InfoTooltip } from './ui/InfoTooltip';
 
 interface CreateTeamModalProps {
   isOpen: boolean;
@@ -59,26 +58,24 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
             <Layers className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-foreground">Create New Workspace</h3>
-            <p className="text-xs text-muted-foreground">Organize link infrastructure and team privileges</p>
+            <h3 className="text-base font-bold text-foreground">New workspace</h3>
           </div>
         </div>
 
         {success ? (
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-emerald-500 text-xs flex items-center gap-2 font-bold justify-center">
-            <Check className="w-4 h-4 text-emerald-500" /> Workspace Created &amp; Activated!
+            <Check className="w-4 h-4 text-emerald-500" /> Workspace created
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
               <label className="text-foreground font-semibold text-xs mb-1.5 flex items-center">
-                <span>Workspace Name</span>
-                <InfoTooltip text="Unique organization or team workspace to isolate links, custom domains, and analytics." />
+                <span>Name</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="e.g. Growth &amp; Security Operations"
+                placeholder="e.g. Marketing team"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full h-10 px-3.5 bg-background border-[0.5px] border-outline-variant focus:border-primary-strong rounded-lg text-xs text-foreground placeholder:text-muted-foreground/60 outline-none transition"
@@ -87,8 +84,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
 
             <div>
               <label className="text-foreground font-semibold text-xs mb-1.5 flex items-center">
-                <span>Select Tier Plan</span>
-                <InfoTooltip text="Choose your workspace subscription tier. All plans provide high performance edge routing." />
+                <span>Plan</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {(['free', 'pro', 'enterprise'] as const).map((p) => (
@@ -113,7 +109,7 @@ export const CreateTeamModal: React.FC<CreateTeamModalProps> = ({ isOpen, onClos
               size="lg"
               className="w-full text-xs font-bold mt-2"
             >
-              Create Workspace
+              Create workspace
             </Button>
           </form>
         )}

@@ -157,19 +157,18 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { workspace_id, name, email, role, inviter_email } = body;
+    const { workspace_id, name, email, role } = body;
 
     if (!workspace_id || !name || !email) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Fields "workspace_id", "name", and "email" are required.' 
+      return NextResponse.json({
+        success: false,
+        error: 'Fields "workspace_id", "name", and "email" are required.'
       }, { status: 400 });
     }
 
     // RBAC: Requires members:invite permission (owner, admin only)
     const authResult = await verifyWorkspacePermission(request, 'members:invite', {
-      workspaceId: workspace_id.trim(),
-      userEmail: inviter_email
+      workspaceId: workspace_id.trim()
     });
     if (!authResult.success) {
       return authResult.response;
@@ -199,7 +198,7 @@ export async function POST(request: Request) {
 
     // 1. Invalidate any prior pending invitations for this email in this workspace
     await sql.query(`
-      UPDATE workspace_invitations 
+      UPDATE workspace_invitations
       SET status = 'revoked'
       WHERE workspace_id = $1 AND LOWER(email) = $2 AND status = 'pending'
     `, [workspace_id.trim(), cleanEmail]).catch(() => {});
@@ -212,7 +211,7 @@ export async function POST(request: Request) {
     `, [
       inviteId,
       workspace_id.trim(),
-      inviter_email ? inviter_email.trim() : null,
+      authResult.context.isApiKey ? null : authResult.context.userEmail,
       cleanName,
       cleanEmail,
       cleanRole,
@@ -286,8 +285,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: emailSent 
-        ? 'Invitation created and email sent successfully.' 
+      message: emailSent
+        ? 'Invitation created and email sent successfully.'
         : 'Invitation link generated successfully.',
       email_sent: emailSent,
       invitation: {
@@ -309,6 +308,12 @@ export async function POST(request: Request) {
   }
 }
 
+async function isWorkspaceOwner(workspaceId: string, email: string): Promise<boolean> {
+  const rows = (await sql.query(`SELECT owner_email FROM workspaces WHERE id = $1 LIMIT 1`, [workspaceId]).catch(() => [])) as { owner_email?: string }[];
+  const owner = rows?.[0]?.owner_email?.toLowerCase().trim();
+  return !!owner && owner === email.toLowerCase().trim();
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -324,28 +329,34 @@ export async function DELETE(request: Request) {
       // Find email and workspace if it's an invitation or member
       const member = (await sql.query(`SELECT email, workspace_id FROM workspace_members WHERE id = $1`, [id.trim()]).catch(() => [])) as { email?: string; workspace_id?: string }[];
       const inv = (await sql.query(`SELECT email, workspace_id FROM workspace_invitations WHERE id = $1`, [id.trim()]).catch(() => [])) as { email?: string; workspace_id?: string }[];
-      
+
       const targetEmail = member?.[0]?.email || inv?.[0]?.email;
       const targetWs = member?.[0]?.workspace_id || inv?.[0]?.workspace_id;
 
+      if (!targetWs) {
+        return NextResponse.json({ success: false, error: 'Member or invitation not found.' }, { status: 404 });
+      }
       // RBAC: Requires members:remove permission (owner, admin only)
-      if (targetWs) {
-        const authResult = await verifyWorkspacePermission(request, 'members:remove', {
-          workspaceId: targetWs
-        });
-        if (!authResult.success) {
-          return authResult.response;
-        }
+      const authResult = await verifyWorkspacePermission(request, 'members:remove', {
+        workspaceId: targetWs
+      });
+      if (!authResult.success) {
+        return authResult.response;
+      }
+      if (targetEmail && await isWorkspaceOwner(targetWs, targetEmail)) {
+        return NextResponse.json({ success: false, error: 'The workspace owner cannot be removed.' }, { status: 400 });
       }
 
       await sql.query(`DELETE FROM workspace_members WHERE id = $1`, [id.trim()]).catch(() => {});
       await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE id = $1`, [id.trim()]).catch(() => {});
       await sql.query(`DELETE FROM workspace_invitations WHERE id = $1`, [id.trim()]).catch(() => {});
-      
+
       if (targetEmail && targetWs) {
         await sql.query(`DELETE FROM workspace_members WHERE LOWER(email) = LOWER($1) AND workspace_id = $2`, [targetEmail, targetWs]).catch(() => {});
         await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE LOWER(email) = LOWER($1) AND workspace_id = $2`, [targetEmail, targetWs]).catch(() => {});
       }
+    } else if (email && !workspaceId) {
+      return NextResponse.json({ success: false, error: 'workspace_id is required when removing by email.' }, { status: 400 });
     } else if (email && workspaceId) {
       // RBAC: Requires members:remove permission (owner, admin only)
       const authResult = await verifyWorkspacePermission(request, 'members:remove', {
@@ -354,14 +365,17 @@ export async function DELETE(request: Request) {
       if (!authResult.success) {
         return authResult.response;
       }
+      if (await isWorkspaceOwner(workspaceId.trim(), email.trim())) {
+        return NextResponse.json({ success: false, error: 'The workspace owner cannot be removed.' }, { status: 400 });
+      }
 
       await sql.query(`
-        DELETE FROM workspace_members 
+        DELETE FROM workspace_members
         WHERE LOWER(email) = LOWER($1) AND workspace_id = $2
       `, [email.trim(), workspaceId.trim()]).catch(() => {});
       await sql.query(`
-        UPDATE workspace_invitations 
-        SET status = 'revoked' 
+        UPDATE workspace_invitations
+        SET status = 'revoked'
         WHERE LOWER(email) = LOWER($1) AND workspace_id = $2
       `, [email.trim(), workspaceId.trim()]).catch(() => {});
     }
@@ -400,20 +414,26 @@ export async function PATCH(request: Request) {
     `, [workspace_id.trim()]).catch(() => [])) as { owner_email?: string }[];
     const ownerEmail = wsRows?.[0]?.owner_email?.toLowerCase().trim();
 
-    await sql.query(`
+    const memberRows = (await sql.query(`
       UPDATE workspace_members
       SET role = $1
-      WHERE (id = $2 OR LOWER(email) = LOWER($2)) 
-        AND workspace_id = $3 
+      WHERE (id = $2 OR LOWER(email) = LOWER($2))
+        AND workspace_id = $3
         AND role != 'owner'
         AND ($4::text IS NULL OR LOWER(email) != $4)
-    `, [cleanRole, member_id.trim(), workspace_id.trim(), ownerEmail || null]);
+      RETURNING id
+    `, [cleanRole, member_id.trim(), workspace_id.trim(), ownerEmail || null])) as unknown[];
 
-    await sql.query(`
+    const inviteRows = (await sql.query(`
       UPDATE workspace_invitations
       SET role = $1
       WHERE (id = $2 OR LOWER(email) = LOWER($2)) AND workspace_id = $3 AND status = 'pending'
-    `, [cleanRole, member_id.trim(), workspace_id.trim()]).catch(() => {});
+      RETURNING id
+    `, [cleanRole, member_id.trim(), workspace_id.trim()]).catch(() => [])) as unknown[];
+
+    if ((memberRows?.length || 0) + (inviteRows?.length || 0) === 0) {
+      return NextResponse.json({ success: false, error: 'Member not found, or it is the workspace owner.' }, { status: 404 });
+    }
 
 
     return NextResponse.json({

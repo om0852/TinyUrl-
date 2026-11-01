@@ -62,22 +62,22 @@ export const ROLE_DESCRIPTIONS: Record<WorkspaceRole, { title: string; badgeColo
   owner: {
     title: 'Workspace Owner',
     badgeColor: 'bg-primary-container text-on-primary',
-    description: 'Full administrative authority: can manage workspace billing, delete resources, invite/remove members, and manage all links & campaigns.'
+    description: 'Everything, including workspace settings and deletion.'
   },
   admin: {
     title: 'Workspace Admin',
     badgeColor: 'bg-blue-500/10 text-blue-600 border border-blue-500/20',
-    description: 'Operational manager: can invite members, create/delete campaigns, manage custom domains, and configure links.'
+    description: 'Manage links, campaigns, members, domains and API keys.'
   },
   editor: {
     title: 'Campaign Editor',
     badgeColor: 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20',
-    description: 'Content creator: can create and customize short links, create marketing campaigns, and review traffic metrics. Cannot remove team members or alter domains.'
+    description: 'Create and edit links and campaigns, and see analytics.'
   },
   viewer: {
     title: 'Read-only Viewer',
     badgeColor: 'bg-zinc-500/10 text-zinc-600 border border-zinc-500/20',
-    description: 'Stakeholder / auditor: can view live links, campaign progress, and analytics reports. Cannot create, edit, or delete items.'
+    description: 'View links and analytics only.'
   }
 };
 

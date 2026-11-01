@@ -15,6 +15,8 @@ export interface BulkImportItem {
   utm_medium?: string;
   utm_campaign?: string;
   campaign_id?: string;
+  /** Line in the uploaded file, for error messages */
+  row?: number;
 }
 
 export interface BulkImportRequest {
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
 
     for (let index = 0; index < itemsList.length; index++) {
       const item = itemsList[index];
-      const rowNum = index + 1;
+      const rowNum = Number.isInteger(item?.row) && (item.row as number) > 0 ? (item.row as number) : index + 1;
 
       // URL Check
       const rawUrl = item?.destination_url ? String(item.destination_url).trim() : '';
@@ -114,6 +116,12 @@ export async function POST(request: Request) {
       const normUrl = normalizeUrl(rawUrl);
       if (!/^https?:\/\//i.test(normUrl)) {
         errors.push({ row: rowNum, url: rawUrl, error: 'URL must use http:// or https:// protocol.' });
+        continue;
+      }
+      let parsedHost = '';
+      try { parsedHost = new URL(normUrl).hostname; } catch {}
+      if (!parsedHost || !parsedHost.includes('.') && parsedHost !== 'localhost') {
+        errors.push({ row: rowNum, url: rawUrl, error: 'Not a valid web address.' });
         continue;
       }
 
@@ -186,11 +194,13 @@ export async function POST(request: Request) {
         }
       } catch (err) {
         console.warn('Batch slug existence check error:', err);
+        return NextResponse.json({ success: false, error: 'Could not check which slugs are free. Nothing was imported; please try again.' }, { status: 503 });
       }
     }
 
     // Prepare links to insert
     const linksToInsert: Link[] = [];
+    const rowOf = new Map<string, number>();
 
     for (const validItem of stage1Valid) {
       const { rowNum, rawUrl, finalUrl, item, isCustom } = validItem;
@@ -241,14 +251,42 @@ export async function POST(request: Request) {
         created_by: userEmail,
         clicks_count: 0,
         rules: [],
-        utm_source: item.utm_source ? String(item.utm_source).trim() : undefined,
-        utm_medium: item.utm_medium ? String(item.utm_medium).trim() : undefined,
-        utm_campaign: item.utm_campaign ? String(item.utm_campaign).trim() : undefined,
+        utm_source: item.utm_source ? String(item.utm_source).trim().slice(0, 128) : undefined,
+        utm_medium: item.utm_medium ? String(item.utm_medium).trim().slice(0, 128) : undefined,
+        utm_campaign: item.utm_campaign ? String(item.utm_campaign).trim().slice(0, 128) : undefined,
         created_at: new Date().toISOString()
       };
 
       linksToInsert.push(newLink);
+      rowOf.set(newLink.id, rowNum);
     }
+
+    const linkValues = (link: Link) => [
+      link.id,
+      link.workspace_id,
+      link.domain_id || 'dom_primary',
+      link.short_code,
+      link.custom_slug || link.short_code,
+      link.destination_url,
+      link.title,
+      link.status,
+      0,
+      JSON.stringify(link.tags),
+      JSON.stringify(link.rules),
+      link.utm_source || null,
+      link.utm_medium || null,
+      link.utm_campaign || null,
+      link.campaign_id || null,
+      link.created_at
+    ];
+    const recordResult = async (link: Link, inserted: boolean) => {
+      if (!inserted) {
+        errors.push({ row: rowOf.get(link.id) || 0, url: link.destination_url, error: `Slug "${link.short_code}" is already in use by another link.` });
+        return;
+      }
+      await linkCache.set(`link_${link.short_code.toLowerCase()}`, link, 300);
+      createdLinks.push(link);
+    };
 
     // Batch insert into DB in chunks of 50 rows
     const CHUNK_SIZE = 50;
@@ -259,72 +297,36 @@ export async function POST(request: Request) {
       let pIndex = 1;
 
       for (const link of chunk) {
-        valueClauses.push(
-          `($${pIndex}, $${pIndex + 1}, $${pIndex + 2}, $${pIndex + 3}, $${pIndex + 4}, $${pIndex + 5}, $${pIndex + 6}, $${pIndex + 7}, $${pIndex + 8}, $${pIndex + 9}, $${pIndex + 10}, $${pIndex + 11}, $${pIndex + 12}, $${pIndex + 13}, $${pIndex + 14})`
-        );
-        values.push(
-          link.id,
-          link.workspace_id,
-          link.short_code,
-          link.custom_slug || link.short_code,
-          link.destination_url,
-          link.title,
-          link.status,
-          0,
-          JSON.stringify(link.tags),
-          JSON.stringify(link.rules),
-          link.utm_source || null,
-          link.utm_medium || null,
-          link.utm_campaign || null,
-          link.campaign_id || null,
-          link.created_at
-        );
-        pIndex += 15;
+        valueClauses.push(`(${Array.from({ length: 16 }, (_, k) => `$${pIndex + k}`).join(', ')})`);
+        values.push(...linkValues(link));
+        pIndex += 16;
       }
 
       try {
-        await sql.query(
-          `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
+        const inserted = (await sql.query(
+          `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
            VALUES ${valueClauses.join(', ')}
-           ON CONFLICT (short_code) DO NOTHING`,
+           ON CONFLICT (short_code) DO NOTHING
+           RETURNING id`,
           values
-        );
-
-        for (const link of chunk) {
-          linkCache.set(`link_${link.short_code.toLowerCase()}`, link, 300);
-          createdLinks.push(link);
-        }
+        )) as unknown as { id: string }[];
+        const insertedIds = new Set((inserted || []).map(r => r.id));
+        for (const link of chunk) await recordResult(link, insertedIds.has(link.id));
       } catch (insertErr) {
         // Fallback for this chunk to isolate any failing row
         for (const link of chunk) {
           try {
-            await sql.query(
-              `INSERT INTO links (id, workspace_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-               ON CONFLICT (short_code) DO NOTHING`,
-              [
-                link.id,
-                link.workspace_id,
-                link.short_code,
-                link.custom_slug || link.short_code,
-                link.destination_url,
-                link.title,
-                link.status,
-                0,
-                JSON.stringify(link.tags),
-                JSON.stringify(link.rules),
-                link.utm_source || null,
-                link.utm_medium || null,
-                link.utm_campaign || null,
-                link.campaign_id || null,
-                link.created_at
-              ]
-            );
-            linkCache.set(`link_${link.short_code.toLowerCase()}`, link, 300);
-            createdLinks.push(link);
+            const inserted = (await sql.query(
+              `INSERT INTO links (id, workspace_id, domain_id, short_code, custom_slug, destination_url, title, status, clicks_count, tags, rules, utm_source, utm_medium, utm_campaign, campaign_id, created_at)
+               VALUES (${Array.from({ length: 16 }, (_, k) => `$${k + 1}`).join(', ')})
+               ON CONFLICT (short_code) DO NOTHING
+               RETURNING id`,
+              linkValues(link)
+            )) as unknown as { id: string }[];
+            await recordResult(link, (inserted || []).length > 0);
           } catch (singleErr) {
             errors.push({
-              row: 0,
+              row: rowOf.get(link.id) || 0,
               url: link.destination_url,
               error: `Database insert failed: ${singleErr instanceof Error ? singleErr.message : 'Unknown error'}`
             });
@@ -358,6 +360,7 @@ export async function POST(request: Request) {
       console.warn('Failed to insert bulk_job record:', jobErr);
     }
 
+    errors.sort((a, b) => a.row - b.row);
     return NextResponse.json({
       success: true,
       job_id: jobId,

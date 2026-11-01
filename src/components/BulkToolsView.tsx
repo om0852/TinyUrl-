@@ -4,30 +4,17 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { SkeletonGenericView } from '@/components/ui';
-import { 
-  FileSpreadsheet, 
-  Upload, 
-  Download, 
-  Check, 
-  ChevronRight, 
-  Database, 
-  CloudUpload, 
-  CheckCircle2, 
-  ArrowRight, 
-  Bolt, 
-  RefreshCw, 
-  Calendar, 
-  Search, 
-  X, 
-  Layers, 
-  AlertCircle, 
+import {
+  FileSpreadsheet,
+  Upload,
+  Download,
+  CheckCircle2,
+  RefreshCw,
+  Search,
+  AlertCircle,
   FileText,
   Activity,
-  QrCode,
-  FolderKanban,
-  Sparkles,
-  SlidersHorizontal,
-  ExternalLink
+  FolderKanban
 } from 'lucide-react';
 
 interface BulkJobRecord {
@@ -84,6 +71,41 @@ function parseCsvLine(line: string, delimiter: string = ','): string[] {
   return result;
 }
 
+// "example.com/x" gets https://; anything that already names a scheme is left alone, so
+// "ftp://x" is rejected instead of becoming "https://ftp://x"
+function toDestinationUrl(raw: string): string {
+  const url = raw.trim();
+  if (!url) return '';
+  return url.includes('://') ? url : `https://${url}`;
+}
+
+function isValidDestination(raw: string): boolean {
+  const url = toDestinationUrl(raw);
+  if (!/^https?:\/\//i.test(url)) return false;
+  try {
+    return new URL(url).hostname.includes('.');
+  } catch {
+    return false;
+  }
+}
+
+function downloadCsv(filename: string, lines: string[]) {
+  // A Blob keeps characters like "#" that a data: URI would cut the file at
+  const url = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Line of the uploaded file each parsed row came from, for error messages
+const LINE_KEY = '__line';
+// Same cap as /api/v1/links/bulk
+const MAX_ROWS = 1000;
+
 export const BulkToolsView: React.FC = () => {
   const { 
     currentWorkspace, 
@@ -129,6 +151,7 @@ export const BulkToolsView: React.FC = () => {
     imported: number;
     failed: number;
     errors: Array<{ row: number; url: string; error: string }>;
+    skipped?: number;
   } | null>(null);
 
   // Real Database Jobs state
@@ -141,8 +164,6 @@ export const BulkToolsView: React.FC = () => {
   // Notification Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Export Modal state
-  const [exportModalType, setExportModalType] = useState<'links' | 'telemetry' | 'campaigns' | 'qr' | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -199,7 +220,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('Downloaded official CSV template: "bulk_links_template.csv"');
+    showToast('Sample CSV downloaded');
   };
 
   // Parse Uploaded File
@@ -213,7 +234,9 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       if (!text) return;
 
       setFileContent(text);
-      const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+      const allLines = text.split(/\r?\n/);
+      const numbered = allLines.map((line, i) => ({ line, n: i + 1 })).filter(l => l.line.trim().length > 0);
+      const lines = numbered.map(l => l.line);
       if (lines.length === 0) {
         showToast('Uploaded file is empty.');
         return;
@@ -234,6 +257,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
           headers.forEach((h, idx) => {
             rowObj[h] = values[idx] || '';
           });
+          rowObj[LINE_KEY] = String(numbered[i].n);
           rows.push(rowObj);
         }
       }
@@ -274,7 +298,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       }
 
       setColumnMapping(mapping);
-      showToast(`Analyzed ${rows.length} rows from "${file.name}". Columns auto-mapped.`);
+      showToast(`${rows.length} rows loaded`);
     };
 
     reader.readAsText(file);
@@ -298,9 +322,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
     let slugDuplicates = 0;
 
     parsedRows.forEach(row => {
-      const url = (row[columnMapping.destination_url] || '').trim();
-      const hasHttp = /^https?:\/\//i.test(url) || url.includes('.');
-      if (url && hasHttp) {
+      if (isValidDestination(row[columnMapping.destination_url] || '')) {
         validCount++;
       } else {
         invalidCount++;
@@ -329,7 +351,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
   // Execute Real Batch Import
   const handleProcessBatch = async () => {
     if (!selectedFile || parsedRows.length === 0 || !columnMapping.destination_url) {
-      showToast('Please select a file and ensure the Destination URL column is mapped.');
+      showToast('Choose the destination URL column first');
       return;
     }
 
@@ -337,12 +359,10 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
     setImportProgress(15);
 
     // Transform parsed rows into API payload items
-    const items = parsedRows.map(row => {
-      const rawUrl = (row[columnMapping.destination_url] || '').trim();
-      let destUrl = rawUrl;
-      if (destUrl && !/^https?:\/\//i.test(destUrl)) {
-        destUrl = `https://${destUrl}`;
-      }
+    const validRows = parsedRows.filter(row => isValidDestination(row[columnMapping.destination_url] || ''));
+    const skipped = parsedRows.length - validRows.length;
+    const items = validRows.map(row => {
+      const destUrl = toDestinationUrl(row[columnMapping.destination_url] || '');
 
       const slug = columnMapping.custom_slug ? (row[columnMapping.custom_slug] || '').trim() : undefined;
       const title = columnMapping.title ? (row[columnMapping.title] || '').trim() : undefined;
@@ -355,6 +375,7 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       const utm_campaign = columnMapping.utm_campaign ? (row[columnMapping.utm_campaign] || '').trim() : undefined;
 
       return {
+        row: Number(row[LINE_KEY]) || undefined,
         destination_url: destUrl,
         custom_slug: slug || undefined,
         title: title || undefined,
@@ -371,26 +392,28 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       const result = await importLinksBatch(items, selectedFile.name);
       setImportProgress(100);
       setIsProcessing(false);
-      setImportResult(result);
+      setImportResult({ ...result, skipped });
+      fetchJobs();
 
-      if (result.success) {
-        showToast(`Batch completed: ${result.imported} links generated successfully!`);
-        fetchJobs();
+      if (result.imported === 0) {
+        showToast(result.failed > 0 ? `No links created. ${result.failed} rows failed.` : 'No links created.');
+      } else if (result.failed > 0 || skipped > 0) {
+        showToast(`${result.imported} created, ${result.failed + skipped} not created`);
       } else {
-        showToast(`Batch encountered errors: ${result.failed} rows failed.`);
+        showToast(`${result.imported} links created`);
       }
     } catch {
       setIsProcessing(false);
-      showToast('Network error while processing bulk import.');
+      showToast('Import failed. Check your connection and try again.');
     }
   };
 
   // Real Export Handlers
   const handleExportLinks = async () => {
-    exportLinksCsv();
-    await logExportJob('Full Links Inventory CSV Export', links.length);
+    const count = await exportLinksCsv();
+    await logExportJob('Links export', count);
     fetchJobs();
-    showToast(`Exported ${links.length} active workspace links to CSV.`);
+    showToast(`Exported ${count} links`);
   };
 
   const handleExportTelemetry = async () => {
@@ -405,27 +428,20 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       c.browser || 'Unknown',
       c.os || 'Unknown',
       `"${(c.referrer || 'Direct').replace(/"/g, '""')}"`,
-      c.latency_ms || 20
+      c.latency_ms ?? ''
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encoded = encodeURI(csvContent);
-    const a = document.createElement('a');
-    a.href = encoded;
-    a.download = `snip_click_telemetry_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    downloadCsv(`snip_clicks_${new Date().toISOString().split('T')[0]}.csv`, [headers.join(','), ...rows.map(r => r.join(','))]);
 
-    await logExportJob('Raw Click Telemetry Event Log', clicks.length);
+    await logExportJob('Clicks export', clicks.length);
     fetchJobs();
-    showToast(`Exported ${clicks.length} raw telemetry click events.`);
+    showToast(`Exported ${clicks.length} clicks`);
   };
 
   const handleExportCampaigns = async () => {
-    const headers = ['Campaign Name', 'Target Clicks', 'Achieved Clicks', 'Completion %', 'Deliverables Count', 'Created At'];
+    const headers = ['Campaign Name', 'Target Clicks', 'Achieved Clicks', 'Completion %', 'Links', 'Created At'];
     const rows = campaigns.map(camp => {
-      const campLinks = links.filter(l => l.campaign_id === camp.id || (camp.tags && l.tags?.some(t => camp.tags?.includes(t))));
+      const campLinks = links.filter(l => l.campaign_id === camp.id);
       const campClicks = campLinks.reduce((acc, l) => acc + (l.clicks_count || 0), 0);
       const target = camp.target_clicks || 10000;
       const pct = Math.min(100, Math.round((campClicks / target) * 100));
@@ -439,18 +455,11 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
       ];
     });
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encoded = encodeURI(csvContent);
-    const a = document.createElement('a');
-    a.href = encoded;
-    a.download = `snip_campaign_deliverables_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    downloadCsv(`snip_campaigns_${new Date().toISOString().split('T')[0]}.csv`, [headers.join(','), ...rows.map(r => r.join(','))]);
 
-    await logExportJob('Sponsor Campaign Deliverables Report', campaigns.length);
+    await logExportJob('Campaigns export', campaigns.length);
     fetchJobs();
-    showToast(`Exported ${campaigns.length} campaigns and sponsor assets.`);
+    showToast(`Exported ${campaigns.length} campaigns`);
   };
 
   // Filtered & Paginated Jobs
@@ -469,684 +478,321 @@ https://notion.so/templates/agency,agency-os,Agency Operating System,tiktok_bio,
   }, [filteredJobs, jobPage]);
 
   if (!mounted || (isInitialLoading && links.length === 0)) {
-    return <SkeletonGenericView title="Bulk CSV Import & Export Automation" />;
+    return <SkeletonGenericView title="Bulk links" />;
   }
 
+  const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+  const MAPPING_FIELDS: { key: keyof ColumnMapping; label: string; empty: string }[] = [
+    { key: 'destination_url', label: 'Destination URL', empty: 'Choose a column' },
+    { key: 'custom_slug', label: 'Slug', empty: 'Auto-generate' },
+    { key: 'title', label: 'Title', empty: 'None' },
+    { key: 'tags', label: 'Tags', empty: 'None' },
+    { key: 'utm_source', label: 'UTM source', empty: 'None' },
+    { key: 'utm_medium', label: 'UTM medium', empty: 'None' },
+    { key: 'utm_campaign', label: 'UTM campaign', empty: 'None' },
+  ];
+  const EXPORTS = [
+    { id: 'links', icon: <FileSpreadsheet className="w-4 h-4" />, label: 'Links', hint: `${plural(links.length, 'link')} with slugs, destinations and clicks`, onClick: handleExportLinks },
+    { id: 'clicks', icon: <Activity className="w-4 h-4" />, label: 'Clicks', hint: `${plural(clicks.length, 'click')} with location, device and referrer`, onClick: handleExportTelemetry },
+    { id: 'campaigns', icon: <FolderKanban className="w-4 h-4" />, label: 'Campaigns', hint: `${plural(campaigns.length, 'campaign')} with clicks against target`, onClick: handleExportCampaigns },
+  ];
+  const fmtWhen = (iso: string) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const jobStatus = (job: BulkJobRecord) => (
+    <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant capitalize whitespace-nowrap">
+      <span className={`w-1.5 h-1.5 rounded-full ${job.status === 'completed' ? 'bg-emerald-500' : job.status === 'failed' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+      {job.status.replace('_', ' ')}
+    </span>
+  );
+  const jobResult = (job: BulkJobRecord) => (
+    <>
+      {job.success_count.toLocaleString()} ok
+      {job.error_count > 0 && <span className="text-error"> · {job.error_count.toLocaleString()} failed</span>}
+    </>
+  );
+
   return (
-    <div className="flex flex-col w-full text-on-surface animate-fade-in max-w-7xl mx-auto pb-16">
-      
-      {/* 1. Header Ribbon & Live Status */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium mb-1">
-            <span className="hover:text-on-surface cursor-pointer">Workspace</span>
-            <ChevronRight className="w-3.5 h-3.5 text-outline-variant" />
-            <span className="text-primary-ink font-semibold">Bulk Automation</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight">
-            Bulk CSV Import &amp; Export Automation
-          </h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant max-w-3xl mt-1 leading-relaxed">
-            Batch-generate hundreds of branded vanity slugs from CSV or spreadsheet files, auto-map columns, and export verified telemetry logs for sponsors and analytics.
-          </p>
-        </div>
+    <div className="flex flex-col w-full gap-[15px] text-on-surface animate-fade-in max-w-7xl mx-auto pb-16">
 
-        {/* Real Status Badge Pills */}
-        <div className="flex items-center gap-2 bg-surface-container-low p-1.5 rounded-xl shadow-xs self-start md:self-auto border border-outline-variant">
-          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg shadow-xs flex items-center gap-1.5 border border-outline-variant">
-            <Database className="w-3.5 h-3.5 text-primary-ink" />
-            <span className="text-xs text-on-surface-variant font-medium">Active Links:</span>
-            <span className="font-mono text-xs font-bold text-on-surface">{links.length.toLocaleString()}</span>
-          </div>
-          <div className="px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs text-on-surface-variant font-medium">Engine Status:</span>
-            <span className="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400">Ready</span>
-          </div>
-        </div>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px] items-start">
 
-      {/* 2. Operations Split: Left 7 cols (Import), Right 5 cols (Real Exports) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
-        
-        {/* LEFT PANEL: Bulk Link Importer & Generator (7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col gap-4">
-          <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-5 sm:p-6 flex flex-col">
-            
-            <div className="flex items-center justify-between pb-3 mb-4 border-b-[0.5px] border-outline-variant flex-wrap gap-2">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink border border-primary-strong/20">
-                  <Upload className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-on-surface">Bulk Link Importer &amp; Generator</h2>
-                  <p className="text-xs text-on-surface-variant">Transform spreadsheets of destination URLs into shortened links</p>
-                </div>
-              </div>
-              <button 
-                type="button"
-                id="download-template-btn"
-                onClick={handleDownloadTemplate}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-primary-ink hover:bg-surface-container-low transition-colors cursor-pointer border border-primary-strong/20"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download Sample CSV</span>
-              </button>
-            </div>
-
-            {/* Drag & Drop Dropzone */}
-            <div 
-              id="drop-zone"
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  processUploadedFile(e.dataTransfer.files[0]);
-                }
-              }}
-              className={`relative group cursor-pointer rounded-lg transition-all p-7 text-center flex flex-col items-center justify-center border-2 border-dashed ${
-                isDragging 
-                  ? 'bg-primary/5 border-primary-strong scale-[1.01]' 
-                  : selectedFile
-                  ? 'bg-emerald-500/5 border-emerald-500/40 hover:bg-emerald-500/10'
-                  : 'bg-surface-container-low hover:bg-surface-container border-outline-variant'
-              }`}
-            >
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                id="csv-file-input"
-                accept=".csv, .tsv, .txt"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div className="w-12 h-12 rounded-lg bg-surface-container-lowest shadow-xs flex items-center justify-center text-primary-ink group-hover:scale-110 transition-transform mb-3 border border-outline-variant">
-                <CloudUpload className="w-6 h-6" />
-              </div>
-
-              {selectedFile ? (
-                <>
-                  <span className="text-sm font-bold text-on-surface flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>{selectedFile.name}</span>
-                  </span>
-                  <span className="text-xs text-on-surface-variant mt-1">
-                    {parsedRows.length} rows loaded &bull; {(selectedFile.size / 1024).toFixed(1)} KB &bull; <span className="text-primary-ink underline font-semibold">Click to replace file</span>
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-sm font-semibold text-on-surface">Drop your .csv or .tsv file here</span>
-                  <span className="text-xs text-on-surface-variant mt-1">
-                    or <span className="text-primary-ink font-semibold underline underline-offset-2">browse files</span> from your local computer
-                  </span>
-                  <div className="mt-3 inline-flex items-center gap-1.5 bg-surface-container-lowest px-3 py-1 rounded-md border-[0.5px] border-outline-variant text-[11px] text-on-surface-variant font-medium">
-                    <AlertCircle className="w-3.5 h-3.5 text-outline" />
-                    <span>Supports Bitly migrations, UTM sheets, and up to 1,000 links per batch</span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Dynamic Column Mapping Controls */}
-            {selectedFile && parsedHeaders.length > 0 && (
-              <div className="mt-6 flex flex-col gap-3 animate-fade-in">
-                <div className="flex items-center justify-between pb-1 border-b border-outline-variant">
-                  <div className="flex items-center gap-2">
-                    <SlidersHorizontal className="w-4 h-4 text-primary-ink" />
-                    <span className="text-xs font-bold text-on-surface">Interactive Column Mapping</span>
-                  </div>
-                  <span className="text-[11px] text-on-surface-variant font-mono">
-                    {parsedHeaders.length} columns detected in file
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-surface-container-low p-4 rounded-lg border-[0.5px] border-outline-variant text-xs">
-                  {/* Destination URL */}
-                  <div>
-                    <label className="font-semibold text-on-surface block mb-1 flex items-center justify-between">
-                      <span>Destination URL <strong className="text-red-500">*</strong></span>
-                      <span className="text-[10px] text-emerald-600 font-mono font-bold">Required</span>
-                    </label>
-                    <select
-                      value={columnMapping.destination_url}
-                      onChange={(e) => setColumnMapping(prev => ({ ...prev, destination_url: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border-[0.5px] border-outline-variant text-on-surface font-mono outline-none focus:ring-1 focus:ring-primary-strong cursor-pointer text-xs"
-                    >
-                      <option value="">-- Choose Column --</option>
-                      {parsedHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Custom Slug */}
-                  <div>
-                    <label className="font-semibold text-on-surface block mb-1 flex items-center justify-between">
-                      <span>Custom Slug / Vanity Alias</span>
-                      <span className="text-[10px] text-on-surface-variant font-mono">Optional</span>
-                    </label>
-                    <select
-                      value={columnMapping.custom_slug}
-                      onChange={(e) => setColumnMapping(prev => ({ ...prev, custom_slug: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border-[0.5px] border-outline-variant text-on-surface font-mono outline-none focus:ring-1 focus:ring-primary-strong cursor-pointer text-xs"
-                    >
-                      <option value="">-- Auto-generate unique 6-char code --</option>
-                      {parsedHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Title / Label */}
-                  <div>
-                    <label className="font-semibold text-on-surface block mb-1">Link Title / Label</label>
-                    <select
-                      value={columnMapping.title}
-                      onChange={(e) => setColumnMapping(prev => ({ ...prev, title: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border-[0.5px] border-outline-variant text-on-surface font-mono outline-none focus:ring-1 focus:ring-primary-strong cursor-pointer text-xs"
-                    >
-                      <option value="">-- None (Use short slug as title) --</option>
-                      {parsedHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Channel / Platform Tag */}
-                  <div>
-                    <label className="font-semibold text-on-surface block mb-1">Tags / Platform Channel</label>
-                    <select
-                      value={columnMapping.tags}
-                      onChange={(e) => setColumnMapping(prev => ({ ...prev, tags: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-surface-container-lowest border-[0.5px] border-outline-variant text-on-surface font-mono outline-none focus:ring-1 focus:ring-primary-strong cursor-pointer text-xs"
-                    >
-                      <option value="">-- None (Default 'bulk_import') --</option>
-                      {parsedHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Live Preview of First 3 Rows */}
-                {parsedRows.length > 0 && columnMapping.destination_url && (
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">
-                      Transformation Preview (First {Math.min(3, parsedRows.length)} rows)
-                    </span>
-                    <div className="overflow-x-auto rounded-lg border-[0.5px] border-outline-variant bg-surface-container-low text-[11px]">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-outline-variant bg-surface-container-high/60 text-on-surface-variant font-semibold">
-                            <th className="py-1.5 px-3">#</th>
-                            <th className="py-1.5 px-3">Destination URL</th>
-                            <th className="py-1.5 px-3">Allocated Slug</th>
-                            <th className="py-1.5 px-3">Title</th>
-                            <th className="py-1.5 px-3">Tag</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-outline-variant text-on-surface font-mono">
-                          {parsedRows.slice(0, 3).map((row, idx) => (
-                            <tr key={idx} className="hover:bg-surface-container-lowest/60">
-                              <td className="py-2 px-3 text-on-surface-variant font-sans">{idx + 1}</td>
-                              <td className="py-2 px-3 truncate max-w-[200px]" title={row[columnMapping.destination_url]}>
-                                {row[columnMapping.destination_url] || '—'}
-                              </td>
-                              <td className="py-2 px-3 text-primary-ink font-bold">
-                                {columnMapping.custom_slug && row[columnMapping.custom_slug] 
-                                   ? `/${row[columnMapping.custom_slug]}` 
-                                   : '/[auto]'}
-                              </td>
-                              <td className="py-2 px-3 truncate max-w-[120px]">
-                                {columnMapping.title && row[columnMapping.title] ? row[columnMapping.title] : 'Untitled'}
-                              </td>
-                              <td className="py-2 px-3 font-sans">
-                                <span className="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant text-[10px]">
-                                  {columnMapping.tags && row[columnMapping.tags] ? row[columnMapping.tags] : 'bulk'}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Pre-Flight Validation Bar & Execution Button */}
-            {preflightSummary && (
-              <div className="mt-6 pt-4 border-t-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in">
-                <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-lg border text-xs ${
-                  preflightSummary.invalid > 0 
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300' 
-                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
-                }`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                  <div className="flex flex-col">
-                    <span className="font-bold">
-                      {preflightSummary.valid} valid links verified
-                    </span>
-                    <span className="text-[11px] opacity-80">
-                      {preflightSummary.invalid > 0 && `${preflightSummary.invalid} invalid rows skipped • `}
-                      {preflightSummary.slugDuplicates > 0 && `${preflightSummary.slugDuplicates} internal slug duplicates • `}
-                      Ready to generate in workspace
-                    </span>
-                  </div>
-                </div>
-
-                <button 
-                  type="button"
-                  id="process-batch-btn"
-                  disabled={isProcessing || preflightSummary.valid === 0}
-                  onClick={handleProcessBatch}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-primary-container text-on-primary text-xs font-bold hover:bg-primary shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-[0.99] disabled:opacity-50"
-                >
-                  {isProcessing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Importing ({importProgress}%)...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Bolt className="w-4 h-4" />
-                      <span>Process &amp; Generate {preflightSummary.valid} Links</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-
-            {/* Import Result Notification */}
-            {importResult && (
-              <div className={`mt-4 p-4 rounded-lg border text-xs space-y-2 animate-fade-in ${
-                importResult.success 
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
-                  : 'bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Import Completed: {importResult.imported} links generated!</span>
-                  </div>
-                  <span className="font-mono text-[11px]">
-                    {importResult.failed > 0 ? `${importResult.failed} failed` : '0 errors'}
-                  </span>
-                </div>
-
-                {importResult.errors && importResult.errors.length > 0 && (
-                  <div className="pt-2 border-t-[0.5px] border-outline-variant space-y-1 text-[11px] font-mono max-h-24 overflow-y-auto">
-                    {importResult.errors.slice(0, 5).map((err, i) => (
-                      <div key={i} className="text-red-600 dark:text-red-400">
-                        Row {err.row}: {err.error}
-                      </div>
-                    ))}
-                    {importResult.errors.length > 5 && (
-                      <div className="text-on-surface-variant italic">
-                        ...and {importResult.errors.length - 5} more error(s) recorded in audit log.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-          </div>
-        </div>
-
-        {/* RIGHT PANEL: Real Creator Data Export Utilities (5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-4">
-          <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-5 sm:p-6 flex flex-col h-full">
-            
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-outline-variant">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink border border-primary-strong/20">
-                  <Download className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-on-surface">Data Exports &amp; Auditing</h2>
-                  <p className="text-xs text-on-surface-variant">Export live inventory, raw telemetry, &amp; campaigns</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Real Export Cards */}
-            <div className="flex flex-col gap-3">
-              
-              {/* Export Utility 1: Links Inventory */}
-              <div className="p-4 bg-surface-container-low rounded-lg flex flex-col gap-2 border-[0.5px] border-outline-variant hover:border-outline-variant transition">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-primary-ink" />
-                    <span className="text-xs font-bold text-on-surface">Workspace Links Inventory</span>
-                  </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant font-semibold">
-                    {links.length} Links
-                  </span>
-                </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Full registry with vanity slugs, destination targets, true click counters, and creation metadata.
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t-[0.5px] border-outline-variant text-xs">
-                  <span className="font-mono text-[11px] text-on-surface-variant">Format: CSV</span>
-                  <button
-                    type="button"
-                    onClick={handleExportLinks}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-primary-ink font-semibold border-[0.5px] border-outline-variant cursor-pointer text-xs shadow-2xs"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download CSV</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Export Utility 2: Raw Telemetry Click Events */}
-              <div className="p-4 bg-surface-container-low rounded-lg flex flex-col gap-2 border-[0.5px] border-outline-variant hover:border-outline-variant transition">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-blue-600" />
-                    <span className="text-xs font-bold text-on-surface">Raw Telemetry Click Logs</span>
-                  </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 font-semibold">
-                    {clicks.length} Events
-                  </span>
-                </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Granular click event streams: country splits, city locations, device models, referrers, and timestamps.
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t-[0.5px] border-outline-variant text-xs">
-                  <span className="font-mono text-[11px] text-on-surface-variant">Format: CSV</span>
-                  <button
-                    type="button"
-                    onClick={handleExportTelemetry}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-blue-600 font-semibold border-[0.5px] border-outline-variant cursor-pointer text-xs shadow-2xs"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export Telemetry</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Export Utility 3: Campaigns & Sponsor Deliverables */}
-              <div className="p-4 bg-surface-container-low rounded-lg flex flex-col gap-2 border-[0.5px] border-outline-variant hover:border-outline-variant transition">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FolderKanban className="w-4 h-4 text-purple-600" />
-                    <span className="text-xs font-bold text-on-surface">Sponsor Deals &amp; Deliverables</span>
-                  </div>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 font-semibold">
-                    {campaigns.length} Campaigns
-                  </span>
-                </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Campaign rollups: targeted click benchmarks, achieved click counts, and deliverable pacing.
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t-[0.5px] border-outline-variant text-xs">
-                  <span className="font-mono text-[11px] text-on-surface-variant">Format: CSV</span>
-                  <button
-                    type="button"
-                    onClick={handleExportCampaigns}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest hover:bg-surface-container text-purple-600 font-semibold border-[0.5px] border-outline-variant cursor-pointer text-xs shadow-2xs"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export Report</span>
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. BOTTOM SECTION: Real Bulk Job History & Audit Log Table (from PostgreSQL) */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-5 sm:p-6 flex flex-col">
-        
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-outline-variant">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink border border-primary-strong/20">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-on-surface">Bulk Job History &amp; Audit Log</h2>
-              <p className="text-xs text-on-surface-variant">Database records of batch link creations and export dumps</p>
-            </div>
-          </div>
-
-          {/* Table Filter Toolbar */}
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <div className="relative">
-              <input 
-                type="text"
-                placeholder="Filter by Job ID or Name..."
-                value={jobSearch}
-                onChange={(e) => {
-                  setJobSearch(e.target.value);
-                  setJobPage(1);
-                }}
-                className="bg-surface-container-low rounded-lg px-3 py-1.5 text-xs text-on-surface pl-8 w-48 sm:w-56 outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant transition-all"
-              />
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-outline pointer-events-none" />
-            </div>
-            <button 
+        {/* Import */}
+        <div className="lg:col-span-7 rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[14px] font-semibold text-on-surface">Import links from CSV</h2>
+            <button
               type="button"
-              onClick={fetchJobs}
-              disabled={loadingJobs}
-              className="p-1.5 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface transition-colors border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-50"
-              title="Refresh Audit Log"
+              id="download-template-btn"
+              onClick={handleDownloadTemplate}
+              className="text-xs text-primary-ink hover:underline cursor-pointer inline-flex items-center gap-1"
             >
-              <RefreshCw className={`w-4 h-4 text-outline ${loadingJobs ? 'animate-spin text-primary-ink' : ''}`} />
+              <Download className="w-3.5 h-3.5" />
+              <span>Sample CSV</span>
             </button>
           </div>
-        </div>
 
-        {/* Desktop Data Table */}
-        <div className="hidden md:block overflow-x-auto rounded-lg border border-outline-variant">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">
-                <th className="py-3 px-4">Job ID</th>
-                <th className="py-3 px-4">Operation</th>
-                <th className="py-3 px-4">Batch Name</th>
-                <th className="py-3 px-4">Total Rows</th>
-                <th className="py-3 px-4">Success / Errors</th>
-                <th className="py-3 px-4">Timestamp</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant">
-              {paginatedJobs.map((job) => (
-                <tr key={job.id} className="hover:bg-surface-container-low/50 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-primary-ink">
-                    #{job.id.slice(0, 14)}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider ${
-                      job.operation === 'import' 
-                        ? 'bg-primary/10 text-primary-ink border border-primary-strong/20'
-                        : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
-                    }`}>
-                      {job.operation === 'import' ? <Upload className="w-3 h-3" /> : <Download className="w-3 h-3" />}
-                      <span>{job.operation}</span>
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className="font-semibold text-on-surface block truncate max-w-xs">{job.batch_name}</span>
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-on-surface">
-                    {job.total_rows.toLocaleString()}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono">
-                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">{job.success_count} ok</span>
-                    {job.error_count > 0 && (
-                      <span className="text-red-600 dark:text-red-400 font-bold ml-1.5">&bull; {job.error_count} err</span>
-                    )}
-                  </td>
-                  <td className="py-3.5 px-4 font-mono text-on-surface-variant text-[11px]">
-                    {new Date(job.created_at).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold border ${
-                      job.status === 'completed' 
-                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' 
-                        : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${job.status === 'completed' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      <span className="capitalize">{job.status}</span>
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={handleExportLinks}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download</span>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-
-              {filteredJobs.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-on-surface-variant text-xs">
-                    {loadingJobs 
-                      ? 'Loading job audit history...' 
-                      : 'No bulk import or export operations recorded yet. Upload a CSV to get started.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards View (Phones & Small Tablets) */}
-        <div className="block md:hidden divide-y-[0.5px] divide-outline-variant rounded-lg border-[0.5px] border-outline-variant bg-surface-container-lowest overflow-hidden">
-          {paginatedJobs.map((job) => (
-            <div key={job.id} className="p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span className="font-mono text-xs font-bold text-primary-ink">#{job.id.slice(0, 14)}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider ${
-                    job.operation === 'import' 
-                      ? 'bg-primary/10 text-primary-ink border border-primary-strong/20'
-                      : 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20'
-                  }`}>
-                    {job.operation === 'import' ? <Upload className="w-2.5 h-2.5" /> : <Download className="w-2.5 h-2.5" />}
-                    <span>{job.operation}</span>
-                  </span>
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                    job.status === 'completed' 
-                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' 
-                      : 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${job.status === 'completed' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                    <span className="capitalize">{job.status}</span>
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-sm font-bold text-on-surface block break-words">{job.batch_name}</span>
-                <span className="text-[11px] text-on-surface-variant font-mono mt-0.5 block">
-                  {new Date(job.created_at).toLocaleString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+          <div
+            id="drop-zone"
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) processUploadedFile(e.dataTransfer.files[0]);
+            }}
+            className={`cursor-pointer rounded-md border border-dashed px-4 py-6 flex flex-col items-center text-center transition-colors ${
+              isDragging ? 'border-primary-strong bg-primary-fixed/40' : 'border-outline-variant hover:bg-surface-container-low'
+            }`}
+          >
+            <input ref={fileInputRef} type="file" id="csv-file-input" accept=".csv, .tsv, .txt" onChange={handleFileChange} className="hidden" />
+            {selectedFile ? (
+              <>
+                <FileText className="w-5 h-5 text-on-surface-variant" />
+                <span className="mt-2 text-xs font-medium text-on-surface">{selectedFile.name}</span>
+                <span className="text-[11px] text-outline">
+                  {parsedRows.length.toLocaleString()} rows · {(selectedFile.size / 1024).toFixed(1)} KB · <span className="text-primary-ink">Replace</span>
                 </span>
+              </>
+            ) : (
+              <>
+                <Upload className="w-5 h-5 text-on-surface-variant" />
+                <span className="mt-2 text-xs font-medium text-on-surface">Drop a CSV or TSV file, or <span className="text-primary-ink">browse</span></span>
+                <span className="text-[11px] text-outline">One link per row</span>
+              </>
+            )}
+          </div>
+
+          {selectedFile && parsedHeaders.length > 0 && (
+            <div className="flex flex-col gap-3 animate-fade-in">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-2">
+                {MAPPING_FIELDS.map(field => (
+                  <label key={field.key} className="flex flex-col gap-1 min-w-0">
+                    <span className="text-[11px] text-on-surface-variant">
+                      {field.label}{field.key === 'destination_url' && <span className="text-error"> *</span>}
+                    </span>
+                    <select
+                      value={columnMapping[field.key]}
+                      onChange={(e) => setColumnMapping(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      className="h-[30px] px-2 rounded-md bg-surface-container-lowest border-[0.5px] border-outline-variant text-xs text-on-surface outline-none focus:border-on-surface-variant cursor-pointer min-w-0"
+                    >
+                      <option value="">{field.empty}</option>
+                      {parsedHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </label>
+                ))}
               </div>
 
-              <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant flex-wrap">
-                <div className="flex items-center gap-3 text-xs font-mono">
-                  <span className="text-on-surface-variant font-medium">
-                    Rows: <strong className="text-on-surface">{job.total_rows.toLocaleString()}</strong>
-                  </span>
-                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">{job.success_count} ok</span>
-                  {job.error_count > 0 && (
-                    <span className="text-red-600 dark:text-red-400 font-bold">{job.error_count} err</span>
+              {parsedRows.length > 0 && columnMapping.destination_url && (
+                <div className="overflow-x-auto rounded-md border-[0.5px] border-outline-variant">
+                  <table className="w-full text-left text-[11px]">
+                    <thead>
+                      <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
+                        <th className="py-1.5 px-2.5 font-medium">Destination</th>
+                        <th className="py-1.5 px-2.5 font-medium">Slug</th>
+                        <th className="py-1.5 px-2.5 font-medium">Title</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedRows.slice(0, 3).map((row, idx) => (
+                        <tr key={idx} className="border-b-[0.5px] border-outline-variant last:border-b-0">
+                          <td className="py-1.5 px-2.5 truncate max-w-[220px]" title={row[columnMapping.destination_url]}>{row[columnMapping.destination_url] || '—'}</td>
+                          <td className="py-1.5 px-2.5 text-primary-ink whitespace-nowrap">
+                            {columnMapping.custom_slug && row[columnMapping.custom_slug] ? `/${row[columnMapping.custom_slug]}` : <span className="text-outline">auto</span>}
+                          </td>
+                          <td className="py-1.5 px-2.5 truncate max-w-[140px]">{columnMapping.title && row[columnMapping.title] ? row[columnMapping.title] : <span className="text-outline">—</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {parsedRows.length > 3 && (
+                    <p className="px-2.5 py-1.5 text-[11px] text-outline border-t-[0.5px] border-outline-variant">+ {(parsedRows.length - 3).toLocaleString()} more rows</p>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleExportLinks}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline cursor-pointer ml-auto"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download</span>
-                </button>
-              </div>
+              )}
             </div>
-          ))}
+          )}
 
-          {filteredJobs.length === 0 && (
-            <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
-              {loadingJobs 
-                ? 'Loading job audit history...' 
-                : 'No bulk import or export operations recorded yet. Upload a CSV to get started.'}
+          {preflightSummary && (
+            <div className="pt-3 border-t-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+              <p className="text-xs text-on-surface-variant">
+                <span className="font-semibold text-on-surface">{preflightSummary.valid.toLocaleString()}</span> ready
+                {preflightSummary.invalid > 0 && <span className="text-amber-700"> · {preflightSummary.invalid} without a valid URL (skipped)</span>}
+                {preflightSummary.valid > MAX_ROWS && <span className="text-error"> · up to {MAX_ROWS.toLocaleString()} links per file</span>}
+                {preflightSummary.slugDuplicates > 0 && <span className="text-amber-700"> · {plural(preflightSummary.slugDuplicates, 'repeated slug')}</span>}
+              </p>
+              <button
+                type="button"
+                id="process-batch-btn"
+                disabled={isProcessing || preflightSummary.valid === 0 || preflightSummary.valid > MAX_ROWS}
+                onClick={handleProcessBatch}
+                className="h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing
+                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /><span>Creating… {importProgress}%</span></>
+                  : <span>Create {plural(preflightSummary.valid, 'link')}</span>}
+              </button>
+            </div>
+          )}
+
+          {importResult && (
+            <div className={`p-3 rounded-md border-[0.5px] text-xs animate-fade-in ${
+              importResult.failed === 0 && !importResult.skipped ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/40 bg-amber-500/5'
+            }`}>
+              <div className="flex items-center gap-1.5 font-medium text-on-surface">
+                {importResult.failed === 0 && !importResult.skipped ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-amber-600" />}
+                <span>
+                  {importResult.imported.toLocaleString()} {importResult.imported === 1 ? 'link' : 'links'} created
+                  {importResult.failed > 0 && `, ${importResult.failed.toLocaleString()} failed`}
+                  {(importResult.skipped || 0) > 0 && `, ${importResult.skipped} skipped (no valid URL)`}
+                </span>
+              </div>
+              {importResult.errors && importResult.errors.length > 0 && (
+                <div className="mt-2 space-y-0.5 text-[11px] text-error max-h-24 overflow-y-auto">
+                  {importResult.errors.slice(0, 5).map((err, i) => <div key={i}>{err.row > 0 ? `Row ${err.row}: ` : ''}{err.error}</div>)}
+                  {importResult.errors.length > 5 && <div className="text-outline">+ {importResult.errors.length - 5} more</div>}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Real Table Pagination */}
-        {filteredJobs.length > 0 && (
-          <div className="flex items-center justify-between pt-4 mt-2 flex-wrap gap-2">
-            <span className="text-xs text-on-surface-variant">
-              Showing <span className="font-semibold text-on-surface">{Math.min(filteredJobs.length, (jobPage - 1) * jobsPerPage + 1)} - {Math.min(filteredJobs.length, jobPage * jobsPerPage)}</span> of <span className="font-semibold text-on-surface">{filteredJobs.length}</span> operations
-            </span>
-            <div className="flex items-center gap-1">
-              <button 
-                type="button"
-                disabled={jobPage <= 1}
-                onClick={() => setJobPage(p => Math.max(1, p - 1))}
-                className="px-3 py-1 rounded-lg bg-surface-container-low text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs border-[0.5px] border-outline-variant hover:bg-surface-container transition cursor-pointer"
-              >
-                Previous
-              </button>
-              {Array.from({ length: totalJobPages }, (_, i) => i + 1).map(pageNum => (
-                <button 
-                  key={pageNum}
+        {/* Export */}
+        <div className="lg:col-span-5 rounded-xl border-[0.5px] border-outline-variant p-[15px]">
+          <h2 className="text-[14px] font-semibold text-on-surface">Export CSV</h2>
+          <div className="mt-2 flex flex-col">
+            {EXPORTS.map(item => (
+              <div key={item.id} className="flex items-center gap-[10px] py-2.5 border-b-[0.5px] border-outline-variant last:border-b-0">
+                <div className="grid size-[32px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{item.icon}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium text-on-surface">{item.label}</div>
+                  <div className="text-[11px] text-outline truncate">{item.hint}</div>
+                </div>
+                <button
                   type="button"
-                  onClick={() => setJobPage(pageNum)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    jobPage === pageNum 
-                      ? 'bg-primary-container text-on-primary shadow-xs' 
-                      : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-outline-variant'
-                  }`}
+                  onClick={item.onClick}
+                  title={`Download ${item.label.toLowerCase()} CSV`}
+                  aria-label={`Download ${item.label.toLowerCase()} CSV`}
+                  className="size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer shrink-0"
                 >
-                  {pageNum}
+                  <Download className="w-3.5 h-3.5" />
                 </button>
-              ))}
-              <button 
-                type="button"
-                disabled={jobPage >= totalJobPages}
-                onClick={() => setJobPage(p => Math.min(totalJobPages, p + 1))}
-                className="px-3 py-1 rounded-lg bg-surface-container-low text-on-surface-variant disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs border-[0.5px] border-outline-variant hover:bg-surface-container transition cursor-pointer"
-              >
-                Next
-              </button>
-            </div>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      </div>
 
+      {/* History */}
+      <div className="rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+        <div className="px-[15px] py-3 flex items-center justify-between gap-3 border-b-[0.5px] border-outline-variant">
+          <h2 className="text-[14px] font-semibold text-on-surface">History</h2>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search"
+                aria-label="Search history"
+                value={jobSearch}
+                onChange={(e) => { setJobSearch(e.target.value); setJobPage(1); }}
+                className="w-40 sm:w-52 h-[30px] pl-9 pr-3 bg-surface-container-low rounded-full text-xs font-light text-on-surface border-[0.5px] border-outline-variant placeholder:text-outline outline-none focus:border-on-surface-variant"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={fetchJobs}
+              disabled={loadingJobs}
+              title="Refresh"
+              aria-label="Refresh history"
+              className="size-[30px] rounded-md border-[0.5px] border-outline-variant grid place-items-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loadingJobs ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {filteredJobs.length === 0 ? (
+          <p className="py-8 px-6 text-center text-xs text-on-surface-variant">
+            {loadingJobs ? 'Loading…' : jobSearch ? 'Nothing matches.' : 'Imports and exports will show up here.'}
+          </p>
+        ) : (
+          <>
+            <table className="hidden md:table w-full text-left text-xs">
+              <thead>
+                <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
+                  <th className="py-2.5 px-[15px] font-medium">Name</th>
+                  <th className="py-2.5 px-3 font-medium">Type</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Rows</th>
+                  <th className="py-2.5 px-3 font-medium">Result</th>
+                  <th className="py-2.5 px-3 font-medium">When</th>
+                  <th className="py-2.5 px-[15px] font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedJobs.map((job) => (
+                  <tr key={job.id} className="border-b-[0.5px] border-outline-variant last:border-b-0">
+                    <td className="py-2.5 px-[15px] max-w-[280px]">
+                      <div className="font-medium text-on-surface truncate" title={job.batch_name}>{job.batch_name}</div>
+                    </td>
+                    <td className="py-2.5 px-3 text-on-surface-variant">
+                      <span className="inline-flex items-center gap-1 capitalize">
+                        {job.operation === 'import' ? <Upload className="w-3 h-3" /> : <Download className="w-3 h-3" />}
+                        {job.operation}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums">{job.total_rows.toLocaleString()}</td>
+                    <td className="py-2.5 px-3 text-on-surface-variant whitespace-nowrap">{jobResult(job)}</td>
+                    <td className="py-2.5 px-3 text-on-surface-variant whitespace-nowrap">{fmtWhen(job.created_at)}</td>
+                    <td className="py-2.5 px-[15px]">{jobStatus(job)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="md:hidden flex flex-col">
+              {paginatedJobs.map((job) => (
+                <div key={job.id} className="p-[15px] flex flex-col gap-1 border-b-[0.5px] border-outline-variant last:border-b-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-medium text-on-surface truncate">{job.batch_name}</span>
+                    {jobStatus(job)}
+                  </div>
+                  <div className="text-[11px] text-outline">
+                    <span className="capitalize">{job.operation}</span> · {job.total_rows.toLocaleString()} rows · {jobResult(job)} · {fmtWhen(job.created_at)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {totalJobPages > 1 && (
+              <div className="px-[15px] py-2.5 flex items-center justify-between gap-2 border-t-[0.5px] border-outline-variant text-xs text-on-surface-variant">
+                <span>
+                  {(jobPage - 1) * jobsPerPage + 1}–{Math.min(filteredJobs.length, jobPage * jobsPerPage)} of {filteredJobs.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={jobPage <= 1}
+                    onClick={() => setJobPage(p => Math.max(1, p - 1))}
+                    className="h-[28px] px-3 rounded-md border-[0.5px] border-outline-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={jobPage >= totalJobPages}
+                    onClick={() => setJobPage(p => Math.min(totalJobPages, p + 1))}
+                    className="h-[28px] px-3 rounded-md border-[0.5px] border-outline-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Floating Notification Toast */}

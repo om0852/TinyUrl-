@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { workspace_id, operation, batch_name, total_rows, success_count, error_count } = body;
+    const { workspace_id, batch_name, total_rows, success_count, error_count } = body;
 
     if (!workspace_id) {
       return NextResponse.json({ success: false, error: 'Field "workspace_id" is required.' }, { status: 400 });
@@ -59,7 +59,8 @@ export async function POST(request: Request) {
     const userEmail = authResult.context.userEmail || 'system';
 
     const jobId = `job_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
-    const cleanOperation = operation === 'export' ? 'export' : 'import';
+    // Imports are logged by /api/v1/links/bulk itself; this endpoint only records exports
+    const cleanOperation = 'export';
     const cleanBatchName = String(batch_name || 'Bulk Operation').slice(0, 255);
     const total = Number(total_rows) || 0;
     const success = Number(success_count ?? total_rows) || 0;

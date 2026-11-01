@@ -165,10 +165,10 @@ interface StoreContextType {
   scanUrlSecurity: (url: string) => SecurityReport;
   aiSuggestSlugs: (url: string, title?: string) => string[];
   aiSummarizePerformance: (linkId?: string) => string;
-  exportLinksCsv: () => void;
+  exportLinksCsv: () => Promise<number>;
   importLinksCsv: (csvContent: string) => number;
   importLinksBatch: (
-    items: Array<{ destination_url: string; custom_slug?: string; title?: string; tags?: string[]; utm_source?: string; utm_medium?: string; utm_campaign?: string }>,
+    items: Array<{ row?: number; destination_url: string; custom_slug?: string; title?: string; tags?: string[]; utm_source?: string; utm_medium?: string; utm_campaign?: string }>,
     batchName?: string
   ) => Promise<{ success: boolean; imported: number; failed: number; errors: any[] }>;
   logExportJob: (batchName: string, totalRows: number) => Promise<void>;
@@ -2360,26 +2360,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // CSV Export & Import
-  const exportLinksCsv = () => {
+  const exportLinksCsv = async (): Promise<number> => {
+    // The loaded list stops at the newest 100 links; the export asks the server for all of them
+    let source: Link[] = links;
+    try {
+      const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(currentWorkspace.id)}&all=1`, {
+        cache: 'no-store',
+        headers: sessionHeaders(currentWorkspace.id)
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && Array.isArray(data?.links)) source = data.links;
+    } catch {}
+
     const headers = ['id', 'short_code', 'destination_url', 'title', 'status', 'clicks_count', 'created_at'];
-    const rows = links.map(l => [
+    const rows = source.map(l => [
       l.id,
       l.short_code,
-      `"${l.destination_url.replace(/"/g, '""')}"`,
-      `"${l.title.replace(/"/g, '""')}"`,
+      `"${(l.destination_url || '').replace(/"/g, '""')}"`,
+      `"${(l.title || '').replace(/"/g, '""')}"`,
       l.status,
       l.clicks_count,
       l.created_at
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    // A Blob keeps characters like "#" that a data: URI would cut the file at
+    const blob = new Blob([[headers.join(','), ...rows.map(e => e.join(','))].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const encodedUri = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     link.setAttribute('download', `url_shortener_links_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(encodedUri);
+    return source.length;
   };
 
   // Password hashing helper for client-side cryptographic verification
@@ -2942,52 +2956,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const cleanEmail = email.trim().toLowerCase();
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'TM';
-    const tempId = generateId('tm');
-    
-    // Deduplicate: replace any existing entry for this email
-    const filtered = teamMembers.filter(m => m.email.toLowerCase().trim() !== cleanEmail);
-    const newMember: TeamMember = {
-      id: tempId,
-      workspace_id: currentWorkspace.id,
-      name: name.trim(),
-      email: cleanEmail,
-      role,
-      status: 'invited',
-      avatar: initials
-    };
-    saveTeamMembersState([...filtered, newMember]);
-
-    if (typeof window !== 'undefined') {
+    // The row is added once the server has created the invite, so a refused invite leaves
+    // nothing behind and the dialog never shows a link that doesn't exist
+    const error = await (async () => {
       try {
         const res = await apiFetch('/api/v1/workspaces/members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          body: JSON.stringify({ workspace_id: currentWorkspace.id, name: name.trim(), email: cleanEmail, role })
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success || !data.invitation) return { message: data?.error || `Server responded with ${res.status}.` };
+        setTeamMembers(prev => [
+          ...prev.filter(m => m.email.toLowerCase().trim() !== cleanEmail),
+          {
+            id: data.invitation.id,
             workspace_id: currentWorkspace.id,
             name: name.trim(),
             email: cleanEmail,
             role,
-            inviter_email: currentUser?.email || 'Admin'
-          })
-        });
-        const data = await res.json();
-        if (data.success && data.invitation) {
-          setTeamMembers(prev => {
-            const next = prev.filter(m => m.id !== tempId && m.email.toLowerCase().trim() !== cleanEmail);
-            return [...next, {
-              ...newMember,
-              id: data.invitation.id,
-              token: data.invitation.token,
-              invite_url: data.invitation.invite_url
-            }];
-          });
-          return data.invitation;
-        }
-      } catch (err) {
-        console.warn('Failed to register invitation on server:', err);
+            status: 'invited',
+            avatar: initials,
+            token: data.invitation.token,
+            invite_url: data.invitation.invite_url
+          }
+        ]);
+        invalidateStoreCache('members');
+        return { invitation: data.invitation as WorkspaceInvitation };
+      } catch {
+        return { message: 'Network error. Please try again.' };
       }
+    })();
+    if ('message' in error) {
+      showToast('error', 'Invite not sent', error.message);
+      return null;
     }
-    return null;
+    return error.invitation;
   };
 
   const removeTeamMember = (id: string) => {
@@ -2997,12 +3001,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const target = teamMembers.find(m => m.id === id);
     const targetEmail = target?.email?.toLowerCase().trim();
+    const before = teamMembers;
     saveTeamMembersState(teamMembers.filter(m => m.id !== id && (!targetEmail || m.email.toLowerCase().trim() !== targetEmail)));
     if (typeof window !== 'undefined') {
-      const param = targetEmail 
-        ? `email=${encodeURIComponent(targetEmail)}&workspace_id=${encodeURIComponent(currentWorkspace.id)}` 
+      const param = targetEmail
+        ? `email=${encodeURIComponent(targetEmail)}&workspace_id=${encodeURIComponent(currentWorkspace.id)}`
         : `id=${encodeURIComponent(id)}`;
-      apiFetch(`/api/v1/workspaces/members?${param}`, { method: 'DELETE' }).catch(() => {});
+      confirmCampaignWrite(apiFetch(`/api/v1/workspaces/members?${param}`, { method: 'DELETE' })).then(error => {
+        if (!error) return;
+        setTeamMembers(before);
+        invalidateStoreCache('members');
+        showToast('error', target?.status === 'invited' ? 'Invite not cancelled' : 'Member not removed', error);
+      });
     }
   };
 
@@ -3011,22 +3021,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
+    const before = teamMembers;
     setTeamMembers(prev => prev.map(m => (m.id === memberId || m.email.toLowerCase() === memberId.toLowerCase()) ? { ...m, role } : m));
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await apiFetch('/api/v1/workspaces/members', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspace_id: currentWorkspace.id,
-            member_id: memberId,
-            role
-          })
-        });
-        const data = await res.json();
-        return !!data?.success;
-      } catch {}
+    const error = await confirmCampaignWrite(apiFetch('/api/v1/workspaces/members', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspace_id: currentWorkspace.id, member_id: memberId, role })
+    }));
+    if (error) {
+      setTeamMembers(before);
+      showToast('error', 'Role not changed', error);
+      return false;
     }
+    invalidateStoreCache('members');
     return true;
   };
 
@@ -3036,21 +3043,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const cleanSlug = slug ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-') : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const updatedWs: Workspace = { ...currentWorkspace, name: name.trim(), slug: cleanSlug };
+    const error = await confirmCampaignWrite(apiFetch('/api/v1/workspaces', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: workspaceId, name: name.trim(), slug: cleanSlug })
+    }));
+    if (error) {
+      showToast('error', 'Workspace not renamed', error);
+      return false;
+    }
     if (currentWorkspace.id === workspaceId) {
-      setCurrentWorkspace(updatedWs);
+      setCurrentWorkspace({ ...currentWorkspace, name: name.trim(), slug: cleanSlug });
     }
     setWorkspaces(prev => prev.map(w => w.id === workspaceId ? { ...w, name: name.trim(), slug: cleanSlug } : w));
-    if (typeof window !== 'undefined') {
-      try {
-        const res = await apiFetch('/api/v1/workspaces', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: workspaceId, name: name.trim(), slug: cleanSlug })
-        });
-        return res.ok;
-      } catch {}
-    }
     return true;
   };
 
@@ -3059,7 +3064,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
-    if (workspaces.length <= 1) return false;
+    if (workspaces.length <= 1) {
+      showToast('error', 'Workspace not deleted', 'You need at least one workspace.');
+      return false;
+    }
+    const error = await confirmCampaignWrite(apiFetch(`/api/v1/workspaces?id=${encodeURIComponent(workspaceId)}`, { method: 'DELETE' }));
+    if (error) {
+      showToast('error', 'Workspace not deleted', error);
+      return false;
+    }
     const remaining = workspaces.filter(w => w.id !== workspaceId);
     setWorkspaces(remaining);
     if (currentWorkspace.id === workspaceId) {
@@ -3072,9 +3085,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       localStorage.setItem('url_shortener_workspaces', JSON.stringify(remaining));
     } catch {}
-    if (typeof window !== 'undefined') {
-      apiFetch(`/api/v1/workspaces?id=${encodeURIComponent(workspaceId)}`, { method: 'DELETE' }).catch(() => {});
-    }
     return true;
   };
 
@@ -3160,7 +3170,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const importLinksBatch = async (
-    items: Array<{ destination_url: string; custom_slug?: string; title?: string; tags?: string[]; utm_source?: string; utm_medium?: string; utm_campaign?: string }>,
+    items: Array<{ row?: number; destination_url: string; custom_slug?: string; title?: string; tags?: string[]; utm_source?: string; utm_medium?: string; utm_campaign?: string }>,
     batchName?: string
   ): Promise<{ success: boolean; imported: number; failed: number; errors: any[] }> => {
     if (!checkPermissionOrToast('links:create', 'import links in bulk')) {

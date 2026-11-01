@@ -39,8 +39,8 @@ async function resolveWorkspaceId(options: VerifyPermissionOptions): Promise<str
   if (options.linkId && typeof options.linkId === 'string' && options.linkId.trim()) {
     const clean = options.linkId.trim();
     const rows = (await sql.query(
-      `SELECT workspace_id FROM links 
-       WHERE id = $1 OR LOWER(short_code) = LOWER($1) OR LOWER(custom_slug) = LOWER($1) 
+      `SELECT workspace_id FROM links
+       WHERE id = $1 OR LOWER(short_code) = LOWER($1) OR LOWER(custom_slug) = LOWER($1)
        LIMIT 1`,
       [clean]
     ).catch(() => [])) as { workspace_id?: string }[];
@@ -159,8 +159,8 @@ export async function verifyWorkspacePermission(
       if (keyRows && keyRows.length > 0) {
         const keyRecord = keyRows[0];
         const rawPerms = keyRecord.permissions;
-        const keyPerms: string[] = typeof rawPerms === 'string' 
-          ? JSON.parse(rawPerms) 
+        const keyPerms: string[] = typeof rawPerms === 'string'
+          ? JSON.parse(rawPerms)
           : (Array.isArray(rawPerms) ? rawPerms : []);
 
         // Check workspace isolation if specific workspace was requested
@@ -178,7 +178,7 @@ export async function verifyWorkspacePermission(
         }
 
         // Granular RBAC validation for API keys
-        const hasApiKeyPerm = 
+        const hasApiKeyPerm =
           keyPerms.includes('*') ||
           keyPerms.includes('admin') ||
           keyPerms.includes(requiredPermission) ||
@@ -224,7 +224,8 @@ export async function verifyWorkspacePermission(
     // local development still accepts it for convenience.
     const isProduction = process.env.NODE_ENV === 'production';
     const sessionEmail = getSessionEmail(request);
-    let userEmail = (options.userEmail || sessionEmail || (isProduction ? '' : headerEmail) || '').trim().toLowerCase();
+    // options.userEmail is a development convenience only; production identity is the session
+    let userEmail = ((isProduction ? '' : options.userEmail) || sessionEmail || (isProduction ? '' : headerEmail) || '').trim().toLowerCase();
     if (!userEmail) {
       if (isProduction) {
         return {
@@ -271,7 +272,7 @@ export async function verifyWorkspacePermission(
     } else {
       // Check workspace_members
       const memberRows = (await sql.query(
-        `SELECT role, status FROM workspace_members 
+        `SELECT role, status FROM workspace_members
          WHERE workspace_id = $1 AND LOWER(email) = $2 LIMIT 1`,
         [targetWsId, userEmail]
       ).catch(() => [])) as { role: string; status: string }[];

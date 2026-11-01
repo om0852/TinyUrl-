@@ -47,23 +47,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
     setSubmitting(true);
     try {
       const invite = await inviteTeamMember(name.trim(), email.trim(), role);
-      if (invite) {
-        setCreatedInvite(invite);
-      } else {
-        // Fallback invitation object
-        const fallbackUrl = typeof window !== 'undefined' ? `${window.location.origin}/invite/pending` : '';
-        setCreatedInvite({
-          id: `inv_${Date.now()}`,
-          workspace_id: currentWorkspace.id,
-          name: name.trim(),
-          email: email.trim(),
-          role,
-          token: 'token',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          invite_url: fallbackUrl
-        });
-      }
+      // On failure the store shows the reason and the form stays open to retry
+      if (invite) setCreatedInvite(invite);
     } finally {
       setSubmitting(false);
     }
@@ -96,8 +81,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
             <UserPlus className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-foreground">Invite Workspace Collaborator</h3>
-            <p className="text-xs text-muted-foreground">Grant team access to <strong className="text-foreground">{currentWorkspace.name}</strong></p>
+            <h3 className="text-base font-bold text-foreground">Invite to {currentWorkspace.name}</h3>
           </div>
         </div>
 
@@ -106,16 +90,16 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-foreground text-xs space-y-2">
               <div className="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
                 <Check className="w-4 h-4" />
-                <span>Invitation Link Ready!</span>
+                <span>Invite created</span>
               </div>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                An invitation token has been registered in the database for <strong className="text-foreground">{createdInvite.email}</strong> as <strong className="capitalize">{createdInvite.role}</strong>.
+                Send <strong className="text-foreground">{createdInvite.email}</strong> this link to join as <span className="capitalize">{createdInvite.role}</span>.
               </p>
             </div>
 
             <div>
               <label className="block text-foreground font-bold text-xs mb-1.5">
-                Shareable Invitation Link
+                Invite link
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -133,9 +117,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
                 </button>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
-                Send this link to the collaborator. They can click it to accept the invite, verify their seat, and set their password.
-              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
@@ -144,21 +125,21 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
                 className="w-full sm:w-1/2 h-10 px-3 rounded-lg bg-secondary/80 hover:bg-secondary text-foreground text-xs font-semibold flex items-center justify-center gap-2 border-[0.5px] border-outline-variant transition cursor-pointer"
               >
                 <Mail className="w-4 h-4 text-primary-ink shrink-0" />
-                <span>Email Collaborator</span>
+                <span>Send by email</span>
               </a>
               <Button
                 type="button"
                 onClick={handleClose}
                 className="w-full sm:w-1/2 text-xs font-bold h-10 rounded-lg"
               >
-                Done &amp; Close
+                Done
               </Button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 text-xs">
             <div>
-              <label className="block text-foreground font-bold text-xs mb-1.5">Full Name</label>
+              <label className="block text-foreground font-bold text-xs mb-1.5">Name</label>
               <input
                 type="text"
                 required
@@ -170,7 +151,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
             </div>
 
             <div>
-              <label className="block text-foreground font-bold text-xs mb-1.5">Email Address</label>
+              <label className="block text-foreground font-bold text-xs mb-1.5">Email</label>
               <input
                 type="email"
                 required
@@ -182,7 +163,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
             </div>
 
             <div>
-              <label className="block text-foreground font-bold text-xs mb-1.5">Assign Role &amp; Privileges</label>
+              <label className="block text-foreground font-bold text-xs mb-1.5">Role</label>
               <div className="grid grid-cols-3 gap-2">
                 {(['admin', 'editor', 'viewer'] as const).map((r) => (
                   <button
@@ -201,7 +182,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
               </div>
               {activeRoleDesc && (
                 <p className="text-[11px] text-muted-foreground mt-2 leading-relaxed bg-muted/30 p-2.5 rounded-lg border border-outline-variant">
-                  <strong className="text-foreground">{activeRoleDesc.title}:</strong> {activeRoleDesc.description}
+                  {activeRoleDesc.description}
                 </p>
               )}
             </div>
@@ -214,12 +195,12 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
               {submitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                  <span>Generating Secure Token…</span>
+                  <span>Creating…</span>
                 </>
               ) : (
                 <>
                   <UserPlus className="w-4 h-4" />
-                  <span>Generate Invitation &amp; Link</span>
+                  <span>Create invite link</span>
                 </>
               )}
             </Button>

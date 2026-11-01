@@ -3,1445 +3,485 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
 import { SkeletonGenericView } from '@/components/ui';
-import { 
-  ShieldAlert, 
-  ShieldCheck, 
-  AlertTriangle, 
-  RefreshCw, 
-  Lock, 
-  ChevronRight, 
-  Webhook, 
-  Copy, 
-  Check, 
-  Download, 
-  Filter, 
-  SlidersHorizontal, 
-  PauseCircle, 
-  PlayCircle,
-  ArrowRight, 
-  Bot, 
-  Bell, 
-  Shield, 
-  Zap, 
-  X, 
-  Timer,
-  CheckCircle2,
+import { Link } from '@/lib/types';
+import {
+  ShieldAlert,
+  ShieldCheck,
+  RefreshCw,
+  Download,
+  Lock,
   LockOpen,
+  PauseCircle,
+  PlayCircle,
   Search,
-  ExternalLink,
-  ChevronLeft,
-  Activity
+  Edit3,
+  Bell,
+  X,
+  WifiOff
 } from 'lucide-react';
 
-interface SecurityRow {
-  id: string;
-  shortCode: string;
-  shortLink: string;
-  tag: string;
-  destinationUrl: string;
-  targetHost: string;
-  engines: string[];
-  sslStatus: string;
-  isSslValid: boolean;
-  httpStatus: string;
-  statusCode: number;
-  latency: string;
-  latencyMs: number;
-  lastInspected: string;
-  isDead: boolean;
-  riskScore: number;
-  status: string;
+/** One row of /api/v1/security/audit results */
+interface ScanResult {
+  link_id: string;
+  status_code: number;
+  http_status: string;
+  latency_ms: number;
+  reachable: boolean;
+  is_threat: boolean;
+  risk_score: number;
+  threat_flags: string[];
+  status: Link['status'];
 }
 
+// Each request probes its links in parallel; small batches keep one request well inside the
+// serverless time limit
+const SCAN_BATCH = 25;
+const PAGE_SIZE = 10;
+
+type Filter = 'all' | 'flagged' | 'unreachable' | 'paused' | 'http';
+
+const isPaused = (l: Link) => l.status === 'disabled' || l.status === 'expired';
+const isFlagged = (l: Link) => !!l.is_flagged || l.status === 'flagged';
+const hostOf = (url: string) => { try { return new URL(url).hostname; } catch { return url; } };
+
 export const SecurityView: React.FC = () => {
-  const { links, updateLink, currentWorkspace, addWebhook, currentUser, checkPermissionOrToast, refreshLinks, isInitialLoading, isLinksLoading } = useStore();
+  const { links, updateLink, currentWorkspace, addWebhook, checkPermissionOrToast, refreshLinks, isInitialLoading } = useStore();
+  const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.com';
 
   useEffect(() => {
     setMounted(true);
     refreshLinks();
   }, [refreshLinks]);
 
-  // Audit animation state
-  const [isAuditing, setIsAuditing] = useState(false);
-  const [auditText, setAuditText] = useState('Run Workspace Audit');
+  // Results from scans run in this session, by link id
+  const [scans, setScans] = useState<Record<string, ScanResult>>({});
+  const [scanProgress, setScanProgress] = useState<{ done: number; total: number } | null>(null);
   const [scanningRowId, setScanningRowId] = useState<string | null>(null);
-  const [lastAuditedAt, setLastAuditedAt] = useState<Date | null>(null);
 
-  // Guardrails with workspace-scoped persistence
-  const [guardrails, setGuardrails] = useState(() => {
-    if (typeof window !== 'undefined' && currentWorkspace?.id) {
-      try {
-        const saved = localStorage.getItem(`security_guardrails_${currentWorkspace.id}`);
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return {
-      killswitch: true,
-      bots: true,
-      phishing: true,
-      alerts: true,
-    };
-  });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && currentWorkspace?.id) {
-      try {
-        localStorage.setItem(`security_guardrails_${currentWorkspace.id}`, JSON.stringify(guardrails));
-      } catch {}
-    }
-  }, [guardrails, currentWorkspace?.id]);
-
-  // Filters & Search & Pagination
-  const [statusFilter, setStatusFilter] = useState<'all' | 'safe' | 'warning' | 'paused'>('all');
-  const [protocolFilter, setProtocolFilter] = useState<'all' | 'https' | 'http'>('all');
+  const [filter, setFilter] = useState<Filter>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [filter, searchQuery]);
 
-  // Swap Modal
-  const [swapModalOpen, setSwapModalOpen] = useState(false);
-  const [swapTargetId, setSwapTargetId] = useState('');
-  const [swapTargetSlug, setSwapTargetSlug] = useState('');
+  const [swapLink, setSwapLink] = useState<Link | null>(null);
   const [newDestinationUrl, setNewDestinationUrl] = useState('');
   const [isSwapping, setIsSwapping] = useState(false);
 
-  // Webhook Modal
   const [webhookModalOpen, setWebhookModalOpen] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [webhookService, setWebhookService] = useState<'Slack' | 'Discord' | 'Custom POST'>('Slack');
 
-  // Feedback Toast
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const host = typeof window !== 'undefined' ? window.location.host : '';
 
-  // Table Data State
-  const [tableData, setTableData] = useState<SecurityRow[]>([]);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Synchronize tableData with links from storeContext
-  useEffect(() => {
-    if (links.length > 0) {
-      setTableData(prev => {
-        const prevMap = new Map(prev.map(r => [r.id, r]));
-        return links.map(l => {
-          const existing = prevMap.get(l.id);
-          let hostName = 'External';
-          try { hostName = new URL(l.destination_url).hostname; } catch {}
-          
-          const isHttps = /^https:\/\//i.test(l.destination_url);
-          const isFlagged = !!(l.is_flagged || l.status === 'flagged');
-          const isPaused = l.status === 'expired';
-
-          return {
-            id: l.id,
-            shortCode: l.short_code,
-            shortLink: `${typeof window !== 'undefined' ? window.location.host : 'snip.to'}/${l.short_code}`,
-            tag: l.tags?.join(' · ') || (isFlagged ? 'Security Threat' : isPaused ? 'Paused Link' : 'Active Link'),
-            destinationUrl: l.destination_url,
-            targetHost: `Target Host: ${hostName}`,
-            engines: ['GSB Heuristics', 'TLS Handshake', 'Edge Shield'],
-            sslStatus: isHttps ? 'Valid TLS 1.3' : 'Insecure HTTP',
-            isSslValid: isHttps,
-            httpStatus: existing?.httpStatus || (isFlagged ? '403 Flagged' : isPaused ? '410 Paused' : '200 OK'),
-            statusCode: existing?.statusCode || (isFlagged ? 403 : isPaused ? 410 : 200),
-            latency: existing?.latency || '32ms',
-            latencyMs: existing?.latencyMs || 32,
-            lastInspected: existing?.lastInspected || 'Recently',
-            isDead: isFlagged || (existing ? existing.statusCode >= 400 : false),
-            riskScore: l.risk_score || (isFlagged ? 75 : 0),
-            status: l.status || 'active'
-          };
-        });
-      });
-    } else {
-      setTableData([]);
+  // Sends one batch to the scanner and applies what it returns. The server stores flags and
+  // risk scores itself; the local copy just mirrors it without another write.
+  const scanBatch = async (ids: string[]): Promise<ScanResult[]> => {
+    const res = await fetch('/api/v1/security/audit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-workspace-id': currentWorkspace?.id || '' },
+      body: JSON.stringify({ workspace_id: currentWorkspace?.id, link_ids: ids })
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success || !Array.isArray(data.results)) {
+      throw new Error(data?.error || `Scan failed (${res.status})`);
     }
-  }, [links]);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
+    const results = data.results as ScanResult[];
+    setScans(prev => {
+      const next = { ...prev };
+      results.forEach(r => { next[r.link_id] = r; });
+      return next;
+    });
+    return results;
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedLink(text);
-    showToast(`Copied ${text} to clipboard`);
-    setTimeout(() => setCopiedLink(null), 2000);
-  };
-
-  // Full Workspace Audit Action
-  const triggerAudit = async () => {
-    if (!checkPermissionOrToast('links:edit', 'run workspace security audits')) {
-      return;
-    }
-
-    if (links.length === 0) {
-      showToast('No links in workspace to audit.');
-      return;
-    }
-
-    setIsAuditing(true);
-    setAuditText('Scanning link destinations...');
-    try {
-      const res = await fetch('/api/v1/security/audit', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-          'x-workspace-id': currentWorkspace?.id || ''
-        },
-        body: JSON.stringify({
-          workspace_id: currentWorkspace?.id,
-          link_ids: links.map(l => l.id)
-        })
-      });
-      const data = await res.json();
-      if (data?.success && Array.isArray(data.results)) {
-        const resultMap = new Map<string, any>(data.results.map((r: any) => [r.link_id, r]));
-        
-        // Update local tableData
-        setTableData(prev => prev.map(row => {
-          const audited = resultMap.get(row.id);
-          if (audited) {
-            return {
-              ...row,
-              statusCode: audited.status_code,
-              httpStatus: audited.http_status,
-              latency: `${audited.latency_ms}ms`,
-              latencyMs: audited.latency_ms,
-              isSslValid: audited.ssl_valid,
-              sslStatus: audited.ssl_status,
-              isDead: !audited.is_safe,
-              riskScore: audited.risk_score,
-              lastInspected: 'Just now'
-            };
-          }
-          return row;
-        }));
-
-        // Synchronize flags to global store
-        data.results.forEach((audited: any) => {
-          updateLink(audited.link_id, {
-            is_flagged: !audited.is_safe,
-            risk_score: audited.risk_score,
-            status: audited.is_safe ? 'active' : 'flagged'
-          });
-        });
-
-        setLastAuditedAt(new Date());
-        showToast(`Audit complete: ${data.scanned_count} link(s) checked. ${data.threats_detected} threat vector(s) identified.`);
-      } else {
-        showToast('Audit complete. All link health checks passed.');
+  const applyServerState = (results: ScanResult[]) => {
+    // Reflect the scanner's verdict locally without sending it back to the server
+    results.forEach(r => {
+      const link = links.find(l => l.id === r.link_id);
+      if (!link) return;
+      if (link.status !== r.status || link.is_flagged !== r.is_threat || link.risk_score !== r.risk_score) {
+        updateLink(r.link_id, { status: r.status, is_flagged: r.is_threat, risk_score: r.risk_score });
       }
-    } catch (err) {
-      console.warn('Security audit network failure:', err);
-      showToast('Network error while running security audit.');
-    } finally {
-      setIsAuditing(false);
-      setAuditText('Audit Complete (100%)');
-      setTimeout(() => {
-        setAuditText('Run Workspace Audit');
-      }, 3000);
-    }
+    });
   };
 
-  // Single Link Live Probe Action
-  const handleScanSingleLink = async (row: SecurityRow) => {
+  const scanAll = async () => {
     if (!checkPermissionOrToast('links:edit', 'run security scans')) return;
-    setScanningRowId(row.id);
+    if (links.length === 0) {
+      showToast('error', 'Nothing to scan', 'This workspace has no links yet.');
+      return;
+    }
+    const ids = links.map(l => l.id);
+    setScanProgress({ done: 0, total: ids.length });
+    const all: ScanResult[] = [];
     try {
-      const res = await fetch('/api/v1/security/audit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-          'x-workspace-id': currentWorkspace?.id || ''
-        },
-        body: JSON.stringify({
-          workspace_id: currentWorkspace?.id,
-          link_ids: [row.id]
-        })
-      });
-      const data = await res.json();
-      if (data?.success && Array.isArray(data.results) && data.results.length > 0) {
-        const audited = data.results[0];
-        setTableData(prev => prev.map(r => r.id === row.id ? {
-          ...r,
-          statusCode: audited.status_code,
-          httpStatus: audited.http_status,
-          latency: `${audited.latency_ms}ms`,
-          latencyMs: audited.latency_ms,
-          isSslValid: audited.ssl_valid,
-          sslStatus: audited.ssl_status,
-          isDead: !audited.is_safe,
-          riskScore: audited.risk_score,
-          lastInspected: 'Just now'
-        } : r));
+      for (let i = 0; i < ids.length; i += SCAN_BATCH) {
+        all.push(...await scanBatch(ids.slice(i, i + SCAN_BATCH)));
+        setScanProgress({ done: Math.min(ids.length, i + SCAN_BATCH), total: ids.length });
+      }
+      applyServerState(all);
+      const threats = all.filter(r => r.is_threat).length;
+      const down = all.filter(r => !r.reachable && !r.is_threat).length;
+      showToast(
+        threats > 0 ? 'error' : 'success',
+        `Scanned ${all.length} ${all.length === 1 ? 'link' : 'links'}`,
+        [threats ? `${threats} flagged` : 'No threats found', down ? `${down} not responding` : ''].filter(Boolean).join(' · ')
+      );
+    } catch (err) {
+      applyServerState(all);
+      showToast('error', 'Scan stopped', err instanceof Error ? err.message : 'Network error.');
+    } finally {
+      setScanProgress(null);
+    }
+  };
 
-        updateLink(row.id, {
-          is_flagged: !audited.is_safe,
-          risk_score: audited.risk_score,
-          status: audited.is_safe ? 'active' : 'flagged'
-        });
-
-        showToast(`Probed ${row.shortLink}: ${audited.http_status} (${audited.latency_ms}ms)`);
-      } else {
-        showToast(`Health check finished for ${row.shortLink}.`);
+  const scanOne = async (link: Link) => {
+    if (!checkPermissionOrToast('links:edit', 'run security scans')) return;
+    setScanningRowId(link.id);
+    try {
+      const [r] = await scanBatch([link.id]);
+      if (r) {
+        applyServerState([r]);
+        showToast(r.is_threat ? 'error' : 'success', `/${link.short_code}: ${r.http_status}`, r.is_threat ? r.threat_flags.join(' · ') : `${r.latency_ms} ms`);
       }
     } catch (err) {
-      console.warn('Single probe failed:', err);
-      showToast(`Scan probe failed for ${row.shortLink}.`);
+      showToast('error', 'Scan failed', err instanceof Error ? err.message : 'Network error.');
     } finally {
       setScanningRowId(null);
     }
   };
 
-  // Pause / Resume Link Redirect
-  const handleTogglePause = (row: SecurityRow) => {
-    if (!checkPermissionOrToast('links:edit', 'modify link redirect status')) return;
-    const isCurrentlyPaused = row.status === 'expired';
-    const nextStatus = isCurrentlyPaused ? 'active' : 'expired';
-    updateLink(row.id, { status: nextStatus });
-    setTableData(prev => prev.map(r => r.id === row.id ? {
-      ...r,
-      status: nextStatus,
-      statusCode: nextStatus === 'expired' ? 410 : 200,
-      httpStatus: nextStatus === 'expired' ? '410 Paused' : '200 OK'
-    } : r));
-    showToast(isCurrentlyPaused ? `Resumed redirects for ${row.shortLink}` : `Paused redirects for ${row.shortLink}`);
+  const togglePause = (link: Link) => {
+    if (!checkPermissionOrToast('links:edit', 'pause links')) return;
+    const paused = isPaused(link);
+    updateLink(link.id, { status: paused ? 'active' : 'disabled' });
+    showToast('success', paused ? 'Link resumed' : 'Link paused', `/${link.short_code}`);
   };
 
-  // Open Swap Modal for specific row
-  const handleOpenSwapModal = (rowIdOrSlug: string) => {
-    const targetRow = tableData.find(r => r.id === rowIdOrSlug || r.shortLink.includes(rowIdOrSlug) || r.shortCode === rowIdOrSlug);
-    if (targetRow) {
-      setSwapTargetId(targetRow.id);
-      setSwapTargetSlug(targetRow.shortLink);
-      setNewDestinationUrl(targetRow.destinationUrl);
-    } else {
-      setSwapTargetId('');
-      setSwapTargetSlug(rowIdOrSlug);
-      setNewDestinationUrl('');
-    }
-    setSwapModalOpen(true);
+  const openSwap = (link: Link) => {
+    setSwapLink(link);
+    setNewDestinationUrl(link.destination_url);
   };
 
-  // Save Emergency Destination Swap
-  const handleSaveSwap = async (e: React.FormEvent) => {
+  const saveSwap = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDestinationUrl.trim()) return;
-
-    let targetRow = tableData.find(r => r.id === swapTargetId || r.shortLink === swapTargetSlug);
-    if (!targetRow && swapTargetSlug) {
-      const code = swapTargetSlug.split('/').pop();
-      targetRow = tableData.find(r => r.shortCode === code);
-    }
-
-    if (!targetRow) {
-      showToast('Error: Target link not found in workspace.');
-      setSwapModalOpen(false);
-      return;
-    }
-
+    if (!swapLink || !newDestinationUrl.trim()) return;
+    if (!checkPermissionOrToast('links:edit', 'change link destinations')) return;
     setIsSwapping(true);
     try {
-      updateLink(targetRow.id, {
-        destination_url: newDestinationUrl.trim(),
-        status: 'active',
-        is_flagged: false,
-        risk_score: 0
-      });
-
-      // Update tableData immediately
-      setTableData(prev => prev.map(row => {
-        if (row.id === targetRow!.id) {
-          let hostName = 'Verified Target';
-          try { hostName = new URL(newDestinationUrl.trim()).hostname; } catch {}
-          return {
-            ...row,
-            destinationUrl: newDestinationUrl.trim(),
-            targetHost: `Target Host: ${hostName}`,
-            httpStatus: '200 OK',
-            statusCode: 200,
-            isDead: false,
-            riskScore: 0,
-            status: 'active',
-            latency: '24ms',
-            lastInspected: 'Just now'
-          };
-        }
-        return row;
-      }));
-
-      // Trigger automatic verification probe
-      fetch('/api/v1/security/audit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-          'x-workspace-id': currentWorkspace?.id || ''
-        },
-        body: JSON.stringify({
-          workspace_id: currentWorkspace?.id,
-          link_ids: [targetRow.id]
-        })
-      }).catch(() => {});
-
-      setSwapModalOpen(false);
-      showToast(`Target updated for ${targetRow.shortLink}. Zero-latency edge replication active.`);
+      updateLink(swapLink.id, { destination_url: newDestinationUrl.trim() });
+      setSwapLink(null);
+      // Re-check the new destination; the scan clears or sets the flag
+      setTimeout(() => { scanOne({ ...swapLink, destination_url: newDestinationUrl.trim() }); }, 800);
     } finally {
       setIsSwapping(false);
     }
   };
 
-  // Real CSV Audit Report Export
-  const handleExportAuditCsv = () => {
-    if (tableData.length === 0) {
-      showToast('No monitored link data available to export.');
-      return;
-    }
-
-    const headers = [
-      'Short Code',
-      'Short URL',
-      'Destination URL',
-      'Target Host',
-      'Protocol',
-      'SSL Status',
-      'HTTP Status',
-      'Latency',
-      'Safety Status',
-      'Risk Score',
-      'Last Inspected'
-    ];
-
-    const rows = tableData.map(r => [
-      r.shortCode,
-      `https://${r.shortLink}`,
-      `"${r.destinationUrl.replace(/"/g, '""')}"`,
-      `"${r.targetHost.replace('Target Host: ', '').replace(/"/g, '""')}"`,
-      r.isSslValid ? 'HTTPS' : 'HTTP',
-      `"${r.sslStatus}"`,
-      `"${r.httpStatus}"`,
-      r.latency,
-      r.isDead ? 'Flagged / Threat' : r.status === 'expired' ? 'Paused' : 'Safe',
-      r.riskScore,
-      `"${r.lastInspected}"`
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `security_audit_${currentWorkspace?.slug || 'workspace'}_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const exportCsv = () => {
+    if (links.length === 0) return;
+    const headers = ['Short code', 'Short URL', 'Destination', 'Protocol', 'Status', 'Flagged', 'Risk score', 'Last check', 'Response time (ms)'];
+    const rows = links.map(l => {
+      const scan = scans[l.id];
+      return [
+        l.short_code,
+        `https://${host}/${l.short_code}`,
+        `"${l.destination_url.replace(/"/g, '""')}"`,
+        /^https:/i.test(l.destination_url) ? 'HTTPS' : 'HTTP',
+        l.status,
+        isFlagged(l) ? 'yes' : 'no',
+        l.risk_score || 0,
+        scan ? `"${scan.http_status}"` : 'not checked',
+        scan ? scan.latency_ms : ''
+      ];
+    });
+    const url = URL.createObjectURL(new Blob([[headers.join(','), ...rows.map(r => r.join(','))].join('\n')], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `security_${currentWorkspace?.slug || 'workspace'}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`Exported security audit report for ${tableData.length} link(s).`);
   };
 
-  // Filter and Search Logic
-  const filteredRows = useMemo(() => {
-    return tableData.filter(row => {
-      // Status Filter
-      if (statusFilter === 'safe' && (row.isDead || row.statusCode !== 200 || row.status !== 'active')) return false;
-      if (statusFilter === 'warning' && (!row.isDead && row.statusCode === 200 && row.status === 'active')) return false;
-      if (statusFilter === 'paused' && row.status !== 'expired') return false;
+  const saveWebhook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!webhookUrl.trim()) return;
+    const hook = await addWebhook(webhookUrl.trim(), ['link.flagged']);
+    if (hook && 'id' in hook && hook.id) {
+      setWebhookModalOpen(false);
+      setWebhookUrl('');
+      showToast('success', 'Alert webhook saved', 'It gets a signed POST whenever a scan flags a link.');
+    }
+  };
 
-      // Protocol Filter
-      if (protocolFilter === 'https' && !row.isSslValid) return false;
-      if (protocolFilter === 'http' && row.isSslValid) return false;
+  const flaggedCount = links.filter(isFlagged).length;
+  const pausedCount = links.filter(isPaused).length;
+  const httpCount = links.filter(l => !/^https:/i.test(l.destination_url)).length;
+  const unreachableCount = links.filter(l => scans[l.id] && !scans[l.id].reachable && !isFlagged(l)).length;
+  const checkedCount = links.filter(l => scans[l.id]).length;
 
-      // Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesShort = row.shortLink.toLowerCase().includes(q);
-        const matchesDest = row.destinationUrl.toLowerCase().includes(q);
-        const matchesTag = row.tag.toLowerCase().includes(q);
-        if (!matchesShort && !matchesDest && !matchesTag) return false;
-      }
-
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return links.filter(l => {
+      if (filter === 'flagged' && !isFlagged(l)) return false;
+      if (filter === 'paused' && !isPaused(l)) return false;
+      if (filter === 'http' && /^https:/i.test(l.destination_url)) return false;
+      if (filter === 'unreachable' && !(scans[l.id] && !scans[l.id].reachable)) return false;
+      if (q && !l.short_code.toLowerCase().includes(q) && !l.destination_url.toLowerCase().includes(q) && !(l.title || '').toLowerCase().includes(q)) return false;
       return true;
-    });
-  }, [tableData, statusFilter, protocolFilter, searchQuery]);
+    }).sort((a, b) => Number(isFlagged(b)) - Number(isFlagged(a)));
+  }, [links, scans, filter, searchQuery]);
 
-  // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, currentPage, pageSize]);
-
-  // Adjust page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, protocolFilter, searchQuery]);
-
-  // Dynamic Statistics
-  const totalCount = links.length;
-  const flaggedCount = links.filter(l => l.status === 'flagged' || l.is_flagged).length;
-  const pausedCount = links.filter(l => l.status === 'expired').length;
-  const safeCount = Math.max(0, totalCount - flaggedCount - pausedCount);
-  const httpsCount = links.filter(l => l.destination_url?.startsWith('https')).length;
-  const healthPercent = totalCount === 0 ? 100 : Math.max(0, Math.round(((totalCount - flaggedCount) / totalCount) * 100));
-
-  // Dynamic SVG circle stroke-dashoffset: Circumference = 2 * PI * 28 ≈ 175.9
-  const circleOffset = 175.9 - (175.9 * healthPercent) / 100;
-
-  // Active Incident Under Mitigation
-  const activeIncident = useMemo(() => {
-    return tableData.find(r => r.isDead || r.statusCode >= 400 || r.status === 'flagged');
-  }, [tableData]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   if (!mounted || (isInitialLoading && links.length === 0)) {
-    return <SkeletonGenericView title="Zero-Trust Threat & Malware Inspector" />;
+    return <SkeletonGenericView title="Security" />;
   }
 
-  return (
-    <div className="flex flex-col w-full text-on-surface animate-fade-in">
-      
-      {/* 1. Page Header & Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-medium mb-1">
-            <span className="hover:text-on-surface cursor-pointer">Workspace</span>
-            <ChevronRight className="w-3.5 h-3.5 text-outline" />
-            <span className="text-primary-ink font-semibold">Security &amp; Zero-Trust</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight">
-            Zero-Trust Threat &amp; Malware Inspector
-          </h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant max-w-3xl mt-1 leading-relaxed">
-            Continuous real-time destination probes, phishing heuristic detection, TLS integrity checks, and automated quarantine protection for your links.
-          </p>
-        </div>
+  const iconBtn = 'size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50';
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto shrink-0 flex-wrap">
-          <button 
+  const checkCell = (l: Link) => {
+    const scan = scans[l.id];
+    if (!scan) return <span className="text-outline">Not checked</span>;
+    return (
+      <span className={scan.reachable ? 'text-on-surface-variant' : 'text-amber-700'}>
+        {scan.http_status}{scan.latency_ms > 0 && <span className="text-outline"> · {scan.latency_ms} ms</span>}
+      </span>
+    );
+  };
+
+  const statusCell = (l: Link) => {
+    const [dot, label] = isFlagged(l)
+      ? ['bg-rose-500', 'Flagged']
+      : isPaused(l)
+        ? ['bg-outline', 'Paused']
+        : scans[l.id] && !scans[l.id].reachable
+          ? ['bg-amber-500', 'Not responding']
+          : ['bg-emerald-500', 'Active'];
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-on-surface-variant whitespace-nowrap">
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+        {label}
+      </span>
+    );
+  };
+
+  const rowActions = (l: Link) => (
+    <>
+      <button type="button" onClick={() => scanOne(l)} disabled={scanningRowId === l.id || !!scanProgress} title="Scan now" aria-label="Scan now" className={iconBtn}>
+        <RefreshCw className={`w-3.5 h-3.5 ${scanningRowId === l.id ? 'animate-spin' : ''}`} />
+      </button>
+      <button type="button" onClick={() => openSwap(l)} title="Change destination" aria-label="Change destination" className={iconBtn}>
+        <Edit3 className="w-3.5 h-3.5" />
+      </button>
+      <button type="button" onClick={() => togglePause(l)} title={isPaused(l) ? 'Resume' : 'Pause'} aria-label={isPaused(l) ? 'Resume' : 'Pause'} className={iconBtn}>
+        {isPaused(l) ? <PlayCircle className="w-3.5 h-3.5" /> : <PauseCircle className="w-3.5 h-3.5" />}
+      </button>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col w-full gap-[15px] pb-16 animate-fade-in text-on-surface">
+
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0 max-w-2xl flex-wrap">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search links"
+              aria-label="Search links"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-[34px] pl-9 pr-3 bg-surface-container-low rounded-full text-xs font-light text-on-surface border-[0.5px] border-outline-variant placeholder:text-outline outline-none focus:border-on-surface-variant"
+            />
+          </div>
+          <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs shrink-0 overflow-x-auto" role="tablist" aria-label="Filter links">
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'flagged', label: 'Flagged' },
+              { id: 'unreachable', label: 'Not responding' },
+              { id: 'paused', label: 'Paused' },
+              { id: 'http', label: 'HTTP' },
+            ] as const).map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={filter === tab.id}
+                onClick={() => setFilter(tab.id)}
+                className={`h-[26px] px-2.5 rounded-[4px] whitespace-nowrap transition-colors cursor-pointer ${
+                  filter === tab.id ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
             type="button"
             id="btn-webhook"
             onClick={() => setWebhookModalOpen(true)}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low text-on-surface px-4 py-2 rounded-xl hover:bg-surface-container transition-colors shadow-xs border-[0.5px] border-outline-variant cursor-pointer whitespace-nowrap shrink-0"
+            title="Alert webhook"
+            aria-label="Alert webhook"
+            className="size-[34px] rounded-md border-[0.5px] border-outline-variant grid place-items-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer"
           >
-            <Webhook className="w-3.5 h-3.5 text-on-surface-variant" />
-            <span>Configure Webhook Alert</span>
+            <Bell className="w-3.5 h-3.5" />
           </button>
-          
-          <button 
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={links.length === 0}
+            title="Export CSV"
+            aria-label="Export CSV"
+            className="size-[34px] rounded-md border-[0.5px] border-outline-variant grid place-items-center text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+          <button
             type="button"
             id="btn-audit"
-            disabled={isAuditing}
-            onClick={triggerAudit}
-            className="inline-flex items-center gap-1.5 text-xs font-bold bg-primary-container text-on-primary px-4 py-2 rounded-xl hover:bg-primary transition-all shadow-sm cursor-pointer disabled:opacity-75 whitespace-nowrap shrink-0"
+            onClick={scanAll}
+            disabled={!!scanProgress}
+            className="h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-70"
           >
-            <ShieldCheck className={`w-4 h-4 ${isAuditing ? 'animate-spin' : ''}`} />
-            <span>{auditText}</span>
+            <ShieldCheck className={`w-4 h-4 ${scanProgress ? 'animate-pulse' : ''}`} />
+            <span>{scanProgress ? `Scanning ${scanProgress.done}/${scanProgress.total}` : 'Scan all links'}</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Security Posture Health Banner */}
-      <div className="relative overflow-hidden bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant p-6 mb-6">
-        <div className="absolute -right-8 -top-8 w-64 h-64 bg-primary/5 rounded-full pointer-events-none" />
-        
-        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          <div className="flex items-start sm:items-center gap-4">
-            
-            {/* SVG Progress Circle */}
-            <div className="relative shrink-0">
-              <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
-                <circle 
-                  className="stroke-surface-container-high" 
-                  cx="32" cy="32" r="28" 
-                  fill="none" 
-                  strokeWidth="5" 
-                />
-                <circle 
-                  className={healthPercent === 100 ? 'stroke-primary-strong' : 'stroke-amber-500'} 
-                  cx="32" cy="32" r="28" 
-                  fill="none" 
-                  strokeDasharray="175.9" 
-                  strokeDashoffset={circleOffset} 
-                  strokeLinecap="round" 
-                  strokeWidth="5" 
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Lock className={`w-5 h-5 ${healthPercent === 100 ? 'text-primary-ink' : 'text-amber-500'}`} />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-base font-bold text-on-surface">
-                  Workspace Security Posture: {healthPercent}%
-                </span>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold border ${
-                  healthPercent === 100
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-amber-50 text-amber-800 border-amber-200'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${healthPercent === 100 ? 'bg-emerald-600' : 'bg-amber-600'}`} />
-                  <span>{healthPercent === 100 ? 'Protected & Verified' : 'Threat Vectors Detected'}</span>
-                </span>
-              </div>
-              <p className="text-xs text-on-surface-variant mt-1">
-                {totalCount === 0 
-                  ? 'No short links registered in this workspace yet.' 
-                  : `${totalCount} monitored link${totalCount === 1 ? '' : 's'} across edge network. ${flaggedCount} compromised link${flaggedCount === 1 ? '' : 's'} under quarantine.`}
-              </p>
+      {/* Stats */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-[15px]">
+        {[
+          { icon: <ShieldAlert className="w-5 h-5" />, value: flaggedCount, label: 'Flagged', hint: 'Show a warning page' },
+          { icon: <WifiOff className="w-5 h-5" />, value: unreachableCount, label: 'Not responding', hint: checkedCount ? `Of ${checkedCount} checked` : 'Run a scan' },
+          { icon: <PauseCircle className="w-5 h-5" />, value: pausedCount, label: 'Paused', hint: 'Not redirecting' },
+          { icon: httpCount ? <LockOpen className="w-5 h-5" /> : <Lock className="w-5 h-5" />, value: httpCount, label: 'Plain HTTP', hint: `Of ${links.length} links` },
+        ].map(card => (
+          <div key={card.label} className="flex items-center gap-[10px] rounded-xl border-[0.5px] border-outline-variant p-[15px] min-w-0">
+            <div className="grid size-[40px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{card.icon}</div>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-on-surface">{card.value.toLocaleString()}</div>
+              <p className="text-xs text-outline truncate">{card.label} · {card.hint}</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-6 w-full lg:w-auto pt-2 lg:pt-0 justify-between lg:justify-end text-xs">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-primary-container animate-pulse" />
-              <div className="flex flex-col">
-                <span className="font-bold text-on-surface">Zero-Trust Heuristics</span>
-                <span className="text-on-surface-variant">Live synthetic HTTP head probes</span>
-              </div>
-            </div>
-            <div className="h-8 w-px bg-outline-variant/30 hidden sm:block" />
-            <div className="flex flex-col items-end">
-              <span className="font-mono font-semibold text-on-surface">
-                {lastAuditedAt ? `Last Scan: ${lastAuditedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Status: Ready to Audit'}
-              </span>
-              <span className="text-on-surface-variant">TLS Handshake &amp; Malware Shield</span>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* 3. KPI Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        
-        {/* Card 1: Scanned Endpoints */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Monitored Links</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <Shield className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{totalCount}</span>
-              <span className="text-xs text-primary-ink font-bold">Total</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-primary-ink" />
-              <span>{httpsCount} encrypted via TLS 1.3</span>
-            </p>
-          </div>
+      {/* Links */}
+      <div className="rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+        <div className="px-[15px] py-3 flex items-center justify-between border-b-[0.5px] border-outline-variant">
+          <h2 className="text-[14px] font-semibold text-on-surface">Links</h2>
+          <span className="text-xs text-outline">{filtered.length} of {links.length}</span>
         </div>
 
-        {/* Card 2: Threats Neutralized */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Flagged Threats</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{flaggedCount}</span>
-              <span className="text-xs text-on-surface-variant font-medium">Quarantined</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
-              {flaggedCount === 0 ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>No threat vectors detected</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Active quarantine engaged</span>
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-
-        {/* Card 3: Destination Uptime */}
-        <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Destination Health</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <Zap className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{healthPercent}%</span>
-              <span className={`text-xs font-bold ${healthPercent === 100 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {healthPercent === 100 ? 'Healthy' : 'Attention Needed'}
-              </span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
-              <Timer className="w-3.5 h-3.5 text-outline" />
-              <span>Avg edge probe: <strong className="font-mono text-on-surface">28ms</strong></span>
-            </p>
-          </div>
-        </div>
-
-        {/* Card 4: Dead / Inactive Link Alerts */}
-        <div className={`bg-surface-container-lowest rounded-xl p-5 shadow-xs border ${
-          flaggedCount + pausedCount > 0 ? 'border-amber-300' : 'border-outline-variant'
-        } flex flex-col justify-between hover:shadow-sm transition-shadow relative overflow-hidden`}>
-          {flaggedCount + pausedCount > 0 && (
-            <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
-          )}
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Interventions Needed</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-on-surface-variant">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{flaggedCount + pausedCount}</span>
-              <span className="text-xs text-on-surface-variant font-medium">Link Alerts</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-1.5 flex items-center gap-1">
-              {flaggedCount + pausedCount === 0 ? (
-                <>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>All endpoints resolving cleanly</span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{flaggedCount} flagged • {pausedCount} paused</span>
-                </>
-              )}
-            </p>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 4. Real-Time Link Inspector & Audit Queue Section */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-xs border-[0.5px] border-outline-variant overflow-hidden mb-6">
-        
-        {/* Header & Table Controls */}
-        <div className="p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-outline-variant">
-          <div>
-            <h2 className="text-base font-bold text-on-surface">Live Destination Health &amp; Threat Queue</h2>
-            <p className="text-xs text-on-surface-variant mt-0.5">Automated synthetic head requests checking HTTP response codes, SSL certificates, and threat heuristics</p>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2.5 text-xs">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-outline pointer-events-none" />
-              <input 
-                type="text"
-                placeholder="Search link or destination..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-surface-container-low text-on-surface rounded-xl outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant text-xs w-48 sm:w-56"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div className="relative">
-              <Filter className="w-3.5 h-3.5 absolute left-3 top-2.5 text-outline pointer-events-none" />
-              <select 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="pl-8 pr-7 py-1.5 bg-surface-container-low text-on-surface font-semibold rounded-xl outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant cursor-pointer text-xs"
-              >
-                <option value="all">All Statuses ({tableData.length})</option>
-                <option value="safe">Safe &amp; Verified ({safeCount})</option>
-                <option value="warning">Flagged Threats ({flaggedCount})</option>
-                <option value="paused">Paused Redirects ({pausedCount})</option>
-              </select>
-            </div>
-
-            {/* Protocol Filter */}
-            <div className="relative">
-              <Lock className="w-3.5 h-3.5 absolute left-3 top-2.5 text-outline pointer-events-none" />
-              <select 
-                value={protocolFilter}
-                onChange={(e) => setProtocolFilter(e.target.value as any)}
-                className="pl-8 pr-7 py-1.5 bg-surface-container-low text-on-surface font-semibold rounded-xl outline-none focus:ring-2 focus:ring-primary-strong border-[0.5px] border-outline-variant cursor-pointer text-xs"
-              >
-                <option value="all">All Protocols ({tableData.length})</option>
-                <option value="https">HTTPS Encrypted ({httpsCount})</option>
-                <option value="http">Insecure HTTP ({totalCount - httpsCount})</option>
-              </select>
-            </div>
-
-            {/* Export CSV Button */}
-            <button 
-              type="button"
-              onClick={handleExportAuditCsv}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors border-[0.5px] border-outline-variant cursor-pointer font-semibold text-xs" 
-              title="Export audit log CSV"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Export CSV</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Desktop Data Table */}
-        <div className="hidden md:block w-full overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs min-w-[780px]">
-            <thead>
-              <tr className="bg-surface-container-low text-[11px] font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant">
-                <th className="py-3 px-6 whitespace-nowrap">Short Link</th>
-                <th className="py-3 px-4 whitespace-nowrap">Destination URL</th>
-                <th className="py-3 px-4 whitespace-nowrap">Scan Engines</th>
-                <th className="py-3 px-4 whitespace-nowrap">SSL Security</th>
-                <th className="py-3 px-4 whitespace-nowrap">HTTP Status</th>
-                <th className="py-3 px-4 whitespace-nowrap">Latency</th>
-                <th className="py-3 px-4 whitespace-nowrap">Last Inspected</th>
-                <th className="py-3 px-6 text-right whitespace-nowrap">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant">
-              {paginatedRows.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-on-surface-variant">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-outline">
-                        <ShieldAlert className="w-5 h-5" />
-                      </div>
-                      <p className="font-bold text-sm text-on-surface">No Destination Links Match Filter</p>
-                      <p className="text-xs text-on-surface-variant max-w-sm">
-                        {tableData.length === 0 
-                          ? 'Create short links in this workspace to automatically enable synthetic health probes, SSL validation, and threat detection.' 
-                          : 'Try adjusting your search query or status filter above to inspect other endpoints.'}
-                      </p>
-                    </div>
-                  </td>
+        {filtered.length === 0 ? (
+          <p className="py-10 px-6 text-center text-xs text-on-surface-variant">
+            {links.length === 0 ? 'No links yet.' : filter === 'unreachable' && checkedCount === 0 ? 'Run a scan to check which destinations respond.' : 'Nothing matches.'}
+          </p>
+        ) : (
+          <>
+            <table className="hidden md:table w-full text-left text-xs">
+              <thead>
+                <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
+                  <th className="py-2.5 px-[15px] font-medium">Link</th>
+                  <th className="py-2.5 px-3 font-medium">Status</th>
+                  <th className="py-2.5 px-3 font-medium">Last check</th>
+                  <th className="py-2.5 px-3 font-medium text-right">Risk</th>
+                  <th className="py-2.5 px-[15px] font-medium text-right"><span className="sr-only">Actions</span></th>
                 </tr>
-              ) : (
-                paginatedRows.map((row) => (
-                  <tr 
-                    key={row.id} 
-                    className={`transition-colors ${
-                      row.isDead 
-                        ? 'bg-amber-50/70 hover:bg-amber-100/60' 
-                        : row.status === 'expired'
-                        ? 'bg-surface-container-low/30 hover:bg-surface-container-low/50 opacity-80'
-                        : 'hover:bg-surface-container-low/50'
-                    }`}
-                  >
-                    {/* Short Link */}
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-mono font-bold ${row.isDead ? 'text-amber-900' : 'text-primary-ink'}`}>
-                          {row.shortLink}
-                        </span>
-                        <button 
-                          type="button"
-                          onClick={() => handleCopy(`https://${row.shortLink}`)}
-                          className="text-outline hover:text-primary-ink transition-colors cursor-pointer" 
-                          title="Copy shortened URL"
-                        >
-                          {copiedLink === `https://${row.shortLink}` ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </div>
-                      <span className={`text-[11px] block mt-0.5 ${row.isDead ? 'text-amber-800 font-semibold' : 'text-on-surface-variant'}`}>
-                        {row.tag}
-                      </span>
-                    </td>
+              </thead>
+              <tbody>
+                {pageRows.map(l => {
+                  const flags = scans[l.id]?.threat_flags || l.risk_reasons || [];
+                  return (
+                    <tr key={l.id} className="border-b-[0.5px] border-outline-variant last:border-b-0 hover:bg-surface-container-low transition-colors">
+                      <td className="py-2.5 px-[15px] max-w-[340px]">
+                        <div className="font-medium text-on-surface truncate">/{l.short_code}</div>
+                        <div className="text-[11px] text-outline truncate" title={l.destination_url}>
+                          {!/^https:/i.test(l.destination_url) && <span className="text-amber-700">HTTP · </span>}
+                          {hostOf(l.destination_url)}
+                        </div>
+                        {isFlagged(l) && flags.length > 0 && <div className="text-[11px] text-error truncate" title={flags.join('\n')}>{flags[0]}</div>}
+                      </td>
+                      <td className="py-2.5 px-3">{statusCell(l)}</td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">{checkCell(l)}</td>
+                      <td className={`py-2.5 px-3 text-right tabular-nums ${(l.risk_score || 0) >= 60 ? 'text-error font-medium' : 'text-on-surface-variant'}`}>{l.risk_score || 0}</td>
+                      <td className="py-2.5 px-[15px]">
+                        <div className="flex items-center justify-end gap-0.5">{rowActions(l)}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-                    {/* Destination */}
-                    <td className="py-4 px-4 max-w-xs">
-                      <div className={`font-medium truncate ${row.isDead ? 'line-through text-on-surface/70' : 'text-on-surface'}`} title={row.destinationUrl}>
-                        {row.destinationUrl}
-                      </div>
-                      <span className={`text-[11px] block mt-0.5 ${row.isDead ? 'text-amber-800 font-semibold' : 'text-on-surface-variant'}`}>
-                        {row.targetHost}
-                      </span>
-                    </td>
-
-                    {/* Scan Engines */}
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {row.engines.map((eng, idx) => (
-                          <span 
-                            key={idx}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              row.isDead
-                                ? 'bg-amber-200 text-amber-900'
-                                : 'bg-surface-container text-primary-ink'
-                            }`}
-                          >
-                            {!row.isDead && <Check className="w-2.5 h-2.5" />}
-                            <span>{eng}</span>
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* SSL Security */}
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1 text-on-surface font-semibold text-xs">
-                        {row.isSslValid ? (
-                          <Lock className="w-3.5 h-3.5 text-primary-ink" />
-                        ) : (
-                          <LockOpen className="w-3.5 h-3.5 text-amber-600" />
-                        )}
-                        <span className={row.isSslValid ? '' : 'text-amber-800 font-bold'}>{row.sslStatus}</span>
-                      </div>
-                    </td>
-
-                    {/* HTTP Status */}
-                    <td className="py-4 px-4 whitespace-nowrap">
-                      {row.isDead ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 font-mono text-[11px] font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />
-                          <span>{row.httpStatus}</span>
-                        </span>
-                      ) : row.status === 'expired' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-[11px] font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-outline" />
-                          <span>410 Paused</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px] font-bold">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          <span>{row.httpStatus}</span>
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Latency */}
-                    <td className={`py-4 px-4 font-mono font-semibold whitespace-nowrap ${row.isDead ? 'text-amber-900' : 'text-on-surface'}`}>
-                      {row.latency}
-                    </td>
-
-                    {/* Last Inspected */}
-                    <td className={`py-4 px-4 text-xs whitespace-nowrap ${row.isDead ? 'text-amber-900 font-semibold' : 'text-on-surface-variant'}`}>
-                      {row.lastInspected}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-6 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {row.isDead ? (
-                          <>
-                            <button 
-                              type="button"
-                              onClick={() => handleOpenSwapModal(row.id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-700 text-white hover:bg-amber-800 transition-colors text-xs font-bold shadow-xs cursor-pointer"
-                            >
-                              <ArrowRight className="w-3.5 h-3.5" />
-                              <span>Swap Target</span>
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => handleTogglePause(row)}
-                              className="p-1.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-amber-800 hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant" 
-                              title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
-                            >
-                              {row.status === 'expired' ? <PlayCircle className="w-4 h-4 text-emerald-600" /> : <PauseCircle className="w-4 h-4 text-amber-700" />}
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button 
-                              type="button"
-                              disabled={scanningRowId === row.id}
-                              onClick={() => handleScanSingleLink(row)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-semibold text-xs border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-50"
-                            >
-                              <RefreshCw className={`w-3 h-3 text-outline ${scanningRowId === row.id ? 'animate-spin' : ''}`} />
-                              <span>{scanningRowId === row.id ? 'Probing...' : 'Scan Now'}</span>
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => handleTogglePause(row)}
-                              className="p-1.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant"
-                              title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
-                            >
-                              {row.status === 'expired' ? <PlayCircle className="w-3.5 h-3.5 text-emerald-600" /> : <PauseCircle className="w-3.5 h-3.5" />}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards View (Phones & Small Tablets) */}
-        <div className="block md:hidden divide-y divide-outline-variant">
-          {paginatedRows.length === 0 ? (
-            <div className="py-8 px-4 text-center text-on-surface-variant text-xs">
-              <ShieldAlert className="w-8 h-8 text-outline mx-auto mb-2 opacity-50" />
-              <p className="font-semibold text-on-surface">No Destination Links Match Filter</p>
+            <div className="md:hidden flex flex-col">
+              {pageRows.map(l => (
+                <div key={l.id} className="p-[15px] flex flex-col gap-1.5 border-b-[0.5px] border-outline-variant last:border-b-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-medium text-on-surface truncate">/{l.short_code}</span>
+                    {statusCell(l)}
+                  </div>
+                  <div className="text-[11px] text-outline truncate">{hostOf(l.destination_url)} · risk {l.risk_score || 0}</div>
+                  <div className="text-[11px]">{checkCell(l)}</div>
+                  <div className="flex items-center gap-0.5 -ml-1.5">{rowActions(l)}</div>
+                </div>
+              ))}
             </div>
-          ) : (
-            paginatedRows.map((row) => (
-              <div 
-                key={row.id} 
-                className={`p-4 flex flex-col gap-2.5 text-xs ${
-                  row.isDead 
-                    ? 'bg-amber-50/70' 
-                    : row.status === 'expired' 
-                    ? 'bg-surface-container-low/30 opacity-80' 
-                    : ''
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-mono font-bold text-sm ${row.isDead ? 'text-amber-900' : 'text-primary-ink'}`}>
-                      {row.shortLink}
-                    </span>
-                    <button 
-                      type="button"
-                      onClick={() => handleCopy(`https://${row.shortLink}`)}
-                      className="text-outline hover:text-primary-ink"
-                    >
-                      {copiedLink === `https://${row.shortLink}` ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  </div>
 
-                  <div className="flex items-center gap-1.5">
-                    {row.isDead ? (
-                      <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-mono text-[10px] font-bold">
-                        {row.httpStatus}
-                      </span>
-                    ) : row.status === 'expired' ? (
-                      <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-mono text-[10px] font-bold">
-                        Paused
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[10px] font-bold">
-                        {row.httpStatus}
-                      </span>
-                    )}
-
-                    <div className="flex items-center gap-0.5 font-semibold text-[11px]">
-                      {row.isSslValid ? (
-                        <Lock className="w-3 h-3 text-primary-ink" />
-                      ) : (
-                        <LockOpen className="w-3 h-3 text-amber-600" />
-                      )}
-                      <span className={row.isSslValid ? 'text-primary-ink' : 'text-amber-800'}>{row.sslStatus}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className={`font-medium truncate ${row.isDead ? 'line-through text-on-surface/70' : 'text-on-surface'}`} title={row.destinationUrl}>
-                    {row.destinationUrl}
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-on-surface-variant mt-0.5">
-                    <span>{row.targetHost}</span>
-                    <span>&bull;</span>
-                    <span className="font-mono">{row.latency}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-2 border-t-[0.5px] border-outline-variant flex-wrap">
-                  <div className="flex items-center gap-1">
-                    {row.engines.map((eng, idx) => (
-                      <span key={idx} className="px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant text-[9px] font-bold">
-                        {eng}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 ml-auto">
-                    {row.isDead ? (
-                      <button 
-                        type="button"
-                        onClick={() => handleOpenSwapModal(row.id)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer"
-                      >
-                        <ArrowRight className="w-3 h-3" />
-                        <span>Swap</span>
-                      </button>
-                    ) : (
-                      <button 
-                        type="button"
-                        disabled={scanningRowId === row.id}
-                        onClick={() => handleScanSingleLink(row)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-low text-on-surface text-xs font-semibold border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-50"
-                      >
-                        <RefreshCw className={`w-3 h-3 text-outline ${scanningRowId === row.id ? 'animate-spin' : ''}`} />
-                        <span>Scan</span>
-                      </button>
-                    )}
-
-                    <button 
-                      type="button"
-                      onClick={() => handleTogglePause(row)}
-                      className="p-1 rounded-lg bg-surface-container-low text-on-surface-variant hover:text-on-surface border-[0.5px] border-outline-variant cursor-pointer"
-                      title={row.status === 'expired' ? 'Resume redirects' : 'Pause redirects'}
-                    >
-                      {row.status === 'expired' ? <PlayCircle className="w-3.5 h-3.5 text-emerald-600" /> : <PauseCircle className="w-3.5 h-3.5 text-amber-700" />}
-                    </button>
-                  </div>
+            {totalPages > 1 && (
+              <div className="px-[15px] py-2.5 flex items-center justify-between gap-2 border-t-[0.5px] border-outline-variant text-xs text-on-surface-variant">
+                <span>{(page - 1) * PAGE_SIZE + 1}–{Math.min(filtered.length, page * PAGE_SIZE)} of {filtered.length}</span>
+                <div className="flex items-center gap-1">
+                  <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="h-[28px] px-3 rounded-md border-[0.5px] border-outline-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">Previous</button>
+                  <button type="button" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)} className="h-[28px] px-3 rounded-md border-[0.5px] border-outline-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-
-        {/* Table Footer with Real Pagination */}
-        <div className="p-4 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-3 text-xs border-t border-outline-variant">
-          <span className="text-on-surface-variant">
-            {filteredRows.length === 0 
-              ? 'Showing 0 monitored destinations' 
-              : `Showing ${(currentPage - 1) * pageSize + 1} to ${Math.min(currentPage * pageSize, filteredRows.length)} of ${filteredRows.length} monitored destination${filteredRows.length === 1 ? '' : 's'}`}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button 
-              type="button" 
-              disabled={currentPage <= 1} 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs hover:bg-surface-container transition-colors border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Previous</span>
-            </button>
-            <span className="px-2 font-mono text-on-surface font-semibold">
-              {currentPage} / {totalPages}
-            </span>
-            <button 
-              type="button" 
-              disabled={currentPage >= totalPages} 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-lowest text-on-surface font-semibold shadow-xs hover:bg-surface-container transition-colors border-[0.5px] border-outline-variant cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <span>Next</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
+            )}
+          </>
+        )}
       </div>
 
-      {/* 5. Zero-Trust Guardrails & Real Incident Panel */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
-        
-        {/* Left Column: 4 Persistent Guardrail Toggles */}
-        <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-outline-variant">
-            <div>
-              <h2 className="text-base font-bold text-on-surface">Zero-Trust Guardrails &amp; Automated Quarantine</h2>
-              <p className="text-xs text-on-surface-variant mt-0.5">Automated policies enforced across edge routers whenever a destination endpoint violates integrity thresholds</p>
-            </div>
-            <SlidersHorizontal className="w-5 h-5 text-primary-ink" />
-          </div>
+      <p className="text-[11px] text-outline">
+        A scan checks each destination for phishing patterns and private-network addresses, and whether it responds. Only threats get flagged; flagged links show a warning page instead of redirecting.
+      </p>
 
-          <div className="space-y-4 text-xs">
-            
-            {/* Toggle 1: Auto-Redirect Killswitch */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <label className="font-bold text-on-surface block cursor-pointer" htmlFor="toggle-killswitch">
-                    Auto-Redirect Killswitch on 404 / 500 Target Error
-                  </label>
-                  <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                    Automatically engages safety interstitial and fallback routing when a third-party affiliate URL returns dead HTTP error codes, shielding your audience from broken pages.
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input 
-                  type="checkbox" 
-                  id="toggle-killswitch"
-                  checked={guardrails.killswitch}
-                  onChange={(e) => {
-                    setGuardrails((prev: any) => ({ ...prev, killswitch: e.target.checked }));
-                    showToast(`Killswitch guardrail ${e.target.checked ? 'enabled' : 'disabled'}`);
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-            {/* Toggle 2: Bot Fraud Filtering */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
-                  <Bot className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <label className="font-bold text-on-surface block cursor-pointer" htmlFor="toggle-bots">
-                    Bot Traffic Filtering &amp; Click Fraud Prevention
-                  </label>
-                  <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                    Filters headless automated scrapers and artificial click farms so sponsor attribution and analytics reports remain verifiable and fraud-free.
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input 
-                  type="checkbox" 
-                  id="toggle-bots"
-                  checked={guardrails.bots}
-                  onChange={(e) => {
-                    setGuardrails((prev: any) => ({ ...prev, bots: e.target.checked }));
-                    showToast(`Bot fraud protection ${e.target.checked ? 'enabled' : 'disabled'}`);
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-            {/* Toggle 3: Phishing Guard */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <label className="font-bold text-on-surface block cursor-pointer" htmlFor="toggle-phishing">
-                    Real-Time Phishing &amp; Domain Reputation Guard
-                  </label>
-                  <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                    Instantly flags links if target host domain matches suspicious phishing keywords, expired domains, or reported malware signatures.
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input 
-                  type="checkbox" 
-                  id="toggle-phishing"
-                  checked={guardrails.phishing}
-                  onChange={(e) => {
-                    setGuardrails((prev: any) => ({ ...prev, phishing: e.target.checked }));
-                    showToast(`Phishing reputation guard ${e.target.checked ? 'enabled' : 'disabled'}`);
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-            {/* Toggle 4: Instant Alerts */}
-            <div className="flex items-start justify-between gap-4 p-2 rounded-lg hover:bg-surface-container-low/40 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center text-primary-ink shrink-0">
-                  <Bell className="w-3.5 h-3.5" />
-                </div>
-                <div>
-                  <label className="font-bold text-on-surface block cursor-pointer" htmlFor="toggle-alerts">
-                    Instant Webhook &amp; Downtime Notifications
-                  </label>
-                  <p className="text-on-surface-variant mt-0.5 leading-relaxed">
-                    Dispatches high-priority webhook events (Slack, Discord, custom HTTP POST) the moment a high-value campaign link throws 404 or SSL handshake errors.
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input 
-                  type="checkbox" 
-                  id="toggle-alerts"
-                  checked={guardrails.alerts}
-                  onChange={(e) => {
-                    setGuardrails((prev: any) => ({ ...prev, alerts: e.target.checked }));
-                    showToast(`Instant alerts ${e.target.checked ? 'enabled' : 'disabled'}`);
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-surface-container-high rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container" />
-              </label>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Right Column: Dynamic Active Incident or Clean Status Card */}
-        <div className="flex flex-col gap-6">
-          
-          {/* Active Incident or Clean Posture Box */}
-          {activeIncident ? (
-            <div className="bg-amber-50/90 rounded-xl p-5 shadow-xs border-l-4 border-l-amber-600 border-[0.5px] border-outline-variant flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-amber-900 text-xs font-bold mb-1">
-                  <AlertTriangle className="w-4 h-4 text-amber-700" />
-                  <span>Active Incident Under Mitigation</span>
-                </div>
-                <p className="text-xs text-amber-800 leading-relaxed mb-3">
-                  Endpoint <strong className="font-mono text-amber-950 font-bold">{activeIncident.shortLink}</strong> returned status <strong className="font-mono">{activeIncident.httpStatus}</strong> (Risk Score: {activeIncident.riskScore}/100).
-                </p>
-                <div className="p-2.5 bg-amber-100/70 rounded-lg text-amber-900 text-[11px] font-mono break-all mb-4 border border-amber-200">
-                  Target: {activeIncident.destinationUrl}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-2 border-t border-amber-200 flex-wrap">
-                <button 
-                  type="button"
-                  onClick={() => handleOpenSwapModal(activeIncident.id)}
-                  className="px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-lg hover:bg-primary transition-colors cursor-pointer shadow-xs"
-                >
-                  Swap Destination Now
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => handleTogglePause(activeIncident)}
-                  className="px-3 py-1.5 bg-surface-container-lowest text-on-surface text-xs font-semibold rounded-lg hover:bg-surface-container transition-colors cursor-pointer border border-outline-variant"
-                >
-                  {activeIncident.status === 'expired' ? 'Resume Link' : 'Pause Link'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-emerald-50/70 rounded-xl p-5 shadow-xs border-l-4 border-l-emerald-600 border border-emerald-200 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-emerald-900 text-xs font-bold mb-1">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                  <span>Zero Active Incidents</span>
-                </div>
-                <p className="text-xs text-emerald-800 leading-relaxed mb-3">
-                  All {totalCount} monitored endpoints in this workspace are resolving cleanly with valid TLS certificates and zero threat flags.
-                </p>
-                <div className="p-2.5 bg-emerald-100/60 rounded-lg text-emerald-900 text-xs flex items-center gap-2 border border-emerald-200/80">
-                  <Activity className="w-4 h-4 text-emerald-700 shrink-0" />
-                  <span>Zero-Trust Edge WAF is continuously inspecting redirection headers.</span>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-emerald-200">
-                <button 
-                  type="button"
-                  disabled={isAuditing}
-                  onClick={triggerAudit}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-700 text-white text-xs font-bold rounded-lg hover:bg-emerald-800 transition-colors cursor-pointer shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isAuditing ? 'animate-spin' : ''}`} />
-                  <span>Run Quick Health Sweep</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Active Heuristics Status Box */}
-          <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border border-outline-variant">
-            <h3 className="text-sm font-bold text-on-surface mb-1">Threat Probes Connected</h3>
-            <p className="text-xs text-on-surface-variant mb-3">Active edge consensus validating redirect safety</p>
-            
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span className="font-semibold text-on-surface">Heuristic Safe Browsing</span>
-                </div>
-                <span className="font-mono text-[11px] text-emerald-700 font-bold">Active</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span className="font-semibold text-on-surface">TLS &amp; Certificate Handshake</span>
-                </div>
-                <span className="font-mono text-[11px] text-emerald-700 font-bold">Strict</span>
-              </div>
-
-              <div className="flex items-center justify-between p-2.5 bg-surface-container-low rounded-lg border border-outline-variant">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span className="font-semibold text-on-surface">Edge Quarantine Interstitial</span>
-                </div>
-                <span className="font-mono text-[11px] text-primary-ink font-bold">Enforced</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* 6. Emergency Destination Swap Modal (Rendered via Portal) */}
-      {mounted && swapModalOpen && typeof document !== 'undefined' && createPortal(
-        <div 
+      {/* Change destination */}
+      {mounted && swapLink && createPortal(
+        <div
           className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSwapModalOpen(false);
-          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSwapLink(null); }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => setSwapModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-1">
-              <ArrowRight className="w-5 h-5 text-primary-ink" />
-              <h3 className="text-base font-bold text-on-surface">Emergency Destination Swap</h3>
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-on-surface">Change destination for /{swapLink.short_code}</h3>
+              <button type="button" onClick={() => setSwapLink(null)} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Update destination for <strong className="text-primary-ink font-mono">{swapTargetSlug}</strong> across all edge nodes instantly.
-            </p>
-
-            <form onSubmit={handleSaveSwap} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1.5">New Target Destination URL</label>
-                <input 
+            <form onSubmit={saveSwap} className="space-y-4 text-xs">
+              <label className="block">
+                <span className="block text-xs font-medium text-on-surface mb-1.5">New destination URL</span>
+                <input
                   type="url"
                   required
-                  placeholder="https://example.com/new-destination"
                   value={newDestinationUrl}
                   onChange={(e) => setNewDestinationUrl(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-surface-container-low text-on-surface rounded-lg font-mono text-xs border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong"
+                  className="w-full h-[34px] px-3 bg-surface-container-low text-on-surface rounded-md text-xs border-[0.5px] border-outline-variant outline-none focus:border-on-surface-variant"
                 />
-              </div>
-
-              <div className="p-3 bg-surface-container-low rounded-lg flex items-center gap-2 text-on-surface-variant text-xs border border-outline-variant">
-                <Zap className="w-4 h-4 text-primary-ink shrink-0" />
-                <span>Edge propagation: updates globally in ~200ms without modifying the shortened code.</span>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-3">
-                <button 
-                  type="button"
-                  onClick={() => setSwapModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSwapping}
-                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary shadow-xs cursor-pointer text-xs disabled:opacity-50"
-                >
-                  {isSwapping ? 'Updating...' : 'Update & Re-Scan'}
-                </button>
+              </label>
+              <p className="text-[11px] text-outline">The short link stays the same. The new destination is scanned right after saving.</p>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setSwapLink(null)} className="h-[34px] px-4 rounded-md text-on-surface-variant hover:bg-surface-container-low cursor-pointer">Cancel</button>
+                <button type="submit" disabled={isSwapping} className="h-[34px] px-4 rounded-md bg-primary-container text-on-primary font-medium hover:bg-primary cursor-pointer disabled:opacity-50">Save and scan</button>
               </div>
             </form>
           </div>
@@ -1449,98 +489,39 @@ export const SecurityView: React.FC = () => {
         document.body
       )}
 
-      {/* 7. Configure Webhook Alert Modal (Rendered via Portal) */}
-      {mounted && webhookModalOpen && typeof document !== 'undefined' && createPortal(
-        <div 
+      {/* Alert webhook */}
+      {mounted && webhookModalOpen && createPortal(
+        <div
           className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setWebhookModalOpen(false);
-          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setWebhookModalOpen(false); }}
         >
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setWebhookModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <h4 className="text-base font-bold text-on-surface mb-1">Configure Webhook Alert</h4>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Receive alerts via Slack, Discord, or custom HTTP POST when broken links or threats are detected.
-            </p>
-
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (webhookUrl.trim()) {
-                await addWebhook(webhookUrl.trim(), ['security.alert', 'link.flagged', 'link.clicked']);
-              }
-              setWebhookModalOpen(false);
-              showToast(`Webhook registered: ${webhookService} channel will receive instant security alerts.`);
-            }} className="space-y-3.5 text-xs">
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Alert Destination Service</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['Slack', 'Discord', 'Custom POST'] as const).map(srv => (
-                    <button
-                      type="button"
-                      key={srv}
-                      onClick={() => setWebhookService(srv)}
-                      className={`py-1.5 rounded-lg font-bold transition-all cursor-pointer border text-xs ${
-                        webhookService === srv
-                          ? 'bg-primary-container text-on-primary border-primary-strong shadow-xs'
-                          : 'bg-surface-container-low text-on-surface-variant border-outline-variant hover:bg-surface-container'
-                      }`}
-                    >
-                      {srv}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-on-surface block mb-1">Webhook Endpoint URL</label>
-                <input 
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-semibold text-on-surface">Alert webhook</h3>
+              <button type="button" onClick={() => setWebhookModalOpen(false)} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-on-surface-variant mb-4">Gets a signed POST (event <code>link.flagged</code>) whenever a scan flags a link.</p>
+            <form onSubmit={saveWebhook} className="space-y-4 text-xs">
+              <label className="block">
+                <span className="block text-xs font-medium text-on-surface mb-1.5">Endpoint URL</span>
+                <input
                   type="url"
                   required
-                  placeholder="https://your-webhook-endpoint.com/..."
+                  placeholder="https://hooks.slack.com/…"
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong text-on-surface font-mono text-xs"
+                  className="w-full h-[34px] px-3 bg-surface-container-low text-on-surface rounded-md text-xs border-[0.5px] border-outline-variant outline-none focus:border-on-surface-variant"
                 />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-3">
-                <button
-                  type="button"
-                  onClick={() => setWebhookModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
-                >
-                  Save Webhook
-                </button>
+              </label>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setWebhookModalOpen(false)} className="h-[34px] px-4 rounded-md text-on-surface-variant hover:bg-surface-container-low cursor-pointer">Cancel</button>
+                <button type="submit" className="h-[34px] px-4 rounded-md bg-primary-container text-on-primary font-medium hover:bg-primary cursor-pointer">Save</button>
               </div>
             </form>
           </div>
         </div>,
         document.body
       )}
-
-      {/* 8. Notification Toast */}
-      {mounted && toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border-[0.5px] border-outline-variant text-xs font-medium">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
-        </div>,
-        document.body
-      )}
-
     </div>
   );
 };

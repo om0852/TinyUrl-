@@ -1,12 +1,17 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { isSafeOutboundUrl } from '@/lib/security';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { evictCustomDomainCache } from '@/lib/linkCacheEviction';
 
 interface AuditLinkRow {
   id: string;
   workspace_id?: string | null;
+  domain_id?: string | null;
   short_code: string;
+  custom_slug?: string | null;
   destination_url: string;
   is_flagged?: boolean | null;
   risk_score?: number | string | null;
@@ -23,155 +28,192 @@ export interface SecurityAuditResult {
   latency_ms: number;
   ssl_valid: boolean;
   ssl_status: string;
+  /** Destination answered with a non-error status */
+  reachable: boolean;
+  /** Phishing pattern or blocked (private network) destination; these links get flagged */
+  is_threat: boolean;
+  /** Kept for older clients: same as !is_threat */
   is_safe: boolean;
   risk_score: number;
   threat_flags: string[];
+  /** Link status after the scan */
+  status: string;
 }
 
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
+const MAX_LINKS_PER_SCAN = 100;
+const PROBE_TIMEOUT_MS = 4000;
+
+const SUSPICIOUS_PATTERNS = [
+  /phish/i,
+  /account[-_.]?verif/i,
+  /secure[-_.]?login/i,
+  /update[-_.]?banking/i,
+  /free[-_.]?crypto/i,
+  /metamask[-_.]?claim/i,
+  /bit\.ly\/quarantine/i
+];
+
+// Many sites reject HEAD or bot user agents (405/403/501) while serving browsers normally,
+// so those answers are retried with GET before the destination counts as unhealthy.
+async function probe(url: string): Promise<{ status: number; statusText: string; latency: number; error?: string }> {
+  const started = Date.now();
+  const attempt = async (method: 'HEAD' | 'GET') => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,*/*;q=0.8'
+        },
+        signal: controller.signal,
+        redirect: 'manual'
+      });
+      // Only the status line matters; don't download the page
+      res.body?.cancel().catch(() => {});
+      return res;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  try {
+    let res = await attempt('HEAD');
+    if ([400, 403, 405, 501].includes(res.status)) res = await attempt('GET');
+    return { status: res.status, statusText: res.statusText, latency: Math.max(1, Date.now() - started) };
+  } catch (err: unknown) {
+    const aborted = err instanceof Error && err.name === 'AbortError';
+    return {
+      status: aborted ? 504 : 502,
+      statusText: aborted ? 'Timeout' : 'Unreachable',
+      latency: Math.max(1, Date.now() - started),
+      error: aborted ? 'Timed out' : 'Could not connect'
+    };
+  }
+}
+
+// Tells the workspace's webhooks (subscribed to link.flagged or security.alert) about links this
+// scan newly flagged. Signed the same way as the test ping in /api/v1/webhooks/test.
+async function notifyFlagged(wsId: string, flagged: SecurityAuditResult[]) {
+  if (flagged.length === 0) return;
+  const hooks = (await sql.query(
+    `SELECT url, secret, events FROM webhooks WHERE workspace_id = $1 AND is_active IS NOT FALSE`,
+    [wsId]
+  ).catch(() => [])) as unknown as { url: string; secret?: string | null; events?: string | string[] | null }[];
+  await Promise.allSettled((hooks || []).map(async (hook) => {
+    let events: string[] = [];
+    try { events = typeof hook.events === 'string' ? JSON.parse(hook.events) : (hook.events || []); } catch {}
+    const event = events.includes('link.flagged') ? 'link.flagged' : events.includes('security.alert') ? 'security.alert' : null;
+    if (!event || !isSafeOutboundUrl(hook.url).safe) return;
+    const body = JSON.stringify({
+      event,
+      timestamp: new Date().toISOString(),
+      data: flagged.map(r => ({
+        id: r.link_id,
+        short_code: r.short_code,
+        destination_url: r.destination_url,
+        risk_score: r.risk_score,
+        reasons: r.threat_flags,
+        workspace_id: wsId
+      }))
+    });
+    const signature = crypto.createHmac('sha256', hook.secret || '').update(body).digest('hex');
+    await fetch(hook.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'TinyUrl-Webhooks/1.0',
+        'X-Signature-SHA256': signature,
+        'X-Hub-Signature-256': `sha256=${signature}`,
+        'X-Event': event,
+        'X-TinyUrl-Delivery': `del_${crypto.randomUUID()}`
+      },
+      body,
+      signal: AbortSignal.timeout(4000)
+    });
+  }));
+}
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { workspace_id, link_ids } = body;
+    const { workspace_id, link_ids } = body as { workspace_id?: string; link_ids?: unknown };
 
+    // A scan rewrites risk scores and flags, so it always needs a workspace and links:edit
+    // (scans without a workspace used to run unauthenticated across every workspace)
     const targetWs = (workspace_id || request.headers.get('x-workspace-id') || '').trim();
-    if (targetWs) {
-      // RBAC: Requires links:edit permission (owner, admin, editor)
-      const authResult = await verifyWorkspacePermission(request, 'links:edit', {
-        workspaceId: targetWs
-      });
-      if (!authResult.success) {
-        return authResult.response;
-      }
+    if (!targetWs) {
+      return NextResponse.json({ success: false, error: 'workspace_id is required.' }, { status: 400 });
     }
+    const authResult = await verifyWorkspacePermission(request, 'links:edit', { workspaceId: targetWs });
+    if (!authResult.success) return authResult.response;
+    const wsId = authResult.context.workspaceId;
 
-    let links: AuditLinkRow[] = [];
-    if (Array.isArray(link_ids) && link_ids.length > 0) {
-      links = (await sql.query(
-        `SELECT id, workspace_id, short_code, destination_url, is_flagged, risk_score, status 
-         FROM links WHERE id = ANY($1::text[])`,
-        [link_ids]
-      )) as unknown as AuditLinkRow[];
-    } else if (workspace_id && typeof workspace_id === 'string' && workspace_id.trim()) {
-      links = (await sql.query(
-        `SELECT id, workspace_id, short_code, destination_url, is_flagged, risk_score, status 
-         FROM links WHERE workspace_id = $1 LIMIT 50`,
-        [workspace_id.trim()]
-      )) as unknown as AuditLinkRow[];
-    } else {
-      links = (await sql.query(
-        `SELECT id, workspace_id, short_code, destination_url, is_flagged, risk_score, status 
-         FROM links ORDER BY created_at DESC LIMIT 30`
-      )) as unknown as AuditLinkRow[];
-    }
+    const ids = Array.isArray(link_ids)
+      ? link_ids.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).slice(0, MAX_LINKS_PER_SCAN)
+      : [];
+    const columns = 'id, workspace_id, domain_id, short_code, custom_slug, destination_url, is_flagged, risk_score, status';
+    const links = (ids.length > 0
+      ? await sql.query(`SELECT ${columns} FROM links WHERE workspace_id = $1 AND id = ANY($2::text[])`, [wsId, ids])
+      : await sql.query(`SELECT ${columns} FROM links WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT ${MAX_LINKS_PER_SCAN}`, [wsId])
+    ) as unknown as AuditLinkRow[];
 
     if (!links || links.length === 0) {
-      return NextResponse.json({
-        success: true,
-        scanned_count: 0,
-        threats_detected: 0,
-        results: []
-      });
+      return NextResponse.json({ success: true, scanned_count: 0, threats_detected: 0, unreachable_count: 0, results: [] });
     }
-
-    const SUSPICIOUS_PATTERNS = [
-      /phish/i,
-      /account[-_.]?verif/i,
-      /secure[-_.]?login/i,
-      /update[-_.]?banking/i,
-      /free[-_.]?crypto/i,
-      /metamask[-_.]?claim/i,
-      /bit\.ly\/quarantine/i
-    ];
 
     const results: SecurityAuditResult[] = await Promise.all(
       links.map(async (l) => {
-        let host = 'Unknown';
-        try {
-          host = new URL(l.destination_url).hostname;
-        } catch {
-          host = 'invalid-url';
-        }
+        let host = 'invalid-url';
+        try { host = new URL(l.destination_url).hostname; } catch {}
 
         const isHttps = /^https:\/\//i.test(l.destination_url);
-        let statusCode = 200;
-        let httpStatus = '200 OK';
-        let latencyMs = 85;
         const threatFlags: string[] = [];
-
-        // Check heuristic phishing patterns
         for (const pattern of SUSPICIOUS_PATTERNS) {
-          if (pattern.test(l.destination_url)) {
-            threatFlags.push(`Suspicious keyword pattern: ${pattern.source}`);
-          }
+          if (pattern.test(l.destination_url)) threatFlags.push(`Suspicious keyword pattern: ${pattern.source}`);
         }
 
-        if (!isHttps) {
-          threatFlags.push('Missing TLS/SSL (Plain HTTP endpoint)');
-        }
-
-        // Check destination URL with SSRF guard
+        let statusCode: number;
+        let httpStatus: string;
+        let latencyMs = 0;
         const safeOutbound = isSafeOutboundUrl(l.destination_url);
         if (!safeOutbound.safe) {
-          threatFlags.push(`Blocked Destination (SSRF Risk): ${safeOutbound.reason}`);
+          threatFlags.push(`Blocked destination: ${safeOutbound.reason}`);
           statusCode = 403;
-          httpStatus = '403 Blocked (Private Network / Metadata)';
+          httpStatus = '403 Blocked (private network)';
         } else {
-          // Live network probe with 3.5s timeout
-          const startTime = Date.now();
-          try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 3500);
-
-            const res = await fetch(l.destination_url, {
-              method: 'HEAD',
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TinyUrlSecurityBot/2.0'
-              },
-              signal: controller.signal,
-              redirect: 'manual'
-            });
-            clearTimeout(timer);
-
-            latencyMs = Math.max(10, Date.now() - startTime);
-            statusCode = res.status;
-            httpStatus = `${res.status} ${res.statusText || 'Response'}`.trim();
-
-            if (statusCode >= 400) {
-              threatFlags.push(`Unhealthy HTTP status (${statusCode})`);
-            }
-          } catch (fetchErr: any) {
-            latencyMs = Math.max(15, Date.now() - startTime);
-            statusCode = 504;
-            httpStatus = fetchErr?.name === 'AbortError' ? '504 Timeout' : '502 Unreachable';
-            threatFlags.push(`Host connection failed: ${httpStatus}`);
-          }
+          const result = await probe(l.destination_url);
+          statusCode = result.status;
+          httpStatus = `${result.status} ${result.statusText || ''}`.trim();
+          latencyMs = result.latency;
         }
 
-        // Compute risk score (0 to 100)
+        const isThreat = threatFlags.length > 0;
+        const reachable = statusCode < 400;
+
         let riskScore = 0;
-        if (!isHttps) riskScore += 25;
-        if (statusCode >= 500) riskScore += 45;
-        else if (statusCode >= 400) riskScore += 30;
-        if (threatFlags.some(f => f.includes('Suspicious keyword'))) riskScore += 50;
-        riskScore = Math.min(100, Math.max(0, riskScore));
+        if (isThreat) riskScore += 60;
+        if (!isHttps) riskScore += 20;
+        if (!reachable) riskScore += 20;
+        riskScore = Math.min(100, riskScore);
 
-        const isSafe = riskScore < 50 && statusCode < 400;
-        const isFlagged = !isSafe;
+        // Only threats flag a link. An unreachable destination is reported, not quarantined:
+        // flagged links show a warning page instead of redirecting, and HEAD checks fail on
+        // plenty of healthy sites. Paused, disabled and expired links keep their status.
+        const prevStatus = l.status || 'active';
+        const nextStatus = isThreat
+          ? 'flagged'
+          : prevStatus === 'flagged' ? 'active' : prevStatus;
 
-        // Persist scan result to PostgreSQL
         try {
           await sql.query(
-            `UPDATE links 
-             SET risk_score = $1, 
-                 is_flagged = $2,
-                 status = CASE WHEN $2 = true THEN 'flagged' ELSE 'active' END,
-                 updated_at = NOW()
-             WHERE id = $3`,
-            [riskScore, isFlagged, l.id]
+            `UPDATE links SET risk_score = $1, is_flagged = $2, status = $3, updated_at = NOW()
+             WHERE id = $4 AND workspace_id = $5`,
+            [riskScore, isThreat, nextStatus, l.id, wsId]
           );
-          await linkCache.delete(`link_${l.short_code.toLowerCase()}`);
+          const codes = [l.short_code, l.custom_slug];
+          for (const code of codes) if (code) await linkCache.delete(`link_${code.toLowerCase()}`);
+          await evictCustomDomainCache(l, codes);
         } catch (dbErr) {
           console.warn('DB update failed for audit row:', dbErr);
         }
@@ -185,20 +227,25 @@ export async function POST(request: Request) {
           http_status: httpStatus,
           latency_ms: latencyMs,
           ssl_valid: isHttps,
-          ssl_status: isHttps ? 'Valid TLS 1.3' : 'Insecure HTTP',
-          is_safe: isSafe,
+          ssl_status: isHttps ? 'HTTPS' : 'HTTP',
+          reachable,
+          is_threat: isThreat,
+          is_safe: !isThreat,
           risk_score: riskScore,
-          threat_flags: threatFlags
+          threat_flags: threatFlags,
+          status: nextStatus
         };
       })
     );
 
-    const threatsDetected = results.filter(r => !r.is_safe).length;
+    const prevFlagged = new Set(links.filter(l => l.is_flagged || l.status === 'flagged').map(l => l.id));
+    await notifyFlagged(wsId, results.filter(r => r.is_threat && !prevFlagged.has(r.link_id)));
 
     return NextResponse.json({
       success: true,
       scanned_count: results.length,
-      threats_detected: threatsDetected,
+      threats_detected: results.filter(r => r.is_threat).length,
+      unreachable_count: results.filter(r => !r.reachable && !r.is_threat).length,
       results
     });
   } catch (err: unknown) {
@@ -217,4 +264,3 @@ export async function OPTIONS() {
     }
   });
 }
-

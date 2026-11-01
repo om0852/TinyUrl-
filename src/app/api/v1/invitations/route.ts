@@ -2,9 +2,30 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { User, Workspace } from '@/lib/types';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { SESSION_COOKIE, createSessionToken, getSessionEmail, sessionCookieOptions } from '@/lib/session';
 
-function hashPassword(password: string, salt: string): string {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+// Same scheme as /api/v1/auth: new hashes use 210k iterations, older 10k hashes still verify
+function hashPassword(password: string, salt: string, iterations = 210000): string {
+  return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
+}
+
+function verifyPassword(password: string, salt: string, expectedHash: string): boolean {
+  if (!expectedHash || !salt) return false;
+  const target = Buffer.from(expectedHash, 'utf8');
+  return [210000, 10000].some(iterations => {
+    const candidate = Buffer.from(hashPassword(password, salt, iterations), 'utf8');
+    return candidate.length === target.length && crypto.timingSafeEqual(candidate, target);
+  });
+}
+
+// Identity for this request: the signed session cookie. Local development still accepts the
+// email the client sends, like serverAuth does, so the app works without signing in.
+function callerEmail(request: Request, fallback?: string | null): string | null {
+  const session = getSessionEmail(request);
+  if (session) return session;
+  if (process.env.NODE_ENV !== 'production' && fallback) return fallback.trim().toLowerCase();
+  return null;
 }
 
 export async function GET(request: Request) {
@@ -17,8 +38,18 @@ export async function GET(request: Request) {
 
     // 1. Fetch History for workspace or user
     if (history) {
+      let historyEmail: string | null = null;
+      if (workspaceId) {
+        const auth = await verifyWorkspacePermission(request, 'members:invite', { workspaceId });
+        if (!auth.success) return auth.response;
+      } else {
+        historyEmail = callerEmail(request, email);
+        if (!historyEmail) {
+          return NextResponse.json({ success: false, error: 'Sign in to see your invitations.' }, { status: 401 });
+        }
+      }
       const rows = await sql.query(`
-        SELECT 
+        SELECT
           i.id,
           i.workspace_id,
           w.name as workspace_name,
@@ -37,7 +68,7 @@ export async function GET(request: Request) {
            OR ($2::text IS NOT NULL AND LOWER(i.email) = LOWER($2))
         ORDER BY i.created_at DESC
         LIMIT 50
-      `, [workspaceId || null, email ? email.trim() : null]);
+      `, [workspaceId || null, historyEmail]);
 
       return NextResponse.json({
         success: true,
@@ -47,9 +78,12 @@ export async function GET(request: Request) {
 
     // 2. Fetch Incoming Invitations for a logged-in user
     if (email && !token) {
-      const cleanEmail = email.trim().toLowerCase();
+      const cleanEmail = callerEmail(request, email);
+      if (!cleanEmail) {
+        return NextResponse.json({ success: false, error: 'Sign in to see your invitations.', incoming: [] }, { status: 401 });
+      }
       const rows = await sql.query(`
-        SELECT 
+        SELECT
           i.id,
           i.workspace_id,
           w.name as workspace_name,
@@ -81,7 +115,7 @@ export async function GET(request: Request) {
     }
 
     const rows = await sql.query(`
-      SELECT 
+      SELECT
         i.id,
         i.workspace_id,
         w.name as workspace_name,
@@ -100,9 +134,9 @@ export async function GET(request: Request) {
     `, [token.trim()]);
 
     if (!rows || rows.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Invalid or non-existent invitation token.' 
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid or non-existent invitation token.'
       }, { status: 404 });
     }
 
@@ -155,7 +189,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { token, name, password, action, user_id } = body;
+    const { token, name, password, action } = body;
 
     if (!token || typeof token !== 'string') {
       return NextResponse.json({ success: false, error: 'Invitation token is required.' }, { status: 400 });
@@ -163,7 +197,7 @@ export async function POST(request: Request) {
 
     // 1. Verify invitation token
     const inviteRows = await sql.query(`
-      SELECT 
+      SELECT
         i.*,
         w.name as workspace_name,
         w.slug as workspace_slug,
@@ -181,13 +215,24 @@ export async function POST(request: Request) {
     const invite = inviteRows[0];
 
     const cleanEmail = invite.email.trim().toLowerCase();
+    // Signed in as someone else: this invite isn't theirs to accept or decline
+    const sessionEmail = getSessionEmail(request);
+    if (sessionEmail && sessionEmail !== cleanEmail) {
+      return NextResponse.json({
+        success: false,
+        error: `This invitation is for ${cleanEmail}. Sign out and open the link again to accept it.`
+      }, { status: 403 });
+    }
     const cleanName = (name && typeof name === 'string' ? name.trim() : '') || invite.name || cleanEmail.split('@')[0];
 
     // Handle Decline Action
     if (action === 'decline') {
+      if (invite.status !== 'pending') {
+        return NextResponse.json({ success: false, error: 'This invitation is no longer pending.' }, { status: 409 });
+      }
       await sql.query(`UPDATE workspace_invitations SET status = 'revoked' WHERE token = $1`, [token.trim()]);
       await sql.query(`
-        DELETE FROM workspace_members 
+        DELETE FROM workspace_members
         WHERE workspace_id = $1 AND LOWER(email) = $2 AND status = 'invited'
       `, [invite.workspace_id, cleanEmail]).catch(() => {});
       return NextResponse.json({ success: true, message: 'Invitation declined successfully.' });
@@ -208,25 +253,22 @@ export async function POST(request: Request) {
     // 2. Check if user already exists
     let userRow: { id: string; name: string; email: string; role: string } | null = null;
     const existingUsers = await sql.query(`
-      SELECT id, name, email, password_hash, salt, role 
-      FROM users 
-      WHERE LOWER(email) = $1 
+      SELECT id, name, email, password_hash, salt, role
+      FROM users
+      WHERE LOWER(email) = $1
       LIMIT 1
     `, [cleanEmail]);
 
     if (existingUsers && existingUsers.length > 0) {
       const existing = existingUsers[0];
-      // If user is not already logged in, verify password
-      if (!user_id && password && typeof password === 'string' && password.trim()) {
-        const computedHash = hashPassword(password.trim(), existing.salt);
-        const isMatch = crypto.timingSafeEqual(
-          Buffer.from(computedHash, 'utf8'),
-          Buffer.from(existing.password_hash, 'utf8')
-        );
-        if (!isMatch) {
-          return NextResponse.json({ 
-            success: false, 
-            error: 'Account already exists for this email, but the password provided is incorrect.' 
+      if (sessionEmail !== cleanEmail) {
+        const pw = typeof password === 'string' ? password : '';
+        if (!pw || !verifyPassword(pw, existing.salt, existing.password_hash)) {
+          return NextResponse.json({
+            success: false,
+            error: pw
+              ? 'Account already exists for this email, but the password provided is incorrect.'
+              : 'An account already exists for this email. Enter its password to accept.'
           }, { status: 401 });
         }
       }
@@ -239,9 +281,9 @@ export async function POST(request: Request) {
     } else {
       // 3. New User Registration
       if (!password || password.length < 6) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Please choose a password with at least 6 characters to complete your account setup.' 
+        return NextResponse.json({
+          success: false,
+          error: 'Please choose a password with at least 6 characters to complete your account setup.'
         }, { status: 422 });
       }
 
@@ -268,13 +310,13 @@ export async function POST(request: Request) {
 
     // 4. Mark invitation as accepted
     await sql.query(`
-      UPDATE workspace_invitations 
-      SET status = 'accepted', accepted_at = NOW() 
+      UPDATE workspace_invitations
+      SET status = 'accepted', accepted_at = NOW()
       WHERE token = $1
     `, [token.trim()]);
 
     await sql.query(`
-      UPDATE workspace_invitations 
+      UPDATE workspace_invitations
       SET status = 'revoked'
       WHERE workspace_id = $1 AND LOWER(email) = $2 AND status = 'pending'
     `, [invite.workspace_id, cleanEmail]).catch(() => {});
@@ -318,12 +360,14 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString()
     };
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       message: `You have successfully joined ${workspace.name}!`,
       user,
       workspace
     });
+    res.cookies.set(SESSION_COOKIE, createSessionToken(cleanEmail), sessionCookieOptions());
+    return res;
 
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database error';

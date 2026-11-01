@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { Workspace } from '@/lib/types';
 import { getSessionEmail } from '@/lib/session';
+import { linkCache } from '@/lib/cache';
+import { verifyWorkspacePermission } from '@/lib/serverAuth';
 
 interface RawWorkspaceRow {
   id: string;
@@ -24,29 +26,31 @@ export async function GET(request: Request) {
 
     let rows: RawWorkspaceRow[] = [];
     if (id) {
+      const auth = await verifyWorkspacePermission(request, 'analytics:read', { workspaceId: id.trim() });
+      if (!auth.success) return auth.response;
       rows = (await sql.query(
-        `SELECT * FROM workspaces WHERE id = $1 LIMIT 1`,
+        `SELECT id, name, slug, plan, created_at FROM workspaces WHERE id = $1 LIMIT 1`,
         [id.trim()]
       )) as unknown as RawWorkspaceRow[];
     } else if (email) {
       const cleanEmail = email.trim().toLowerCase();
       // Workspaces where user is the owner, or an active collaborator
       rows = (await sql.query(
-        `SELECT DISTINCT 
-           w.id, 
-           w.name, 
-           w.slug, 
-           w.plan, 
-           CASE 
+        `SELECT DISTINCT
+           w.id,
+           w.name,
+           w.slug,
+           w.plan,
+           CASE
              WHEN LOWER(COALESCE(w.owner_email, '')) = $1 THEN 'owner'
              ELSE COALESCE(wm.role, w.role, 'editor')
-           END as role, 
+           END as role,
            w.owner_email,
            w.created_at
          FROM workspaces w
-         LEFT JOIN workspace_members wm ON wm.workspace_id = w.id AND LOWER(wm.email) = $1
+         LEFT JOIN workspace_members wm ON wm.workspace_id = w.id AND LOWER(wm.email) = $1 AND wm.status = 'active'
          WHERE LOWER(COALESCE(w.owner_email, '')) = $1
-            OR LOWER(wm.email) = $1 
+            OR LOWER(wm.email) = $1
             OR w.id IN (SELECT workspace_id FROM workspace_members WHERE LOWER(email) = $1 AND status = 'active')
          ORDER BY w.created_at DESC`,
         [cleanEmail]
@@ -90,11 +94,17 @@ export async function POST(request: Request) {
     }
 
     const cleanId = (id && typeof id === 'string') ? id.trim() : `ws_${Date.now()}`;
-    const cleanSlug = (slug && typeof slug === 'string') 
+    const cleanSlug = (slug && typeof slug === 'string')
       ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-')
       : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
     const cleanPlan = plan || 'pro';
-    const cleanOwnerEmail = (owner_email && typeof owner_email === 'string') ? owner_email.trim().toLowerCase() : null;
+    const sessionEmail = getSessionEmail(request);
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction && !sessionEmail) {
+      return NextResponse.json({ success: false, error: 'Sign in to create a workspace.' }, { status: 401 });
+    }
+    const cleanOwnerEmail = sessionEmail
+      || (!isProduction && owner_email && typeof owner_email === 'string' ? owner_email.trim().toLowerCase() : null);
     const cleanOwnerId = (owner_id && typeof owner_id === 'string') ? owner_id.trim() : null;
     const cleanOwnerName = (owner_name && typeof owner_name === 'string') ? owner_name.trim() : 'Workspace Owner';
 
@@ -106,6 +116,18 @@ export async function POST(request: Request) {
       });
       if (!authResult.success) {
         return authResult.response;
+      }
+    } else {
+      // A deleted workspace's id can't be claimed again while anything still points at it
+      const leftovers = (await sql.query(
+        `SELECT 1 FROM links WHERE workspace_id = $1
+         UNION ALL SELECT 1 FROM workspace_members WHERE workspace_id = $1
+         UNION ALL SELECT 1 FROM domains WHERE workspace_id = $1
+         LIMIT 1`,
+        [cleanId]
+      ).catch(() => [])) as unknown[];
+      if (leftovers.length > 0) {
+        return NextResponse.json({ success: false, error: 'That workspace id is not available.' }, { status: 409 });
       }
     }
 
@@ -145,8 +167,6 @@ export async function POST(request: Request) {
   }
 }
 
-import { verifyWorkspacePermission } from '@/lib/serverAuth';
-
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -167,9 +187,30 @@ export async function DELETE(request: Request) {
     }
 
     const rows = (await sql.query(
-      `DELETE FROM workspaces WHERE id = $1 RETURNING *`,
+      `DELETE FROM workspaces WHERE id = $1 RETURNING id, name, slug`,
       [cleanId]
     )) as unknown as RawWorkspaceRow[];
+
+    const deletedLinks = (await sql.query(
+      `DELETE FROM links WHERE workspace_id = $1 RETURNING short_code, custom_slug`,
+      [cleanId]
+    ).catch(() => [])) as unknown as { short_code: string; custom_slug?: string | null }[];
+    const domainRows = (await sql.query(
+      `DELETE FROM domains WHERE workspace_id = $1 RETURNING hostname`,
+      [cleanId]
+    ).catch(() => [])) as unknown as { hostname: string }[];
+    for (const table of ['workspace_members', 'workspace_invitations', 'campaigns', 'api_keys', 'webhooks', 'client_portals', 'bulk_jobs']) {
+      await sql.query(`DELETE FROM ${table} WHERE workspace_id = $1`, [cleanId]).catch(() => {});
+    }
+    // Deleted links must stop redirecting now, not when their cache entries expire
+    for (const l of deletedLinks || []) {
+      for (const code of [l.short_code, l.custom_slug]) {
+        if (!code) continue;
+        const c = code.toLowerCase();
+        await linkCache.delete(`link_${c}`);
+        for (const d of domainRows || []) if (d.hostname) await linkCache.delete(`link_${d.hostname.toLowerCase()}_${c}`);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -201,14 +242,14 @@ export async function PATCH(request: Request) {
       return authResult.response;
     }
 
-    const cleanSlug = slug 
+    const cleanSlug = slug
       ? slug.trim().toLowerCase().replace(/[^a-z0-9]/g, '-')
       : name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-');
 
     const rows = (await sql.query(
-      `UPDATE workspaces 
+      `UPDATE workspaces
        SET name = $1, slug = $2, plan = COALESCE($3, plan)
-       WHERE id = $4 
+       WHERE id = $4
        RETURNING *`,
       [name.trim(), cleanSlug, plan || null, cleanId]
     )) as unknown as RawWorkspaceRow[];
