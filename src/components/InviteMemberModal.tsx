@@ -121,7 +121,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({ isOpen, on
 
             <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
               <a
-                href={`mailto:${encodeURIComponent(createdInvite.email)}?subject=${encodeURIComponent(`Invitation to join ${currentWorkspace.name} on TinyUrl`)}&body=${encodeURIComponent(`Hi ${createdInvite.name},\n\nYou have been invited to collaborate on our TinyUrl workspace "${currentWorkspace.name}" as an ${createdInvite.role}.\n\nAccept your invite here:\n${createdInvite.invite_url}\n\nThis invitation link expires in 7 days.`)}`}
+                href={`mailto:${encodeURIComponent(createdInvite.email)}?subject=${encodeURIComponent(`Invitation to join ${currentWorkspace.name} on TinyURL`)}&body=${encodeURIComponent(`Hi ${createdInvite.name},\n\nYou have been invited to collaborate on our TinyURL workspace "${currentWorkspace.name}" as an ${createdInvite.role}.\n\nAccept your invite here:\n${createdInvite.invite_url}\n\nThis invitation link expires in 7 days.`)}`}
                 className="w-full sm:w-1/2 h-10 px-3 rounded-lg bg-secondary/80 hover:bg-secondary text-foreground text-xs font-semibold flex items-center justify-center gap-2 border-[0.5px] border-outline-variant transition cursor-pointer"
               >
                 <Mail className="w-4 h-4 text-primary-ink shrink-0" />

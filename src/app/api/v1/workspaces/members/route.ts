@@ -248,12 +248,12 @@ export async function POST(request: Request) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            from: process.env.EMAIL_FROM || 'TinyUrl <notifications@resend.dev>',
+            from: process.env.EMAIL_FROM || 'TinyURL <notifications@resend.dev>',
             to: [cleanEmail],
-            subject: `You've been invited to collaborate on TinyUrl`,
+            subject: `You've been invited to collaborate on TinyURL`,
             html: `
               <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 24px; background: #0b0f19; color: #f1f5f9; border-radius: 16px; border: 1px solid #1e293b;">
-                <div style="font-size: 20px; font-weight: 700; color: #4d7c0f; margin-bottom: 24px;">TinyUrl Workspace</div>
+                <div style="font-size: 20px; font-weight: 700; color: #4d7c0f; margin-bottom: 24px;">TinyURL Workspace</div>
                 <h1 style="font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #ffffff;">Team Invitation</h1>
                 <p style="font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
                   Hello <strong style="color: #f1f5f9;">${cleanName}</strong>, you have been invited to join the workspace as a <span style="background: #312e81; color: #c7d2fe; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 12px;">${cleanRole}</span>.

@@ -130,7 +130,7 @@ export default async function CampaignHubPage({ params }: CampaignPageProps) {
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Dashboard</span>
           </Link>
-          <span className="font-mono text-[11px]">Powered by TinyUrl</span>
+          <span className="font-mono text-[11px]">Powered by TinyURL</span>
         </div>
 
       </div>

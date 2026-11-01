@@ -104,12 +104,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="flex items-center gap-[7px] cursor-pointer group min-w-0"
           >
             <img 
-              alt="Snip Creator Logo" 
+              alt="TinyURL logo" 
               className="h-6 w-6 rounded-md object-contain" 
               src="/snip-logo.svg"
             />
             <span className="text-[16px] font-semibold text-on-surface truncate">
-              Snip
+              TinyURL
             </span>
             <span className="text-[9px] uppercase font-semibold tracking-wider px-1.5 py-[1px] rounded-xs bg-primary-fixed text-on-secondary-container shrink-0">
               Pro

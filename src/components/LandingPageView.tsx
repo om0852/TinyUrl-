@@ -207,12 +207,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
             <a href="#" className="flex items-center gap-2.5 group">
               <img 
                 src="/snip-logo.svg"
-                alt="Snip Creator Logo" 
+                alt="TinyURL logo" 
                 className="w-9 h-9 rounded-xl object-contain shadow-sm group-hover:scale-105 transition-transform"
               />
               <div className="flex flex-col">
-                <span className="text-lg font-bold tracking-tight text-on-surface leading-tight">Snip</span>
-                <span className="text-[10px] text-outline tracking-wider uppercase font-semibold">Link Ops</span>
+                <span className="text-lg font-bold tracking-tight text-on-surface leading-tight">TinyURL</span>
               </div>
             </a>
 
@@ -716,7 +715,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 <div className="overflow-hidden rounded-lg bg-surface-container-lowest aspect-4/3 flex items-center justify-center border border-outline-variant">
                   <img 
                     src="/official_app_store_marketing_screenshot_1_title_card_the_hook_for_snip_creator.png"
-                    alt="Snip Creator - The Hook Title Card"
+                    alt="TinyURL - The Hook Title Card"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-103"
                   />
                 </div>
@@ -1221,7 +1220,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 </button>
                 {openFaq === 3 && (
                   <div className="mt-3 pt-3 text-xs sm:text-sm text-on-surface-variant border-t-[0.5px] border-outline-variant leading-relaxed animate-fade-in">
-                    Snip automatically analyzes destination links (YouTube, Instagram, Spotify, etc.) and dispatches native mobile intents and URI schemes. On mobile, visitors launch straight into the native app with their logged-in Google or Instagram accounts, bypassing restricted in-app browser webviews!
+                    TinyURL automatically analyzes destination links (YouTube, Instagram, Spotify, etc.) and dispatches native mobile intents and URI schemes. On mobile, visitors launch straight into the native app with their logged-in Google or Instagram accounts, bypassing restricted in-app browser webviews!
                   </div>
                 )}
               </div>
@@ -1257,7 +1256,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 {'★'.repeat(5)}
               </div>
               <blockquote className="text-base sm:text-xl sm:leading-relaxed text-on-surface font-semibold mb-6">
-                “I used to stress about dead Amazon affiliate links in my old YouTube descriptions. Snip gives me complete peace of mind, and the in-app Instagram tracking helped me double my sponsor rates because I had verifiable click proof.”
+                “I used to stress about dead Amazon affiliate links in my old YouTube descriptions. TinyURL gives me complete peace of mind, and the in-app Instagram tracking helped me double my sponsor rates because I had verifiable click proof.”
               </blockquote>
               <div className="flex items-center justify-center gap-3">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-surface-container border border-outline-variant">
@@ -1280,7 +1279,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 Ready to simplify your links?
               </h3>
               <p className="text-sm sm:text-base text-primary-fixed mb-8 max-w-xl mx-auto">
-                Join thousands of creators using Snip to build brand trust and measure genuine community clicks.
+                Join thousands of creators using TinyURL to build brand trust and measure genuine community clicks.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
@@ -1321,11 +1320,11 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
           <div className="flex items-center gap-2.5">
             <img 
               src="/snip-logo.svg"
-              alt="Snip Logo"
+              alt="TinyURL logo"
               className="w-6 h-6 rounded-lg object-contain shadow-2xs"
             />
             <span className="text-xs text-on-surface-variant font-medium">
-              © {new Date().getFullYear()} Snip Technologies, Inc. Built for modern content creators.
+              © {new Date().getFullYear()} TinyURL. Built for modern content creators.
             </span>
           </div>
           <div className="flex items-center gap-6 text-xs text-on-surface-variant font-medium">
