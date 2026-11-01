@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { isSafeOutboundUrl } from '@/lib/security';
 
 export async function POST(request: Request) {
   const start = Date.now();
@@ -11,11 +12,14 @@ export async function POST(request: Request) {
 
     let targetUrl = (providedUrl || '').trim();
     let targetSecret = (providedSecret || 'whsec_sample').trim();
-    const wsId = (workspace_id || request.headers.get('x-workspace-id') || 'ws_default').trim();
+    const wsId = (workspace_id || request.headers.get('x-workspace-id') || '').trim();
+    if (!wsId && !webhook_id) {
+      return NextResponse.json({ success: false, error: 'workspace_id is required.' }, { status: 400 });
+    }
 
     // Verify RBAC permission (requires api_keys:manage)
     const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
-      workspaceId: wsId,
+      workspaceId: wsId || undefined,
       webhookId: webhook_id
     });
     if (!authResult.success) {
@@ -24,8 +28,8 @@ export async function POST(request: Request) {
 
     if (webhook_id && (!targetUrl || targetUrl.includes('••••'))) {
       const rows = (await sql.query(
-        `SELECT id, url, secret FROM webhooks WHERE id = $1 LIMIT 1`,
-        [webhook_id.trim()]
+        `SELECT id, url, secret FROM webhooks WHERE id = $1 AND workspace_id = $2 LIMIT 1`,
+        [webhook_id.trim(), authResult.context.workspaceId]
       ).catch(() => [])) as Array<{ id: string; url: string; secret?: string | null }>;
 
       if (rows && rows.length > 0) {
@@ -40,6 +44,10 @@ export async function POST(request: Request) {
         error: 'A valid HTTP/HTTPS destination URL is required for webhook testing.'
       }, { status: 400 });
     }
+    const safe = isSafeOutboundUrl(targetUrl);
+    if (!safe.safe) {
+      return NextResponse.json({ success: false, error: `That URL can't be pinged: ${safe.reason}` }, { status: 422 });
+    }
 
     const testPayload = {
       event: 'link.created',
@@ -50,7 +58,7 @@ export async function POST(request: Request) {
         short_code: 'sample-test',
         short_url: `${targetUrl.replace(/\/+$/, '')}/sample-test`,
         destination_url: 'https://tinyurl.dev/docs',
-        workspace_id: wsId,
+        workspace_id: authResult.context.workspaceId,
         title: 'Developer Test Ping',
         created_at: new Date().toISOString()
       }
@@ -83,14 +91,14 @@ export async function POST(request: Request) {
         latency_ms: elapsed,
         url: targetUrl,
         signature: `sha256=${signature.slice(0, 12)}...`,
-        message: pingResponse.ok 
+        message: pingResponse.ok
           ? `Ping delivered successfully to ${targetUrl} (HTTP ${pingResponse.status})`
           : `Target returned HTTP ${pingResponse.status} ${pingResponse.statusText}`
       });
     } catch (netErr: unknown) {
       const elapsed = Date.now() - start;
       const errMsg = netErr instanceof Error ? netErr.message : 'Connection failed';
-      
+
       // If it's a dummy or unreachable domain (e.g. example.com or local placeholder),
       // provide descriptive diagnostic information so the user understands the exact networking state.
       return NextResponse.json({

@@ -5,6 +5,8 @@ import { Webhook } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { isSafeOutboundUrl } from '@/lib/security';
 
+const WEBHOOK_EVENTS = ['link.created', 'link.clicked', 'link.flagged', 'security.alert'];
+
 interface RawWebhookRow {
   id: string;
   workspace_id?: string | null;
@@ -74,24 +76,30 @@ export async function POST(request: Request) {
 
     const safeUrlCheck = isSafeOutboundUrl(url.trim());
     if (!safeUrlCheck.safe) {
-      return NextResponse.json({ 
-        success: false, 
-        error: `Security Error: Prohibited webhook target URL. ${safeUrlCheck.reason}` 
+      return NextResponse.json({
+        success: false,
+        error: `Security Error: Prohibited webhook target URL. ${safeUrlCheck.reason}`
       }, { status: 422 });
     }
 
-    const wsId = workspace_id || 'ws_default';
+    if (!workspace_id || typeof workspace_id !== 'string') {
+      return NextResponse.json({ success: false, error: 'workspace_id is required.' }, { status: 400 });
+    }
 
     // RBAC: Requires api_keys:manage permission (owner, admin only)
     const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
-      workspaceId: wsId
+      workspaceId: workspace_id.trim()
     });
     if (!authResult.success) {
       return authResult.response;
     }
+    const wsId = authResult.context.workspaceId;
 
     const webhookId = `wh_${crypto.randomUUID()}`;
-    const evList = Array.isArray(events) ? events : ['link.created', 'link.clicked'];
+    const evList = (Array.isArray(events) ? events.map(String) : ['link.created', 'link.clicked']).filter(e => WEBHOOK_EVENTS.includes(e));
+    if (evList.length === 0) {
+      return NextResponse.json({ success: false, error: `Choose at least one event: ${WEBHOOK_EVENTS.join(', ')}.` }, { status: 400 });
+    }
     const secret = `whsec_${crypto.randomBytes(16).toString('hex')}`;
 
     const rows = (await sql.query(
@@ -145,14 +153,17 @@ export async function PATCH(request: Request) {
     const active = is_active !== undefined ? !!is_active : true;
 
     const rows = (await sql.query(
-      `UPDATE webhooks SET is_active = $1 WHERE id = $2 RETURNING *`,
-      [active, cleanId]
+      `UPDATE webhooks SET is_active = $1 WHERE id = $2 AND workspace_id = $3 RETURNING id, url, events, is_active, created_at`,
+      [active, cleanId, authResult.context.workspaceId]
     )) as unknown as RawWebhookRow[];
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'Webhook not found.' }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Webhook updated successfully.',
-      webhook: rows && rows.length > 0 ? rows[0] : null
+      webhook: rows[0]
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database error';
@@ -180,14 +191,17 @@ export async function DELETE(request: Request) {
     }
 
     const rows = (await sql.query(
-      `DELETE FROM webhooks WHERE id = $1 RETURNING *`,
-      [cleanId]
+      `DELETE FROM webhooks WHERE id = $1 AND workspace_id = $2 RETURNING id, url`,
+      [cleanId, authResult.context.workspaceId]
     )) as unknown as RawWebhookRow[];
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'Webhook not found.' }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Webhook deleted successfully.',
-      deleted: rows && rows.length > 0 ? rows[0] : null
+      deleted: rows[0]
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database error';

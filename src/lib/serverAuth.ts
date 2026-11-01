@@ -27,15 +27,13 @@ export interface VerifyPermissionOptions {
 }
 
 /**
- * Resolves the workspace ID from the given context or looks it up from the database
- * using a link, campaign, domain, or webhook identifier.
+ * Workspace that owns the link, campaign, domain, webhook or API key named in options, or null
+ * when none is named or it doesn't exist. A named resource decides the workspace: checking
+ * permission in a workspace the caller picks (header/body) and then acting on a resource by id
+ * would let anyone with access to their own workspace touch another workspace's data.
  */
-async function resolveWorkspaceId(options: VerifyPermissionOptions): Promise<string | null> {
-  if (options.workspaceId && typeof options.workspaceId === 'string' && options.workspaceId.trim()) {
-    return options.workspaceId.trim();
-  }
-
-  // Fallback: look up by link ID / short_code / custom_slug
+async function resolveResourceWorkspaceId(options: VerifyPermissionOptions): Promise<string | null> {
+  // Look up by link ID / short_code / custom_slug
   if (options.linkId && typeof options.linkId === 'string' && options.linkId.trim()) {
     const clean = options.linkId.trim();
     const rows = (await sql.query(
@@ -111,6 +109,21 @@ export async function verifyWorkspacePermission(
     const headerEmail = request.headers.get('x-user-email');
     const headerWsId = request.headers.get('x-workspace-id');
 
+    // Target workspace: the named resource's own workspace wins; a different explicit workspace
+    // is refused instead of being used for the permission check
+    const explicitWs = ((options.workspaceId || headerWsId || '') as string).trim();
+    const resourceWs = await resolveResourceWorkspaceId(options);
+    if (resourceWs && explicitWs && resourceWs !== explicitWs) {
+      return {
+        success: false,
+        response: NextResponse.json({
+          success: false,
+          error: 'Forbidden: That item belongs to a different workspace.'
+        }, { status: 403 })
+      };
+    }
+    const requestedWs = resourceWs || explicitWs;
+
     // 1. Extract API Key Token if supplied
     let rawToken: string | null = null;
     if (xApiKeyHeader.trim()) {
@@ -137,7 +150,7 @@ export async function verifyWorkspacePermission(
       });
 
       if (isMasterKeyMatch) {
-        const targetWsId = options.workspaceId || headerWsId || 'ws_default';
+        const targetWsId = requestedWs || 'ws_default';
         return {
           success: true,
           context: {
@@ -163,11 +176,9 @@ export async function verifyWorkspacePermission(
           ? JSON.parse(rawPerms)
           : (Array.isArray(rawPerms) ? rawPerms : []);
 
-        // Check workspace isolation if specific workspace was requested
-        const targetWs = (options.workspaceId || headerWsId || '').trim();
-        // A key only works in the workspace it was created in (ws_default keys used to be let
-        // into every workspace)
-        if (targetWs && targetWs !== keyRecord.workspace_id) {
+        // A key only works in the workspace it was created in, including for resources named
+        // by id (ws_default keys used to be let into every workspace)
+        if (requestedWs && requestedWs !== keyRecord.workspace_id) {
           return {
             success: false,
             response: NextResponse.json({
@@ -240,13 +251,8 @@ export async function verifyWorkspacePermission(
       userEmail = 'owner@workspace.local';
     }
 
-    // 3. Resolve Target Workspace ID
-    const mergedOptions: VerifyPermissionOptions = {
-      ...options,
-      workspaceId: options.workspaceId || headerWsId || null
-    };
-
-    const targetWsId = await resolveWorkspaceId(mergedOptions);
+    // 3. Target Workspace ID (resolved above)
+    const targetWsId = requestedWs || null;
     if (!targetWsId) {
       return {
         success: false,

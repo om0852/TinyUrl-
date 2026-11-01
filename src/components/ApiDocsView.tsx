@@ -3,1584 +3,579 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
+import { useToast } from '@/components/ui/ToastHub';
 import { SkeletonSettingsView } from '@/components/ui';
-import { 
-  Key, 
-  Plus, 
-  Trash2, 
-  Play, 
-  Copy, 
-  Check, 
-  Terminal, 
-  ShieldCheck, 
-  Radio, 
-  RefreshCw,
-  Server,
-  Webhook as WebhookIcon,
-  AlertCircle,
-  ExternalLink,
-  Lock,
-  Layers,
+import { hasPermission, Permission } from '@/lib/rbac';
+import { ApiKey, Webhook } from '@/lib/types';
+import {
+  Key,
+  Trash2,
+  Play,
+  Copy,
+  Check,
   Send,
   Eye,
   EyeOff,
-  CheckCircle2,
-  Code2,
-  SlidersHorizontal,
   X,
   PlayCircle,
-  PauseCircle
+  PauseCircle,
+  Webhook as WebhookIcon,
+  Globe2,
+  Clock
 } from 'lucide-react';
 
-type ApiTab = 'console' | 'keys' | 'webhooks' | 'reference';
+type ApiTab = 'keys' | 'webhooks' | 'console' | 'reference';
 type LangType = 'curl' | 'js' | 'python';
+type Endpoint = 'shorten' | 'bulk' | 'links' | 'audit' | 'analytics';
+
+// Scopes offered for new keys, with the permission each one needs (see /api/v1/api-keys)
+const KEY_SCOPES: { id: string; label: string; needs: Permission }[] = [
+  { id: 'links:create', label: 'Create links', needs: 'links:create' },
+  { id: 'links:edit', label: 'Edit links', needs: 'links:edit' },
+  { id: 'links:delete', label: 'Delete links', needs: 'links:delete' },
+  { id: 'export:data', label: 'Read links and export', needs: 'export:data' },
+  { id: 'analytics:read', label: 'Read analytics', needs: 'analytics:read' },
+  { id: 'campaigns:create', label: 'Create campaigns', needs: 'campaigns:create' },
+];
+
+const WEBHOOK_EVENTS = [
+  { id: 'link.created', label: 'Link created' },
+  { id: 'link.clicked', label: 'Link clicked' },
+  { id: 'link.flagged', label: 'Link flagged by a scan' },
+];
+
+const ENDPOINTS: { id: Endpoint; method: 'GET' | 'POST'; path: string; label: string; scope: string; desc: string }[] = [
+  { id: 'shorten', method: 'POST', path: '/api/v1/shorten', label: 'Create link', scope: 'links:create', desc: 'One short link, with optional slug, title and UTM tags.' },
+  { id: 'bulk', method: 'POST', path: '/api/v1/links/bulk', label: 'Bulk create', scope: 'links:create', desc: 'Up to 1,000 links in one request.' },
+  { id: 'links', method: 'GET', path: '/api/v1/links', label: 'List links', scope: 'export:data', desc: 'Links in the workspace, newest first. Add all=1 for more than 100.' },
+  { id: 'analytics', method: 'GET', path: '/api/v1/analytics', label: 'Analytics', scope: 'analytics:read', desc: 'Click totals, sources, countries and devices.' },
+  { id: 'audit', method: 'POST', path: '/api/v1/security/audit', label: 'Security scan', scope: 'links:edit', desc: 'Scans destinations; flags phishing and private-network targets.' },
+];
+
+const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
 
 export const ApiDocsView: React.FC = () => {
-  const { 
-    apiKeys, 
-    addApiKey, 
-    deleteApiKey, 
-    webhooks, 
-    addWebhook, 
-    deleteWebhook, 
+  const {
+    apiKeys,
+    addApiKey,
+    deleteApiKey,
+    webhooks,
+    addWebhook,
+    deleteWebhook,
     toggleWebhook,
-    currentWorkspace, 
-    currentUser, 
+    currentWorkspace,
+    currentUserRole,
     checkPermissionOrToast,
     refreshSettings,
     refreshLinks,
     isInitialLoading,
     isSettingsLoading
   } = useStore();
+  const { showToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<ApiTab>('console');
-  const [activeLang, setActiveLang] = useState<LangType>('curl');
-
-  // Interactive API Console state
-  const [selectedEndpoint, setSelectedEndpoint] = useState<'shorten' | 'bulk' | 'links' | 'audit' | 'analytics'>('shorten');
-  const [customDestination, setCustomDestination] = useState('https://github.com/trending');
-  const [customSlug, setCustomSlug] = useState('gh-trending');
-  const [customTitle, setCustomTitle] = useState('Trending Repositories');
-
-  // Bulk parameters state
-  const [bulkBatchName, setBulkBatchName] = useState('Developer Bulk Import');
-  const [bulkUrl1, setBulkUrl1] = useState('https://docs.github.com');
-  const [bulkSlug1, setBulkSlug1] = useState('gh-docs');
-  const [bulkUrl2, setBulkUrl2] = useState('https://status.github.com');
-  const [bulkSlug2, setBulkSlug2] = useState('gh-status');
-
-  const [apiResponse, setApiResponse] = useState<Record<string, unknown> | null>(null);
-  const [responseStatus, setResponseStatus] = useState<number | null>(null);
-  const [responseLatency, setResponseLatency] = useState<number | null>(null);
-  const [isExecuting, setIsExecuting] = useState(false);
-
-  // Synchronize workspace data on mount
   useEffect(() => {
     refreshSettings();
   }, [refreshSettings]);
 
-  // API Key Generator state
+  const [activeTab, setActiveTab] = useState<ApiTab>('keys');
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  // Read after mount so server and browser render the same markup
+  const [origin, setOrigin] = useState('');
+  useEffect(() => { setOrigin(window.location.origin); }, []);
+  const wsId = currentWorkspace?.id || '';
+  const canManage = hasPermission(currentUserRole, 'api_keys:manage');
+  const offeredScopes = KEY_SCOPES.filter(s => hasPermission(currentUserRole, s.needs));
+
+  // ── Keys ──
   const [keyName, setKeyName] = useState('');
-  const [selectedScopes, setSelectedScopes] = useState<string[]>([
-    'links:create',
-    'links:read',
-    'analytics:read'
-  ]);
-  const [createdKey, setCreatedKey] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [keyModalOpen, setKeyModalOpen] = useState(false);
+  const [selectedScopes, setSelectedScopes] = useState<string[]>(['links:create', 'export:data', 'analytics:read']);
+  const [creatingKey, setCreatingKey] = useState(false);
+  const [createdKey, setCreatedKey] = useState<ApiKey | null>(null);
+  const [keyToRevoke, setKeyToRevoke] = useState<ApiKey | null>(null);
 
-  // Webhook Registration Modal state
-  const [webhookModalOpen, setWebhookModalOpen] = useState(false);
+  const handleCreateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!keyName.trim() || creatingKey) return;
+    if (!checkPermissionOrToast('api_keys:manage', 'create API keys')) return;
+    const scopes = selectedScopes.filter(id => offeredScopes.some(s => s.id === id));
+    if (scopes.length === 0) {
+      showToast('error', 'Choose at least one scope');
+      return;
+    }
+    setCreatingKey(true);
+    const created = await addApiKey(keyName.trim(), scopes);
+    setCreatingKey(false);
+    if (created) {
+      setCreatedKey(created);
+      setKeyName('');
+    }
+  };
+
+  // ── Webhooks ──
   const [webhookUrl, setWebhookUrl] = useState('');
-  const [webhookEvents, setWebhookEvents] = useState<string[]>([
-    'link.created',
-    'link.clicked'
-  ]);
+  const [webhookEvents, setWebhookEvents] = useState<string[]>(['link.created']);
+  const [savingWebhook, setSavingWebhook] = useState(false);
   const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
-  const [revealedSecrets, setRevealedSecrets] = useState<Record<string, boolean>>({});
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
 
-  // Toast & Copy states
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [copiedSnippet, setCopiedSnippet] = useState(false);
-  const [copiedWhId, setCopiedWhId] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  const currentHost = typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev';
-  const effectiveKeyPrefix = apiKeys.length > 0 ? `${apiKeys[0].key_prefix}...` : 'sk_live_••••••••••••';
-
-  // Toggle scope selection
-  const handleToggleScope = (scope: string) => {
-    setSelectedScopes(prev => 
-      prev.includes(scope) ? prev.filter(s => s !== scope) : [...prev, scope]
-    );
-  };
-
-  // Toggle webhook event selection
-  const handleToggleEvent = (ev: string) => {
-    setWebhookEvents(prev => 
-      prev.includes(ev) ? prev.filter(e => e !== ev) : [...prev, ev]
-    );
-  };
-
-  // Handle Create API Key
-  const handleCreateApiKey = (e: React.FormEvent) => {
+  const handleAddWebhook = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!keyName.trim()) return;
-
-    if (!checkPermissionOrToast('api_keys:manage', 'generate secret API keys')) {
-      return;
-    }
-
-    const created = addApiKey(keyName.trim(), selectedScopes);
-    setCreatedKey(created.full_key);
-    setKeyName('');
-    setKeyModalOpen(true);
-    showToast(`API Key "${created.name}" generated successfully.`);
-    setTimeout(() => refreshSettings(true), 600);
-  };
-
-  // Copy newly created secret key
-  const handleCopyNewKey = () => {
-    if (!createdKey) return;
-    navigator.clipboard.writeText(createdKey);
-    setCopiedKey(true);
-    showToast('Secret key copied to clipboard.');
-    setTimeout(() => setCopiedKey(false), 2000);
-  };
-
-  // Handle Register Webhook
-  const handleRegisterWebhook = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!webhookUrl.trim()) return;
-
-    if (!checkPermissionOrToast('api_keys:manage', 'register webhooks')) {
-      return;
-    }
-
+    if (!webhookUrl.trim() || savingWebhook) return;
+    if (!checkPermissionOrToast('api_keys:manage', 'add webhooks')) return;
     if (webhookEvents.length === 0) {
-      showToast('Select at least one event subscription.');
+      showToast('error', 'Choose at least one event');
       return;
     }
-
-    addWebhook(webhookUrl.trim(), webhookEvents);
-    setWebhookModalOpen(false);
-    setWebhookUrl('');
-    showToast('Webhook registered successfully.');
-    setTimeout(() => refreshSettings(true), 600);
+    setSavingWebhook(true);
+    const created = await addWebhook(webhookUrl.trim(), webhookEvents);
+    setSavingWebhook(false);
+    if (created) {
+      setWebhookUrl('');
+      showToast('success', 'Webhook added', 'Copy its signing secret from the list.');
+    }
   };
 
-  // Live Webhook Test Dispatcher
-  const handleTestWebhookPing = async (id: string, url: string, secret?: string) => {
-    setTestingWebhookId(id);
+  const handleTestWebhook = async (wh: Webhook) => {
+    setTestingWebhookId(wh.id);
     try {
       const res = await fetch('/api/v1/webhooks/test', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-          'x-workspace-id': currentWorkspace?.id || 'ws_default'
-        },
-        body: JSON.stringify({
-          webhook_id: id,
-          url,
-          secret,
-          workspace_id: currentWorkspace?.id || 'ws_default'
-        })
+        headers: { 'Content-Type': 'application/json', 'x-workspace-id': wsId },
+        body: JSON.stringify({ webhook_id: wh.id, workspace_id: wsId })
       });
-
       const data = await res.json().catch(() => null);
-      if (data?.success) {
-        showToast(data.message || `Ping delivered to ${url} • HTTP ${data.status_code} (${data.latency_ms}ms)`);
-      } else {
-        showToast(data?.error || `Ping dispatch to ${url} returned HTTP ${data?.status_code || 500}`);
-      }
+      if (data?.success) showToast('success', 'Test delivered', `HTTP ${data.status_code} · ${data.latency_ms} ms`);
+      else showToast('error', 'Test failed', data?.error || data?.message || `HTTP ${data?.status_code || res.status}`);
     } catch {
-      showToast(`Ping failed to connect to ${url}`);
+      showToast('error', 'Test failed', 'Network error.');
     } finally {
       setTestingWebhookId(null);
     }
   };
 
-  // Interactive Live Request Runner
-  const handleExecuteConsole = async () => {
-    setIsExecuting(true);
-    setApiResponse(null);
-    setResponseStatus(null);
-    setResponseLatency(null);
-    const start = Date.now();
+  // ── Try it ──
+  const [endpoint, setEndpoint] = useState<Endpoint>('shorten');
+  const [lang, setLang] = useState<LangType>('curl');
+  const [destination, setDestination] = useState('https://github.com/trending');
+  const [slug, setSlug] = useState('');
+  const [title, setTitle] = useState('');
+  const [bulkUrls, setBulkUrls] = useState('https://docs.github.com\nhttps://www.githubstatus.com');
+  const [response, setResponse] = useState<{ status: number; ms: number; body: unknown } | null>(null);
+  const [running, setRunning] = useState(false);
 
-    try {
-      if (selectedEndpoint === 'shorten') {
-        const res = await fetch('/api/v1/shorten', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || 'ws_default'
-          },
-          body: JSON.stringify({
-            workspace_id: currentWorkspace?.id || 'ws_default',
-            destination_url: customDestination.trim() || 'https://github.com/trending',
-            custom_slug: customSlug.trim() || undefined,
-            title: customTitle.trim() || undefined
-          })
-        });
-        const elapsed = Date.now() - start;
-        setResponseStatus(res.status);
-        setResponseLatency(elapsed);
-        const data = await res.json();
-        setApiResponse(data);
-        if (data?.success) refreshLinks(true);
-      } else if (selectedEndpoint === 'bulk') {
-        const res = await fetch('/api/v1/links/bulk', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || 'ws_default'
-          },
-          body: JSON.stringify({
-            workspace_id: currentWorkspace?.id || 'ws_default',
-            batch_name: bulkBatchName.trim() || 'Developer Batch Import',
-            items: [
-              { 
-                destination_url: bulkUrl1.trim() || 'https://docs.github.com', 
-                title: 'GitHub Docs', 
-                custom_slug: bulkSlug1.trim() || undefined 
-              },
-              { 
-                destination_url: bulkUrl2.trim() || 'https://status.github.com', 
-                title: 'GitHub Status', 
-                custom_slug: bulkSlug2.trim() || undefined 
-              }
-            ]
-          })
-        });
-        const elapsed = Date.now() - start;
-        setResponseStatus(res.status);
-        setResponseLatency(elapsed);
-        const data = await res.json();
-        setApiResponse(data);
-        if (data?.success) refreshLinks(true);
-      } else if (selectedEndpoint === 'links') {
-        const res = await fetch(`/api/v1/links?workspace_id=${encodeURIComponent(currentWorkspace?.id || 'ws_default')}`, {
-          headers: {
-            'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || 'ws_default'
-          }
-        });
-        const elapsed = Date.now() - start;
-        setResponseStatus(res.status);
-        setResponseLatency(elapsed);
-        const data = await res.json();
-        setApiResponse(data);
-      } else if (selectedEndpoint === 'audit') {
-        const res = await fetch('/api/v1/security/audit', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || 'ws_default'
-          },
-          body: JSON.stringify({
-            workspace_id: currentWorkspace?.id || 'ws_default'
-          })
-        });
-        const elapsed = Date.now() - start;
-        setResponseStatus(res.status);
-        setResponseLatency(elapsed);
-        const data = await res.json();
-        setApiResponse(data);
-      } else {
-        const res = await fetch(`/api/v1/analytics?workspace_id=${encodeURIComponent(currentWorkspace?.id || 'ws_default')}`, {
-          headers: {
-            'x-user-email': currentUser?.email || '',
-            'x-workspace-id': currentWorkspace?.id || 'ws_default'
-          }
-        });
-        const elapsed = Date.now() - start;
-        setResponseStatus(res.status);
-        setResponseLatency(elapsed);
-        const data = await res.json();
-        setApiResponse(data);
-      }
-    } catch (err: unknown) {
-      setResponseStatus(500);
-      setResponseLatency(Date.now() - start);
-      setApiResponse({ error: err instanceof Error ? err.message : 'Network execution failed.' });
-    } finally {
-      setIsExecuting(false);
+  const spec = ENDPOINTS.find(e => e.id === endpoint)!;
+  const requestBody = useMemo((): Record<string, unknown> | null => {
+    if (endpoint === 'shorten') {
+      return { workspace_id: wsId, destination_url: destination.trim(), ...(slug.trim() ? { custom_slug: slug.trim() } : {}), ...(title.trim() ? { title: title.trim() } : {}) };
     }
-  };
-
-  // Generate Dynamic Code Snippets
-  const getDynamicSnippet = useMemo(() => {
-    const bearer = apiKeys[0]?.full_key && !apiKeys[0].full_key.includes('••••') 
-      ? apiKeys[0].full_key 
-      : (apiKeys[0]?.key_prefix ? `${apiKeys[0].key_prefix}••••••••••••••••` : 'sk_live_••••••••••••••••');
-    const wsId = currentWorkspace?.id || 'ws_default';
-
-    if (activeLang === 'curl') {
-      if (selectedEndpoint === 'shorten') {
-        return `curl -X POST "${currentHost}/api/v1/shorten" \\
-  -H "Authorization: Bearer ${bearer}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "workspace_id": "${wsId}",
-    "destination_url": "${customDestination.trim() || 'https://github.com/trending'}",
-    "custom_slug": "${customSlug.trim() || 'gh-trending'}",
-    "title": "${customTitle.trim() || 'Trending Repositories'}"
-  }'`;
-      }
-      if (selectedEndpoint === 'bulk') {
-        return `curl -X POST "${currentHost}/api/v1/links/bulk" \\
-  -H "Authorization: Bearer ${bearer}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "workspace_id": "${wsId}",
-    "batch_name": "${bulkBatchName || 'Developer Bulk Import'}",
-    "items": [
-      { "destination_url": "${bulkUrl1 || 'https://docs.github.com'}", "title": "GitHub Docs", "custom_slug": "${bulkSlug1 || 'gh-docs'}" },
-      { "destination_url": "${bulkUrl2 || 'https://status.github.com'}", "title": "GitHub Status", "custom_slug": "${bulkSlug2 || 'gh-status'}" }
-    ]
-  }'`;
-      }
-      if (selectedEndpoint === 'links') {
-        return `curl -X GET "${currentHost}/api/v1/links?workspace_id=${wsId}" \\
-  -H "Authorization: Bearer ${bearer}"`;
-      }
-      if (selectedEndpoint === 'audit') {
-        return `curl -X POST "${currentHost}/api/v1/security/audit" \\
-  -H "Authorization: Bearer ${bearer}" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "workspace_id": "${wsId}"
-  }'`;
-      }
-      return `curl -X GET "${currentHost}/api/v1/analytics?workspace_id=${wsId}" \\
-  -H "Authorization: Bearer ${bearer}"`;
+    if (endpoint === 'bulk') {
+      return { workspace_id: wsId, batch_name: 'API test', items: bulkUrls.split('\n').map(u => u.trim()).filter(Boolean).map(u => ({ destination_url: u })) };
     }
+    if (endpoint === 'audit') return { workspace_id: wsId };
+    return null;
+  }, [endpoint, wsId, destination, slug, title, bulkUrls]);
+  const requestUrl = `${origin}${spec.path}${spec.method === 'GET' ? `?workspace_id=${encodeURIComponent(wsId)}` : ''}`;
 
-    if (activeLang === 'js') {
-      if (selectedEndpoint === 'shorten') {
-        return `const res = await fetch('${currentHost}/api/v1/shorten', {
-  method: 'POST',
+  const snippet = useMemo(() => {
+    const keyHint = 'YOUR_API_KEY';
+    const json = requestBody ? JSON.stringify(requestBody, null, 2) : '';
+    if (lang === 'curl') {
+      return [
+        `curl -X ${spec.method} "${requestUrl}" \\`,
+        `  -H "Authorization: Bearer ${keyHint}"${requestBody ? ' \\' : ''}`,
+        ...(requestBody ? [`  -H "Content-Type: application/json" \\`, `  -d '${json.replace(/'/g, "'\\''")}'`] : []),
+      ].join('\n');
+    }
+    if (lang === 'js') {
+      return `const res = await fetch('${requestUrl}', {
+  method: '${spec.method}',
   headers: {
-    'Authorization': 'Bearer ${bearer}',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    workspace_id: '${wsId}',
-    destination_url: '${customDestination.trim() || 'https://github.com/trending'}',
-    custom_slug: '${customSlug.trim() || 'gh-trending'}',
-    title: '${customTitle.trim() || 'Trending Repositories'}'
-  })
-});
-const data = await res.json();
-console.log('Short link created:', data.short_url);`;
-      }
-      if (selectedEndpoint === 'bulk') {
-        return `const res = await fetch('${currentHost}/api/v1/links/bulk', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer ${bearer}',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    workspace_id: '${wsId}',
-    batch_name: '${bulkBatchName || 'Developer Bulk Import'}',
-    items: [
-      { destination_url: '${bulkUrl1 || 'https://docs.github.com'}', title: 'GitHub Docs', custom_slug: '${bulkSlug1 || 'gh-docs'}' },
-      { destination_url: '${bulkUrl2 || 'https://status.github.com'}', title: 'GitHub Status', custom_slug: '${bulkSlug2 || 'gh-status'}' }
-    ]
-  })
-});
-const data = await res.json();
-console.log('Bulk imported links:', data.imported, data.links);`;
-      }
-      if (selectedEndpoint === 'audit') {
-        return `const res = await fetch('${currentHost}/api/v1/security/audit', {
-  method: 'POST',
-  headers: {
-    'Authorization': 'Bearer ${bearer}',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    workspace_id: '${wsId}'
-  })
-});
-const data = await res.json();
-console.log('Security audit results:', data);`;
-      }
-      return `const res = await fetch('${currentHost}/api/v1/${selectedEndpoint}?workspace_id=${wsId}', {
-  method: 'GET',
-  headers: {
-    'Authorization': 'Bearer ${bearer}'
-  }
+    Authorization: 'Bearer ${keyHint}'${requestBody ? `,\n    'Content-Type': 'application/json'` : ''}
+  }${requestBody ? `,\n  body: JSON.stringify(${json.replace(/\n/g, '\n  ')})` : ''}
 });
 const data = await res.json();
 console.log(data);`;
     }
-
-    // Python (requests)
-    if (selectedEndpoint === 'shorten') {
-      return `import requests
-
-url = "${currentHost}/api/v1/shorten"
-headers = {
-    "Authorization": "Bearer ${bearer}",
-    "Content-Type": "application/json"
-}
-payload = {
-    "workspace_id": "${wsId}",
-    "destination_url": "${customDestination.trim() || 'https://github.com/trending'}",
-    "custom_slug": "${customSlug.trim() || 'gh-trending'}",
-    "title": "${customTitle.trim() || 'Trending Repositories'}"
-}
-
-response = requests.post(url, json=payload, headers=headers)
-print(response.status_code, response.json())`;
-    }
-    if (selectedEndpoint === 'bulk') {
-      return `import requests
-
-url = "${currentHost}/api/v1/links/bulk"
-headers = {
-    "Authorization": "Bearer ${bearer}",
-    "Content-Type": "application/json"
-}
-payload = {
-    "workspace_id": "${wsId}",
-    "batch_name": "${bulkBatchName || 'Developer Bulk Import'}",
-    "items": [
-        {"destination_url": "${bulkUrl1 || 'https://docs.github.com'}", "title": "GitHub Docs", "custom_slug": "${bulkSlug1 || 'gh-docs'}"},
-        {"destination_url": "${bulkUrl2 || 'https://status.github.com'}", "title": "GitHub Status", "custom_slug": "${bulkSlug2 || 'gh-status'}"}
-    ]
-}
-
-response = requests.post(url, json=payload, headers=headers)
-print(response.status_code, response.json())`;
-    }
-    if (selectedEndpoint === 'audit') {
-      return `import requests
-
-url = "${currentHost}/api/v1/security/audit"
-headers = {
-    "Authorization": "Bearer ${bearer}",
-    "Content-Type": "application/json"
-}
-payload = {
-    "workspace_id": "${wsId}"
-}
-
-response = requests.post(url, json=payload, headers=headers)
-print(response.status_code, response.json())`;
-    }
     return `import requests
 
-url = "${currentHost}/api/v1/${selectedEndpoint}?workspace_id=${wsId}"
-headers = {
-    "Authorization": "Bearer ${bearer}"
-}
+res = requests.${spec.method.toLowerCase()}(
+    "${requestUrl}",
+    headers={"Authorization": "Bearer ${keyHint}"}${requestBody ? `,\n    json=${json.replace(/\n/g, '\n    ').replace(/true/g, 'True').replace(/false/g, 'False')}` : ''}
+)
+print(res.status_code, res.json())`;
+  }, [lang, spec, requestUrl, requestBody]);
 
-response = requests.get(url, headers=headers)
-print(response.status_code, response.json())`;
-  }, [
-    activeLang, 
-    selectedEndpoint, 
-    customDestination, 
-    customSlug, 
-    customTitle, 
-    bulkBatchName, 
-    bulkUrl1, 
-    bulkSlug1, 
-    bulkUrl2, 
-    bulkSlug2, 
-    currentHost, 
-    apiKeys, 
-    currentWorkspace
-  ]);
-
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(getDynamicSnippet);
-    setCopiedSnippet(true);
-    showToast('Code snippet copied to clipboard.');
-    setTimeout(() => setCopiedSnippet(false), 2000);
+  // Runs the request as the signed-in user (session cookie), not with an API key
+  const runRequest = async () => {
+    setRunning(true);
+    setResponse(null);
+    const started = Date.now();
+    try {
+      const res = await fetch(requestUrl, {
+        method: spec.method,
+        headers: { 'x-workspace-id': wsId, ...(requestBody ? { 'Content-Type': 'application/json' } : {}) },
+        body: requestBody ? JSON.stringify(requestBody) : undefined
+      });
+      const body = await res.json().catch(() => ({ error: 'Response was not JSON.' }));
+      setResponse({ status: res.status, ms: Date.now() - started, body });
+      if (res.ok && (endpoint === 'shorten' || endpoint === 'bulk')) refreshLinks(true);
+    } catch (err) {
+      setResponse({ status: 0, ms: Date.now() - started, body: { error: err instanceof Error ? err.message : 'Network error.' } });
+    } finally {
+      setRunning(false);
+    }
   };
 
   if ((isInitialLoading || isSettingsLoading) && apiKeys.length === 0 && webhooks.length === 0) {
     return <SkeletonSettingsView />;
   }
 
+  const lastUsed = apiKeys.map(k => k.last_used).filter(Boolean).sort().pop();
+  const iconBtn = 'size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50';
+  const input = 'h-[34px] px-3 bg-surface-container-low rounded-md text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:border-on-surface-variant';
+  const primaryBtn = 'h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer disabled:opacity-60 inline-flex items-center justify-center gap-1.5';
+  const segmented = (active: boolean) => `h-[26px] px-3 rounded-[4px] whitespace-nowrap transition-colors cursor-pointer ${active ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`;
+  const checkbox = (checked: boolean, onChange: () => void, label: string, key: string) => (
+    <label key={key} className="flex items-center gap-2 text-xs text-on-surface cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={onChange} className="w-3.5 h-3.5 accent-[var(--color-primary-strong)] cursor-pointer" />
+      {label}
+    </label>
+  );
+
   return (
-    <div className="flex flex-col w-full space-y-6 pb-16 animate-fade-in text-on-surface">
-      
-      {/* 1. TOP HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight">
-              Developer REST API &amp; Webhooks
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs bg-primary-container text-on-primary font-bold shadow-xs">
-              <Terminal className="w-3.5 h-3.5" />
-              v1.4 OpenAPI 3.1
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-1 max-w-2xl">
-            High-throughput REST endpoints, HMAC-signed webhook delivery, scoped API key authorization, and an interactive developer playground.
-          </p>
-        </div>
+    <div className="flex flex-col w-full gap-[15px] pb-16 animate-fade-in text-on-surface">
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant shadow-xs flex items-center gap-2 text-xs font-semibold text-on-surface-variant">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Edge Gateway: Active</span>
-          </div>
-          <div className="px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant shadow-xs flex items-center gap-2 text-xs font-mono text-on-surface">
-            <span className="text-on-surface-variant font-sans font-medium">Host:</span>
-            <span>{currentHost.replace(/^https?:\/\//, '')}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. STATS ROW */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Active API Keys */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Active API Keys</span>
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
-              <Key className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-on-surface tracking-tight">{apiKeys.length}</div>
-            <p className="text-xs text-on-surface-variant mt-0.5">Scoped programmatic access</p>
-          </div>
-        </div>
-
-        {/* Configured Webhooks */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Webhooks</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-              <WebhookIcon className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-on-surface tracking-tight">{webhooks.length}</div>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              {webhooks.filter(w => w.active).length} streaming active events
-            </p>
-          </div>
-        </div>
-
-        {/* Edge SLA */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Edge SLA</span>
-            <div className="w-8 h-8 rounded-lg bg-lime-400/10 flex items-center justify-center text-lime-700">
-              <Server className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-emerald-600 tracking-tight">&lt; 18ms</div>
-            <p className="text-xs text-on-surface-variant mt-0.5">Global edge redirect caching</p>
-          </div>
-        </div>
-
-        {/* Auth Standard */}
-        <div className="bg-surface-container-lowest p-5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-sm transition-shadow">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Authentication</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl font-black text-on-surface tracking-tight">Bearer Token</div>
-            <p className="text-xs text-on-surface-variant mt-0.5">SHA-256 hashed secret keys</p>
-          </div>
-        </div>
-
-      </div>
-
-      {/* 3. NAVIGATION TAB BAR */}
-      <div className="flex items-center gap-1.5 p-1 bg-surface-container-low rounded-xl border-[0.5px] border-outline-variant max-w-full overflow-x-auto scrollbar-none whitespace-nowrap text-xs font-bold">
+      {/* Stats */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-[15px]">
         {[
-          { id: 'console', label: 'Interactive Console', icon: Play },
-          { id: 'keys', label: `API Keys (${apiKeys.length})`, icon: Key },
-          { id: 'webhooks', label: `Webhooks (${webhooks.length})`, icon: WebhookIcon },
-          { id: 'reference', label: 'Endpoint Reference', icon: Code2 }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as ApiTab)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-surface-container-lowest text-primary-ink shadow-xs font-extrabold'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+          { icon: <Key className="w-5 h-5" />, value: String(apiKeys.length), label: 'API keys', hint: 'In this workspace' },
+          { icon: <WebhookIcon className="w-5 h-5" />, value: String(webhooks.length), label: 'Webhooks', hint: `${webhooks.filter(w => w.active).length} active` },
+          { icon: <Clock className="w-5 h-5" />, value: lastUsed ? fmtDate(lastUsed) : '—', label: 'Last key use', hint: lastUsed ? 'Most recent request' : 'Not used yet' },
+          { icon: <Globe2 className="w-5 h-5" />, value: origin.replace(/^https?:\/\//, ''), label: 'Base URL', hint: '/api/v1', copyValue: `${origin}/api/v1` },
+        ].map(card => (
+          <div key={card.label} className="flex items-center gap-[10px] rounded-xl border-[0.5px] border-outline-variant p-[15px] min-w-0">
+            <div className="grid size-[40px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{card.icon}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[14px] font-semibold text-on-surface truncate" title={card.value}>{card.value}</div>
+              <p className="text-xs text-outline truncate">{card.label} · {card.hint}</p>
+            </div>
+            {'copyValue' in card && card.copyValue && (
+              <button type="button" onClick={() => copy(card.copyValue!, 'base')} title="Copy base URL" aria-label="Copy base URL" className={iconBtn}>
+                {copied === 'base' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* 4. TAB CONTENTS */}
+      {/* Tabs */}
+      <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs self-start max-w-full overflow-x-auto" role="tablist" aria-label="Developer sections">
+        {([
+          { id: 'keys', label: 'API keys' },
+          { id: 'webhooks', label: 'Webhooks' },
+          { id: 'console', label: 'Try it' },
+          { id: 'reference', label: 'Reference' },
+        ] as const).map(tab => (
+          <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={segmented(activeTab === tab.id)}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 1: INTERACTIVE API CONSOLE
-          ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'console' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* LEFT: Request Configuration & Code (7 COLS) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between">
-            <div>
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b-[0.5px] border-outline-variant mb-5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
-                    <Play className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-bold text-on-surface">Interactive API Console</h2>
-                    <p className="text-xs text-on-surface-variant">Execute live requests directly against your active workspace</p>
-                  </div>
-                </div>
+      {/* ── API keys ── */}
+      {activeTab === 'keys' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px] items-start">
+          {canManage && (
+            <form onSubmit={handleCreateKey} className="lg:col-span-4 rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-3">
+              <h2 className="text-[14px] font-semibold text-on-surface">New key</h2>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-on-surface-variant">Name</span>
+                <input type="text" required maxLength={100} value={keyName} onChange={(e) => setKeyName(e.target.value)} placeholder="e.g. Zapier" className={input} />
+              </label>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[11px] text-on-surface-variant">Scopes</span>
+                {offeredScopes.map(s => checkbox(
+                  selectedScopes.includes(s.id),
+                  () => setSelectedScopes(prev => prev.includes(s.id) ? prev.filter(x => x !== s.id) : [...prev, s.id]),
+                  s.label,
+                  s.id
+                ))}
+              </div>
+              <button type="submit" disabled={creatingKey} className={primaryBtn}>{creatingKey ? 'Creating…' : 'Create key'}</button>
+            </form>
+          )}
 
-                {/* Endpoint Tabs */}
-                <div className="flex items-center gap-1 p-1 bg-surface-container-low rounded-lg flex-wrap">
-                  {[
-                    { id: 'shorten', label: 'POST /shorten' },
-                    { id: 'bulk', label: 'POST /links/bulk' },
-                    { id: 'links', label: 'GET /links' },
-                    { id: 'audit', label: 'POST /audit' },
-                    { id: 'analytics', label: 'GET /analytics' }
-                  ].map((ep) => (
-                    <button
-                      key={ep.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedEndpoint(ep.id as any);
-                        setApiResponse(null);
-                        setResponseStatus(null);
-                        setResponseLatency(null);
-                      }}
-                      className={`px-2.5 py-1 rounded-md text-xs font-mono font-bold transition cursor-pointer ${
-                        selectedEndpoint === ep.id
-                          ? 'bg-surface-container-lowest text-primary-ink shadow-xs'
-                          : 'text-on-surface-variant hover:text-on-surface'
-                      }`}
-                    >
-                      {ep.label}
-                    </button>
+          <div className={`${canManage ? 'lg:col-span-8' : 'lg:col-span-12'} rounded-xl border-[0.5px] border-outline-variant overflow-hidden`}>
+            <div className="px-[15px] py-3 border-b-[0.5px] border-outline-variant flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-on-surface">Keys</h2>
+              <span className="text-xs text-outline">Send as <code className="text-on-surface-variant">Authorization: Bearer &lt;key&gt;</code></span>
+            </div>
+            {apiKeys.length === 0 ? (
+              <p className="py-10 px-6 text-center text-xs text-on-surface-variant">{canManage ? 'No keys yet. Create one to call the API from your own code.' : 'No keys yet. Ask an owner or admin to create one.'}</p>
+            ) : (
+              <div className="flex flex-col">
+                {apiKeys.map(k => (
+                  <div key={k.id} className="px-[15px] py-2.5 flex items-center gap-3 border-b-[0.5px] border-outline-variant last:border-b-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-medium text-on-surface truncate">{k.name}</div>
+                      <div className="text-[11px] text-outline truncate">
+                        <span className="font-mono">{k.key_prefix}…</span> · {(k.permissions || []).join(', ')}
+                      </div>
+                    </div>
+                    <div className="hidden sm:block text-right text-[11px] text-outline shrink-0">
+                      <div>Created {fmtDate(k.created_at)}</div>
+                      <div>{k.last_used ? `Used ${fmtDate(k.last_used)}` : 'Never used'}</div>
+                    </div>
+                    {canManage && (
+                      <button type="button" onClick={() => setKeyToRevoke(k)} title="Revoke key" aria-label={`Revoke ${k.name}`} className={`${iconBtn} hover:!text-error hover:!bg-error-container`}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Webhooks ── */}
+      {activeTab === 'webhooks' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px] items-start">
+          <div className="lg:col-span-4 flex flex-col gap-[15px]">
+            {canManage && (
+              <form onSubmit={handleAddWebhook} className="rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-3">
+                <h2 className="text-[14px] font-semibold text-on-surface">New webhook</h2>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-on-surface-variant">Endpoint URL</span>
+                  <input type="url" required value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://example.com/hooks/snip" className={input} />
+                </label>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] text-on-surface-variant">Events</span>
+                  {WEBHOOK_EVENTS.map(ev => checkbox(
+                    webhookEvents.includes(ev.id),
+                    () => setWebhookEvents(prev => prev.includes(ev.id) ? prev.filter(x => x !== ev.id) : [...prev, ev.id]),
+                    ev.label,
+                    ev.id
                   ))}
                 </div>
-              </div>
+                <button type="submit" disabled={savingWebhook} className={primaryBtn}>{savingWebhook ? 'Saving…' : 'Add webhook'}</button>
+              </form>
+            )}
+            <div className="rounded-xl border-[0.5px] border-outline-variant p-[15px]">
+              <h2 className="text-[14px] font-semibold text-on-surface">Verifying deliveries</h2>
+              <p className="mt-1 text-xs text-on-surface-variant">Each POST carries <code>X-Signature-SHA256</code>: the HMAC-SHA256 of the raw body with the webhook&rsquo;s secret.</p>
+              <pre className="mt-2 p-3 rounded-md bg-surface-container-low border-[0.5px] border-outline-variant text-[11px] font-mono text-on-surface overflow-x-auto leading-relaxed">{`const expected = crypto
+  .createHmac('sha256', secret)
+  .update(rawBody)
+  .digest('hex');
+const ok = crypto.timingSafeEqual(
+  Buffer.from(req.headers['x-signature-sha256']),
+  Buffer.from(expected)
+);`}</pre>
+            </div>
+          </div>
 
-              {/* Interactive Request Form (for POST /shorten) */}
-              {selectedEndpoint === 'shorten' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-3 text-xs">
-                  <div className="font-bold text-on-surface">Request Parameters:</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Destination URL</label>
-                      <input 
-                        type="url"
-                        value={customDestination}
-                        onChange={(e) => setCustomDestination(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                        placeholder="https://example.com/target"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Custom Slug (Optional)</label>
-                      <input 
-                        type="text"
-                        value={customSlug}
-                        onChange={(e) => setCustomSlug(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                        placeholder="vanity-alias"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Title (Optional)</label>
-                      <input 
-                        type="text"
-                        value={customTitle}
-                        onChange={(e) => setCustomTitle(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                        placeholder="Campaign Title"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Interactive Request Form (for POST /links/bulk) */}
-              {selectedEndpoint === 'bulk' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-3 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-on-surface">Bulk Batch Parameters:</span>
-                    <span className="text-[10px] font-mono text-primary-ink bg-primary-container/10 px-2 py-0.5 rounded font-semibold">
-                      Atomic 2-Link Test Batch
-                    </span>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-on-surface-variant mb-1">Batch Identifier</label>
-                    <input 
-                      type="text"
-                      value={bulkBatchName}
-                      onChange={(e) => setBulkBatchName(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant text-xs text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                      placeholder="e.g. Developer Bulk Import"
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant space-y-2">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Link Item #1</span>
-                      <input 
-                        type="url"
-                        value={bulkUrl1}
-                        onChange={(e) => setBulkUrl1(e.target.value)}
-                        placeholder="https://docs.github.com"
-                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
-                      />
-                      <input 
-                        type="text"
-                        value={bulkSlug1}
-                        onChange={(e) => setBulkSlug1(e.target.value)}
-                        placeholder="Custom slug (e.g. gh-docs)"
-                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
-                      />
-                    </div>
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border-[0.5px] border-outline-variant space-y-2">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Link Item #2</span>
-                      <input 
-                        type="url"
-                        value={bulkUrl2}
-                        onChange={(e) => setBulkUrl2(e.target.value)}
-                        placeholder="https://status.github.com"
-                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
-                      />
-                      <input 
-                        type="text"
-                        value={bulkSlug2}
-                        onChange={(e) => setBulkSlug2(e.target.value)}
-                        placeholder="Custom slug (e.g. gh-status)"
-                        className="w-full px-2 py-1 bg-surface-container-low rounded text-xs font-mono text-on-surface outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Interactive Request Form (for GET /links) */}
-              {selectedEndpoint === 'links' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-2 text-xs">
-                  <span className="font-bold text-on-surface">Query Parameters:</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant">
-                      <span className="block text-[11px] font-semibold text-on-surface-variant">Target Workspace</span>
-                      <span className="font-mono text-xs font-bold text-primary-ink">{currentWorkspace?.id || 'ws_default'}</span>
-                    </div>
-                    <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-outline-variant">
-                      <span className="block text-[11px] font-semibold text-on-surface-variant">Pagination Limit</span>
-                      <span className="font-mono text-xs font-bold text-on-surface">50 items per page</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Interactive Request Form (for POST /audit) */}
-              {selectedEndpoint === 'audit' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-2 text-xs">
-                  <span className="font-bold text-on-surface">Security Audit Configuration:</span>
-                  <p className="text-xs text-on-surface-variant">
-                    Dispatches synthetic HTTP head probes and heuristic threat analysis across all links in <code className="font-mono text-primary-ink font-bold">{currentWorkspace?.name || 'Current Workspace'}</code>.
-                  </p>
-                  <div className="flex items-center gap-2 pt-1 flex-wrap">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-                      ✓ TLS Handshake Check
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-800 border border-blue-200 font-bold">
-                      ✓ HTTP Response Status
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-lime-50 text-lime-800 border border-lime-200 font-bold">
-                      ✓ Phishing Heuristics
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Interactive Request Form (for GET /analytics) */}
-              {selectedEndpoint === 'analytics' && (
-                <div className="p-4 bg-surface-container-low rounded-lg mb-4 border-[0.5px] border-outline-variant space-y-2 text-xs">
-                  <span className="font-bold text-on-surface">Telemetry Parameters:</span>
-                  <p className="text-xs text-on-surface-variant">
-                    Queries raw real-time click stream, unique visitor deduplication, device breakdown, and geo-location for workspace <code className="font-mono text-primary-ink font-bold">{currentWorkspace?.id || 'ws_default'}</code>.
-                  </p>
-                </div>
-              )}
-
-              {/* Language Selection & Code Snippet */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    {(['curl', 'js', 'python'] as const).map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => setActiveLang(lang)}
-                        className={`text-xs font-bold px-3 py-1 rounded-lg transition cursor-pointer ${
-                          activeLang === lang
-                            ? 'bg-surface-container-high text-primary-ink shadow-xs'
-                            : 'text-on-surface-variant hover:text-on-surface'
-                        }`}
-                      >
-                        {lang === 'curl' ? 'cURL' : lang === 'js' ? 'Node.js / Fetch' : 'Python (requests)'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyCode}
-                    className="flex items-center gap-1 text-xs font-semibold text-on-surface-variant hover:text-on-surface cursor-pointer"
-                  >
-                    {copiedSnippet ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="text-emerald-600">Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Snippet</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="relative rounded-lg overflow-hidden bg-slate-950 p-4 border border-slate-800">
-                  <pre className="text-xs font-mono text-emerald-400 overflow-x-auto leading-relaxed">
-                    {getDynamicSnippet}
-                  </pre>
-                </div>
-
-                {/* Execution Button */}
-                <div className="pt-2 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleExecuteConsole}
-                    disabled={isExecuting}
-                    className="px-5 py-2.5 bg-primary-container hover:bg-primary text-on-primary font-bold text-xs rounded-lg shadow-md shadow-primary-container/20 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isExecuting ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Executing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        <span>Send Live Request</span>
-                      </>
-                    )}
-                  </button>
-                  <span className="text-xs text-on-surface-variant">Sends authenticated HTTP probe via local edge runtime</span>
-                </div>
-
-                {/* Live Response Viewer */}
-                {apiResponse && (
-                  <div className="mt-4 pt-4 border-t-[0.5px] border-outline-variant space-y-2 animate-fade-in">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-xs font-bold text-on-surface">Response Payload</span>
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
-                          responseStatus && responseStatus < 300 
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                            : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}>
-                          {responseStatus} {responseStatus && responseStatus < 300 ? 'OK' : 'Error'}
-                        </span>
-                        {responseLatency && (
-                          <span className="text-[11px] font-mono text-on-surface-variant">
-                            {responseLatency}ms
-                          </span>
+          <div className="lg:col-span-8 rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+            <div className="px-[15px] py-3 border-b-[0.5px] border-outline-variant">
+              <h2 className="text-[14px] font-semibold text-on-surface">Webhooks</h2>
+            </div>
+            {webhooks.length === 0 ? (
+              <p className="py-10 px-6 text-center text-xs text-on-surface-variant">No webhooks yet.</p>
+            ) : (
+              <div className="flex flex-col">
+                {webhooks.map(wh => {
+                  const hasSecret = !!wh.secret && !wh.secret.includes('•');
+                  return (
+                    <div key={wh.id} className="px-[15px] py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 border-b-[0.5px] border-outline-variant last:border-b-0">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${wh.active ? 'bg-emerald-500' : 'bg-outline'}`} title={wh.active ? 'Active' : 'Paused'} />
+                          <span className="text-xs font-medium text-on-surface truncate" title={wh.url}>{wh.url}</span>
+                        </div>
+                        <div className="text-[11px] text-outline truncate">{(wh.events || []).join(', ')}</div>
+                        {hasSecret && (
+                          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-outline">
+                            <span className="font-mono truncate">{revealed[wh.id] ? wh.secret : 'whsec_••••••••••••'}</span>
+                            <button type="button" onClick={() => setRevealed(p => ({ ...p, [wh.id]: !p[wh.id] }))} aria-label={revealed[wh.id] ? 'Hide secret' : 'Show secret'} className="p-0.5 hover:text-on-surface cursor-pointer">
+                              {revealed[wh.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                            </button>
+                            <button type="button" onClick={() => copy(wh.secret!, `sec_${wh.id}`)} aria-label="Copy secret" className="p-0.5 hover:text-on-surface cursor-pointer">
+                              {copied === `sec_${wh.id}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
                         )}
                       </div>
-                      <span className="text-[11px] font-mono text-on-surface-variant">application/json</span>
-                    </div>
-
-                    <div className="p-3.5 bg-slate-950 rounded-lg border border-slate-800 overflow-x-auto max-h-60">
-                      <pre className="text-[11px] font-mono text-slate-300">
-                        {JSON.stringify(apiResponse, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT: Quick Reference & Token Overview (5 COLS) */}
-          <div className="lg:col-span-5 space-y-6">
-            
-            {/* Quick Token Overview */}
-            <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
-              <div className="flex items-center gap-2.5 pb-3 border-b-[0.5px] border-outline-variant mb-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
-                  <Key className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-on-surface">Active Authorization Token</h3>
-                  <p className="text-xs text-on-surface-variant">Default token used for code snippets</p>
-                </div>
-              </div>
-
-              {apiKeys.length === 0 ? (
-                <div className="p-4 bg-surface-container-low rounded-lg text-center text-xs text-on-surface-variant border border-dashed border-outline-variant">
-                  <p className="font-semibold text-on-surface mb-1">No API keys registered</p>
-                  <p className="text-xs text-on-surface-variant mb-3">Generate a secret key to authenticate remote requests.</p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('keys')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-container text-on-primary rounded-lg font-bold text-xs shadow-xs cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Create Secret Key</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="p-3.5 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-on-surface">{apiKeys[0].name}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
-                      Primary
-                    </span>
-                  </div>
-                  <div className="p-2 bg-surface-container-lowest rounded-md font-mono text-[11px] text-primary-ink border-[0.5px] border-outline-variant break-all">
-                    {apiKeys[0].key_prefix}...••••••••••••
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
-                    {apiKeys[0].permissions.map((perm, idx) => (
-                      <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-container font-semibold text-on-surface-variant">
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Standard Headers Card */}
-            <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
-              <h3 className="text-sm font-bold text-on-surface mb-2 flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-primary-ink" />
-                <span>Required Request Headers</span>
-              </h3>
-              <p className="text-xs text-on-surface-variant mb-4">Include these headers on every outbound programmatic request</p>
-
-              <div className="space-y-2 text-xs font-mono">
-                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant">
-                  <span className="text-on-surface font-bold">Authorization</span>
-                  <span className="text-on-surface-variant text-[11px]">Bearer sk_live_...</span>
-                </div>
-                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant">
-                  <span className="text-on-surface font-bold">Content-Type</span>
-                  <span className="text-on-surface-variant text-[11px]">application/json</span>
-                </div>
-                <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between border border-outline-variant">
-                  <span className="text-on-surface font-bold">x-workspace-id</span>
-                  <span className="text-on-surface-variant text-[11px]">{currentWorkspace?.id || 'ws_default'}</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 2: API KEYS MANAGEMENT
-          ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'keys' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Key Generator Form (5 COLS) */}
-          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
-            <div className="flex items-center gap-2.5 pb-3 border-b-[0.5px] border-outline-variant mb-4">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
-                <Key className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-on-surface">Generate New Secret Key</h2>
-                <p className="text-xs text-on-surface-variant">Scoped access for CI/CD, backends, or third-party tools</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleCreateApiKey} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1">Key Description / Service Name</label>
-                <input
-                  type="text"
-                  required
-                  value={keyName}
-                  onChange={(e) => setKeyName(e.target.value)}
-                  placeholder="e.g. Production Webhook Runner"
-                  className="w-full h-10 px-3.5 bg-surface-container-low border-[0.5px] border-outline-variant focus:border-primary-strong focus:ring-2 focus:ring-primary-strong/20 rounded-lg text-xs text-on-surface outline-none transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1.5">Permission Scopes</label>
-                <div className="space-y-2">
-                  {[
-                    { id: 'links:create', name: 'Create Short Links', desc: 'Generate URLs & custom aliases' },
-                    { id: 'links:read', name: 'Read Links & Analytics', desc: 'Query destination URLs & telemetry' },
-                    { id: 'links:edit', name: 'Modify Short Links', desc: 'Update targets & emergency swap' },
-                    { id: 'analytics:read', name: 'Raw Click Events', desc: 'Access granular country & referrer logs' },
-                    { id: 'export:data', name: 'Bulk Data Export', desc: 'Download CSV and telemetry streams' }
-                  ].map(scope => {
-                    const isChecked = selectedScopes.includes(scope.id);
-                    return (
-                      <label 
-                        key={scope.id} 
-                        onClick={() => handleToggleScope(scope.id)}
-                        className={`flex items-start gap-2.5 p-2.5 rounded-lg border transition-all cursor-pointer ${
-                          isChecked 
-                            ? 'bg-primary-container/5 border-primary-strong/40' 
-                            : 'bg-surface-container-low border-outline-variant hover:bg-surface-container'
-                        }`}
-                      >
-                        <input 
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}} 
-                          className="mt-0.5 accent-primary-strong cursor-pointer"
-                        />
-                        <div>
-                          <span className="font-bold text-on-surface block">{scope.name}</span>
-                          <span className="text-[11px] text-on-surface-variant font-mono">{scope.id} • {scope.desc}</span>
+                      {canManage && (
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button type="button" onClick={() => handleTestWebhook(wh)} disabled={testingWebhookId === wh.id} title="Send test" aria-label="Send test" className={iconBtn}>
+                            <Send className={`w-3.5 h-3.5 ${testingWebhookId === wh.id ? 'animate-pulse' : ''}`} />
+                          </button>
+                          <button type="button" onClick={() => toggleWebhook(wh.id)} title={wh.active ? 'Pause' : 'Resume'} aria-label={wh.active ? 'Pause' : 'Resume'} className={iconBtn}>
+                            {wh.active ? <PauseCircle className="w-3.5 h-3.5" /> : <PlayCircle className="w-3.5 h-3.5" />}
+                          </button>
+                          <button type="button" onClick={() => deleteWebhook(wh.id)} title="Delete webhook" aria-label="Delete webhook" className={`${iconBtn} hover:!text-error hover:!bg-error-container`}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      </label>
-                    );
-                  })}
-                </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-
-              <button
-                type="submit"
-                className="w-full h-10 bg-primary-container hover:bg-primary text-on-primary font-bold text-xs rounded-lg transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Scoped Key</span>
-              </button>
-            </form>
+            )}
           </div>
-
-          {/* Active Keys Table (7 COLS) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
-            <div className="flex items-center justify-between pb-3 border-b-[0.5px] border-outline-variant mb-4">
-              <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
-                <Key className="w-4 h-4 text-primary-ink" />
-                <span>Active Workspace Keys ({apiKeys.length})</span>
-              </h2>
-              <span className="text-xs text-on-surface-variant">Hashed with SHA-256</span>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              {apiKeys.length === 0 ? (
-                <div className="py-12 text-center text-on-surface-variant">
-                  <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-outline mx-auto mb-2">
-                    <Key className="w-5 h-5" />
-                  </div>
-                  <p className="font-bold text-sm text-on-surface">No API Keys Generated</p>
-                  <p className="text-xs text-on-surface-variant max-w-sm mx-auto mt-1">
-                    Generate an API key above to automate link creation from your backends, Discord bots, or CLI pipelines.
-                  </p>
-                </div>
-              ) : (
-                apiKeys.map((k) => (
-                  <div
-                    key={k.id}
-                    className="p-4 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-on-surface text-sm">{k.name}</span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">
-                          {k.created_at ? new Date(k.created_at).toLocaleDateString() : 'Active'}
-                        </span>
-                      </div>
-                      <div className="font-mono text-xs text-primary-ink mt-1 font-semibold">
-                        {k.key_prefix}...••••••••••••
-                      </div>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                        {k.permissions.map((p, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-container-high text-on-surface-variant font-medium">
-                            {p}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (checkPermissionOrToast('api_keys:manage', 'revoke API keys')) {
-                            deleteApiKey(k.id);
-                            showToast(`Revoked key: ${k.name}`);
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 rounded-lg transition cursor-pointer border border-red-200"
-                        title="Revoke Key"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Revoke</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 3: WEBHOOKS MANAGEMENT
-          ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'webhooks' && (
-        <div className="space-y-6">
-          
-          <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-[0.5px] border-outline-variant mb-5">
-              <div>
-                <h2 className="text-base font-bold text-on-surface flex items-center gap-2">
-                  <WebhookIcon className="w-4 h-4 text-emerald-600" />
-                  <span>Configured Webhook Subscriptions ({webhooks.length})</span>
-                </h2>
-                <p className="text-xs text-on-surface-variant mt-0.5">
-                  Real-time HTTP POST event dispatching with HMAC-SHA256 signatures for telemetry, link creations, and threat quarantine.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setWebhookModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-container hover:bg-primary text-on-primary font-bold text-xs rounded-lg shadow-xs transition cursor-pointer self-start sm:self-auto shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Register Webhook</span>
-              </button>
+      {/* ── Try it ── */}
+      {activeTab === 'console' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px] items-start">
+          <div className="lg:col-span-7 rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-3">
+            <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs self-start max-w-full overflow-x-auto" role="tablist" aria-label="Endpoint">
+              {ENDPOINTS.map(ep => (
+                <button key={ep.id} type="button" role="tab" aria-selected={endpoint === ep.id} onClick={() => { setEndpoint(ep.id); setResponse(null); }} className={segmented(endpoint === ep.id)}>
+                  {ep.label}
+                </button>
+              ))}
             </div>
-
-            {/* Webhook List */}
-            <div className="space-y-3 text-xs">
-              {webhooks.length === 0 ? (
-                <div className="py-12 text-center text-on-surface-variant">
-                  <div className="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-outline mx-auto mb-2">
-                    <WebhookIcon className="w-5 h-5" />
-                  </div>
-                  <p className="font-bold text-sm text-on-surface">No Webhooks Registered</p>
-                  <p className="text-xs text-on-surface-variant max-w-sm mx-auto mt-1 mb-4">
-                    Receive instant real-time HTTP callbacks to Slack, Discord, Zapier, or your own backend API whenever events occur.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setWebhookModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-primary-container text-on-primary text-xs font-bold rounded-lg shadow-xs cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Webhook Endpoint</span>
-                  </button>
-                </div>
-              ) : (
-                webhooks.map((wh) => (
-                  <div
-                    key={wh.id}
-                    className="p-4 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant flex flex-col md:flex-row md:items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1.5 max-w-xl">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-bold border ${
-                          wh.active 
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                            : 'bg-surface-container text-on-surface-variant border-outline-variant'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${wh.active ? 'bg-emerald-600' : 'bg-outline'}`} />
-                          <span>{wh.active ? 'Streaming' : 'Paused'}</span>
-                        </span>
-                        <span className="font-mono text-xs font-bold text-on-surface break-all">{wh.url}</span>
-                      </div>
-
-                      {/* Subscribed events */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {wh.events.map((ev, idx) => (
-                          <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-container font-semibold text-primary-ink">
-                            {ev}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Signing Secret */}
-                      <div className="flex items-center gap-2 text-[11px] text-on-surface-variant font-mono pt-1">
-                        <span>Secret:</span>
-                        <span className="bg-surface-container-lowest px-2 py-0.5 rounded border-[0.5px] border-outline-variant select-all">
-                          {revealedSecrets[wh.id] ? wh.secret : `${wh.secret.substring(0, 10)}••••••••••••`}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setRevealedSecrets(prev => ({ ...prev, [wh.id]: !prev[wh.id] }))}
-                          className="p-1 text-on-surface-variant hover:text-on-surface transition cursor-pointer"
-                          title={revealedSecrets[wh.id] ? 'Hide secret' : 'Reveal secret'}
-                        >
-                          {revealedSecrets[wh.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(wh.secret);
-                            setCopiedWhId(wh.id);
-                            showToast('Webhook secret copied.');
-                            setTimeout(() => setCopiedWhId(null), 2000);
-                          }}
-                          className="p-1 text-on-surface-variant hover:text-on-surface transition cursor-pointer"
-                          title="Copy secret"
-                        >
-                          {copiedWhId === wh.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 self-start md:self-auto shrink-0 flex-wrap">
-                      <button
-                        type="button"
-                        disabled={testingWebhookId === wh.id}
-                        onClick={() => handleTestWebhookPing(wh.id, wh.url, wh.secret)}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-semibold text-xs border-[0.5px] border-outline-variant hover:bg-surface-container transition cursor-pointer disabled:opacity-50"
-                      >
-                        <Send className={`w-3.5 h-3.5 text-primary-ink ${testingWebhookId === wh.id ? 'animate-pulse' : ''}`} />
-                        <span>{testingWebhookId === wh.id ? 'Pinging...' : 'Send Test Ping'}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await toggleWebhook(wh.id);
-                          showToast(`Webhook ${wh.active ? 'paused' : 'resumed'}.`);
-                        }}
-                        className="p-2 rounded-lg bg-surface-container-lowest text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition cursor-pointer border border-outline-variant"
-                        title={wh.active ? 'Pause webhook delivery' : 'Resume webhook delivery'}
-                      >
-                        {wh.active ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4 text-emerald-600" />}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (checkPermissionOrToast('api_keys:manage', 'delete webhooks')) {
-                            deleteWebhook(wh.id);
-                            showToast('Webhook deleted.');
-                          }
-                        }}
-                        className="p-2 rounded-lg text-red-600 hover:bg-red-50 transition cursor-pointer border border-red-200"
-                        title="Delete Webhook"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Webhook Signature Verification Guide */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 border-[0.5px] border-outline-variant shadow-xs">
-            <h3 className="text-sm font-bold text-on-surface mb-2 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary-ink" />
-              <span>Verifying Webhook Signatures (HMAC-SHA256)</span>
-            </h3>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Every webhook delivery includes a <code className="font-mono text-primary-ink">x-tinyurl-signature</code> header computed over the raw request payload using your webhook signing secret.
+            <p className="text-xs text-on-surface-variant">
+              <span className="font-mono text-on-surface">{spec.method} {spec.path}</span> · {spec.desc}
             </p>
 
-            <div className="p-3.5 bg-slate-950 rounded-lg border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto leading-relaxed">
-{`const crypto = require('crypto');
+            {endpoint === 'shorten' && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="flex flex-col gap-1 sm:col-span-3">
+                  <span className="text-[11px] text-on-surface-variant">Destination URL</span>
+                  <input type="url" value={destination} onChange={(e) => setDestination(e.target.value)} className={input} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-[11px] text-on-surface-variant">Slug <span className="text-outline">(optional)</span></span>
+                  <input type="text" value={slug} onChange={(e) => setSlug(e.target.value)} className={input} />
+                </label>
+                <label className="flex flex-col gap-1 sm:col-span-2">
+                  <span className="text-[11px] text-on-surface-variant">Title <span className="text-outline">(optional)</span></span>
+                  <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className={input} />
+                </label>
+              </div>
+            )}
+            {endpoint === 'bulk' && (
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] text-on-surface-variant">URLs, one per line</span>
+                <textarea rows={4} value={bulkUrls} onChange={(e) => setBulkUrls(e.target.value)} className="px-3 py-2 bg-surface-container-low rounded-md text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:border-on-surface-variant font-mono" />
+              </label>
+            )}
+            {endpoint === 'audit' && <p className="text-[11px] text-amber-700">Running this scans your links for real and updates their flags.</p>}
 
-function verifyWebhook(payload, signatureHeader, secret) {
-  const expectedSignature = crypto
-    .createHmac('sha256', secret)
-    .update(payload)
-    .digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(signatureHeader),
-    Buffer.from(expectedSignature)
-  );
-}`}
+            <div className="flex items-center justify-between gap-2">
+              <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs" role="tablist" aria-label="Language">
+                {([['curl', 'cURL'], ['js', 'JavaScript'], ['python', 'Python']] as const).map(([id, label]) => (
+                  <button key={id} type="button" role="tab" aria-selected={lang === id} onClick={() => setLang(id)} className={segmented(lang === id)}>{label}</button>
+                ))}
+              </div>
+              <button type="button" onClick={() => copy(snippet, 'snippet')} title="Copy code" aria-label="Copy code" className={iconBtn}>
+                {copied === 'snippet' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+            <pre className="p-3 rounded-md bg-surface-container-low border-[0.5px] border-outline-variant text-[11px] font-mono text-on-surface overflow-x-auto leading-relaxed">{snippet}</pre>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-outline">Run sends it as you (signed in). Replace YOUR_API_KEY to call it from code.</span>
+              <button type="button" onClick={runRequest} disabled={running || !wsId} className={primaryBtn}>
+                <Play className="w-3.5 h-3.5" />
+                <span>{running ? 'Running…' : 'Run'}</span>
+              </button>
             </div>
           </div>
 
+          <div className="lg:col-span-5 rounded-xl border-[0.5px] border-outline-variant p-[15px] flex flex-col gap-2 min-w-0">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[14px] font-semibold text-on-surface">Response</h2>
+              {response && (
+                <span className={`text-[11px] font-mono ${response.status >= 200 && response.status < 300 ? 'text-emerald-700' : 'text-error'}`}>
+                  {response.status || 'ERR'} · {response.ms} ms
+                </span>
+              )}
+            </div>
+            <pre className="p-3 rounded-md bg-surface-container-low border-[0.5px] border-outline-variant text-[11px] font-mono text-on-surface overflow-auto max-h-[420px] leading-relaxed min-h-[120px]">
+              {response ? JSON.stringify(response.body, null, 2) : 'Run a request to see the response.'}
+            </pre>
+          </div>
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          TAB 4: REST ENDPOINT REFERENCE
-          ───────────────────────────────────────────────────────────── */}
+      {/* ── Reference ── */}
       {activeTab === 'reference' && (
-        <div className="space-y-4 text-xs">
-          {[
-            {
-              method: 'POST',
-              path: '/api/v1/shorten',
-              title: 'Shorten Destination URL',
-              desc: 'Generates a collision-free short URL with optional custom slug, domain, and UTM tags.',
-              body: `{
-  "destination_url": "https://example.com/summer-sale",
-  "custom_slug": "summer26",
-  "title": "Summer Campaign"
-}`
-            },
-            {
-              method: 'POST',
-              path: '/api/v1/links/bulk',
-              title: 'Batch Link Generation',
-              desc: 'Accepts an array of up to 1,000 links in a single atomic batch request with collision checks.',
-              body: `{
-  "links": [
-    { "destination_url": "https://sample.com/1", "title": "Link 1" },
-    { "destination_url": "https://sample.com/2", "custom_slug": "slug2" }
-  ]
-}`
-            },
-            {
-              method: 'GET',
-              path: '/api/v1/links',
-              title: 'List Workspace Links',
-              desc: 'Returns paginated links, custom vanity aliases, click counts, tags, and status.',
-              body: `// Query Parameters: ?workspace_id=ws_...&page=1&limit=50`
-            },
-            {
-              method: 'POST',
-              path: '/api/v1/security/audit',
-              title: 'Destination Security Audit',
-              desc: 'Dispatches synthetic head probes to verify destination HTTP response codes, TLS handshakes, and phishing heuristics.',
-              body: `{
-  "workspace_id": "ws_...",
-  "link_ids": ["link_1", "link_2"]
-}`
-            },
-            {
-              method: 'GET',
-              path: '/api/v1/analytics',
-              title: 'Workspace Telemetry & Clicks',
-              desc: 'Aggregates click volume, top referring platforms, countries, and device breakdowns.',
-              body: `// Query Parameters: ?workspace_id=ws_...&range=7d`
-            }
-          ].map((endpoint, i) => (
-            <div key={i} className="p-5 bg-surface-container-lowest rounded-xl border-[0.5px] border-outline-variant shadow-xs space-y-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
-                    endpoint.method === 'POST' 
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  }`}>
-                    {endpoint.method}
-                  </span>
-                  <span className="font-mono font-bold text-sm text-on-surface">{endpoint.path}</span>
-                </div>
-                <span className="text-on-surface-variant font-semibold">{endpoint.title}</span>
-              </div>
-              <p className="text-on-surface-variant">{endpoint.desc}</p>
-              <div className="p-3 bg-slate-950 rounded-lg font-mono text-[11px] text-slate-300 overflow-x-auto border border-slate-800">
-                <pre>{endpoint.body}</pre>
-              </div>
-            </div>
-          ))}
+        <div className="rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
+          <div className="px-[15px] py-3 border-b-[0.5px] border-outline-variant text-xs text-on-surface-variant">
+            All requests: <code className="text-on-surface">Authorization: Bearer &lt;key&gt;</code> and a <code className="text-on-surface">workspace_id</code> (query for GET, body for POST). Keys only work in the workspace they were created in.
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[560px]">
+              <thead>
+                <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
+                  <th className="py-2.5 px-[15px] font-medium">Endpoint</th>
+                  <th className="py-2.5 px-3 font-medium">Scope</th>
+                  <th className="py-2.5 px-[15px] font-medium">What it does</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ENDPOINTS.map(ep => (
+                  <tr key={ep.id} className="border-b-[0.5px] border-outline-variant last:border-b-0">
+                    <td className="py-2.5 px-[15px] font-mono whitespace-nowrap"><span className="text-primary-ink">{ep.method}</span> {ep.path}</td>
+                    <td className="py-2.5 px-3 font-mono text-on-surface-variant whitespace-nowrap">{ep.scope}</td>
+                    <td className="py-2.5 px-[15px] text-on-surface-variant">{ep.desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          MODAL: ONE-TIME SECRET KEY REVEAL
-          ───────────────────────────────────────────────────────────── */}
-      {keyModalOpen && createdKey && typeof document !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setKeyModalOpen(false);
-          }}
-        >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setKeyModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-2 text-amber-700">
-              <AlertCircle className="w-5 h-5" />
-              <h3 className="text-base font-bold text-on-surface">Secret API Key Created</h3>
-            </div>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Please copy your secret key right now. For security purposes, this token will <strong>never be shown again</strong>.
-            </p>
-
-            <div className="p-3 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant space-y-2 mb-4">
-              <div className="font-mono text-xs text-primary-ink font-bold break-all select-all">
-                {createdKey}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-3 pt-2 border-t border-outline-variant">
-              <span className="text-[11px] text-on-surface-variant">Store securely in your environment variables.</span>
-              <button
-                type="button"
-                onClick={handleCopyNewKey}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-container hover:bg-primary text-on-primary font-bold text-xs rounded-lg shadow-xs transition cursor-pointer"
-              >
-                {copiedKey ? <Check className="w-4 h-4 text-emerald-300" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedKey ? 'Copied Token!' : 'Copy Secret Key'}</span>
+      {/* New key: shown once */}
+      {createdKey && createPortal(
+        <div className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-6 shadow-2xl border-[0.5px] border-outline-variant">
+            <h3 className="text-base font-semibold text-on-surface">Copy your key</h3>
+            <p className="mt-1 text-xs text-on-surface-variant">This is the only time it&rsquo;s shown. Store it somewhere safe, like an environment variable.</p>
+            <div className="mt-4 flex items-center gap-2">
+              <code className="flex-1 min-w-0 h-[34px] px-3 flex items-center rounded-md bg-surface-container-low border-[0.5px] border-outline-variant text-xs font-mono text-on-surface overflow-x-auto whitespace-nowrap">{createdKey.full_key}</code>
+              <button type="button" onClick={() => copy(createdKey.full_key, 'newkey')} className="h-[34px] px-3 rounded-md border-[0.5px] border-outline-variant text-xs hover:bg-surface-container cursor-pointer inline-flex items-center gap-1.5 shrink-0">
+                {copied === 'newkey' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied === 'newkey' ? 'Copied' : 'Copy'}
               </button>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ─────────────────────────────────────────────────────────────
-          MODAL: REGISTER WEBHOOK
-          ───────────────────────────────────────────────────────────── */}
-      {webhookModalOpen && typeof document !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setWebhookModalOpen(false);
-          }}
-        >
-          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in">
-            <button
-              type="button"
-              onClick={() => setWebhookModalOpen(false)}
-              className="absolute top-4 right-4 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container transition cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-1">
-              <WebhookIcon className="w-5 h-5 text-emerald-600" />
-              <h3 className="text-base font-bold text-on-surface">Register Webhook Endpoint</h3>
+            <div className="mt-5 flex justify-end">
+              <button type="button" onClick={() => setCreatedKey(null)} className={primaryBtn}>Done</button>
             </div>
-            <p className="text-xs text-on-surface-variant mb-4">
-              Receive real-time HTTP callbacks when events occur in this workspace.
-            </p>
-
-            <form onSubmit={handleRegisterWebhook} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1">Target Endpoint URL</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://api.yourdomain.com/webhooks/tinyurl"
-                  value={webhookUrl}
-                  onChange={(e) => setWebhookUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant text-xs font-mono text-on-surface outline-none focus:ring-2 focus:ring-primary-strong"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-on-surface mb-1.5">Event Subscriptions</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    { id: 'link.created', label: 'link.created', desc: 'When a new link is registered' },
-                    { id: 'link.clicked', label: 'link.clicked', desc: 'When a link is visited' },
-                    { id: 'link.flagged', label: 'link.flagged', desc: 'When a threat is quarantined' },
-                    { id: 'security.alert', label: 'security.alert', desc: 'When destination returns 404/500' }
-                  ].map(ev => {
-                    const isChecked = webhookEvents.includes(ev.id);
-                    return (
-                      <label
-                        key={ev.id}
-                        onClick={() => handleToggleEvent(ev.id)}
-                        className={`flex items-start gap-2 p-2.5 rounded-lg border transition cursor-pointer ${
-                          isChecked 
-                            ? 'bg-primary-container/5 border-primary-strong/40' 
-                            : 'bg-surface-container-low border-outline-variant hover:bg-surface-container'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="mt-0.5 accent-primary-strong cursor-pointer"
-                        />
-                        <div>
-                          <span className="font-mono font-bold text-on-surface block text-[11px]">{ev.label}</span>
-                          <span className="text-[10px] text-on-surface-variant">{ev.desc}</span>
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t-[0.5px] border-outline-variant mt-4">
-                <button
-                  type="button"
-                  onClick={() => setWebhookModalOpen(false)}
-                  className="px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low font-semibold cursor-pointer text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
-                >
-                  Register Webhook
-                </button>
-              </div>
-            </form>
           </div>
         </div>,
         document.body
       )}
 
-      {/* ─────────────────────────────────────────────────────────────
-          TOAST FEEDBACK
-          ───────────────────────────────────────────────────────────── */}
-      {toastMessage && typeof document !== 'undefined' && createPortal(
-        <div className="fixed bottom-6 right-6 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-200 z-[100] animate-fade-in border-[0.5px] border-outline-variant text-xs font-medium">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>{toastMessage}</span>
+      {/* Revoke confirmation */}
+      {keyToRevoke && createPortal(
+        <div className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in" onClick={(e) => { if (e.target === e.currentTarget) setKeyToRevoke(null); }}>
+          <div className="bg-surface-container-lowest rounded-xl max-w-sm w-full p-6 shadow-2xl border-[0.5px] border-outline-variant">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-on-surface">Revoke &ldquo;{keyToRevoke.name}&rdquo;?</h3>
+              <button type="button" onClick={() => setKeyToRevoke(null)} aria-label="Close" className={iconBtn}><X className="w-4 h-4" /></button>
+            </div>
+            <p className="mt-1 text-xs text-on-surface-variant">Anything using this key stops working right away.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setKeyToRevoke(null)} className="h-[34px] px-4 rounded-md text-xs text-on-surface-variant hover:bg-surface-container-low cursor-pointer">Cancel</button>
+              <button type="button" onClick={() => { deleteApiKey(keyToRevoke.id); setKeyToRevoke(null); }} className="h-[34px] px-4 rounded-md bg-error text-on-error text-xs font-medium hover:opacity-90 cursor-pointer">Revoke</button>
+            </div>
+          </div>
         </div>,
         document.body
       )}
-
     </div>
   );
 };

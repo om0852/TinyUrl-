@@ -155,9 +155,9 @@ interface StoreContextType {
   updateClient: (id: string, updates: Partial<ClientPortalAccount> & { password?: string }) => Promise<{ success: boolean; error?: string }>;
   deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
 
-  addApiKey: (name: string, permissions: string[]) => ApiKey;
+  addApiKey: (name: string, permissions: string[]) => Promise<ApiKey | null>;
   deleteApiKey: (id: string) => void;
-  addWebhook: (url: string, events: string[]) => Webhook;
+  addWebhook: (url: string, events: string[]) => Promise<Webhook | null>;
   deleteWebhook: (id: string) => void;
   toggleWebhook: (id: string) => Promise<boolean>;
   
@@ -2192,44 +2192,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return true;
   };
 
-  const addApiKey = (name: string, permissions: string[]) => {
+  // The secret key and the webhook signing secret are created on the server and shown once.
+  // Both used to be generated in the browser and never stored, so the key on screen never
+  // authenticated and the secret never matched the signatures.
+  const addApiKey = async (name: string, permissions: string[]): Promise<ApiKey | null> => {
     if (!checkPermissionOrToast('api_keys:manage', 'generate API keys')) {
-      return {} as ApiKey;
+      return null;
     }
-
-    const prefix = `sk_live_${Math.random().toString(36).substring(2, 6)}`;
-    const fullKey = `${prefix}_${Math.random().toString(36).substring(2, 18)}${Math.random().toString(36).substring(2, 18)}`;
-    const newKey: ApiKey = {
-      id: generateId('key'),
-      workspace_id: currentWorkspace?.id || 'ws_default',
-      name,
-      key_prefix: prefix,
-      full_key: fullKey,
-      permissions,
-      created_at: new Date().toISOString()
-    };
-    saveApiKeysState([newKey, ...apiKeys]);
-
-    if (typeof window !== 'undefined') {
-      apiFetch('/api/v1/api-keys', {
+    try {
+      const res = await apiFetch('/api/v1/api-keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          workspace_id: currentWorkspace?.id || 'ws_default',
-          permissions
-        })
-      })
-      .then(r => r.json())
-      .then(d => {
-        if (d?.success && d.key) {
-          setApiKeys(prev => prev.map(k => k.id === newKey.id ? { ...k, id: d.key.id, key_prefix: d.key.key_prefix } : k));
-        }
-      })
-      .catch(err => console.warn('Failed to save API key on server:', err));
+        body: JSON.stringify({ name, workspace_id: currentWorkspace.id, permissions })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success || !data.key) {
+        showToast('error', 'Key not created', data?.error || `Server responded with ${res.status}.`);
+        return null;
+      }
+      const created: ApiKey = { ...data.key, full_key: data.full_key || data.key.full_key };
+      // Keep only the masked form in state; the full key is returned once to the caller
+      saveApiKeysState([{ ...created, full_key: `${created.key_prefix}...••••••••` }, ...apiKeys]);
+      invalidateStoreCache('settings');
+      return created;
+    } catch {
+      showToast('error', 'Key not created', 'Network error. Please try again.');
+      return null;
     }
-
-    return newKey;
   };
 
   const deleteApiKey = (id: string) => {
@@ -2237,49 +2226,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
-    const updated = apiKeys.filter(k => k.id !== id);
-    saveApiKeysState(updated);
+    const before = apiKeys;
+    saveApiKeysState(apiKeys.filter(k => k.id !== id));
     if (typeof window !== 'undefined') {
-      apiFetch(`/api/v1/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      confirmCampaignWrite(apiFetch(`/api/v1/api-keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' })).then(error => {
+        if (!error) { invalidateStoreCache('settings'); return; }
+        setApiKeys(before);
+        showToast('error', 'Key not revoked', error);
+      });
     }
   };
 
-  const addWebhook = (url: string, events: string[]) => {
+  const addWebhook = async (url: string, events: string[]): Promise<Webhook | null> => {
     if (!checkPermissionOrToast('api_keys:manage', 'configure webhooks')) {
-      return {} as Webhook;
+      return null;
     }
-
-    const newWh: Webhook = {
-      id: generateId('wh'),
-      workspace_id: currentWorkspace?.id || 'ws_default',
-      url,
-      events,
-      secret: `whsec_${Math.random().toString(36).substring(2, 20)}`,
-      active: true,
-      created_at: new Date().toISOString()
-    };
-    saveWebhooksState([newWh, ...webhooks]);
-
-    if (typeof window !== 'undefined') {
-      apiFetch('/api/v1/webhooks', {
+    try {
+      const res = await apiFetch('/api/v1/webhooks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          events,
-          workspace_id: currentWorkspace?.id || 'ws_default'
-        })
-      })
-      .then(r => r.json())
-      .then(d => {
-        if (d?.success && d.webhook) {
-          setWebhooks(prev => prev.map(w => w.id === newWh.id ? { ...w, id: d.webhook.id } : w));
-        }
-      })
-      .catch(err => console.warn('Failed to save webhook on server:', err));
+        body: JSON.stringify({ url, events, workspace_id: currentWorkspace.id })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success || !data.webhook) {
+        showToast('error', 'Webhook not saved', data?.error || `Server responded with ${res.status}.`);
+        return null;
+      }
+      const created = data.webhook as Webhook;
+      saveWebhooksState([created, ...webhooks]);
+      invalidateStoreCache('settings');
+      return created;
+    } catch {
+      showToast('error', 'Webhook not saved', 'Network error. Please try again.');
+      return null;
     }
-
-    return newWh;
   };
 
   const deleteWebhook = (id: string) => {
@@ -2287,10 +2267,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
-    const updated = webhooks.filter(w => w.id !== id);
-    saveWebhooksState(updated);
+    const before = webhooks;
+    saveWebhooksState(webhooks.filter(w => w.id !== id));
     if (typeof window !== 'undefined') {
-      apiFetch(`/api/v1/webhooks?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      confirmCampaignWrite(apiFetch(`/api/v1/webhooks?id=${encodeURIComponent(id)}`, { method: 'DELETE' })).then(error => {
+        if (!error) { invalidateStoreCache('settings'); return; }
+        setWebhooks(before);
+        showToast('error', 'Webhook not deleted', error);
+      });
     }
   };
 
@@ -2302,22 +2286,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const target = webhooks.find(w => w.id === id);
     if (!target) return false;
 
+    const before = webhooks;
     const nextActive = !target.active;
-    const updated = webhooks.map(w => w.id === id ? { ...w, active: nextActive } : w);
-    saveWebhooksState(updated);
-
-    if (typeof window !== 'undefined') {
-      try {
-        await apiFetch('/api/v1/webhooks', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, is_active: nextActive })
-        });
-        return true;
-      } catch (err) {
-        console.warn('Failed to toggle webhook on server:', err);
-      }
+    saveWebhooksState(webhooks.map(w => w.id === id ? { ...w, active: nextActive } : w));
+    const error = await confirmCampaignWrite(apiFetch('/api/v1/webhooks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_active: nextActive })
+    }));
+    if (error) {
+      setWebhooks(before);
+      showToast('error', 'Webhook not updated', error);
+      return false;
     }
+    invalidateStoreCache('settings');
     return true;
   };
 

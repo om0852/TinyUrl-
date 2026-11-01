@@ -3,6 +3,22 @@ import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { ApiKey } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { hasPermission, Permission } from '@/lib/rbac';
+
+// Scopes a key can carry. links:read / links:write are older aliases serverAuth still accepts
+// (read = export:data, write = any links:* action). Wildcards like "*" or "admin" are not
+// accepted: they let an admin mint a key with owner-only powers such as settings:manage.
+const KEY_SCOPES: Record<string, Permission> = {
+  'links:create': 'links:create',
+  'links:edit': 'links:edit',
+  'links:delete': 'links:delete',
+  'links:read': 'export:data',
+  // links:write also covers deleting (serverAuth treats it as every links:* action)
+  'links:write': 'links:delete',
+  'campaigns:create': 'campaigns:create',
+  'analytics:read': 'analytics:read',
+  'export:data': 'export:data'
+};
 
 interface RawApiKeyRow {
   id: string;
@@ -51,8 +67,8 @@ export async function GET(request: Request) {
       full_key: `${r.key_prefix}...••••••••`,
       created_at: r.created_at || new Date().toISOString(),
       last_used: r.last_used || undefined,
-      permissions: typeof r.permissions === 'string' 
-        ? JSON.parse(r.permissions) 
+      permissions: typeof r.permissions === 'string'
+        ? JSON.parse(r.permissions)
         : (Array.isArray(r.permissions) ? r.permissions : ['links:read', 'links:write'])
     }));
 
@@ -76,14 +92,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Key name is required.' }, { status: 400 });
     }
 
-    const wsId = workspace_id || 'ws_default';
+    if (!workspace_id || typeof workspace_id !== 'string') {
+      return NextResponse.json({ success: false, error: 'workspace_id is required.' }, { status: 400 });
+    }
 
     // RBAC: Requires api_keys:manage permission (owner, admin only)
     const authResult = await verifyWorkspacePermission(request, 'api_keys:manage', {
-      workspaceId: wsId
+      workspaceId: workspace_id.trim()
     });
     if (!authResult.success) {
       return authResult.response;
+    }
+    const wsId = authResult.context.workspaceId;
+
+    const requested: string[] = Array.isArray(permissions) ? permissions.map(String) : ['links:read', 'links:write', 'analytics:read'];
+    const unknown = requested.filter(p => !KEY_SCOPES[p]);
+    if (unknown.length > 0) {
+      return NextResponse.json({ success: false, error: `Unknown scope: ${unknown.join(', ')}. Allowed: ${Object.keys(KEY_SCOPES).join(', ')}.` }, { status: 400 });
+    }
+    // A key can't do more than the person creating it
+    const beyondRole = requested.filter(p => !hasPermission(authResult.context.role, KEY_SCOPES[p]));
+    if (beyondRole.length > 0) {
+      return NextResponse.json({ success: false, error: `Your role can't grant: ${beyondRole.join(', ')}.` }, { status: 403 });
+    }
+    if (requested.length === 0) {
+      return NextResponse.json({ success: false, error: 'Choose at least one scope.' }, { status: 400 });
     }
 
     const secretRandom = crypto.randomBytes(24).toString('hex');
@@ -91,18 +124,18 @@ export async function POST(request: Request) {
     const keyPrefix = fullKey.substring(0, 15);
     const keyHash = crypto.createHash('sha256').update(fullKey).digest('hex');
     const keyId = `key_${crypto.randomUUID()}`;
-    const perms = Array.isArray(permissions) ? permissions : ['links:read', 'links:write', 'analytics:read'];
+    const perms = [...new Set(requested)];
 
     await sql.query(
       `INSERT INTO api_keys (id, workspace_id, name, key_prefix, key_hash, permissions, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-      [keyId, wsId, name.trim(), keyPrefix, keyHash, JSON.stringify(perms)]
+      [keyId, wsId, name.trim().slice(0, 100), keyPrefix, keyHash, JSON.stringify(perms)]
     );
 
     const newKey: ApiKey = {
       id: keyId,
       workspace_id: wsId,
-      name: name.trim(),
+      name: name.trim().slice(0, 100),
       key_prefix: keyPrefix,
       full_key: fullKey,
       created_at: new Date().toISOString(),
@@ -141,14 +174,17 @@ export async function DELETE(request: Request) {
     }
 
     const rows = (await sql.query(
-      `DELETE FROM api_keys WHERE id = $1 RETURNING *`,
-      [cleanId]
+      `DELETE FROM api_keys WHERE id = $1 AND workspace_id = $2 RETURNING id, name, key_prefix`,
+      [cleanId, authResult.context.workspaceId]
     )) as unknown as RawApiKeyRow[];
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'API key not found.' }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
       message: 'API Key revoked successfully.',
-      deleted: rows && rows.length > 0 ? rows[0] : null
+      deleted: rows[0]
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Database error';
