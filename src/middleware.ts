@@ -3,7 +3,7 @@ import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { Link, LinkRule } from '@/lib/types';
 import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
-import { cleanHost, isPlatformHost } from '@/lib/domainHelper';
+import { cleanHost, isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
 
 // Prefixes that belong exclusively to the main platform and must NEVER be served on custom domains
 const PLATFORM_EXCLUSIVE_PREFIXES = [
@@ -21,11 +21,7 @@ const PLATFORM_EXCLUSIVE_PREFIXES = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const rawHost = request.headers.get('x-forwarded-host') ||
-                  request.headers.get('x-original-host') ||
-                  request.headers.get('host') ||
-                  request.nextUrl.host || '';
-  const currentHost = cleanHost(rawHost);
+  const currentHost = resolveRequestHost(name => request.headers.get(name)) || cleanHost(request.nextUrl.host);
   const isPlatform = isPlatformHost(currentHost);
 
   // 1. Static Assets & Framework Files (always pass through)

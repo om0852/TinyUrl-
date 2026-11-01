@@ -6,6 +6,8 @@
  * and customer custom domains.
  */
 
+import { isTrustedEdgeProxyRequest } from './geo';
+
 export function cleanHost(rawHost: string | null | undefined): string {
   if (!rawHost) return '';
   return rawHost
@@ -32,6 +34,8 @@ export function isPlatformHost(host: string | null | undefined): boolean {
     '0.0.0.0',
     'tinyurl.dev',
     'creataurus.work.gd',
+    // The product domain (Cloudflare -> Caddy -> Vercel); always the platform, never a custom domain
+    'link.grabormiss.com',
   ];
 
   const cnameTarget = cleanHost(process.env.CUSTOM_DOMAIN_CNAME_TARGET || process.env.NEXT_PUBLIC_CNAME_TARGET);
@@ -65,4 +69,16 @@ export function isPlatformHost(host: string | null | undefined): boolean {
   if (cleaned.includes('localhost')) return true;
 
   return false;
+}
+
+/**
+ * The hostname the visitor actually requested.
+ * Caddy forwards custom domains to Vercel with Host set to the Vercel app and the real domain in
+ * X-Original-Host, so x-forwarded-host is the Vercel app for every custom domain. X-Original-Host is
+ * only believed when the request carries the edge proxy secret; anyone can send that header directly.
+ */
+export function resolveRequestHost(getHeader: (name: string) => string | null | undefined): string {
+  const original = getHeader('x-original-host');
+  if (original && isTrustedEdgeProxyRequest(getHeader)) return cleanHost(original);
+  return cleanHost(getHeader('x-forwarded-host') || getHeader('host') || '');
 }

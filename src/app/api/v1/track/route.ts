@@ -6,7 +6,7 @@ import { TrackApiRequest, TrackApiResponse } from '@/lib/types';
 import { extractGeoFromHeaders, getTrustedEdgeClientIp } from '@/lib/geo';
 import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 import { verifyClickToken } from '@/lib/session';
-import { cleanHost, isPlatformHost } from '@/lib/domainHelper';
+import { isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
 
 export async function POST(request: Request) {
   try {
@@ -87,7 +87,7 @@ export async function POST(request: Request) {
 
         // 2. Generate deterministic visitor IP hash (SHA-256 of IP + UA or persistent visitor ID)
         const visitorToken = (click.visitor_id || click.ip_hash || clientIp).trim();
-        const realVisitorIp = !!trustedIp || isPlatformHost(cleanHost(request.headers.get('x-forwarded-host') || request.headers.get('host') || ''));
+        const realVisitorIp = !!trustedIp || isPlatformHost(resolveRequestHost(name => request.headers.get(name)));
         const deterministicIpHash = realVisitorIp
           ? crypto.createHash('sha256').update(clientIp).digest('hex').slice(0, 16)
           : crypto.createHash('sha256').update(`${clientIp}:${visitorToken}:${userAgent}`).digest('hex').substring(0, 32);

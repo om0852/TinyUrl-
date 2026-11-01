@@ -10,7 +10,7 @@ import { extractGeoFromHeaders, getTrustedEdgeClientIp, resolveSmartTargetUrl } 
 import { RedirectClient } from './RedirectClient';
 import { PublicStatsClient } from '@/components/PublicStatsClient';
 import { linkCache } from '@/lib/cache';
-import { cleanHost, isPlatformHost } from '@/lib/domainHelper';
+import { isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { createClickToken } from '@/lib/session';
 
@@ -75,7 +75,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       const description = link.og_description?.trim() || `Open link: ${link.destination_url || 'destination'}`;
 
       const headersList = await headers().catch(() => null);
-      const rawHost = headersList?.get('x-forwarded-host') || headersList?.get('host') || 'creataurus.work.gd';
+      const rawHost = (headersList && resolveRequestHost(name => headersList.get(name))) || 'creataurus.work.gd';
       const proto = headersList?.get('x-forwarded-proto') || (rawHost.includes('localhost') ? 'http' : 'https');
       const host = rawHost.split(',')[0].trim().split(':')[0];
       const baseUrl = `${proto}://${host}`;
@@ -143,9 +143,9 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
       const isPublicStatsRequest = code.endsWith('+') || sParams.target === 'stats';
       const cleanCode = code.replace(/\+$/, '').trim().toLowerCase();
       const headersList = await headers();
-      const rawHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+      const rawHost = resolveRequestHost(name => headersList.get(name));
       const userAgent = headersList.get('user-agent') || '';
-      const currentHost = cleanHost(rawHost);
+      const currentHost = rawHost;
 
       // Comprehensive social crawler detection: WhatsApp, Facebook, Meta external agents, Twitter/X, Telegram, Slack, LinkedIn, Discord, Applebot, Skype, Pinterest
       isSocialCrawler = /whatsapp|facebookexternalhit|meta-externalagent|meta-externalfetcher|facebot|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|applebot|skypeuripreview|pinterest/i.test(userAgent);
