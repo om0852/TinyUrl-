@@ -27,6 +27,14 @@ export async function GET(request: Request) {
       });
     }
 
+    // Campaign names, link counts and click totals are workspace data: members only
+    const authResult = await verifyWorkspacePermission(request, 'analytics:read', {
+      workspaceId: workspaceId.trim()
+    });
+    if (!authResult.success) {
+      return authResult.response;
+    }
+
     const rows = (await sql.query(`
       SELECT 
         c.*,
@@ -75,11 +83,14 @@ async function handleSaveCampaign(request: Request) {
       ? workspace_id.trim() 
       : (request.headers.get('x-workspace-id') || '').trim();
 
-    if (!cleanWsId && id) {
+    // An existing campaign is always checked against the workspace it actually belongs to.
+    // Trusting the workspace_id in the body let a member of workspace A overwrite a campaign
+    // in workspace B by sending B's campaign id.
+    if (id) {
       const existing = (await sql.query(
         `SELECT workspace_id FROM campaigns WHERE id = $1 LIMIT 1`,
         [id]
-      ).catch(() => [])) as { workspace_id?: string }[];
+      )) as { workspace_id?: string }[];
       if (existing?.[0]?.workspace_id) {
         cleanWsId = existing[0].workspace_id;
       }
@@ -167,14 +178,22 @@ export async function DELETE(request: Request) {
 
     const cleanId = id.trim();
 
-    // RBAC: Requires campaigns:delete permission (owner, admin only)
+    const owner = (await sql.query(`SELECT workspace_id FROM campaigns WHERE id = $1 LIMIT 1`, [cleanId])) as { workspace_id?: string }[];
+    if (!owner?.[0]) {
+      return NextResponse.json({ success: false, error: 'Campaign not found.' }, { status: 404 });
+    }
+
+    // RBAC: Requires campaigns:delete permission (owner, admin only) in the campaign's own workspace
     const authResult = await verifyWorkspacePermission(request, 'campaigns:delete', {
+      workspaceId: owner[0].workspace_id || undefined,
       campaignId: cleanId
     });
     if (!authResult.success) {
       return authResult.response;
     }
 
+    // Links keep working; they just stop pointing at a campaign that no longer exists
+    await sql.query(`UPDATE links SET campaign_id = NULL WHERE campaign_id = $1`, [cleanId]);
     await sql.query(`DELETE FROM campaigns WHERE id = $1`, [cleanId]);
 
     return NextResponse.json({

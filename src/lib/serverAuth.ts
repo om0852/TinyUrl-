@@ -165,7 +165,9 @@ export async function verifyWorkspacePermission(
 
         // Check workspace isolation if specific workspace was requested
         const targetWs = (options.workspaceId || headerWsId || '').trim();
-        if (targetWs && targetWs !== keyRecord.workspace_id && keyRecord.workspace_id !== 'ws_default') {
+        // A key only works in the workspace it was created in (ws_default keys used to be let
+        // into every workspace)
+        if (targetWs && targetWs !== keyRecord.workspace_id) {
           return {
             success: false,
             response: NextResponse.json({
@@ -276,7 +278,8 @@ export async function verifyWorkspacePermission(
 
       if (memberRows && memberRows.length > 0) {
         const member = memberRows[0];
-        if (member.status === 'active' || member.status === 'invited') {
+        // Only accepted members; an unanswered invite does not grant access yet
+        if (member.status === 'active') {
           const rawRole = (member.role || 'viewer').toLowerCase();
           if (['owner', 'admin', 'editor', 'viewer'].includes(rawRole)) {
             resolvedRole = rawRole as WorkspaceRole;
@@ -285,48 +288,27 @@ export async function verifyWorkspacePermission(
       }
     }
 
-    // Fallback: If user is the creator of the workspace or workspace has no members configured yet
-    if (!resolvedRole && ws && !ws.owner_email) {
-      // Default fallback if workspace was created prior to owner_email column population
-      resolvedRole = 'admin';
-    }
-
-    if (!resolvedRole && userEmail) {
-      // Check if user owns this workspace or any workspace
-      const userWs = (await sql.query(
-        `SELECT id, owner_email FROM workspaces WHERE LOWER(owner_email) = $1 LIMIT 1`,
-        [userEmail]
-      ).catch(() => [])) as { id: string; owner_email?: string }[];
-      if (userWs && userWs.length > 0) {
+    // In production a role comes only from owning this workspace or being an active member of it.
+    // The old fallbacks made every registered account an owner everywhere: "owns any workspace"
+    // and users.role (always 'owner') were not scoped to the target workspace, ownerless
+    // workspaces granted admin, and the shared ws_default granted owner to anyone signed in.
+    // They are kept for local development only, where they make the app usable without setup.
+    if (!resolvedRole && !isProduction) {
+      if (ws && !ws.owner_email) {
+        resolvedRole = 'admin';
+      } else if (userEmail === 'owner@workspace.local' || targetWsId === 'ws_default') {
         resolvedRole = 'owner';
-      } else {
-        const userRows = (await sql.query(
-          `SELECT role FROM users WHERE LOWER(email) = $1 LIMIT 1`,
-          [userEmail]
-        ).catch(() => [])) as { role?: string }[];
-        if (userRows && userRows.length > 0) {
-          resolvedRole = (userRows[0].role as WorkspaceRole) || 'owner';
-        }
       }
     }
 
     if (!resolvedRole) {
-      if (userEmail === 'owner@workspace.local' || targetWsId === 'ws_default') {
-        // In production, unauthenticated guests are granted editor privileges at most, preventing administrative tampering
-        if (isProduction && (!sessionEmail || sessionEmail === 'owner@workspace.local')) {
-          resolvedRole = 'editor';
-        } else {
-          resolvedRole = 'owner';
-        }
-      } else {
-        return {
+      return {
+        success: false,
+        response: NextResponse.json({
           success: false,
-          response: NextResponse.json({
-            success: false,
-            error: 'Forbidden: You are not an authorized member of this workspace.'
-          }, { status: 403 })
-        };
-      }
+          error: 'Forbidden: You are not an authorized member of this workspace.'
+        }, { status: 403 })
+      };
     }
 
     // 5. Enforce RBAC Permission Matrix

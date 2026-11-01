@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
-import { InfoTooltip } from '@/components/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { 
   FolderKanban, 
@@ -12,17 +11,11 @@ import {
   FileText, 
   Check, 
   Copy, 
-  ChevronRight, 
   ChevronDown, 
   ChevronUp, 
-  Video, 
   ShieldCheck, 
   Sparkles, 
-  Settings, 
   UserPlus, 
-  Clock, 
-  CheckCircle2, 
-  TrendingUp, 
   Link2,
   Activity,
   X,
@@ -35,7 +28,10 @@ import {
   SlidersHorizontal,
   Layers,
   AlertCircle,
-  Users
+  Users,
+  BarChart3,
+  Tag,
+  Share2
 } from 'lucide-react';
 import { hasPermission, ROLE_DESCRIPTIONS } from '@/lib/rbac';
 import { Campaign, Link as LinkType } from '@/lib/types';
@@ -44,6 +40,13 @@ import { SkeletonCampaignsView } from '@/components/ui/Skeleton';
 interface CampaignsViewProps {
   onNavigateTab?: (tab: string) => void;
 }
+
+const UTM_PRESETS = [
+  { id: 'p1', label: 'YouTube video', query: 'utm_source=youtube&utm_medium=video_sponsor' },
+  { id: 'p2', label: 'Instagram bio', query: 'utm_source=ig_bio&utm_medium=bio' },
+  { id: 'p3', label: 'TikTok bio', query: 'utm_source=tiktok_feed&utm_medium=clip' },
+  { id: 'p4', label: 'Newsletter', query: 'utm_source=substack&utm_medium=email' },
+];
 
 export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) => {
   const { 
@@ -61,6 +64,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     currentWorkspace,
     currentUserRole,
     refreshCampaigns,
+    scanBrokenLinks,
     isCampaignsLoading,
     isInitialLoading
   } = useStore();
@@ -78,8 +82,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   const canDelete = hasPermission(userRole, 'campaigns:delete');
 
   const activeCollaboratorsCount = useMemo(() => {
-    const active = teamMembers.filter(m => m.status === 'active');
-    return Math.max(1, active.length);
+    return teamMembers.filter(m => m.status === 'active').length;
   }, [teamMembers]);
 
   // Modals state
@@ -90,7 +93,6 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   const [attachModalCampaign, setAttachModalCampaign] = useState<Campaign | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [matrixModalOpen, setMatrixModalOpen] = useState(false);
-  const [utmSettingsModalOpen, setUtmSettingsModalOpen] = useState(false);
   const [bulkUtmModalOpen, setBulkUtmModalOpen] = useState(false);
 
   // Filter state
@@ -107,13 +109,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   // New campaign form state
   const [newTitle, setNewTitle] = useState('');
   const [newSponsor, setNewSponsor] = useState('');
-  const [newTarget, setNewTarget] = useState(50000);
-  const [newTagsStr, setNewTagsStr] = useState('sponsor, active');
+  const [newTarget, setNewTarget] = useState(10000);
+  const [newTagsStr, setNewTagsStr] = useState('');
 
   // Edit campaign form state
   const [editTitle, setEditTitle] = useState('');
   const [editSponsor, setEditSponsor] = useState('');
-  const [editTarget, setEditTarget] = useState(50000);
+  const [editTarget, setEditTarget] = useState(10000);
   const [editTagsStr, setEditTagsStr] = useState('');
 
   // Attach link modal state
@@ -131,6 +133,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
   // Report modal state
   const [selectedReportCampId, setSelectedReportCampId] = useState<string>('all');
+  const [isCheckingHealth, setIsCheckingHealth] = useState(false);
 
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'https://tinyurl.dev';
 
@@ -158,10 +161,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
   // Helper to get links for a given campaign
   const getCampaignLinks = (camp: Campaign): LinkType[] => {
-    return links.filter(l => 
-      l.campaign_id === camp.id || 
-      (camp.tags && camp.tags.length > 0 && l.tags?.some(t => camp.tags?.includes(t)))
-    );
+    // Attached links only. Matching on shared tags counted unrelated links ("sponsor" is a
+    // default tag), counted one link in several campaigns, and made detach impossible.
+    return links.filter(l => l.campaign_id === camp.id);
   };
 
   // Helper to get true clicks for link (taking max of clicks_count and telemetry click_events)
@@ -174,7 +176,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   const campaignLinkIds = new Set<string>();
   campaigns.forEach(c => {
     links.forEach(l => {
-      if (l.campaign_id === c.id || (c.tags && c.tags.length > 0 && l.tags?.some(t => c.tags?.includes(t)))) {
+      if (l.campaign_id === c.id) {
         campaignLinkIds.add(l.id);
       }
     });
@@ -187,15 +189,21 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     l.utm_source || l.utm_medium || l.utm_campaign || 
     (l.destination_url && l.destination_url.includes('utm_'))
   );
-  const utmCompliancePct = campaignLinksTotal.length > 0 
-    ? Math.round((compliantLinks.length / campaignLinksTotal.length) * 100) 
-    : 100;
+  const utmCompliancePct: number | null = campaignLinksTotal.length > 0
+    ? Math.round((compliantLinks.length / campaignLinksTotal.length) * 100)
+    : null;
+  const brokenCampaignLinks = campaignLinksTotal.filter(l => l.status === 'broken' || (typeof l.broken_code === 'number' && l.broken_code >= 400));
+  const lastHealthCheck = campaignLinksTotal
+    .map(l => l.last_health_check)
+    .filter((d): d is string => !!d)
+    .sort()
+    .pop();
 
   // Filter campaigns
   const filteredCampaigns = campaigns.filter(camp => {
     const campLinks = getCampaignLinks(camp);
     const campClicks = campLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
-    const target = camp.target_clicks || 50000;
+    const target = camp.target_clicks || 10000;
     const isCompleted = campClicks >= target;
 
     if (filterTab === 'live') return !isCompleted;
@@ -206,14 +214,22 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
   const liveCampaignsCount = campaigns.filter(c => {
     const cLinks = getCampaignLinks(c);
     const cClicks = cLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
-    return cClicks < (c.target_clicks || 50000);
+    return cClicks < (c.target_clicks || 10000);
   }).length;
 
   const completedCampaignsCount = campaigns.filter(c => {
     const cLinks = getCampaignLinks(c);
     const cClicks = cLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
-    return cClicks >= (c.target_clicks || 50000);
+    return cClicks >= (c.target_clicks || 10000);
   }).length;
+
+  // One place for the "your role can't do this" message
+  const allowOrToast = (allowed: boolean, action: string) => {
+    if (allowed) return true;
+    const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
+    showToast('error', 'Permission denied', `Your role (${roleName}) can't ${action}.`);
+    return false;
+  };
 
   // Form submit: Create Campaign
   const handleCreate = (e: React.FormEvent) => {
@@ -227,15 +243,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
     addCampaign(
       newTitle.trim(), 
-      newSponsor.trim() || 'Direct Sponsor', 
-      parsedTags.length > 0 ? parsedTags : ['sponsor', 'active'], 
-      Number(newTarget) || 50000
+      newSponsor.trim(), 
+      parsedTags, 
+      Number(newTarget) || 10000
     );
 
     setNewTitle('');
     setNewSponsor('');
-    setNewTarget(50000);
-    setNewTagsStr('sponsor, active');
+    setNewTarget(10000);
+    setNewTagsStr('');
     setCreateModalOpen(false);
   };
 
@@ -244,7 +260,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     setEditCampaignModal(camp);
     setEditTitle(camp.name);
     setEditSponsor(camp.description || '');
-    setEditTarget(camp.target_clicks || 50000);
+    setEditTarget(camp.target_clicks || 10000);
     setEditTagsStr(Array.isArray(camp.tags) ? camp.tags.join(', ') : '');
   };
 
@@ -260,7 +276,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     updateCampaign(editCampaignModal.id, {
       name: editTitle.trim(),
       description: editSponsor.trim(),
-      target_clicks: Number(editTarget) || 50000,
+      target_clicks: Number(editTarget) || 10000,
       tags: parsedTags
     });
 
@@ -434,21 +450,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
     <div className="flex flex-col w-full gap-8 animate-fade-in text-on-surface">
       
       {/* 1. Sub-header Breadcrumb & Operational Action Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex flex-col min-w-0">
-          <div className="flex items-center gap-1.5 text-xs text-on-surface-variant mb-1 font-medium">
-            <span className="hover:text-on-surface cursor-pointer transition-colors">Workspace</span>
-            <ChevronRight className="w-3.5 h-3.5 text-outline" />
-            <span className="text-on-surface font-semibold">Campaigns &amp; Operations</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-on-surface tracking-tight">
-            Campaigns &amp; Workspace Operations
-          </h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant mt-1 max-w-3xl leading-relaxed">
-            Manage multi-channel brand deals, automated UTM bundles, creator team permissions, and real-time sponsor deliverable links.
-          </p>
-        </div>
-
+      <div className="flex items-center justify-end gap-2">
         {/* Quick Action Controls */}
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <button 
@@ -458,7 +460,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             className="inline-flex items-center gap-2 text-xs font-semibold bg-surface-container-lowest text-on-surface shadow-xs rounded-xl px-4 py-2 hover:bg-surface-container-low transition-all border-[0.5px] border-outline-variant cursor-pointer whitespace-nowrap shrink-0"
           >
             <FileText className="w-4 h-4 text-outline" />
-            <span>Export Sponsor Report (PDF)</span>
+            <span>Sponsor report</span>
           </button>
           
           <button 
@@ -489,652 +491,295 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
         </div>
       </div>
 
-      {/* 2. Key Operations KPI Row (4 Cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-        
-        {/* Metric 1 */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs text-on-surface-variant font-medium">Active Creator Campaigns</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <FolderKanban className="w-4 h-4" />
+      {/* Stats (computed from attached links) */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-[15px]">
+        {[
+          { icon: <FolderKanban className="w-5 h-5" />, value: campaigns.length.toLocaleString(), label: 'Campaigns', hint: `${liveCampaignsCount} live · ${completedCampaignsCount} completed` },
+          { icon: <Link2 className="w-5 h-5" />, value: campaignLinksTotal.length.toLocaleString(), label: 'Campaign links', hint: 'Attached to a campaign' },
+          { icon: <BarChart3 className="w-5 h-5" />, value: totalAttributedClicks.toLocaleString(), label: 'Clicks', hint: 'On campaign links' },
+          {
+            icon: <Tag className="w-5 h-5" />,
+            value: utmCompliancePct === null ? '—' : `${utmCompliancePct}%`,
+            label: 'UTM tagged',
+            hint: utmCompliancePct === null ? 'No campaign links yet' : `${compliantLinks.length} of ${campaignLinksTotal.length} links`,
+          },
+        ].map(card => (
+          <div key={card.label} className="flex items-center gap-[10px] rounded-xl border-[0.5px] border-outline-variant p-[15px]">
+            <div className="grid size-[40px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">{card.icon}</div>
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-on-surface">{card.value}</div>
+              <p className="text-xs text-outline truncate">{card.label} · {card.hint}</p>
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{campaigns.length}</span>
-              <span className="text-xs text-on-surface-variant font-medium">Active Deals</span>
-            </div>
-            <p className="font-mono text-xs text-on-surface-variant mt-1.5">
-              {liveCampaignsCount} Live &bull; {completedCampaignsCount} Completed
-            </p>
-          </div>
-          <div className="mt-4 pt-2 border-t-[0.5px] border-outline-variant flex items-center gap-1.5 text-primary-ink text-xs font-semibold">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Active campaigns tracked</span>
-          </div>
-        </div>
-
-        {/* Metric 2: Real Attributed Campaign Clicks */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs text-on-surface-variant font-medium">Attributed Campaign Clicks</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">
-                {totalAttributedClicks.toLocaleString()}
-              </span>
-              <span className="inline-flex items-center text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md font-bold">
-                Live
-              </span>
-            </div>
-            <p className="font-mono text-xs text-on-surface-variant mt-1.5">
-              Across {campaignLinksTotal.length} verified deliverables
-            </p>
-          </div>
-          <div className="mt-4 pt-2 border-t-[0.5px] border-outline-variant flex items-center gap-1.5 text-on-surface-variant text-xs">
-            <Clock className="w-3.5 h-3.5 text-outline" />
-            <span>Real-time attribution telemetry</span>
-          </div>
-        </div>
-
-        {/* Metric 3 */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs text-on-surface-variant font-medium">Workspace Collaborators</span>
-            <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink">
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{activeCollaboratorsCount}</span>
-              <span className="text-xs text-on-surface-variant font-medium">Active Members</span>
-            </div>
-            <p className="font-mono text-xs text-on-surface-variant mt-1.5">
-              Owner and workspace collaborators
-            </p>
-          </div>
-          <div className="mt-4 pt-2 border-t-[0.5px] border-outline-variant flex items-center gap-1.5 text-on-surface-variant text-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Full seat concurrency</span>
-          </div>
-        </div>
-
-        {/* Metric 4: Real Auto-UTM Compliance */}
-        <div className="bg-surface-container-lowest p-6 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs text-on-surface-variant font-medium">Auto-UTM Compliance</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-on-surface tracking-tight">{utmCompliancePct}%</span>
-              <span className={`text-xs font-bold px-2.5 py-0.5 rounded-md ${
-                utmCompliancePct >= 90 ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'
-              }`}>
-                {utmCompliancePct >= 90 ? 'Optimized' : 'Attention'}
-              </span>
-            </div>
-            <p className="font-mono text-xs text-on-surface-variant mt-1.5">
-              {compliantLinks.length} of {campaignLinksTotal.length} deliverables tagged
-            </p>
-          </div>
-          <div className="mt-4 pt-2 border-t-[0.5px] border-outline-variant flex items-center gap-1.5 text-emerald-700 text-xs font-semibold">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Standardized taxonomy active</span>
-          </div>
-        </div>
-
+        ))}
       </div>
 
-      {/* 3. Primary Content Layout: 8 cols Campaigns, 4 cols Utilities */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left Column: Active Brand Deals & Campaigns List (8 cols) */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          
-          {/* Section Header with Filter Controls */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3.5 flex-wrap">
-            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-              <h2 className="text-lg font-bold text-on-surface whitespace-nowrap">Active Brand Deals &amp; Campaigns</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-surface-container-high text-primary-ink text-xs font-bold whitespace-nowrap shrink-0 inline-flex items-center">
-                {campaigns.length} Active
-              </span>
-            </div>
+      {/* Campaign list + side panels */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-[15px]">
 
-            {/* Filter Tabs */}
-            <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border-[0.5px] border-outline-variant shrink-0 overflow-x-auto max-w-full">
-              <button 
-                type="button"
-                id="filter-tab-all"
-                onClick={() => setFilterTab('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  filterTab === 'all'
-                    ? 'bg-surface-container-lowest text-on-surface shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                All ({campaigns.length})
-              </button>
-              <button 
-                type="button"
-                id="filter-tab-live"
-                onClick={() => setFilterTab('live')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  filterTab === 'live'
-                    ? 'bg-surface-container-lowest text-on-surface shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Live Deliverables ({liveCampaignsCount})
-              </button>
-              <button 
-                type="button"
-                id="filter-tab-completed"
-                onClick={() => setFilterTab('completed')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  filterTab === 'completed'
-                    ? 'bg-surface-container-lowest text-on-surface shadow-xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                }`}
-              >
-                Completed ({completedCampaignsCount})
-              </button>
+        <div className="lg:col-span-8 flex flex-col gap-[15px]">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="text-[14px] font-semibold text-on-surface">Campaigns</h2>
+            <div className="inline-flex p-[3px] bg-surface-container rounded-md text-xs" role="tablist" aria-label="Filter campaigns">
+              {([
+                { id: 'all', label: 'All', count: campaigns.length },
+                { id: 'live', label: 'Live', count: liveCampaignsCount },
+                { id: 'completed', label: 'Completed', count: completedCampaignsCount },
+              ] as const).map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`filter-tab-${tab.id}`}
+                  aria-selected={filterTab === tab.id}
+                  onClick={() => setFilterTab(tab.id)}
+                  className={`h-[26px] px-3 rounded-[4px] transition-colors cursor-pointer whitespace-nowrap ${
+                    filterTab === tab.id ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {tab.label} <span className="text-outline">{tab.count}</span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Dynamic Campaigns List */}
           {filteredCampaigns.length === 0 ? (
-            <div className="p-12 rounded-xl bg-surface-container-lowest border-[0.5px] border-dashed border-outline-variant flex flex-col items-center justify-center text-center">
-              <FolderKanban className="w-12 h-12 text-outline mb-3" />
-              <h3 className="text-base font-bold text-on-surface">
-                {campaigns.length === 0 ? 'No campaigns created yet' : `No ${filterTab} campaigns found`}
+            <div className="py-12 px-6 rounded-xl border-[0.5px] border-dashed border-outline-variant flex flex-col items-center text-center">
+              <div className="grid size-[40px] place-items-center rounded-full bg-primary-fixed text-on-secondary-container">
+                <FolderKanban className="w-5 h-5" />
+              </div>
+              <h3 className="mt-3 text-[14px] font-semibold text-on-surface">
+                {campaigns.length === 0 ? 'No campaigns yet' : `No ${filterTab} campaigns`}
               </h3>
-              <p className="text-xs text-on-surface-variant mt-1.5 max-w-sm leading-relaxed">
-                {campaigns.length === 0 
-                  ? 'Create a sponsor deal or affiliate bundle to track multi-channel deliverables, UTM tags, and performance.'
-                  : `There are currently no campaigns matching the "${filterTab}" filter.`}
+              <p className="mt-1 text-xs text-on-surface-variant max-w-xs">
+                {campaigns.length === 0 ? 'Group the links for a sponsor or launch and track their clicks together.' : 'Try another filter.'}
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!canCreate) {
-                    const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
-                    showToast(
-                      'error',
-                      'Permission Denied',
-                      `Your role (${roleName}) does not have permission to create campaigns.`
-                    );
-                    return;
-                  }
-                  setCreateModalOpen(true);
-                }}
-                className={`mt-4 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs ${
-                  canCreate 
-                    ? 'bg-primary-container text-on-primary hover:bg-primary' 
-                    : 'bg-surface-container-low text-on-surface-variant/60'
-                }`}
-              >
-                + Create Campaign
-              </button>
+              {campaigns.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => allowOrToast(canCreate, 'create campaigns') && setCreateModalOpen(true)}
+                  className="mt-4 h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer"
+                >
+                  New campaign
+                </button>
+              )}
             </div>
           ) : (
             filteredCampaigns.map((camp) => {
               const campLinks = getCampaignLinks(camp);
               const campClicks = campLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
-              const target = camp.target_clicks || 50000;
+              const target = camp.target_clicks || 10000;
               const pct = Math.min(100, Math.round((campClicks / target) * 100));
               const isGoalReached = campClicks >= target;
               const isExpanded = !!expandedCampaigns[camp.id];
+              const iconBtn = 'size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer';
 
               return (
-                <div key={camp.id} className="bg-surface-container-lowest rounded-xl p-6 shadow-xs border-[0.5px] border-outline-variant hover:shadow-md transition-shadow">
-                  
-                  {/* Top Bar: Title, Sponsor, Actions */}
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-ink shrink-0">
-                        <Video className="w-6 h-6" />
+                <div key={camp.id} className="rounded-xl border-[0.5px] border-outline-variant p-[15px]">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-[14px] font-semibold text-on-surface truncate">{camp.name}</h3>
+                        <span className={`text-[10px] px-2 py-[1px] rounded-full font-medium ${isGoalReached ? 'bg-primary-fixed text-on-secondary-container' : 'bg-surface-container text-on-surface-variant'}`}>
+                          {isGoalReached ? 'Goal reached' : 'Live'}
+                        </span>
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2.5 flex-wrap">
-                          <h3 className="text-base font-bold text-on-surface truncate">
-                            {camp.name}
-                          </h3>
-                          <span className={`inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-md font-bold ${
-                            isGoalReached 
-                              ? 'text-purple-800 bg-purple-50'
-                              : 'text-emerald-800 bg-emerald-50'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${isGoalReached ? 'bg-purple-500' : 'bg-emerald-500 animate-pulse'}`} />
-                            {isGoalReached ? 'Goal Reached' : 'Active Campaign'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-on-surface-variant mt-1">
-                          {camp.description} &bull; <strong className="text-on-surface font-semibold">{campLinks.length}</strong> trackable link{campLinks.length !== 1 ? 's' : ''} attached
-                        </p>
-                      </div>
+                      <p className="mt-0.5 text-xs text-on-surface-variant truncate">
+                        {[camp.description, `${campLinks.length} ${campLinks.length === 1 ? 'link' : 'links'}`, ...(camp.tags || []).map(t => `#${t}`)]
+                          .filter(Boolean).join(' · ')}
+                      </p>
                     </div>
-
-                    {/* Campaign Action Buttons */}
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                      
-                      {/* Attach Link Button */}
-                      <button 
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
                         type="button"
                         onClick={() => {
+                          if (!allowOrToast(canCreate, 'add links to campaigns')) return;
                           setAttachModalCampaign(camp);
                           setAttachTab('existing');
                           setAttachError('');
                         }}
-                        title="Attach link to campaign"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-surface-container-low hover:bg-surface-container-high text-on-surface px-3 py-1.5 rounded-lg transition-colors border-[0.5px] border-outline-variant cursor-pointer"
+                        className="h-[30px] px-2.5 mr-1 rounded-md border-[0.5px] border-outline-variant text-xs text-on-surface hover:bg-surface-container flex items-center gap-1 transition-colors cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5 text-primary-ink" />
-                        <span>Add Deliverable</span>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add link</span>
                       </button>
-
-                      {/* Share Link Button */}
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => {
-                          const primaryLink = campLinks[0];
-                          const shareUrl = primaryLink 
-                            ? `${originUrl}/${primaryLink.custom_slug || primaryLink.short_code}`
-                            : `${originUrl}/c/${camp.id}`;
-                          handleCopyText(shareUrl, camp.id, 'preset');
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary-container text-on-primary hover:bg-primary px-3 py-1.5 rounded-lg transition-colors cursor-pointer shadow-xs"
+                        onClick={() => handleCopyText(`${originUrl}/c/${camp.id}`, camp.id, 'preset')}
+                        title="Copy campaign page link"
+                        aria-label="Copy campaign page link"
+                        className={iconBtn}
                       >
-                        <Link2 className="w-3.5 h-3.5" />
-                        <span>{copiedPreset === camp.id ? 'Copied Link!' : 'Share Link'}</span>
+                        {copiedPreset === camp.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
                       </button>
-
-                      {/* Edit Campaign Button */}
-                      <button 
+                      <button
                         type="button"
-                        onClick={() => {
-                          if (!canCreate) {
-                            const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
-                            showToast(
-                              'error',
-                              'Permission Denied',
-                              `Your role (${roleName}) does not have permission to edit campaigns.`
-                            );
-                            return;
-                          }
-                          openEditModal(camp);
-                        }}
-                        title={canCreate ? "Edit Campaign" : "Edit Campaign (Requires Editor, Admin, or Owner)"}
-                        className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
-                          canCreate 
-                            ? 'bg-surface-container-low hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border-outline-variant'
-                            : 'bg-surface-container-low text-on-surface-variant/40 border-outline-variant'
-                        }`}
+                        onClick={() => allowOrToast(canCreate, 'edit campaigns') && openEditModal(camp)}
+                        title="Edit campaign"
+                        aria-label="Edit campaign"
+                        className={iconBtn}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
-
-                      {/* Delete Campaign Button */}
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          if (!canDelete) {
-                            const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
-                            showToast(
-                              'error',
-                              'Permission Denied',
-                              `Your role (${roleName}) does not have permission to delete campaigns.`
-                            );
-                            return;
-                          }
-                          setDeleteCampaignModal(camp);
-                        }}
-                        title={canDelete ? "Delete campaign" : "Delete Campaign (Requires Admin or Owner permissions)"}
-                        className={`p-1.5 rounded-lg transition-colors cursor-pointer border ${
-                          canDelete
-                            ? 'text-outline hover:text-error hover:bg-error-container/20 border-outline-variant'
-                            : 'text-outline/40 border-outline-variant'
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() => allowOrToast(canDelete, 'delete campaigns') && setDeleteCampaignModal(camp)}
+                        title="Delete campaign"
+                        aria-label="Delete campaign"
+                        className={`${iconBtn} hover:!text-error hover:!bg-error-container`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  {/* Deliverable Tags */}
-                  {camp.tags && camp.tags.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2 mt-4">
-                      {camp.tags.map((tag) => (
-                        <span key={tag} className="inline-flex items-center gap-1.5 text-xs font-medium bg-surface-container-low text-on-surface px-3 py-1 rounded-md border border-outline-variant">
-                          #{tag}
-                        </span>
-                      ))}
+                  {/* Progress */}
+                  <div className="mt-3">
+                    <div className="w-full bg-surface-container-high rounded-full h-1.5 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${isGoalReached ? 'bg-secondary' : 'bg-primary-container'}`} style={{ width: `${pct}%` }} />
                     </div>
-                  )}
-
-                  {/* Progress and Metrics Split */}
-                  <div className="mt-5 pt-4 bg-surface-container-low/60 p-4 rounded-lg border border-outline-variant">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs mb-2 font-medium gap-1">
-                      <span className="text-on-surface font-semibold">Deliverable Clicks Performance</span>
-                      <span className="font-mono text-on-surface">
-                        <strong className="text-primary-ink font-bold">{campClicks.toLocaleString()}</strong> / {target.toLocaleString()} Target ({pct}%)
+                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-on-surface-variant">
+                      <span>
+                        <span className="font-semibold text-on-surface tabular-nums">{campClicks.toLocaleString()}</span> / {target.toLocaleString()} clicks · {pct}%
                       </span>
-                    </div>
-                    <div className="w-full bg-surface-container-highest rounded-full h-2.5 overflow-hidden">
-                      <div 
-                        className={`h-2.5 rounded-full transition-all duration-500 ${isGoalReached ? 'bg-purple-600' : 'bg-primary-container'}`} 
-                        style={{ width: `${pct}%` }} 
-                      />
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-on-surface-variant mt-3 gap-1">
-                      <div className="flex items-center gap-2">
-                        <span>Attached deliverables: <code className="font-mono text-primary-ink font-semibold">{campLinks.length} links</code></span>
+                      {campLinks.length > 0 && (
                         <button
                           type="button"
                           onClick={() => toggleAccordion(camp.id)}
-                          className="text-primary-ink hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer ml-1"
+                          aria-expanded={isExpanded}
+                          className="text-primary-ink hover:underline inline-flex items-center gap-0.5 cursor-pointer"
                         >
-                          <span>{isExpanded ? 'Hide Details' : 'View Deliverables'}</span>
+                          {isExpanded ? 'Hide links' : `Show links (${campLinks.length})`}
                           {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         </button>
-                      </div>
-                      <span className={isGoalReached ? 'text-purple-700 font-bold' : 'text-emerald-700 font-bold'}>
-                        {pct}% goal reached
-                      </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Expandable Deliverables Accordion */}
-                  {isExpanded && (
-                    <div className="mt-4 pt-4 border-t-[0.5px] border-outline-variant space-y-3 animate-fade-in">
-                      <div className="flex items-center justify-between text-xs font-bold text-on-surface">
-                        <span>Deliverable Short Links ({campLinks.length})</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!canCreate) {
-                              const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
-                              showToast(
-                                'error',
-                                'Permission Denied',
-                                `Your role (${roleName}) does not have permission to attach deliverables.`
-                              );
-                              return;
-                            }
-                            setAttachModalCampaign(camp);
-                            setAttachTab('existing');
-                          }}
-                          className="text-primary-ink hover:underline text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Attach Another Link</span>
-                        </button>
-                      </div>
-
-                      {campLinks.length === 0 ? (
-                        <div className="p-4 bg-surface-container-low rounded-lg text-center text-xs text-on-surface-variant border-[0.5px] border-dashed border-outline-variant space-y-2">
-                          <p>No links attached to this campaign yet.</p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!canCreate) {
-                                const roleName = ROLE_DESCRIPTIONS[userRole]?.title || userRole;
-                                showToast(
-                                  'error',
-                                  'Permission Denied',
-                                  `Your role (${roleName}) does not have permission to attach deliverables.`
-                                );
-                                return;
-                              }
-                              setAttachModalCampaign(camp);
-                              setAttachTab('existing');
-                            }}
-                            className="px-3 py-1.5 bg-primary-container text-on-primary rounded-lg text-xs font-semibold hover:bg-primary transition cursor-pointer"
-                          >
-                            + Attach Deliverable
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          {campLinks.map((link) => {
-                            const slug = link.custom_slug || link.short_code;
-                            const fullShortUrl = `${originUrl}/${slug}`;
-                            const isCopied = copiedLinkId === link.id;
-                            const linkClicks = getLinkClicks(link);
-                            const linkSharePct = campClicks > 0 ? Math.round((linkClicks / campClicks) * 100) : 0;
-
-                            return (
-                              <div 
-                                key={link.id}
-                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant hover:border-outline-variant transition-all gap-3"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-on-surface truncate">{link.title || `/${slug}`}</span>
-                                    {link.utm_medium && (
-                                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant border border-outline-variant">
-                                        {link.utm_medium}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-0.5 text-[11px] text-on-surface-variant">
-                                    <span className="font-mono text-primary-ink font-semibold truncate">{fullShortUrl}</span>
-                                    <span>&rarr;</span>
-                                    <span className="truncate max-w-[200px]" title={link.destination_url}>{link.destination_url}</span>
-                                  </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                                  <div className="text-right pr-2">
-                                    <div className="text-xs font-bold text-on-surface font-mono">
-                                      {linkClicks.toLocaleString()} clicks
-                                    </div>
-                                    <div className="text-[10px] text-on-surface-variant font-medium">
-                                      {linkSharePct}% of deal
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyText(fullShortUrl, link.id, 'link')}
-                                    title="Copy Short URL"
-                                    className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition cursor-pointer"
-                                  >
-                                    {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                                  </button>
-
-                                  <a
-                                    href={fullShortUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    title="Open link"
-                                    className="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition"
-                                  >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                  </a>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDetachLink(link.id)}
-                                    title="Detach from campaign"
-                                    className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error-container/20 transition cursor-pointer"
-                                  >
-                                    <Unlink className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
+                  {/* Links */}
+                  {isExpanded && campLinks.length > 0 && (
+                    <div className="mt-3 pt-3 border-t-[0.5px] border-outline-variant flex flex-col gap-1.5 animate-fade-in">
+                      {campLinks.map((link) => {
+                        const slug = link.custom_slug || link.short_code;
+                        const fullShortUrl = `${originUrl}/${slug}`;
+                        const isCopied = copiedLinkId === link.id;
+                        const linkClicks = getLinkClicks(link);
+                        return (
+                          <div key={link.id} className="flex items-center gap-2 px-2.5 py-2 rounded-md hover:bg-surface-container-low transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-medium text-on-surface truncate">{link.title || `/${slug}`}</div>
+                              <div className="text-[11px] text-outline truncate" title={link.destination_url}>
+                                <span className="text-primary-ink">/{slug}</span> → {link.destination_url}
                               </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                            </div>
+                            <span className="text-[11px] text-on-surface-variant tabular-nums whitespace-nowrap">{linkClicks.toLocaleString()} clicks</span>
+                            <button type="button" onClick={() => handleCopyText(fullShortUrl, link.id, 'link')} title="Copy short link" aria-label="Copy short link" className={iconBtn}>
+                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            </button>
+                            <a href={fullShortUrl} target="_blank" rel="noreferrer" title="Open link" aria-label="Open link" className={iconBtn}>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                            <button type="button" onClick={() => handleDetachLink(link.id)} title="Remove from campaign" aria-label="Remove from campaign" className={`${iconBtn} hover:!text-error hover:!bg-error-container`}>
+                              <Unlink className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-
                 </div>
               );
             })
           )}
-
         </div>
 
-        {/* Right Column: Operations, Team Permissions & Auto UTM Presets (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          
-          {/* Automated UTM Tagging Presets Module */}
-          <div className="bg-surface-container-lowest rounded-xl p-6 shadow-xs border border-outline-variant">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-surface-container-low text-primary-ink flex items-center justify-center">
-                  <Activity className="w-4 h-4" />
+        <div className="lg:col-span-4 flex flex-col gap-[15px]">
+          {/* UTM presets */}
+          <div className="rounded-xl p-[15px] border-[0.5px] border-outline-variant">
+            <h3 className="text-[14px] font-semibold text-on-surface">UTM presets</h3>
+            <div className="mt-2 flex flex-col">
+              {UTM_PRESETS.map(p => (
+                <div key={p.id} className="flex items-center gap-2 py-2 border-b-[0.5px] border-outline-variant last:border-b-0">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium text-on-surface truncate">{p.label}</div>
+                    <div className="font-mono text-[10px] text-outline truncate">{p.query}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(`?${p.query}`, p.id)}
+                    title="Copy parameters"
+                    aria-label={`Copy ${p.label} parameters`}
+                    className="size-[28px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer shrink-0"
+                  >
+                    {copiedPreset === p.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
-                <h3 className="text-sm font-bold text-on-surface">Auto-UTM Preset Bundles</h3>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setUtmSettingsModalOpen(true)}
-                title="Configure UTM Presets"
-                className="text-primary-ink hover:text-primary-ink transition-colors cursor-pointer p-1 rounded-lg hover:bg-surface-container-low"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-              Generate compliant sponsor tracking parameters instantaneously with workspace standardized schema.
-            </p>
-
-            <div className="flex flex-col gap-2">
-              
-              {/* Preset 1 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant">
-                <div className="min-w-0 pr-2">
-                  <span className="text-xs text-on-surface font-semibold block truncate">YouTube Video Integrated Read</span>
-                  <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_medium=video_sponsor</span>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => handleCopyText('?utm_source=youtube&utm_medium=video_sponsor', 'p1')}
-                  className="p-1.5 rounded-lg bg-surface-container-lowest hover:bg-primary-container hover:text-on-primary text-on-surface transition-all shrink-0 shadow-xs cursor-pointer border border-outline-variant"
-                >
-                  {copiedPreset === 'p1' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-              {/* Preset 2 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant">
-                <div className="min-w-0 pr-2">
-                  <span className="text-xs text-on-surface font-semibold block truncate">Instagram Bio Link</span>
-                  <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_source=ig_bio&amp;utm_medium=bio</span>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => handleCopyText('?utm_source=ig_bio&utm_medium=bio', 'p2')}
-                  className="p-1.5 rounded-lg bg-surface-container-lowest hover:bg-primary-container hover:text-on-primary text-on-surface transition-all shrink-0 shadow-xs cursor-pointer border border-outline-variant"
-                >
-                  {copiedPreset === 'p2' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-              {/* Preset 3 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant">
-                <div className="min-w-0 pr-2">
-                  <span className="text-xs text-on-surface font-semibold block truncate">TikTok Pinned Bio</span>
-                  <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_source=tiktok_feed&amp;medium=clip</span>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => handleCopyText('?utm_source=tiktok_feed&utm_medium=clip', 'p3')}
-                  className="p-1.5 rounded-lg bg-surface-container-lowest hover:bg-primary-container hover:text-on-primary text-on-surface transition-all shrink-0 shadow-xs cursor-pointer border border-outline-variant"
-                >
-                  {copiedPreset === 'p3' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-              {/* Preset 4 */}
-              <div className="p-3 bg-surface-container-low hover:bg-surface-container-high rounded-lg flex items-center justify-between transition-colors border border-outline-variant">
-                <div className="min-w-0 pr-2">
-                  <span className="text-xs text-on-surface font-semibold block truncate">Newsletter Sponsor Slot</span>
-                  <span className="font-mono text-[11px] text-on-surface-variant truncate block">utm_source=substack&amp;utm_medium=email</span>
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => handleCopyText('?utm_source=substack&utm_medium=email', 'p4')}
-                  className="p-1.5 rounded-lg bg-surface-container-lowest hover:bg-primary-container hover:text-on-primary text-on-surface transition-all shrink-0 shadow-xs cursor-pointer border border-outline-variant"
-                >
-                  {copiedPreset === 'p4' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
-            </div>
-
-            {/* Bulk Apply Button */}
-            <button 
-              type="button"
-              id="bulk-apply-utm-btn"
-              onClick={() => {
-                if (campaigns.length > 0) {
-                  setBulkTargetCampaignId(campaigns[0].id);
-                }
-                setBulkUtmModalOpen(true);
-              }}
-              className="w-full mt-4 py-2.5 bg-surface-container-high hover:bg-primary-container hover:text-on-primary text-primary-ink font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>One-Click Bulk Apply UTM Preset</span>
-            </button>
-          </div>
-
-          {/* Workspace Team Collaborators Quick Access */}
-          <div className="bg-surface-container-lowest rounded-xl p-5 shadow-xs border-[0.5px] border-outline-variant flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary-ink flex items-center justify-center shrink-0 border border-primary-strong/20">
-                <Users className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-on-surface truncate">Workspace Team</h4>
-                  <span className="text-[10px] px-2 py-0.2 rounded-md font-bold bg-primary-fixed text-primary-ink">
-                    {activeCollaboratorsCount} Member{activeCollaboratorsCount === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <p className="text-xs text-on-surface-variant truncate">
-                  Role delegations, invites &amp; collaborators managed in dedicated Teams portal.
-                </p>
-              </div>
+              ))}
             </div>
             <button
               type="button"
-              onClick={() => onNavigateTab ? onNavigateTab('teams') : null}
-              className="px-3.5 py-1.5 rounded-lg bg-primary-container hover:opacity-90 text-on-primary text-xs font-bold transition shadow-xs shrink-0 cursor-pointer"
+              id="bulk-apply-utm-btn"
+              disabled={campaigns.length === 0}
+              onClick={() => {
+                if (campaigns.length > 0) setBulkTargetCampaignId(campaigns[0].id);
+                setBulkUtmModalOpen(true);
+              }}
+              className="w-full mt-2 h-[32px] rounded-md border-[0.5px] border-outline-variant text-xs text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Manage Teams &rarr;
+              Apply a preset to a campaign
             </button>
           </div>
 
-          {/* Dynamic Live Link Health Check */}
-          <div className="bg-surface-container-low rounded-xl p-6 shadow-xs border border-outline-variant">
-            <div className="flex items-center gap-2 mb-1.5 text-on-surface font-bold text-sm">
-              <Activity className="w-4 h-4 text-emerald-600" />
-              <span>Live Deliverable Link Health Check</span>
-            </div>
-            <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-              Active telemetry across {campaignLinksTotal.length || links.length} monitored creator deliverable endpoints.
-            </p>
-            <div className="flex items-center justify-between text-on-surface text-xs font-semibold">
-              <span className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Redirect latency: ~38ms</span>
+          {/* Team */}
+          <div className="rounded-xl px-[15px] py-3 border-[0.5px] border-outline-variant flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 min-w-0">
+              <Users className="w-4 h-4 text-on-surface-variant shrink-0" />
+              <span className="text-[14px] font-semibold text-on-surface">Team</span>
+              <span className="text-xs text-outline truncate">
+                {activeCollaboratorsCount === 0 ? 'Just you' : `${activeCollaboratorsCount} member${activeCollaboratorsCount === 1 ? '' : 's'}`}
               </span>
-              <span className="font-mono text-on-surface-variant font-normal">Global Edge CDN</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => onNavigateTab ? onNavigateTab('teams') : null}
+              className="text-xs text-primary-ink hover:underline cursor-pointer shrink-0"
+            >
+              Manage
+            </button>
+          </div>
+
+          {/* Link health (results of the broken-link scanner) */}
+          <div className="rounded-xl p-[15px] border-[0.5px] border-outline-variant">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-2 text-[14px] font-semibold text-on-surface">
+                <Activity className="w-4 h-4 text-on-surface-variant" />
+                Link health
+              </span>
+              <button
+                type="button"
+                disabled={isCheckingHealth || campaignLinksTotal.length === 0}
+                onClick={async () => {
+                  setIsCheckingHealth(true);
+                  const result = await scanBrokenLinks();
+                  setIsCheckingHealth(false);
+                  if (!result.success) showToast('error', 'Health check failed', result.error || 'Please try again.');
+                }}
+                className="h-[28px] px-2.5 rounded-md border-[0.5px] border-outline-variant text-[11px] text-on-surface hover:bg-surface-container disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {isCheckingHealth ? 'Checking…' : 'Check now'}
+              </button>
             </div>
+            <p className="mt-2 text-xs text-on-surface-variant">
+              {campaignLinksTotal.length === 0
+                ? 'No campaign links to check yet.'
+                : brokenCampaignLinks.length === 0
+                  ? `All ${campaignLinksTotal.length} campaign links are working.`
+                  : `${brokenCampaignLinks.length} of ${campaignLinksTotal.length} campaign links are broken.`}
+            </p>
+            <p className="mt-0.5 text-[11px] text-outline">
+              {lastHealthCheck ? `Last checked ${new Date(lastHealthCheck).toLocaleString()}` : 'Not checked yet'}
+            </p>
           </div>
 
         </div>
@@ -1164,16 +809,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <X className="w-4 h-4" />
             </button>
 
-            <h4 className="text-sm font-bold text-on-surface mb-0.5">Create New Campaign</h4>
-            <p className="text-[11px] text-on-surface-variant mb-3">
-              Launch a new creator campaign, sponsor track, or partner deliverable.
-            </p>
+            <h4 className="text-[15px] font-semibold text-on-surface mb-4">New campaign</h4>
 
             <form onSubmit={handleCreate} className="space-y-3.5 text-xs">
               <div>
                 <label className="font-semibold text-on-surface mb-1 flex items-center">
-                  <span>Campaign Title</span>
-                  <InfoTooltip text="Unique name for this campaign deal, sponsor deliverable, or launch event." />
+                  <span>Name</span>
                 </label>
                 <input 
                   type="text"
@@ -1187,8 +828,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
               <div>
                 <label className="font-semibold text-on-surface mb-1 flex items-center">
-                  <span>Sponsor Organization</span>
-                  <InfoTooltip text="Company or brand sponsoring this campaign track (e.g. Sony, NordVPN, Adobe)." />
+                  <span>Sponsor</span>
                 </label>
                 <input 
                   type="text"
@@ -1201,8 +841,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
               <div>
                 <label className="font-semibold text-on-surface mb-1 flex items-center">
-                  <span>Target Click Goal</span>
-                  <InfoTooltip text="Contracted or desired target click milestone to gauge deliverable completion." />
+                  <span>Click target</span>
                 </label>
                 <input 
                   type="number"
@@ -1214,12 +853,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
               <div>
                 <label className="font-semibold text-on-surface mb-1 flex items-center">
-                  <span>Campaign Tags (comma-separated)</span>
-                  <InfoTooltip text="Filterable tags to organize multiple deals across your workspace." />
+                  <span>Tags</span>
                 </label>
                 <input 
                   type="text"
-                  placeholder="sponsor, active, autumn2026"
+                  placeholder="e.g. spring, video"
                   value={newTagsStr}
                   onChange={(e) => setNewTagsStr(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant outline-none focus:ring-2 focus:ring-primary-strong text-on-surface text-xs"
@@ -1238,7 +876,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
-                  Create Deal
+                  Create campaign
                 </button>
               </div>
             </form>
@@ -1264,14 +902,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <X className="w-4 h-4" />
             </button>
 
-            <h4 className="text-sm font-bold text-on-surface mb-0.5">Edit Campaign</h4>
-            <p className="text-[11px] text-on-surface-variant mb-3">
-              Update details, target goals, or taxonomy tags for this campaign.
-            </p>
+            <h4 className="text-[15px] font-semibold text-on-surface mb-4">Edit campaign</h4>
 
             <form onSubmit={handleUpdate} className="space-y-3.5 text-xs">
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Campaign Title</label>
+                <label className="font-semibold text-on-surface block mb-1">Name</label>
                 <input 
                   type="text"
                   required
@@ -1282,7 +917,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Sponsor Organization</label>
+                <label className="font-semibold text-on-surface block mb-1">Sponsor</label>
                 <input 
                   type="text"
                   value={editSponsor}
@@ -1292,7 +927,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Target Click Goal</label>
+                <label className="font-semibold text-on-surface block mb-1">Click target</label>
                 <input 
                   type="number"
                   value={editTarget}
@@ -1302,7 +937,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               </div>
 
               <div>
-                <label className="font-semibold text-on-surface block mb-1">Campaign Tags (comma-separated)</label>
+                <label className="font-semibold text-on-surface block mb-1">Tags</label>
                 <input 
                   type="text"
                   value={editTagsStr}
@@ -1323,7 +958,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-primary-container text-on-primary font-bold hover:bg-primary cursor-pointer shadow-xs text-xs"
                 >
-                  Save Changes
+                  Save changes
                 </button>
               </div>
             </form>
@@ -1389,11 +1024,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
             </button>
 
             <h4 className="text-sm font-bold text-on-surface mb-0.5">
-              Add Deliverable to &ldquo;{attachModalCampaign.name}&rdquo;
+              Add link to &ldquo;{attachModalCampaign.name}&rdquo;
             </h4>
-            <p className="text-[11px] text-on-surface-variant mb-4">
-              Attach an existing link or generate a new trackable short link for this sponsor deal.
-            </p>
 
             {/* Tab switch */}
             <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg mb-4 border border-outline-variant">
@@ -1550,11 +1182,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               <div className="w-8 h-8 rounded-lg bg-primary-container text-on-primary flex items-center justify-center">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <h4 className="text-sm font-bold text-on-surface">Bulk Apply UTM Preset</h4>
+              <h4 className="text-sm font-bold text-on-surface">Apply UTM preset</h4>
             </div>
-            <p className="text-[11px] text-on-surface-variant mb-4">
-              Apply standard sponsor UTM taxonomy across all links in the chosen campaign with one click.
-            </p>
 
             {bulkSuccessMsg && (
               <div className="p-3 mb-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-700 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
@@ -1586,11 +1215,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   onChange={(e) => setBulkPresetType(e.target.value)}
                   className="w-full px-3 py-2 bg-surface-container-low rounded-lg border-[0.5px] border-outline-variant text-on-surface outline-none focus:ring-2 focus:ring-primary-strong text-xs cursor-pointer"
                 >
-                  <option value="youtube">YouTube (utm_source=youtube &amp; medium=video_sponsor)</option>
-                  <option value="instagram">Instagram (utm_source=ig_bio &amp; medium=bio)</option>
-                  <option value="tiktok">TikTok (utm_source=tiktok_feed &amp; medium=clip)</option>
-                  <option value="newsletter">Newsletter (utm_source=substack &amp; medium=email)</option>
-                  <option value="creator_bundle">Creator Network Bundle (utm_source=creator_network &amp; medium=partner_read)</option>
+                  <option value="youtube">YouTube video</option>
+                  <option value="instagram">Instagram bio</option>
+                  <option value="tiktok">TikTok bio</option>
+                  <option value="newsletter">Newsletter</option>
+                  <option value="creator_bundle">Creator network</option>
                 </select>
               </div>
 
@@ -1616,74 +1245,6 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
         document.body
       )}
 
-      {/* Auto-UTM Settings / Configurator Modal */}
-      {mounted && utmSettingsModalOpen && typeof document !== 'undefined' && createPortal(
-        <div 
-          className="fixed inset-0 z-50 bg-[#00000A73] backdrop-blur-[5px] flex items-center justify-center p-4 animate-fade-in"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setUtmSettingsModalOpen(false);
-          }}
-        >
-          <div className="bg-surface-container-lowest rounded-xl max-w-md w-full p-5 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in text-on-surface">
-            <button
-              type="button"
-              onClick={() => setUtmSettingsModalOpen(false)}
-              className="absolute top-3.5 right-3.5 text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-lg bg-surface-container-high text-primary-ink flex items-center justify-center">
-                <Settings className="w-4 h-4" />
-              </div>
-              <h4 className="text-sm font-bold text-on-surface">Standard UTM Taxonomies</h4>
-            </div>
-            <p className="text-[11px] text-on-surface-variant mb-4">
-              Preset parameters automatically adhere to Google Analytics 4 (GA4) and Adobe Analytics best practices.
-            </p>
-
-            <div className="space-y-2.5 text-xs">
-              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant">
-                <span className="font-bold block text-on-surface">1. Video Placements</span>
-                <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
-                  utm_source=youtube &bull; utm_medium=video_sponsor
-                </span>
-              </div>
-              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant">
-                <span className="font-bold block text-on-surface">2. Social Bio Links</span>
-                <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
-                  utm_source=ig_bio &bull; utm_medium=bio
-                </span>
-              </div>
-              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant">
-                <span className="font-bold block text-on-surface">3. Short-Form Video</span>
-                <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
-                  utm_source=tiktok_feed &bull; utm_medium=clip
-                </span>
-              </div>
-              <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant">
-                <span className="font-bold block text-on-surface">4. Written Newsletters</span>
-                <span className="font-mono text-[11px] text-on-surface-variant block mt-0.5">
-                  utm_source=substack &bull; utm_medium=email
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setUtmSettingsModalOpen(false)}
-                className="px-4 py-2 bg-primary-container text-on-primary font-bold rounded-lg text-xs hover:bg-primary transition cursor-pointer"
-              >
-                Close Settings
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
       {/* Executive Sponsor Report (PDF / Print View) Modal */}
       {mounted && reportModalOpen && typeof document !== 'undefined' && createPortal(
         <div 
@@ -1701,8 +1262,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-on-surface">Sponsor Performance Report</h3>
-                  <p className="text-xs text-on-surface-variant">Official verified analytics summary for brand partners</p>
+                  <h3 className="text-base font-bold text-on-surface">Sponsor report</h3>
                 </div>
               </div>
 
@@ -1727,13 +1287,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
 
             {/* Campaign Selector dropdown for report (hidden on print) */}
             <div className="my-4 print:hidden">
-              <label className="text-xs font-semibold text-on-surface block mb-1">Select Deal to Generate Report:</label>
+              <label className="text-xs font-semibold text-on-surface block mb-1">Campaign</label>
               <select
                 value={selectedReportCampId}
                 onChange={(e) => setSelectedReportCampId(e.target.value)}
                 className="w-full px-3 py-2 bg-surface-container-low rounded-lg text-xs text-on-surface border-[0.5px] border-outline-variant outline-none cursor-pointer"
               >
-                <option value="all">All Brand Deals (Executive Overview)</option>
+                <option value="all">All campaigns</option>
                 {campaigns.map(c => (
                   <option key={c.id} value={c.id}>{c.name} &bull; {c.description}</option>
                 ))}
@@ -1759,7 +1319,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               {reportCampaignsList.map(camp => {
                 const campLinks = getCampaignLinks(camp);
                 const campClicks = campLinks.reduce((acc, curr) => acc + getLinkClicks(curr), 0);
-                const target = camp.target_clicks || 50000;
+                const target = camp.target_clicks || 10000;
                 const pct = Math.min(100, Math.round((campClicks / target) * 100));
 
                 return (
@@ -1816,8 +1376,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
               })}
 
               <div className="pt-4 border-t-[0.5px] border-outline-variant text-[11px] text-on-surface-variant flex items-center justify-between">
-                <span>Certified by Antigravity Edge Shortener Engine</span>
-                <span>Audit Ref: cmp_rpt_{Date.now().toString(36)}</span>
+                <span>Generated {new Date().toLocaleDateString()}</span>
               </div>
             </div>
           </div>
@@ -1838,8 +1397,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ onNavigateTab }) =
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-on-surface">Role-Based Access Control (RBAC)</h3>
-                  <p className="text-xs text-on-surface-variant">Permissions &amp; seat capabilities for workspace collaborators</p>
+                  <h3 className="text-base font-bold text-on-surface">Roles &amp; permissions</h3>
                 </div>
               </div>
               <button 

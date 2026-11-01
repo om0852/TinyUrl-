@@ -1866,6 +1866,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return newClick;
   };
 
+  // Campaign writes are optimistic; this confirms them and reports failures instead of
+  // leaving a change on screen that vanishes on the next refresh.
+  const confirmCampaignWrite = async (request: Promise<Response>): Promise<string | null> => {
+    try {
+      const res = await request;
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) return data?.error || `Server responded with ${res.status}.`;
+      return null;
+    } catch {
+      return 'Network error. Please try again.';
+    }
+  };
+
   const addCampaign = (name: string, description: string, tags: string[], target_clicks = 10000) => {
     if (!checkPermissionOrToast('campaigns:create', 'create marketing campaigns')) {
       return null as unknown as Campaign;
@@ -1884,7 +1897,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     saveCampaignsState(updated);
 
     if (typeof window !== 'undefined') {
-      apiFetch('/api/v1/campaigns', {
+      confirmCampaignWrite(apiFetch('/api/v1/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1895,7 +1908,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           tags,
           target_clicks
         })
-      }).catch(err => console.warn('Failed to save campaign on server:', err));
+      })).then(error => {
+        if (!error) return;
+        setCampaigns(prev => prev.filter(c => c.id !== newCamp.id));
+        invalidateStoreCache('campaigns');
+        showToast('error', 'Campaign not saved', error);
+      });
     }
 
     return newCamp;
@@ -1906,12 +1924,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
+    const previous = campaigns.find(c => c.id === id);
     const updated = campaigns.map(c => c.id === id ? { ...c, ...updates } : c);
     saveCampaignsState(updated);
     if (typeof window !== 'undefined') {
       const target = updated.find(c => c.id === id);
       if (target) {
-        apiFetch('/api/v1/campaigns', {
+        confirmCampaignWrite(apiFetch('/api/v1/campaigns', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1922,7 +1941,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             tags: target.tags,
             target_clicks: target.target_clicks
           })
-        }).catch(err => console.warn('Failed to update campaign on server:', err));
+        })).then(error => {
+          if (!error) return;
+          if (previous) setCampaigns(prev => prev.map(c => c.id === id ? previous : c));
+          invalidateStoreCache('campaigns');
+          showToast('error', 'Campaign not updated', error);
+        });
       }
     }
   };
@@ -1932,10 +1956,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
+    const removed = campaigns.find(c => c.id === id);
     const updated = campaigns.filter(c => c.id !== id);
     saveCampaignsState(updated);
     if (typeof window !== 'undefined') {
-      apiFetch(`/api/v1/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+      confirmCampaignWrite(apiFetch(`/api/v1/campaigns?id=${encodeURIComponent(id)}`, { method: 'DELETE' })).then(error => {
+        if (error) {
+          if (removed) setCampaigns(prev => (prev.some(c => c.id === id) ? prev : [removed, ...prev]));
+          invalidateStoreCache('campaigns');
+          showToast('error', 'Campaign not deleted', error);
+          return;
+        }
+        // The server detached this campaign's links; mirror that locally
+        setLinks(prev => prev.map(l => (l.campaign_id === id ? { ...l, campaign_id: undefined } : l)));
+        invalidateStoreCache('links');
+      });
     }
   };
 
