@@ -71,9 +71,6 @@ export default async function NotFound(props?: NotFoundProps) {
 
     return (
       <div className="min-h-screen w-full flex items-center justify-center p-4 bg-slate-950 text-slate-100 font-sans selection:bg-lime-400/30">
-        {/* Replaces the platform's tab title on the customer's domain */}
-        <title>{`Link not found · ${customHost}`}</title>
-        <meta name="robots" content="noindex" />
         <div className="w-full max-w-md bg-slate-900/90 border border-slate-800 rounded-2xl p-8 shadow-2xl backdrop-blur-xl text-center relative overflow-hidden">
           {/* Subtle Ambient Glow */}
           <div className="absolute -top-24 -left-24 w-48 h-48 bg-lime-400/10 rounded-full blur-3xl pointer-events-none" />
