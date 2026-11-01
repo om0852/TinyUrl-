@@ -8,17 +8,47 @@ export class TinyUrlClient {
   constructor(config = {}) {
     this.apiUrl = (config.apiUrl || 'http://localhost:3000').replace(/\/+$/, '');
     this.apiKey = (config.apiKey || '').trim();
-    this.workspaceId = (config.workspaceId || 'ws_default').trim();
+    // Empty means "the API key's own workspace", looked up on the first request
+    // (keys only work in the workspace they were created in; ws_default is not shared any more)
+    this.workspaceId = (config.workspaceId || '').trim();
+    this._workspaceLookup = null;
+  }
+
+  /**
+   * Workspace for this client: the configured one, or the API key's own workspace
+   */
+  async resolveWorkspace() {
+    if (this.workspaceId || !this.apiKey) return this.workspaceId;
+    if (!this._workspaceLookup) {
+      this._workspaceLookup = fetch(`${this.apiUrl}/api/v1/api-keys?whoami=1`, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${this.apiKey}` }
+      })
+        .then(r => r.json())
+        .then(d => {
+          if (d?.success && d.key?.workspace_id) this.workspaceId = d.key.workspace_id;
+          return this.workspaceId;
+        })
+        .catch(() => this.workspaceId);
+    }
+    return this._workspaceLookup;
   }
 
   /**
    * Internal HTTP request dispatcher
    */
   async request(endpoint, options = {}) {
+    // Methods build their URL and body before the key's workspace is known; fill it in here
+    const ws = options.workspaceId || await this.resolveWorkspace();
+    if (ws) {
+      endpoint = endpoint.replace(/([?&]workspace_id=)(?=&|$)/, `$1${encodeURIComponent(ws)}`);
+      if (options.body && typeof options.body === 'object' && 'workspace_id' in options.body && !options.body.workspace_id) {
+        options.body = { ...options.body, workspace_id: ws };
+      }
+    }
     const url = `${this.apiUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
     const headers = {
       'Accept': 'application/json',
-      'x-workspace-id': options.workspaceId || this.workspaceId,
+      ...(ws ? { 'x-workspace-id': ws } : {}),
       ...options.headers
     };
 
@@ -259,7 +289,7 @@ export class TinyUrlClient {
   async testWebhook(id) {
     return this.request('/api/v1/webhooks/test', {
       method: 'POST',
-      body: { id }
+      body: { webhook_id: id, workspace_id: this.workspaceId }
     });
   }
 
@@ -299,14 +329,14 @@ export class TinyUrlClient {
     });
   }
 
-  async removeMember(payload) {
-    return this.request('/api/v1/workspaces/members', {
-      method: 'DELETE',
-      body: {
-        workspace_id: this.workspaceId,
-        ...payload
-      }
-    });
+  async removeMember(payload = {}) {
+    const qs = new URLSearchParams();
+    if (payload.id) qs.set('id', payload.id);
+    if (payload.email) {
+      qs.set('email', payload.email);
+      qs.set('workspace_id', payload.workspace_id || this.workspaceId);
+    }
+    return this.request(`/api/v1/workspaces/members?${qs.toString()}`, { method: 'DELETE' });
   }
 
   // --- Security & Cache Health ---

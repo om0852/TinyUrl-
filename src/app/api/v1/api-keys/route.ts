@@ -34,6 +34,35 @@ interface RawApiKeyRow {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // ?whoami=1 with a Bearer key: the workspace and scopes of that key, so the CLI and MCP
+    // server work without a configured workspace id (keys only work in their own workspace)
+    if (searchParams.get('whoami') === '1') {
+      const auth = request.headers.get('authorization') || '';
+      const token = (request.headers.get('x-api-key') || (auth.startsWith('Bearer ') ? auth.slice(7) : '')).trim();
+      if (!token) {
+        return NextResponse.json({ success: false, error: 'Send an API key as Authorization: Bearer <key>.' }, { status: 401 });
+      }
+      const keyHash = crypto.createHash('sha256').update(token).digest('hex');
+      const rows = (await sql.query(
+        `SELECT id, name, workspace_id, permissions FROM api_keys WHERE key_hash = $1 LIMIT 1`,
+        [keyHash]
+      )) as unknown as RawApiKeyRow[];
+      if (!rows || rows.length === 0) {
+        return NextResponse.json({ success: false, error: 'Invalid or revoked API key.' }, { status: 401 });
+      }
+      const k = rows[0];
+      return NextResponse.json({
+        success: true,
+        key: {
+          id: k.id,
+          name: k.name,
+          workspace_id: k.workspace_id,
+          permissions: typeof k.permissions === 'string' ? JSON.parse(k.permissions) : (k.permissions || [])
+        }
+      });
+    }
+
     const workspaceId = searchParams.get('workspace_id') || request.headers.get('x-workspace-id');
 
     if (!workspaceId) {

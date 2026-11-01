@@ -18,10 +18,11 @@ The platform enforces multi-tenant Role-Based Access Control (RBAC) with secure 
    ```http
    x-api-key: sk_live_...
    ```
-3. **Workspace Isolation (`x-workspace-id`)**:
+3. **Workspace (`x-workspace-id`)**, optional with a workspace key:
    ```http
-   x-workspace-id: ws_default
+   x-workspace-id: ws_your_workspace_id
    ```
+   A workspace key only works in the workspace it was created in. When no workspace is configured, the CLI and MCP server ask `GET /api/v1/api-keys?whoami=1` for the key's workspace.
 
 ### Two-Tier API Key Verification
 
@@ -45,7 +46,7 @@ The platform enforces multi-tenant Role-Based Access Control (RBAC) with secure 
 | Method | Endpoint | Description | Required RBAC Permission |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/shorten` | Create shortened URL (slug, tags, UTM, password, expiration) | `links:create` |
-| `GET` | `/api/v1/links` | List links for a workspace or retrieve by short code | `export:data` / `links:read` |
+| `GET` | `/api/v1/links` | List links for a workspace (`all=1` for more than 100) or retrieve by short code | `export:data` |
 | `PATCH` | `/api/v1/links` | Update destination URL, slug, rules, status, tags | `links:edit` |
 | `DELETE` | `/api/v1/links` | Delete a short link permanently | `links:delete` |
 | `POST` | `/api/v1/links/bulk` | Bulk import up to 1,000 links | `links:create` |
@@ -111,8 +112,8 @@ npm run cli -- config set apiKey sk_live_...
 # Set Base URL
 npm run cli -- config set apiUrl http://localhost:3000
 
-# Set default workspace
-npm run cli -- config set workspaceId ws_default
+# Optional: pin a workspace (defaults to the API key's own workspace)
+npm run cli -- config set workspaceId ws_your_workspace_id
 ```
 
 ### CLI Commands Guide
@@ -201,7 +202,7 @@ npm run cli -- domains probe go.mycompany.com
 npm run cli -- keys list
 
 # Generate new API key
-npm run cli -- keys create "Integration Bot" --permissions links:read links:write analytics:read
+npm run cli -- keys create "Integration Bot" --permissions links:create export:data analytics:read
 
 # Revoke API key
 npm run cli -- keys revoke key_12345
@@ -253,8 +254,7 @@ npm run mcp
       "args": ["c:/Users/salun/OneDrive - smarttech/Desktop/D folder/url-shortner/mcp/index.mjs"],
       "env": {
         "TINYURL_API_URL": "http://localhost:3000",
-        "TINYURL_API_KEY": "sk_live_master_urlshortener_2026_sec01",
-        "TINYURL_WORKSPACE_ID": "ws_default"
+        "TINYURL_API_KEY": "sk_live_your_workspace_key"
       }
     }
   }
@@ -270,7 +270,7 @@ npm run mcp
       "args": ["c:\\Users\\salun\\OneDrive - smarttech\\Desktop\\D folder\\url-shortner\\mcp\\index.mjs"],
       "env": {
         "TINYURL_API_URL": "http://localhost:3000",
-        "TINYURL_API_KEY": "sk_live_master_urlshortener_2026_sec01"
+        "TINYURL_API_KEY": "sk_live_your_workspace_key"
       }
     }
   }

@@ -57,7 +57,7 @@ program
   .version('2.0.0')
   .option('-u, --api-url <url>', 'Base API URL (default: http://localhost:3000)')
   .option('-k, --api-key <key>', 'API Key for Bearer / x-api-key authentication')
-  .option('-w, --workspace <id>', 'Target Workspace ID (default: ws_default)')
+  .option('-w, --workspace <id>', 'Target Workspace ID (default: the API key\'s workspace)')
   .option('--json', 'Output raw JSON for machine parsing');
 
 // --- SHORTEN COMMAND ---
@@ -491,7 +491,7 @@ keysCmd
 keysCmd
   .command('create <name>')
   .description('Generate a new secure API Key')
-  .option('-p, --permissions <perms...>', 'Permissions (links:read, links:write, analytics:read, etc.)')
+  .option('-p, --permissions <perms...>', 'Scopes: links:create links:edit links:delete export:data analytics:read campaigns:create')
   .action(async (name, opts) => {
     try {
       const client = getClient();

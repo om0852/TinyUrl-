@@ -379,10 +379,10 @@ server.tool(
 
 server.tool(
   'create_api_key',
-  'Generate a new secure API Key with scoped permissions (links:read, links:write, analytics:read, etc.).',
+  'Generate a new API key. Scopes: links:create, links:edit, links:delete, export:data (read links), analytics:read, campaigns:create. A key cannot have scopes beyond the creator\'s role.',
   {
     name: z.string().describe('Descriptive name for the API key'),
-    permissions: z.array(z.string()).optional().describe('List of permissions (e.g. ["links:read", "links:write"])')
+    permissions: z.array(z.string()).optional().describe('Scopes, e.g. ["links:create", "export:data", "analytics:read"]')
   },
   async (args) => {
     try {

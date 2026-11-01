@@ -2119,6 +2119,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const verifyDomain = async (idOrHostname: string, simulateBypass?: boolean): Promise<{ success: boolean; verified?: boolean; message?: string }> => {
+    // The built-in platform domain only exists in the browser; there is no DNS to check
+    if (idOrHostname === 'dom_platform') {
+      return { success: true, verified: true, message: 'This is the built-in domain.' };
+    }
     if (!checkPermissionOrToast('domains:manage', 'verify custom domains')) {
       return { success: false, message: 'Permission denied' };
     }

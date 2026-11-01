@@ -81,7 +81,7 @@ export function loadConfig(cliOptions = {}) {
     cliOptions.workspaceId ||
     process.env.TINYURL_WORKSPACE_ID ||
     fileConfig.workspaceId ||
-    'ws_default';
+    '';
 
   return {
     apiUrl: apiUrl.replace(/\/+$/, ''),

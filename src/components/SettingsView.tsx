@@ -31,6 +31,10 @@ type SettingsTab = 'general' | 'domains';
 const EDGE_PROXY_IP = process.env.NEXT_PUBLIC_EDGE_PROXY_IP || '159.54.139.45';
 const CNAME_TARGET = process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd';
 
+// The app's own host, added in the browser (ensurePlatformDomain) and not stored on the server,
+// so there is nothing to verify, edit or remove
+const isPlatformDomain = (d: Domain) => d.id === 'dom_platform';
+
 const slugify = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 export const SettingsView: React.FC<SettingsViewProps> = () => {
@@ -147,9 +151,11 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
   const iconBtn = 'size-[30px] rounded-md grid place-items-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50';
   const input = 'h-[34px] px-3 bg-surface-container-low rounded-md text-xs text-on-surface border-[0.5px] border-outline-variant outline-none focus:border-on-surface-variant disabled:opacity-60';
   const primaryBtn = 'h-[34px] px-4 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-  const verifiedCount = domains.filter(d => d.verified).length;
+  const customDomains = domains.filter(d => !isPlatformDomain(d));
+  const verifiedCount = customDomains.filter(d => d.verified).length;
 
   const statusOf = (d: Domain): [string, string] => {
+    if (isPlatformDomain(d)) return ['bg-emerald-500', 'Built-in domain'];
     if (d.verified) return ['bg-emerald-500', 'Verified'];
     if (d.routing_verified && !d.ownership_verified) return ['bg-amber-500', 'Needs TXT record'];
     if (d.ownership_verified && !d.routing_verified) return ['bg-amber-500', 'Needs A or CNAME record'];
@@ -183,7 +189,7 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
             onClick={() => setTab(id)}
             className={`h-[26px] px-3 rounded-[4px] transition-colors cursor-pointer ${tab === id ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm' : 'text-on-surface-variant hover:text-on-surface'}`}
           >
-            {label}{id === 'domains' && <span className="text-outline"> {domains.length}</span>}
+            {label}{id === 'domains' && <span className="text-outline"> {customDomains.length}</span>}
           </button>
         ))}
       </div>
@@ -225,7 +231,7 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
             <div className="mt-2 flex flex-col">
               {[
                 { icon: <Link2 className="w-4 h-4" />, label: 'Links', value: links.length },
-                { icon: <Globe2 className="w-4 h-4" />, label: 'Custom domains', value: domains.length, hint: `${verifiedCount} verified` },
+                { icon: <Globe2 className="w-4 h-4" />, label: 'Custom domains', value: customDomains.length, hint: `${verifiedCount} verified` },
                 { icon: <Users className="w-4 h-4" />, label: 'Members', value: Math.max(1, teamMembers.filter(m => m.status === 'active').length) },
               ].map(row => (
                 <div key={row.label} className="flex items-center gap-[10px] py-2.5 border-b-[0.5px] border-outline-variant last:border-b-0">
@@ -261,7 +267,7 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
           <div className={`${canManageDomains ? 'lg:col-span-8' : 'lg:col-span-12'} rounded-xl border-[0.5px] border-outline-variant overflow-hidden`}>
             <div className="px-[15px] py-3 border-b-[0.5px] border-outline-variant flex items-center justify-between">
               <h2 className="text-[14px] font-semibold text-on-surface">Domains</h2>
-              <span className="text-xs text-outline">{verifiedCount} of {domains.length} verified</span>
+              <span className="text-xs text-outline">{customDomains.length ? `${verifiedCount} of ${customDomains.length} custom verified` : 'No custom domains yet'}</span>
             </div>
             {domains.length === 0 ? (
               <p className="py-10 px-6 text-center text-xs text-on-surface-variant">No custom domains yet. Links use the main domain until you add one.</p>
@@ -291,7 +297,7 @@ export const SettingsView: React.FC<SettingsViewProps> = () => {
                               DNS records {dnsOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </button>
                           )}
-                          {canManageDomains && (
+                          {canManageDomains && !isPlatformDomain(d) && (
                             <>
                               <button type="button" onClick={() => handleCheckDns(d)} disabled={checkingId === d.id} title="Check DNS" aria-label="Check DNS" className={iconBtn}>
                                 <RefreshCw className={`w-3.5 h-3.5 ${checkingId === d.id ? 'animate-spin' : ''}`} />
