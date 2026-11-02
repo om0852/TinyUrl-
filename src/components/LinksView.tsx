@@ -35,6 +35,29 @@ import {
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { EditLinkModal } from '@/components/EditLinkModal';
 import { SkeletonLinksView } from '@/components/ui/Skeleton';
+import { DropdownMenu } from '@/components/ui/DropdownMenu';
+
+type LinkSort = 'clicks' | 'least_clicks' | 'newest' | 'oldest' | 'name';
+
+const SORT_OPTIONS: { id: LinkSort; label: string }[] = [
+  { id: 'clicks', label: 'Most clicks' },
+  { id: 'least_clicks', label: 'Fewest clicks' },
+  { id: 'newest', label: 'Newest first' },
+  { id: 'oldest', label: 'Oldest first' },
+  { id: 'name', label: 'Name A–Z' },
+];
+
+type DateRange = '24h' | '7d' | '30d' | '90d' | 'all';
+
+const DATE_RANGES: { id: DateRange; label: string; ms: number }[] = [
+  { id: '24h', label: 'Last 24 hours', ms: 864e5 },
+  { id: '7d', label: 'Last 7 days', ms: 7 * 864e5 },
+  { id: '30d', label: 'Last 30 days', ms: 30 * 864e5 },
+  { id: '90d', label: 'Last 90 days', ms: 90 * 864e5 },
+  { id: 'all', label: 'All time', ms: 0 },
+];
+
+const createdTime = (l: { created_at?: string }) => (l.created_at ? new Date(l.created_at).getTime() || 0 : 0);
 
 interface LinksViewProps {
   onOpenCreateModal: () => void;
@@ -69,11 +92,33 @@ export const LinksView: React.FC<LinksViewProps> = ({
   const [repairFallbackUrl, setRepairFallbackUrl] = useState('');
   const [isSubmittingRepair, setIsSubmittingRepair] = useState(false);
 
-  // Helper to get true clicks for link (taking max of clicks_count and telemetry click_events)
+  // Date range for the stat cards and click counts. "All time" uses the stored counter; a range
+  // counts click events inside it (the workspace's latest 5,000 events are loaded).
+  const [dateRange, setDateRange] = useState<DateRange>('all');
+  // The range ends when it was picked (Date.now() can't run during render)
+  const [rangeEnd, setRangeEnd] = useState(() => Date.now());
+  const rangeMs = DATE_RANGES.find(r => r.id === dateRange)?.ms || 0;
+
+  const { rangeClicks, previousRangeCount } = useMemo(() => {
+    if (!rangeMs) return { rangeClicks: clicks, previousRangeCount: 0 };
+    const now = rangeEnd;
+    const start = now - rangeMs;
+    const prevStart = start - rangeMs;
+    const inRange: typeof clicks = [];
+    let previous = 0;
+    for (const c of clicks) {
+      const t = new Date(c.timestamp).getTime();
+      if (t >= start && t <= now) inRange.push(c);
+      else if (t >= prevStart && t < start) previous++;
+    }
+    return { rangeClicks: inRange, previousRangeCount: previous };
+  }, [clicks, rangeMs, rangeEnd]);
+
+  // Clicks for a link in the selected range (all time: the larger of the counter and the events)
   const getLinkClicks = useCallback((l: typeof links[0]) => {
-    const eventsCount = clicks.filter(c => c.link_id === l.id || (c.short_code && l.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())).length;
-    return Math.max(l.clicks_count || 0, eventsCount);
-  }, [clicks]);
+    const eventsCount = rangeClicks.filter(c => c.link_id === l.id || (c.short_code && l.short_code && c.short_code.toLowerCase() === l.short_code.toLowerCase())).length;
+    return rangeMs ? eventsCount : Math.max(l.clicks_count || 0, eventsCount);
+  }, [rangeClicks, rangeMs]);
 
   const canDeleteLinks = hasPermission(currentUserRole, 'links:delete');
   const canCreateLinks = hasPermission(currentUserRole, 'links:create');
@@ -91,6 +136,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
   const [platformFilter, setPlatformFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [tableDensity, setTableDensity] = useState<'normal' | 'compact'>('normal');
+  const [sortBy, setSortBy] = useState<LinkSort>('clicks');
 
   // Copy state & feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -251,8 +297,16 @@ export const LinksView: React.FC<LinksViewProps> = ({
       if (statusFilter === 'flagged' && link.status !== 'flagged') return false;
 
       return true;
-    }).sort((a, b) => getLinkClicks(b) - getLinkClicks(a));
-  }, [links, searchTerm, platformFilter, statusFilter, getPlacementTag, getLinkClicks]);
+    }).sort((a, b) => {
+      switch (sortBy) {
+        case 'least_clicks': return getLinkClicks(a) - getLinkClicks(b);
+        case 'newest': return createdTime(b) - createdTime(a);
+        case 'oldest': return createdTime(a) - createdTime(b);
+        case 'name': return (a.title || a.short_code).localeCompare(b.title || b.short_code);
+        default: return getLinkClicks(b) - getLinkClicks(a);
+      }
+    });
+  }, [links, searchTerm, platformFilter, statusFilter, sortBy, getPlacementTag, getLinkClicks]);
 
   // Paginated links
   const totalPages = Math.max(1, Math.ceil(filteredLinks.length / pageSize));
@@ -265,9 +319,15 @@ export const LinksView: React.FC<LinksViewProps> = ({
   const totalClicksCount = useMemo(() => {
     return Math.max(
       links.reduce((acc, curr) => acc + getLinkClicks(curr), 0),
-      clicks.length
+      rangeClicks.length
     );
-  }, [links, clicks, getLinkClicks]);
+  }, [links, rangeClicks, getLinkClicks]);
+
+  const rangeLabel = DATE_RANGES.find(r => r.id === dateRange)?.label || 'All time';
+  // Change against the period of the same length just before it; null when there's nothing to compare
+  const rangeChangePct = rangeMs && previousRangeCount > 0
+    ? Math.round(((totalClicksCount - previousRangeCount) / previousRangeCount) * 100)
+    : null;
 
   const topPerformingLink = useMemo(() => {
     if (links.length === 0) return null;
@@ -667,16 +727,27 @@ export const LinksView: React.FC<LinksViewProps> = ({
               <span className="pointer-events-none absolute right-2.5 top-2.5 text-outline text-[12px]">▼</span>
             </div>
 
-            {/* Date Range Button */}
-            <div className="relative">
-              <button
-                type="button"
-                className="inline-flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-medium px-3 py-2 rounded-lg border-[0.5px] border-outline-variant transition-colors cursor-pointer"
-              >
-                <Calendar className="w-3.5 h-3.5 text-outline" />
-                <span>Last 30 days</span>
-              </button>
-            </div>
+            {/* Date range: filters the stat cards and per-link click counts */}
+            <DropdownMenu
+              title="Date range"
+              align="right"
+              trigger={
+                <span
+                  role="button"
+                  aria-label={`Date range: ${rangeLabel}`}
+                  className={`inline-flex items-center gap-1.5 bg-surface-container-low hover:bg-surface-container text-xs font-medium px-3 py-2 rounded-lg border-[0.5px] border-outline-variant transition-colors ${dateRange !== 'all' ? 'text-primary-ink' : 'text-on-surface'}`}
+                >
+                  <Calendar className="w-3.5 h-3.5 text-outline" />
+                  <span>{rangeLabel}</span>
+                </span>
+              }
+              items={DATE_RANGES.map(r => ({
+                id: r.id,
+                label: r.label,
+                active: dateRange === r.id,
+                onClick: () => { setDateRange(r.id); setRangeEnd(Date.now()); setCurrentPage(1); },
+              }))}
+            />
 
           </div>
         </div>
@@ -689,23 +760,27 @@ export const LinksView: React.FC<LinksViewProps> = ({
         {/* Card 1: Total Clicks */}
         <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
           <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
-            <span>Total Clicks (30d)</span>
+            <span>Total Clicks · {rangeLabel}</span>
             <TrendingUp className="w-4 h-4 text-primary-ink" />
           </div>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold font-mono text-on-surface tracking-tight">
               {totalClicksCount.toLocaleString()}
             </span>
-            {totalClicksCount > 0 ? (
-              <span className="inline-flex items-center text-xs font-semibold text-emerald-600">
-                <TrendingUp className="w-3 h-3 mr-0.5" /> Live
+            {rangeChangePct !== null && (
+              <span className={`inline-flex items-center text-xs font-semibold ${rangeChangePct >= 0 ? 'text-emerald-600' : 'text-error'}`}>
+                {rangeChangePct >= 0 ? '+' : ''}{rangeChangePct}%
               </span>
-            ) : (
-              <span className="text-xs text-on-surface-variant font-medium">0%</span>
             )}
           </div>
           <div className="mt-3 flex items-center gap-1 text-[11px] text-on-surface-variant">
-            <span>vs previous 30 days period</span>
+            <span>
+              {!rangeMs
+                ? 'Since each link was created'
+                : rangeChangePct !== null
+                  ? `vs previous ${rangeLabel.replace('Last ', '')}`
+                  : 'No clicks in the period before'}
+            </span>
           </div>
         </div>
 
@@ -789,13 +864,16 @@ export const LinksView: React.FC<LinksViewProps> = ({
           <div className="px-5 py-4 bg-surface-container-lowest flex items-center justify-between border-b border-outline-variant">
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold text-on-surface">Active Campaign Links</span>
-              <span className="text-xs text-on-surface-variant hidden sm:inline">&bull; Sorted by most clicks</span>
+              <span className="text-xs text-on-surface-variant hidden sm:inline">
+                &bull; Sorted by {SORT_OPTIONS.find(o => o.id === sortBy)?.label.toLowerCase()}
+              </span>
             </div>
             <div className="flex items-center gap-1 text-outline">
               <button
                 type="button"
                 onClick={() => {
                   setSearchTerm('');
+                  setRangeEnd(Date.now());
                   refreshLinks(true);
                 }}
                 disabled={isRefreshing}
@@ -804,14 +882,27 @@ export const LinksView: React.FC<LinksViewProps> = ({
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-primary-ink' : ''}`} />
               </button>
-              <button
-                type="button"
-                onClick={() => setTableDensity(d => d === 'normal' ? 'compact' : 'normal')}
-                className="p-1.5 hover:bg-surface-container-low rounded-lg transition-colors cursor-pointer"
-                title="Toggle Table Density"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-              </button>
+              {/* Sort order and row spacing; used to only flip row spacing, which barely showed */}
+              <DropdownMenu
+                title="Sort by"
+                align="right"
+                trigger={
+                  <span
+                    role="button"
+                    aria-label="Sort and view options"
+                    title="Sort and view options"
+                    className={`grid p-1.5 rounded-lg transition-colors hover:bg-surface-container-low ${sortBy !== 'clicks' || tableDensity === 'compact' ? 'text-primary-ink bg-surface-container-low' : ''}`}
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </span>
+                }
+                items={[
+                  ...SORT_OPTIONS.map(o => ({ id: o.id, label: o.label, active: sortBy === o.id, onClick: () => { setSortBy(o.id); setCurrentPage(1); } })),
+                  { id: 'div', label: '', divider: true },
+                  { id: 'normal', label: 'Comfortable rows', active: tableDensity === 'normal', onClick: () => setTableDensity('normal') },
+                  { id: 'compact', label: 'Compact rows', active: tableDensity === 'compact', onClick: () => setTableDensity('compact') },
+                ]}
+              />
             </div>
           </div>
 
@@ -881,7 +972,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                       <tr key={link.id} className={`hover:bg-surface-container-low transition-colors group ${isSelected ? 'bg-primary/5' : ''}`}>
                         
                         {/* Checkbox */}
-                        <td className={`px-3 text-center ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-3 text-center ${tableDensity === 'compact' ? 'py-1.5' : 'py-3.5'}`}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -899,7 +990,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         </td>
 
                         {/* Link & Destination */}
-                        <td className={`px-4 max-w-[280px] ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-4 max-w-[280px] ${tableDensity === 'compact' ? 'py-1.5' : 'py-3.5'}`}>
                           <div className="flex flex-col min-w-0">
                             <span className="text-sm font-semibold text-on-surface truncate">
                               {link.title || 'Untitled Short Link'}
@@ -981,7 +1072,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         </td>
 
                         {/* Placement Tag */}
-                        <td className={`px-4 whitespace-nowrap ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-4 whitespace-nowrap ${tableDensity === 'compact' ? 'py-1.5' : 'py-3.5'}`}>
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${placement.bg}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${placement.dot}`} />
                             <span>{placement.label}</span>
@@ -989,7 +1080,7 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         </td>
 
                         {/* Clicks (30d) */}
-                        <td className={`px-4 whitespace-nowrap ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-4 whitespace-nowrap ${tableDensity === 'compact' ? 'py-1.5' : 'py-3.5'}`}>
                           <div className="flex flex-col">
                             <span className="font-mono text-xs font-bold text-on-surface">
                               {getLinkClicks(link).toLocaleString()}
@@ -1001,12 +1092,12 @@ export const LinksView: React.FC<LinksViewProps> = ({
                         </td>
 
                         {/* Created Date */}
-                        <td className={`px-4 whitespace-nowrap text-on-surface-variant text-[12px] ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-4 whitespace-nowrap text-on-surface-variant text-[12px] ${tableDensity === 'compact' ? 'py-1.5' : 'py-3.5'}`}>
                           {link.created_at ? new Date(link.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently'}
                         </td>
 
                         {/* Action Buttons */}
-                        <td className={`px-5 text-right whitespace-nowrap ${tableDensity === 'compact' ? 'py-2.5' : 'py-3.5'}`}>
+                        <td className={`px-5 text-right whitespace-nowrap ${tableDensity === 'compact' ? 'py-1.5' : 'py-3.5'}`}>
                           <div className="inline-flex items-center gap-1">
                             <button
                               type="button"
