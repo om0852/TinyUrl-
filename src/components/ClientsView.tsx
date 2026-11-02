@@ -59,7 +59,6 @@ export const ClientsView: React.FC<ClientsViewProps> = () => {
   const [clientToDelete, setClientToDelete] = useState<ClientPortalAccount | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const originDomain = typeof window !== 'undefined' ? window.location.host : 'tinyurl.dev';
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -72,8 +71,8 @@ export const ClientsView: React.FC<ClientsViewProps> = () => {
   };
 
   const handleCopyPortalLink = (client: ClientPortalAccount) => {
-    const portalDomain = client.custom_domain || originDomain;
-    const portalUrl = `https://${portalDomain}/portal/login?email=${encodeURIComponent(client.email)}`;
+    // The portal lives on the platform; custom domains only serve short links and 404 everything else
+    const portalUrl = `${window.location.origin}/portal/login?email=${encodeURIComponent(client.email)}`;
     navigator.clipboard.writeText(portalUrl).catch(() => {});
     setCopiedClientId(client.id);
     showToast('success', 'Client portal login URL copied to clipboard!');

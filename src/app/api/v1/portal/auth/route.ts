@@ -78,25 +78,12 @@ export async function POST(request: Request) {
       [client.id]
     );
 
-    const parseIds = (v: unknown): string[] => (typeof v === 'string' ? JSON.parse(v) : (Array.isArray(v) ? v : []));
+    // Only what the portal shows; links and permissions come from /portal/resources
     const clientProfile = {
       id: client.id,
-      workspace_id: client.workspace_id,
       name: client.name,
       email: client.email,
-      company_name: client.company_name,
-      custom_domain: client.custom_domain,
-      brand_logo_url: client.brand_logo_url,
-      brand_color: client.brand_color,
-      can_view_analytics: client.can_view_analytics,
-      can_edit_destination_url: client.can_edit_destination_url,
-      can_create_links: client.can_create_links,
-      max_links_quota: client.max_links_quota,
-      assigned_link_ids: parseIds(client.assigned_link_ids),
-      assigned_campaign_ids: parseIds(client.assigned_campaign_ids),
-      assigned_channel: client.assigned_channel,
-      total_logins: (Number(client.total_logins) || 0) + 1,
-      last_login_at: new Date().toISOString()
+      company_name: client.company_name
     };
 
     const res = NextResponse.json({ success: true, message: 'Signed in.', client: clientProfile });

@@ -30,10 +30,12 @@ export async function GET(request: Request) {
     let scopedLinks: Record<string, unknown>[] = [];
     if (assignedLinkIds.length > 0 || assignedCampaignIds.length > 0) {
       scopedLinks = (await sql.query(
-        `SELECT id, short_code, custom_slug, destination_url, title, status, clicks_count, created_at, updated_at, campaign_id, utm_campaign
-         FROM links
-         WHERE workspace_id = $1 AND (id = ANY($2::text[]) OR campaign_id = ANY($3::text[]))
-         ORDER BY created_at DESC`,
+        `SELECT l.id, l.short_code, l.custom_slug, l.destination_url, l.title, l.status, l.clicks_count, l.created_at, l.updated_at,
+                l.campaign_id, l.utm_campaign, d.hostname AS domain_hostname
+         FROM links l
+         LEFT JOIN domains d ON d.id = l.domain_id AND d.workspace_id = l.workspace_id AND d.verified = true
+         WHERE l.workspace_id = $1 AND (l.id = ANY($2::text[]) OR l.campaign_id = ANY($3::text[]))
+         ORDER BY l.created_at DESC`,
         [client.workspace_id, assignedLinkIds, assignedCampaignIds]
       ).catch(() => [])) as Record<string, unknown>[];
     }
@@ -55,12 +57,15 @@ export async function GET(request: Request) {
 
     const totalClicks = scopedLinks.reduce((acc, l) => acc + (Number(l.clicks_count) || 0), 0);
     const uniqueVisitors = new Set(scopedClicks.map(c => c.ip_hash || c.id));
+    // Visitor hashes stay on the server
+    const clicksOut = scopedClicks.map(({ ip_hash: _ip, ...c }) => c);
 
     return NextResponse.json({
       success: true,
       client: {
         id: client.id,
         name: client.name,
+        email: client.email,
         company_name: client.company_name,
         brand_color: client.brand_color,
         brand_logo_url: client.brand_logo_url,
@@ -71,7 +76,7 @@ export async function GET(request: Request) {
       },
       links: scopedLinks,
       campaigns: scopedCampaigns,
-      clicks: scopedClicks,
+      clicks: clicksOut,
       metrics: {
         total_assigned_links: scopedLinks.length,
         total_assigned_campaigns: scopedCampaigns.length,

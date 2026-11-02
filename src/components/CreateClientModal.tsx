@@ -126,7 +126,8 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
 
   if (!mounted || !isOpen) return null;
 
-  const portalDisplayHost = customDomain || primaryDomain?.hostname || currentHost;
+  // Clients sign in on the platform; the custom domain only serves their short links
+  const portalDisplayHost = currentHost;
 
   const filteredLinks = links.filter(l => {
     const q = linkSearchQuery.toLowerCase().trim();
@@ -261,14 +262,14 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
       <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full p-6 sm:p-7 shadow-2xl border-[0.5px] border-outline-variant relative animate-fade-in max-h-[92vh] overflow-y-auto custom-scrollbar text-on-surface flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-outline-variant">
+        <div className="flex items-center justify-between pb-4 border-b-[0.5px] border-outline-variant shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary-container text-on-primary flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-md bg-surface-container text-on-surface-variant flex items-center justify-center">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-on-surface">
+                <h2 className="text-base font-semibold text-on-surface">
                   {clientToEdit ? 'Edit client' : 'Add client'}
                 </h2>
               </div>
@@ -284,8 +285,9 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
           </button>
         </div>
 
-        {/* Multi-Step Category Tabs */}
-        <div className="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-xl border-[0.5px] border-outline-variant my-4 text-xs overflow-x-auto">
+        {/* Step tabs. shrink-0: in this height-limited column the row used to be squashed
+            to a sliver when a tab's content (the links list) got tall */}
+        <div className="inline-flex self-start max-w-full p-[3px] bg-surface-container rounded-md my-4 text-xs overflow-x-auto shrink-0" role="tablist" aria-label="Client settings">
           {[
             { id: 'info', label: 'Account', icon: User },
             { id: 'scoping', label: 'Links', icon: Link2, badge: selectedLinkIds.length + selectedCampaignIds.length },
@@ -299,16 +301,18 @@ export const CreateClientModal: React.FC<CreateClientModalProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+                role="tab"
+                aria-selected={isActive}
+                className={`h-[28px] px-3 rounded-[4px] transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                   isActive
-                    ? 'bg-surface-container-lowest text-primary-ink shadow-xs font-bold'
+                    ? 'bg-surface-container-lowest text-on-surface font-medium shadow-sm'
                     : 'text-on-surface-variant hover:text-on-surface'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
                 <span>{tab.label}</span>
                 {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-primary-container text-on-primary font-mono font-bold">
+                  <span className="text-[10px] px-1.5 rounded-full bg-primary-fixed text-on-secondary-container font-medium">
                     {tab.badge}
                   </span>
                 )}

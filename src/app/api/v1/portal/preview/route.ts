@@ -24,7 +24,9 @@ export async function GET(request: Request) {
   const auth = await verifyWorkspacePermission(request, 'clients:manage', { workspaceId: rows[0].workspace_id });
   if (!auth.success) return auth.response;
 
-  const res = NextResponse.redirect(new URL('/portal/dashboard', request.url));
+  // Relative redirect: behind the edge proxy request.url can name the upstream host, and the
+  // cookie must land on the host the browser is actually on
+  const res = new NextResponse(null, { status: 307, headers: { Location: '/portal/dashboard' } });
   res.cookies.set(PORTAL_COOKIE, createPortalToken(rows[0].id, 60 * 60), portalCookieOptions(60 * 60));
   return res;
 }

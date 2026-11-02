@@ -5,6 +5,7 @@ export interface PortalClientRow {
   id: string;
   workspace_id: string;
   name: string;
+  email: string;
   company_name: string;
   status: string;
   custom_domain?: string | null;
