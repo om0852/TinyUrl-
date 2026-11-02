@@ -11,7 +11,6 @@ import { RedirectClient } from './RedirectClient';
 import { PublicStatsClient } from '@/components/PublicStatsClient';
 import { linkCache } from '@/lib/cache';
 import { isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
-import { detectAppDeepLink } from '@/lib/deepLink';
 import { createClickToken } from '@/lib/session';
 
 interface PageProps {
@@ -346,14 +345,9 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         const isSuspicious = Boolean(row.is_flagged || row.status === 'flagged' || Number(row.risk_score || 0) >= 60);
         const isSplashOrFrame = initialLink.redirect_type === 'splash' || initialLink.redirect_type === 'frame';
 
-        // OpeninApp: a phone opening a link to a known app (YouTube, Instagram, Spotify…) gets the
-        // bridge page, which launches the native app. A plain HTTP redirect leaves visitors inside
-        // in-app browsers (Instagram, WhatsApp…) looking at the mobile website instead.
-        const isPhoneVisitor = /iPhone|iPad|iPod|Android/i.test(userAgent);
-        const needsAppBridge = Boolean(initialTarget && isPhoneVisitor && detectAppDeepLink(initialTarget));
-
-        // DIRECT REDIRECT: If the link is clean and safe, redirect user immediately without showing redirect page!
-        if (initialTarget && !isSuspicious && !isPasswordLocked && !isSplashOrFrame && !needsAppBridge) {
+        // DIRECT REDIRECT: a clean, safe Direct link always goes straight to the destination, app
+        // links (YouTube, Instagram, Spotify…) on phones included: no "open in app" screen in between.
+        if (initialTarget && !isSuspicious && !isPasswordLocked && !isSplashOrFrame) {
           // Asynchronously log the click in the background with rich telemetry
           try {
             const trustedIp = getTrustedEdgeClientIp(name => headersList.get(name));

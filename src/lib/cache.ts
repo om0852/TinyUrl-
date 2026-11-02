@@ -12,6 +12,13 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+// Link and domain rows change when someone edits them, but a delete only clears L1 on the
+// instance that handled the edit. Other serverless instances keep their copy, so those rows live
+// in L1 only briefly; a longer TTL kept serving an old redirect type (splash after switching to
+// direct) for minutes. Redis, when configured, still holds them for the full TTL.
+const L1_ROW_MAX_TTL_SECONDS = 10;
+const isRowKey = (key: string) => key.startsWith('link_') || key.startsWith('domain_');
+
 class EdgeMemoryCache {
   private store = new Map<string, CacheEntry<unknown>>();
   private maxItems = 5000;
@@ -34,9 +41,10 @@ class EdgeMemoryCache {
       if (firstKey) this.store.delete(firstKey);
     }
 
+    const ttl = isRowKey(key) ? Math.min(ttlSeconds, L1_ROW_MAX_TTL_SECONDS) : ttlSeconds;
     this.store.set(key, {
       value,
-      expiresAt: Date.now() + ttlSeconds * 1000
+      expiresAt: Date.now() + ttl * 1000
     });
   }
 
