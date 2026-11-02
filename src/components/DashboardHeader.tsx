@@ -64,19 +64,8 @@ export function DashboardHeader({
         </div>
       </div>
 
-      {/* Right Actions: Public Page, Create link CTA, User Avatar */}
+      {/* Right Actions: Create link CTA, User Avatar */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {onViewLandingPage && (
-          <button
-            onClick={onViewLandingPage}
-            title="View Public Landing Page"
-            className="h-[34px] px-3 rounded-full bg-surface-container-lowest hover:bg-surface-container border-[0.5px] border-outline-variant text-on-surface text-xs flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Globe className="w-3.5 h-3.5 text-primary-ink" />
-            <span className="hidden sm:inline">Landing Page</span>
-          </button>
-        )}
-
         {/* Reference Create Link button */}
         <button
           onClick={onOpenCreateModal}

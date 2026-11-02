@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/ToastHub';
 import { SkeletonSettingsView } from '@/components/ui';
 import { hasPermission, Permission } from '@/lib/rbac';
 import { ApiKey, Webhook } from '@/lib/types';
+import { ApiReference } from '@/components/ApiReference';
 import {
   Key,
   Trash2,
@@ -280,7 +281,7 @@ print(res.status_code, res.json())`;
           { id: 'keys', label: 'API keys' },
           { id: 'webhooks', label: 'Webhooks' },
           { id: 'console', label: 'Try it' },
-          { id: 'reference', label: 'Reference' },
+          { id: 'reference', label: 'Docs' },
         ] as const).map(tab => (
           <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={segmented(activeTab === tab.id)}>
             {tab.label}
@@ -369,7 +370,10 @@ print(res.status_code, res.json())`;
               </form>
             )}
             <div className="rounded-xl border-[0.5px] border-outline-variant p-[15px]">
-              <h2 className="text-[14px] font-semibold text-on-surface">Verifying deliveries</h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-[14px] font-semibold text-on-surface">Verifying deliveries</h2>
+                <button type="button" onClick={() => setActiveTab('reference')} className="text-[11px] text-primary-ink hover:underline cursor-pointer">Full docs</button>
+              </div>
               <p className="mt-1 text-xs text-on-surface-variant">Each POST carries <code>X-Signature-SHA256</code>: the HMAC-SHA256 of the raw body with the webhook&rsquo;s secret.</p>
               <pre className="mt-2 p-3 rounded-md bg-surface-container-low border-[0.5px] border-outline-variant text-[11px] font-mono text-on-surface overflow-x-auto leading-relaxed">{`const expected = crypto
   .createHmac('sha256', secret)
@@ -509,34 +513,8 @@ const ok = crypto.timingSafeEqual(
         </div>
       )}
 
-      {/* ── Reference ── */}
-      {activeTab === 'reference' && (
-        <div className="rounded-xl border-[0.5px] border-outline-variant overflow-hidden">
-          <div className="px-[15px] py-3 border-b-[0.5px] border-outline-variant text-xs text-on-surface-variant">
-            All requests: <code className="text-on-surface">Authorization: Bearer &lt;key&gt;</code> and a <code className="text-on-surface">workspace_id</code> (query for GET, body for POST). Keys only work in the workspace they were created in.
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[560px]">
-              <thead>
-                <tr className="bg-surface-container-low text-on-surface-variant border-b-[0.5px] border-outline-variant">
-                  <th className="py-2.5 px-[15px] font-medium">Endpoint</th>
-                  <th className="py-2.5 px-3 font-medium">Scope</th>
-                  <th className="py-2.5 px-[15px] font-medium">What it does</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ENDPOINTS.map(ep => (
-                  <tr key={ep.id} className="border-b-[0.5px] border-outline-variant last:border-b-0">
-                    <td className="py-2.5 px-[15px] font-mono whitespace-nowrap"><span className="text-primary-ink">{ep.method}</span> {ep.path}</td>
-                    <td className="py-2.5 px-3 font-mono text-on-surface-variant whitespace-nowrap">{ep.scope}</td>
-                    <td className="py-2.5 px-[15px] text-on-surface-variant">{ep.desc}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* ── Docs ── */}
+      {activeTab === 'reference' && <ApiReference origin={origin} workspaceId={wsId} />}
 
       {/* New key: shown once */}
       {createdKey && createPortal(
