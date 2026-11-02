@@ -129,6 +129,8 @@ async function notifyFlagged(wsId: string, flagged: SecurityAuditResult[]) {
         'X-TinyUrl-Delivery': `del_${crypto.randomUUID()}`
       },
       body,
+      // A redirect could point the delivery at a private address the URL check never saw
+      redirect: 'manual',
       signal: AbortSignal.timeout(4000)
     });
   }));

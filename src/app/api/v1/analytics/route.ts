@@ -458,8 +458,8 @@ export async function GET(request: Request) {
   };
 
   // ?code= is public (the + stats page). Strangers get aggregates and coarse click rows only:
-  // no IP hash, user agent, destination or UTM values.
-  if (code && code !== 'all' && !workspaceId) {
+  // no IP hash, user agent, destination or UTM values. Adding any workspace_id used to skip this.
+  if (code && code !== 'all') {
     const auth = await verifyWorkspacePermission(request, 'analytics:read', { linkId: code });
     if (!auth.success) {
       recentClicks = recentClicks.map(c => ({

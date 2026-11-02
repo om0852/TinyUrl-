@@ -17,7 +17,7 @@ export async function dispatchWorkspaceWebhooks(
     const rows = (await sql.query(
       `SELECT id, url, secret, events FROM webhooks 
        WHERE is_active = true 
-         AND (workspace_id = $1 OR workspace_id = 'ws_default' OR workspace_id IS NULL)`,
+         AND workspace_id = $1`,
       [wsId]
     )) as Array<{ id: string; url: string; secret?: string | null; events?: string[] | string | null }>;
 

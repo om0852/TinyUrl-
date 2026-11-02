@@ -79,6 +79,8 @@ export async function POST(request: Request) {
           'X-TinyUrl-Delivery': `del_${crypto.randomUUID()}`
         },
         body: bodyString,
+        // Don't follow redirects past the private-address check
+        redirect: 'manual',
         signal: AbortSignal.timeout(4000)
       });
 

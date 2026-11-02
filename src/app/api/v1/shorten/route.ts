@@ -312,7 +312,8 @@ export async function POST(request: Request) {
     return NextResponse.json<ShortenApiResponse>({
       success: true,
       message: 'Short URL created successfully.',
-      data: newLink
+      // Never hand back the password hash; GET and PATCH mask it the same way
+      data: { ...newLink, password_hash: newLink.password_hash ? 'PROTECTED' : undefined }
     }, { status: 201 });
 
   } catch (err: unknown) {

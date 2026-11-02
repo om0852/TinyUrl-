@@ -12,6 +12,7 @@ import { PublicStatsClient } from '@/components/PublicStatsClient';
 import { linkCache } from '@/lib/cache';
 import { isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
 import { createClickToken } from '@/lib/session';
+import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 interface PageProps {
   params: Promise<{ code: string }>;
@@ -442,6 +443,31 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
               if (!isBot) {
                 await sql.query(`UPDATE links SET clicks_count = clicks_count + 1 WHERE id = $1`, [row.id])
                   .catch((err: unknown) => console.warn('Click counter update failed:', err));
+
+                // Server-side redirects skip the browser beacon that fires link.clicked from
+                // /api/v1/track, so send it here (same payload shape, server-resolved values)
+                await dispatchWorkspaceWebhooks(row.workspace_id, {
+                  event: 'link.clicked',
+                  timestamp: new Date().toISOString(),
+                  data: {
+                    link_id: row.id,
+                    short_code: row.short_code,
+                    destination_url: clickTarget,
+                    click: {
+                      id: clickId,
+                      timestamp: new Date().toISOString(),
+                      country: geo.countryName || 'Unknown',
+                      country_code: geo.countryCode || 'Unknown',
+                      region: geo.regionName || geo.regionCode || null,
+                      city: geo.city || 'Unknown',
+                      device,
+                      os,
+                      browser,
+                      referrer: referrer.slice(0, 255),
+                      is_unique: isUnique
+                    }
+                  }
+                }).catch((err: unknown) => console.warn('Webhook dispatch error:', err));
               }
             });
           } catch {}
