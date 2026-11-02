@@ -121,6 +121,18 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// Header values are read as Latin-1 bytes, so a UTF-8 city name from the proxy ("Querétaro")
+// arrives as "QuerÃ©taro". Re-decode when every char is a byte and the bytes form valid UTF-8.
+function decodeUtf8Header(value: string): string {
+  if (!/[\u0080-ÿ]/.test(value) || /[^\u0000-ÿ]/.test(value)) return value;
+  try {
+    const bytes = Uint8Array.from(value, c => c.charCodeAt(0));
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * Returns true when the request was forwarded by our own edge proxy (verified via shared secret).
  * Always false when EDGE_PROXY_SECRET is not configured, so default behaviour is unchanged.
@@ -153,8 +165,8 @@ export function extractGeoFromHeaders(getHeader: HeaderGetter): VisitorGeoInfo {
   if (isTrustedEdgeProxyRequest(getHeader)) {
     // Never fall back to x-vercel-ip-* here: behind the proxy those describe the proxy VM.
     rawCountry = (getHeader(EDGE_CLIENT_COUNTRY_HEADER) || '').trim();
-    rawRegion = (getHeader(EDGE_CLIENT_REGION_HEADER) || '').trim();
-    rawCity = (getHeader(EDGE_CLIENT_CITY_HEADER) || '').trim();
+    rawRegion = decodeUtf8Header((getHeader(EDGE_CLIENT_REGION_HEADER) || '').trim());
+    rawCity = decodeUtf8Header((getHeader(EDGE_CLIENT_CITY_HEADER) || '').trim());
     // GeoIP modules emit placeholders like "!", "No Country" or "No City" when the IP is unknown
     if (!/^[A-Za-z]{2}$/.test(rawCountry)) rawCountry = '';
     if (/^no\s+(city|region|state)$/i.test(rawCity) || rawCity === '!') rawCity = '';
