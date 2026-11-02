@@ -4,197 +4,40 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/storeContext';
 import { Link } from '@/lib/types';
-import { Link2, ArrowRight, Shield, AlertTriangle, ExternalLink, Lock, Globe, Zap } from 'lucide-react';
+import { Link2, ArrowRight, Shield, ShieldAlert, AlertTriangle, ExternalLink, Lock, Globe, Zap, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { detectAppDeepLink, detectInAppBrowser } from '@/lib/deepLink';
 import { resolveSmartTargetUrl } from '@/lib/geo';
 import { isPlatformHost } from '@/lib/domainHelper';
 import { PLATFORM_URL } from '@/lib/platformUrl';
 
-// Lime brand: fills carry dark ink text; lime-700 is the readable text/icon shade on white
-const BRAND_FILL = '#a3e635';
-const BRAND_INK = '#4d7c0f';
-const ON_BRAND = '#1a2e05';
+// Seconds a Splash (or unverified) link waits before redirecting; the effect below counts it down
+const SPLASH_SECONDS = 3;
 
-/* ─── Animated Progress Bar ─── */
-function AnimatedProgressBar({
-  duration = 2000,
-  color = 'var(--primary)',
-  onComplete,
-}: {
-  duration?: number;
-  color?: string;
-  onComplete?: () => void;
-}) {
-  const barRef = useRef<HTMLDivElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
-  const startRef = useRef(0);
-  const completedRef = useRef(false);
-
-  useEffect(() => {
-    startRef.current = performance.now();
-    let raf: number;
-
-    function tick(now: number) {
-      const elapsed = now - startRef.current;
-      const progress = Math.min(elapsed / duration, 1);
-      const pct = Math.round(progress * 100);
-
-      if (barRef.current) barRef.current.style.width = `${pct}%`;
-      if (labelRef.current) {
-        const rem = Math.max(0, (duration - elapsed) / 1000).toFixed(1);
-        labelRef.current.textContent =
-          progress < 1 ? `Redirecting in ${rem}s` : 'Launching destination…';
-      }
-
-      if (progress < 1) {
-        raf = requestAnimationFrame(tick);
-      } else if (!completedRef.current) {
-        completedRef.current = true;
-        onComplete?.();
-      }
-    }
-
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [duration, onComplete]);
-
+/* ─── Page shell: one centered card, no platform branding on customer domains ─── */
+function PageShell({ children, isPlatform, wide = false }: { children: React.ReactNode; isPlatform: boolean; wide?: boolean }) {
   return (
-    <div className="w-full space-y-2">
-      <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-container, #f0f0f0)' }}>
-        <div
-          ref={barRef}
-          className="h-full rounded-full transition-[width] duration-75 ease-linear"
-          style={{ width: '0%', backgroundColor: color }}
-        />
-      </div>
-      <span
-        ref={labelRef}
-        className="block text-center text-xs tracking-wide"
-        style={{ color: 'var(--on-surface-variant, #666666)' }}
-      >
-        Preparing redirect…
-      </span>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-surface text-on-surface px-4 py-10">
+      <main className={`w-full ${wide ? 'max-w-[460px]' : 'max-w-[400px]'}`}>{children}</main>
+      {isPlatform && (
+        <a href={PLATFORM_URL} className="mt-6 inline-flex items-center gap-1.5 text-[11px] text-outline hover:text-on-surface transition-colors">
+          <Link2 className="w-3.5 h-3.5" /> Powered by TinyURL
+        </a>
+      )}
     </div>
   );
 }
 
-/* ─── Conduit Animation (Source → Pulse → Destination) ─── */
-function ConduitAnimation({ appName, appColor }: { appName?: string; appColor?: string }) {
-  return (
-    <div className="w-full max-w-xs py-4 flex items-center justify-between relative px-4 mx-auto">
-      {/* Source Node */}
-      <div className="relative flex items-center justify-center">
-        <div
-          className="w-14 h-14 rounded-lg flex items-center justify-center relative shadow-sm"
-          style={{
-            backgroundColor: 'var(--surface-container, #f0f0f0)',
-            border: '1px solid var(--outline-variant, #dcdcdc)',
-          }}
-        >
-          <div
-            className="absolute inset-0 rounded-lg animate-ping opacity-20"
-            style={{ backgroundColor: appColor || BRAND_FILL }}
-          />
-          <Link2 className="w-6 h-6" style={{ color: appColor || BRAND_INK }} />
-        </div>
-      </div>
+const card = 'w-full rounded-xl border-[0.5px] border-outline-variant bg-surface-container-lowest p-6 sm:p-7 shadow-sm';
+const primaryBtn = 'w-full h-[40px] rounded-md bg-primary-container text-on-primary text-sm font-medium hover:bg-primary transition-colors cursor-pointer inline-flex items-center justify-center gap-2 disabled:opacity-60';
+const quietLink = 'text-xs text-on-surface-variant hover:text-on-surface hover:underline cursor-pointer';
 
-      {/* Pulsing Conduit Stream */}
-      <div className="flex-1 mx-3 relative flex items-center justify-center">
-        <div
-          className="w-full h-1 rounded-full overflow-hidden relative"
-          style={{ backgroundColor: 'var(--surface-container, #f0f0f0)' }}
-        >
-          <div
-            className="h-full rounded-full animate-pulse w-full"
-            style={{ backgroundColor: appColor || BRAND_FILL }}
-          />
-        </div>
-        <div
-          className="absolute w-2.5 h-2.5 rounded-full animate-ping"
-          style={{
-            backgroundColor: appColor || BRAND_FILL,
-            boxShadow: `0 0 12px ${appColor || BRAND_FILL}`,
-          }}
-        />
-      </div>
-
-      {/* Destination Node */}
-      <div className="relative flex items-center justify-center">
-        <div
-          className="w-14 h-14 rounded-lg flex items-center justify-center relative shadow-md"
-          style={{
-            backgroundColor: appColor || BRAND_FILL,
-            color: appColor ? 'white' : ON_BRAND,
-            boxShadow: `0 4px 14px ${appColor || BRAND_FILL}33`,
-          }}
-        >
-          {appName ? (
-            <Zap className="w-6 h-6" />
-          ) : (
-            <Globe className="w-6 h-6" />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Page Shell ─── */
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="min-h-screen flex flex-col justify-between items-center"
-      style={{ backgroundColor: 'var(--background, #f4fae8)', color: 'var(--foreground, #1a1a1a)' }}
-    >
-      {/* Header Logo Pill */}
-      <header className="w-full pt-8 px-8 flex justify-center">
-        <div
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full shadow-sm"
-          style={{
-            backgroundColor: 'var(--card, #ffffff)',
-            boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
-          }}
-        >
-          <Link2 className="w-[18px] h-[18px]" style={{ color: BRAND_INK }} />
-          <span className="text-sm font-semibold tracking-tight" style={{ color: 'var(--foreground, #1a1a1a)' }}>
-            TinyURL
-          </span>
-          <span
-            className="text-xs px-1.5 rounded font-mono"
-            style={{
-              backgroundColor: 'var(--muted, #fafafa)',
-              color: 'var(--muted-foreground, #666666)',
-            }}
-          >
-            bridge
-          </span>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="w-full flex-1 flex flex-col items-center justify-center max-w-[1280px] mx-auto px-4 md:px-8">
-        <div className="flex flex-col w-full items-center justify-center py-4">
-          {/* Ambient Glow Orbs */}
-          <div className="relative w-full max-w-xl flex flex-col items-center">
-            <div
-              className="absolute -top-16 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full blur-3xl pointer-events-none -z-10"
-              style={{ backgroundColor: 'rgba(132, 204, 22, 0.07)' }}
-            />
-            <div
-              className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-96 h-40 rounded-full blur-2xl pointer-events-none -z-10"
-              style={{ backgroundColor: 'rgba(78, 69, 213, 0.07)' }}
-            />
-
-            {children}
-          </div>
-        </div>
-      </main>
-
-      {/* Footer spacer */}
-      <div className="h-12" />
-    </div>
-  );
+function IconTile({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'neutral' | 'error' | 'brand' }) {
+  const tones = {
+    neutral: 'bg-surface-container text-on-surface-variant',
+    error: 'bg-error-container text-error',
+    brand: 'bg-primary-fixed text-primary-ink',
+  };
+  return <div className={`grid size-[44px] place-items-center rounded-md ${tones[tone]}`}>{children}</div>;
 }
 
 export interface RedirectClientProps {
@@ -232,7 +75,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
   const [passwordError, setPasswordError] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [abRoll, setAbRoll] = useState(50);
-  const [countdown, setCountdown] = useState(4);
+  const [countdown, setCountdown] = useState(SPLASH_SECONDS);
   const [isFrameMode, setIsFrameMode] = useState(false);
 
   // Sticky A/B testing: read existing assignment from cookie or localStorage, or persist new assignment
@@ -571,7 +414,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
     window.addEventListener('pagehide', markNavigated);
     window.addEventListener('blur', markNavigated);
 
-    let remaining = 3;
+    let remaining = SPLASH_SECONDS;
     const interval = setInterval(() => {
       if (hasNavigatedAway || document.hidden) {
         clearInterval(interval);
@@ -595,6 +438,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
   }, [mounted, link, resolvedTarget, appDeepLink, activeNativeUri, clientContext, code, logClick]);
 
   const [isVerifyingPassword, setIsVerifyingPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -657,125 +501,72 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
     }
   };
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 1. Initial hydration and link resolution loader
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ 1. Resolving the link ━━━
   if (!mounted || resolving) {
     return (
-      <PageShell>
-        <div
-          className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
-          }}
-        >
-          <ConduitAnimation />
-          <div className="flex flex-col items-center mt-4 text-center space-y-2">
-            <h1 className="text-2xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground, #1a1a1a)' }}>
-              Connecting…
-            </h1>
-            <p className="text-sm" style={{ color: 'var(--muted-foreground, #666666)' }}>
-              Resolving your short link
-            </p>
-          </div>
+      <PageShell isPlatform={isPlatform}>
+        <div className={`${card} flex items-center gap-3`}>
+          <Loader2 className="w-5 h-5 animate-spin text-on-surface-variant" />
+          <span className="text-sm text-on-surface-variant">Opening link…</span>
         </div>
       </PageShell>
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 2. Short link not found state
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ 2. Unknown link ━━━
   if (!link) {
     return (
-      <PageShell>
-        <div
-          className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
-          }}
-        >
-          {/* Error Icon */}
-          <div
-            className="w-16 h-16 rounded-lg flex items-center justify-center mb-4"
-            style={{
-              backgroundColor: 'rgba(186, 26, 26, 0.08)',
-              border: '1px solid rgba(186, 26, 26, 0.15)',
-            }}
-          >
-            <AlertTriangle className="w-8 h-8" style={{ color: '#e5243b' }} />
+      <PageShell isPlatform={isPlatform}>
+        <div className={`${card} flex flex-col items-center text-center gap-4`}>
+          <IconTile tone="error"><AlertTriangle className="w-5 h-5" /></IconTile>
+          <div>
+            <h1 className="text-lg font-semibold">Link not found</h1>
+            <p className="mt-1 text-sm text-on-surface-variant">
+              <span className="font-mono text-on-surface">/{code}</span> doesn&apos;t exist or is no longer active.
+            </p>
           </div>
-
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-1" style={{ color: 'var(--foreground, #1a1a1a)' }}>
-            Link Not Found
-          </h1>
-          <p className="text-sm mb-6" style={{ color: 'var(--muted-foreground, #666666)' }}>
-            The short link <code className="font-mono px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--muted, #fafafa)', color: BRAND_INK }}>/{code}</code> does not exist or has expired.
-          </p>
-
           {/* Always the deployed platform, also on custom domains */}
-          <a
-            href={`${PLATFORM_URL}/login`}
-            className="w-full max-w-xs py-3 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
-            style={{
-              backgroundColor: BRAND_FILL,
-              boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
-            }}
-          >
-            Go to dashboard <ArrowRight className="w-4 h-4" />
-          </a>
-          <a href={PLATFORM_URL} className="mt-3 text-xs hover:underline" style={{ color: 'var(--muted-foreground, #666666)' }}>
-            Go to homepage
-          </a>
+          <a href={`${PLATFORM_URL}/login`} className={primaryBtn}>Go to dashboard <ArrowRight className="w-4 h-4" /></a>
+          <a href={PLATFORM_URL} className={quietLink}>Go to homepage</a>
         </div>
       </PageShell>
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 2.5 Frame / Masked Redirect State
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ 3. Masked frame ━━━
   if (isFrameMode && resolvedTarget) {
     const isFramingBlocked = /google\.com|youtube\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|github\.com/i.test(resolvedTarget);
 
     return (
-      <div className="w-full h-screen fixed inset-0 z-50 flex flex-col bg-slate-900">
-        {/* Sticky Header Bar for Masked Frame */}
-        <div className="h-11 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-200 dark:border-slate-800 px-4 flex items-center justify-between z-10 shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bold text-xs text-gray-900 dark:text-gray-100 truncate">
-              {link?.title || 'Masked Destination'}
-            </span>
-            <span className="text-[10px] text-lime-700 bg-lime-50 dark:bg-lime-950/40 px-2 py-0.5 rounded-full font-mono shrink-0">
-              /{code} (Masked Frame)
-            </span>
+      <div className="w-full h-screen fixed inset-0 z-50 flex flex-col bg-surface">
+        <div className="h-12 bg-surface-container-lowest border-b-[0.5px] border-outline-variant px-3 sm:px-4 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="grid size-[28px] place-items-center rounded-md bg-surface-container text-on-surface-variant shrink-0">
+              <Globe className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-medium text-on-surface truncate">{link.title || getDestinationHost(resolvedTarget)}</div>
+              <div className="text-[11px] text-outline truncate">{getDestinationHost(resolvedTarget)}</div>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             {isFramingBlocked && (
-              <span className="hidden sm:inline-block text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                ⚠️ Site blocks iframe embedding (403):
-              </span>
+              <span className="hidden sm:inline text-[11px] text-amber-700">This site may not load here</span>
             )}
             <a
               href={resolvedTarget}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1 bg-lime-400 hover:bg-lime-500 text-on-primary rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="h-[30px] px-3 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors inline-flex items-center gap-1.5"
             >
-              <span>Open in Full Tab</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              Open site <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
-
-        {/* Masked iFrame */}
         <div className="flex-1 w-full relative bg-white">
           <iframe
             src={resolvedTarget}
-            title={link?.title || 'Masked Destination'}
+            title={link.title || 'Destination'}
             className="w-full h-full border-none"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals"
@@ -785,186 +576,93 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 2.6 Shield Protection Bot Neutral Page
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  if (link?.shield_protection && clientContext?.isBot) {
+  // ━━━ 4. Shield: automated visitors get a neutral page ━━━
+  if (link.shield_protection && clientContext.isBot) {
     return (
-      <PageShell>
-        <div
-          className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(16, 185, 129, 0.08)',
-          }}
-        >
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-            style={{
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
-            }}
-          >
-            <Shield className="w-8 h-8 text-emerald-600" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight mb-2 text-gray-900">
-            Protected Link
-          </h1>
-          <p className="text-sm text-gray-500 max-w-sm mb-4">
-            Shield verification is active for this destination. Suspicious crawlers and automated bots are filtered to ensure security and prevent platform shadowbans.
-          </p>
+      <PageShell isPlatform={isPlatform}>
+        <div className={`${card} flex flex-col items-center text-center gap-3`}>
+          <IconTile><Shield className="w-5 h-5" /></IconTile>
+          <h1 className="text-lg font-semibold">Protected link</h1>
+          <p className="text-sm text-on-surface-variant">Open this link in a browser to continue.</p>
         </div>
       </PageShell>
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 3. Security Warning / Phishing Block State
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ 5. Flagged by the security scan ━━━
   if (link.is_flagged || link.status === 'flagged') {
+    const goBack = () => {
+      if (window.history.length > 1) window.history.back();
+      else window.location.assign(isPlatform ? PLATFORM_URL : '/');
+    };
     return (
-      <PageShell>
-        <div
-          className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-start text-left relative overflow-hidden backdrop-blur-md"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            border: '1px solid rgba(186, 26, 26, 0.2)',
-            boxShadow: '0 10px 40px rgba(186, 26, 26, 0.06)',
-          }}
-        >
-          {/* Warning Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-              style={{
-                backgroundColor: 'rgba(186, 26, 26, 0.1)',
-                border: '1px solid rgba(186, 26, 26, 0.2)',
-              }}
-            >
-              <Shield className="w-6 h-6" style={{ color: '#e5243b' }} />
-            </div>
+      <PageShell isPlatform={isPlatform} wide>
+        <div className={`${card} flex flex-col gap-4 border-error/30`}>
+          <div className="flex items-center gap-3">
+            <IconTile tone="error"><ShieldAlert className="w-5 h-5" /></IconTile>
             <div>
-              <h2 className="text-lg font-bold" style={{ color: 'var(--foreground, #1a1a1a)' }}>Security Alert</h2>
-              <p className="text-xs font-semibold" style={{ color: '#e5243b' }}>Flagged by threat scanner</p>
+              <h1 className="text-lg font-semibold">This link may be unsafe</h1>
+              <p className="text-xs text-error">Flagged by a security scan</p>
             </div>
           </div>
 
-          {/* Threat Details */}
-          <div
-            className="w-full rounded-lg p-4 text-xs space-y-2 mb-5"
-            style={{
-              backgroundColor: 'rgba(186, 26, 26, 0.04)',
-              border: '1px solid rgba(186, 26, 26, 0.1)',
-            }}
-          >
-            <p className="font-semibold" style={{ color: '#e5243b' }}>Target URL:</p>
-            <p
-              className="font-mono text-xs break-all p-2 rounded"
-              style={{
-                backgroundColor: 'rgba(186, 26, 26, 0.06)',
-                color: '#93000a',
-                border: '1px solid rgba(186, 26, 26, 0.1)',
-              }}
-            >
-              {link.destination_url}
-            </p>
-            <div className="pt-2" style={{ borderTop: '1px solid var(--border, #e3e3e3)' }}>
-              <p className="font-semibold mb-1" style={{ color: 'var(--foreground, #1a1a1a)' }}>Threat Reasons:</p>
-              <ul className="list-disc list-inside space-y-0.5" style={{ color: 'var(--muted-foreground, #666666)' }}>
-                {link.risk_reasons?.map((reason, i) => (
-                  <li key={i}>{reason}</li>
-                )) || <li>Potential phishing, credential harvesting, or malware vector</li>}
-              </ul>
-            </div>
+          <div className="rounded-md bg-surface-container-low border-[0.5px] border-outline-variant p-3">
+            <div className="text-[11px] text-outline">It leads to</div>
+            <div className="text-sm font-medium text-on-surface break-all">{getDestinationHost(link.destination_url)}</div>
+            <div className="mt-0.5 text-[11px] font-mono text-on-surface-variant break-all">{link.destination_url}</div>
           </div>
 
-          {/* Actions */}
-          <div className="flex gap-3 w-full">
-            {isPlatform && (
-              <button
-                onClick={() => window.location.assign(PLATFORM_URL)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer"
-                style={{
-                  backgroundColor: 'var(--muted, #fafafa)',
-                  color: 'var(--foreground, #1a1a1a)',
-                  border: '1px solid var(--border, #e3e3e3)',
-                }}
-              >
-                Go to Safety
-              </button>
-            )}
-            <button
-              onClick={() => window.location.replace(link.destination_url)}
-              className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-white"
-              style={{ backgroundColor: '#ff4359' }}
-            >
-              Proceed Anyway
-            </button>
-          </div>
+          <ul className="text-xs text-on-surface-variant list-disc pl-4 space-y-1">
+            {(link.risk_reasons?.length ? link.risk_reasons : ['Possible phishing, scam or malware']).map((reason, i) => (
+              <li key={i}>{reason}</li>
+            ))}
+          </ul>
+
+          <button type="button" onClick={goBack} className={primaryBtn}>Go back</button>
+          <button type="button" onClick={() => window.location.replace(link.destination_url)} className={`${quietLink} self-center text-error`}>
+            Continue anyway
+          </button>
         </div>
       </PageShell>
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 4. Password Protection View
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ 6. Password ━━━
   if (link.password_hash && !isUnlocked) {
     return (
-      <PageShell>
-        <div
-          className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
-            border: '1px solid var(--border, #e3e3e3)',
-          }}
-        >
-          <div
-            className="w-14 h-14 rounded-lg flex items-center justify-center mb-4"
-            style={{
-              backgroundColor: 'rgba(132, 204, 22, 0.08)',
-              border: '1px solid rgba(132, 204, 22, 0.15)',
-            }}
-          >
-            <Lock className="w-6 h-6" style={{ color: BRAND_INK }} />
+      <PageShell isPlatform={isPlatform}>
+        <div className={`${card} flex flex-col items-center text-center gap-4`}>
+          <IconTile tone="brand"><Lock className="w-5 h-5" /></IconTile>
+          <div>
+            <h1 className="text-lg font-semibold">This link is protected</h1>
+            <p className="mt-1 text-sm text-on-surface-variant">Enter the password to continue.</p>
           </div>
 
-          <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--foreground, #1a1a1a)' }}>Protected Link</h2>
-          <p className="text-sm mb-5" style={{ color: 'var(--muted-foreground, #666666)' }}>
-            Enter password to access <strong style={{ color: 'var(--foreground, #1a1a1a)' }}>{link.title}</strong>
-          </p>
-
-          <form onSubmit={handlePasswordSubmit} className="w-full max-w-xs space-y-4">
-            <div>
+          <form onSubmit={handlePasswordSubmit} className="w-full flex flex-col gap-3 text-left">
+            <div className="relative">
               <input
-                type="password"
-                placeholder="Enter password"
+                type={showPassword ? 'text' : 'password'}
+                autoFocus
+                autoComplete="off"
+                placeholder="Password"
+                aria-label="Password"
+                aria-invalid={passwordError}
                 value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all"
-                style={{
-                  backgroundColor: 'var(--muted, #fafafa)',
-                  border: `1.5px solid ${passwordError ? '#e5243b' : 'var(--border, #e3e3e3)'}`,
-                  color: 'var(--foreground, #1a1a1a)',
-                }}
+                onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(false); }}
+                className={`w-full h-[40px] pl-3 pr-10 rounded-md bg-surface-container-low text-sm text-on-surface border-[0.5px] outline-none ${passwordError ? 'border-error' : 'border-outline-variant focus:border-on-surface-variant'}`}
               />
-              {passwordError && (
-                <p className="text-xs text-left mt-1.5" style={{ color: '#e5243b' }}>
-                  Incorrect password. Please try again.
-                </p>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute inset-y-0 right-0 px-3 text-outline hover:text-on-surface cursor-pointer"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-
-            <button
-              type="submit"
-              className="w-full py-2.5 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
-              style={{
-                backgroundColor: BRAND_FILL,
-                boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
-              }}
-            >
-              Continue to Link <ArrowRight className="w-4 h-4" />
+            {passwordError && <p role="alert" className="text-xs text-error">Wrong password. Try again.</p>}
+            <button type="submit" disabled={isVerifyingPassword || !passwordInput.trim()} className={primaryBtn}>
+              {isVerifyingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Continue <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
         </div>
@@ -972,159 +670,81 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 5. Active Direct Redirect View (Bridge Experience)
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // ━━━ 7. Splash / app hand-off: short countdown, then the destination ━━━
+  const isRisky = (link.risk_score || 0) >= 60;
+  const progress = Math.min(100, ((SPLASH_SECONDS - countdown) / SPLASH_SECONDS) * 100);
+  const appColor = appDeepLink?.color || undefined;
+
   return (
-    <PageShell>
-      {/* Only use meta refresh for plain web links, NEVER for app deep links! */}
-      {!appDeepLink && resolvedTarget && <meta httpEquiv="refresh" content={`2;url=${resolvedTarget}`} />}
+    <PageShell isPlatform={isPlatform}>
+      {/* Fallback for browsers without JS; plain web links only, never app deep links */}
+      {!appDeepLink && resolvedTarget && <meta httpEquiv="refresh" content={`${SPLASH_SECONDS};url=${resolvedTarget}`} />}
 
-      <div
-        className="w-full rounded-xl shadow-xl p-6 md:p-8 flex flex-col items-center text-center relative overflow-hidden backdrop-blur-md"
-        style={{
-          backgroundColor: 'rgba(255,255,255,0.95)',
-          boxShadow: '0 10px 40px rgba(132, 204, 22, 0.05)',
-        }}
-      >
-        {/* Conduit Animation */}
-        <ConduitAnimation
-          appName={appDeepLink?.appName}
-          appColor={appDeepLink?.color}
-        />
-
-        {/* Typography */}
-        <div className="flex flex-col items-center mt-4 text-center">
-          <h1 className="text-2xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--foreground, #1a1a1a)' }}>
-            Redirecting you now…
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground, #666666)' }}>
-            Taking you to{' '}
-            <span className="font-medium" style={{ color: 'var(--foreground, #1a1a1a)' }}>
-              {getDestinationHost(resolvedTarget)}
-            </span>
-          </p>
-        </div>
-
-        {/* Short Code & Safety Badge */}
-        <div className="flex items-center gap-3 mt-4 text-xs" style={{ color: 'var(--muted-foreground, #666666)' }}>
-          <span className="flex items-center gap-1 font-medium" style={{ color: '#16a34a' }}>
-            <Shield className="w-3.5 h-3.5" /> Verified Safe
-          </span>
-          <span
-            className="font-mono text-[11px] px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: 'var(--muted, #fafafa)', color: 'var(--muted-foreground, #666666)' }}
-          >
-            /{code}
-          </span>
-        </div>
-
-        {/* In-App Browser Callout */}
-        {clientContext.inAppInfo.isInApp && (
-          <div
-            className="w-full mt-4 p-3 rounded-xl text-xs flex items-start gap-2.5 text-left"
-            style={{
-              backgroundColor: 'rgba(234, 179, 8, 0.08)',
-              border: '1px solid rgba(234, 179, 8, 0.2)',
-              color: '#92400e',
-            }}
-          >
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#d97706' }} />
-            <div className="space-y-0.5 leading-snug">
-              <p className="font-semibold" style={{ color: '#92400e' }}>
-                {('browserName' in clientContext.inAppInfo ? clientContext.inAppInfo.browserName : undefined) || 'In-App Browser'} detected
-              </p>
-              <p className="text-[11px]" style={{ color: '#a16207' }}>
-                Tap below to open directly in the native {appDeepLink?.appName || 'target'} app with your signed-in account.
-              </p>
-            </div>
+      <div className={`${card} flex flex-col items-center text-center gap-4`}>
+        {appColor ? (
+          <div className="grid size-[44px] place-items-center rounded-md text-white" style={{ backgroundColor: appColor }}>
+            <Zap className="w-5 h-5" />
           </div>
+        ) : (
+          <IconTile tone="brand"><Globe className="w-5 h-5" /></IconTile>
         )}
 
-        {/* Progress Bar */}
-        <div className="w-full mt-5">
-          {appDeepLink ? (
-            <div className="w-full space-y-2">
-              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--muted, #fafafa)' }}>
-                <div
-                  className="h-full transition-all duration-1000 ease-linear rounded-full"
-                  style={{
-                    backgroundColor: appDeepLink.color || BRAND_FILL,
-                    width: `${((4 - countdown) / 4) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-center" style={{ color: 'var(--muted-foreground, #666666)' }}>
-                {countdown > 0 ? (
-                  <span>Launching {appDeepLink.appName}… web fallback in {countdown}s</span>
-                ) : (
-                  <span>Connecting to web destination…</span>
-                )}
-              </p>
-            </div>
-          ) : (
-            <AnimatedProgressBar
-              duration={2000}
-              color={BRAND_FILL}
-            />
+        <div className="min-w-0 w-full">
+          <p className="text-xs text-outline">{appDeepLink ? `Opening in ${appDeepLink.appName}` : 'Taking you to'}</p>
+          <h1 className="mt-0.5 text-lg font-semibold break-all">{getDestinationHost(resolvedTarget)}</h1>
+          {link.title && link.title !== getDestinationHost(resolvedTarget) && (
+            <p className="mt-0.5 text-xs text-on-surface-variant truncate">{link.title}</p>
           )}
         </div>
 
-        {/* Action Buttons */}
+        {isRisky && (
+          <div className="w-full rounded-md bg-amber-50 border-[0.5px] border-amber-200 px-3 py-2 text-left text-xs text-amber-800 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-px" />
+            <span>We couldn&apos;t verify this site. Check the address before entering any details.</span>
+          </div>
+        )}
+
+        {clientContext.inAppInfo.isInApp && appDeepLink && (
+          <div className="w-full rounded-md bg-surface-container-low px-3 py-2 text-left text-xs text-on-surface-variant">
+            You&apos;re in {('browserName' in clientContext.inAppInfo ? clientContext.inAppInfo.browserName : undefined) || 'an in-app browser'}. Tap below to open the {appDeepLink.appName} app.
+          </div>
+        )}
+
+        <div className="w-full">
+          <div className="w-full h-1 rounded-full bg-surface-container overflow-hidden">
+            <div
+              className="h-full rounded-full transition-[width] duration-1000 ease-linear bg-primary-container"
+              style={{ width: `${progress}%`, ...(appColor ? { backgroundColor: appColor } : {}) }}
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-outline">
+            {countdown > 0 ? `${appDeepLink ? 'Website opens' : 'Opening'} in ${countdown}s` : 'Opening…'}
+          </p>
+        </div>
+
         {appDeepLink ? (
-          <div className="w-full space-y-3 mt-5">
+          <>
             <a
               href={activeNativeUri}
               onClick={() => tryRedirectToApp()}
-              className="w-full py-3.5 px-4 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.97] shadow-lg cursor-pointer"
-              style={{
-                backgroundColor: appDeepLink.color || BRAND_FILL,
-                boxShadow: `0 4px 14px ${appDeepLink.color || BRAND_FILL}33`,
-              }}
+              className="w-full h-[40px] rounded-md text-white text-sm font-medium inline-flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+              style={{ backgroundColor: appColor || 'var(--color-primary-strong)' }}
             >
-              {appDeepLink.app === 'youtube' ? (
-                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" aria-hidden="true">
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                </svg>
-              ) : (
-                <ExternalLink className="w-4 h-4" />
-              )}
-              <span>Open in {appDeepLink.appName} App</span>
+              Open in {appDeepLink.appName} <ExternalLink className="w-4 h-4" />
             </a>
-
-            <div className="text-center">
-              <a
-                href={resolvedTarget}
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.location.replace(resolvedTarget);
-                }}
-                className="text-xs transition cursor-pointer inline-flex items-center gap-1"
-                style={{ color: 'var(--muted-foreground, #666666)' }}
-              >
-                <span>Continue in Web Browser</span>
-                <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
+            <a
+              href={resolvedTarget}
+              onClick={(e) => { e.preventDefault(); window.location.replace(resolvedTarget); }}
+              className={quietLink}
+            >
+              Continue in browser
+            </a>
+          </>
         ) : (
           resolvedTarget && (
-            <div className="mt-5 flex flex-col items-center w-full">
-              <a
-                href={resolvedTarget}
-                onClick={() => {
-                  window.location.replace(resolvedTarget);
-                }}
-                className="w-full max-w-xs py-2.5 px-4 rounded-xl text-[#1a2e05] text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-[0.97] cursor-pointer"
-                style={{
-                  backgroundColor: BRAND_FILL,
-                  boxShadow: '0 4px 14px rgba(132, 204, 22, 0.25)',
-                }}
-              >
-                <span>Continue Now</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
+            <a href={resolvedTarget} onClick={(e) => { e.preventDefault(); window.location.replace(resolvedTarget); }} className={primaryBtn}>
+              Continue now <ArrowRight className="w-4 h-4" />
+            </a>
           )
         )}
       </div>
