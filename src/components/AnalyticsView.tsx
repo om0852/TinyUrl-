@@ -5,6 +5,7 @@ import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
 import { InfoTooltip } from '@/components/ui';
 import { detectSourcePlatform } from '@/lib/sourcePlatform';
+import { ClicksTimelineChart, TimelineData } from '@/components/ClicksTimelineChart';
 import { Link as LinkType, ClickEvent } from '@/lib/types';
 import { 
   Download, 
@@ -111,7 +112,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
   // Velocity Chart Range
   const [velocityRange, setVelocityRange] = useState<'30d' | '7d' | '24h'>('30d');
-  const [hoveredDataPoint, setHoveredDataPoint] = useState<{ date: string; clicks: number; x: number; y: number } | null>(null);
 
   // Device vs OS toggle
   const [techTab, setTechTab] = useState<'devices' | 'os'>('devices');
@@ -262,72 +262,66 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     return { name: topName, percent, count: topVal };
   }, [filteredClicks, totalClicksCount]);
 
-  // 4. Click Velocity Timeline (24h, 7d, 30d)
-  const timelineData = useMemo(() => {
-    const days = velocityRange === '24h' ? 24 : velocityRange === '7d' ? 7 : 30;
+  // 4. Click Velocity Timeline (24h, 7d, 30d): one bucket per hour or day, oldest first
+  const timelineData = useMemo((): TimelineData => {
+    const isHourly = velocityRange === '24h';
+    const count = isHourly ? 24 : velocityRange === '7d' ? 7 : 30;
     const now = new Date();
     const points: { label: string; date: string; clicks: number }[] = [];
 
-    if (velocityRange === '24h') {
-      for (let i = 23; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 3600 * 1000);
-        const hourStr = `${d.getHours().toString().padStart(2, '0')}:00`;
-        const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const count = filteredClicks.filter(c => {
-          const ct = new Date(c.timestamp);
-          return ct.getDate() === d.getDate() && ct.getHours() === d.getHours();
-        }).length;
-
-        points.push({ label: hourStr, date: `${dateStr} ${hourStr}`, clicks: count });
+    for (let i = count - 1; i >= 0; i--) {
+      const start = new Date(now);
+      if (isHourly) {
+        start.setMinutes(0, 0, 0);
+        start.setHours(start.getHours() - i);
+      } else {
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() - i);
       }
-    } else {
-      for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 86400 * 1000);
-        const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        const count = filteredClicks.filter(c => {
-          const ct = new Date(c.timestamp);
-          return ct.toDateString() === d.toDateString();
-        }).length;
+      const end = new Date(start);
+      if (isHourly) end.setHours(end.getHours() + 1);
+      else end.setDate(end.getDate() + 1);
 
-        points.push({ label: dateStr, date: dateStr, clicks: count });
-      }
+      const from = start.getTime();
+      const to = end.getTime();
+      const clicks = filteredClicks.filter(c => {
+        const t = new Date(c.timestamp).getTime();
+        return t >= from && t < to;
+      }).length;
+
+      const day = start.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      const hour = `${start.getHours().toString().padStart(2, '0')}:00`;
+      points.push({ label: isHourly ? hour : day, date: isHourly ? `${day}, ${hour}` : day, clicks });
     }
 
-    const maxClicks = Math.max(1, ...points.map(p => p.clicks));
-    let peakDay = points[0] || { date: 'N/A', clicks: 0 };
-    points.forEach(p => {
-      if (p.clicks > peakDay.clicks) peakDay = p;
-    });
+    const total = points.reduce((sum, p) => sum + p.clicks, 0);
+    const peak = points.reduce((best, p) => (p.clicks > best.clicks ? p : best), points[0] || { label: '', date: 'N/A', clicks: 0 });
+    const peakIndex = points.indexOf(peak);
 
-    const dailyAvg = (totalClicksCount / days).toFixed(1);
+    // Clean y-axis: 1/2/5 steps, at most 4 intervals
+    const max = Math.max(1, peak.clicks);
+    const rawStep = max / 4;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const step = Math.max(1, [1, 2, 5, 10].map(m => m * magnitude).find(m => m >= rawStep) || magnitude);
+    const axisMax = Math.ceil(max / step) * step;
+    const ticks: number[] = [];
+    for (let v = axisMax; v >= 0; v -= step) ticks.push(v);
 
-    return { points, maxClicks, peakDay, dailyAvg };
-  }, [velocityRange, filteredClicks, totalClicksCount]);
+    // Every nth label, counted back from the newest bucket so the latest one is always labelled
+    const labelEvery = isHourly ? 4 : count === 7 ? 1 : 5;
 
-  // SVG Area & Line Path Generation
-  const svgPathData = useMemo(() => {
-    const { points, maxClicks } = timelineData;
-    if (points.length < 2) return { areaPath: '', linePath: '', coordinates: [] };
-
-    const width = 800;
-    const height = 200;
-    const topPadding = 20;
-    const usableHeight = height - topPadding;
-
-    const coordinates = points.map((p, idx) => {
-      const x = (idx / (points.length - 1)) * width;
-      const y = height - (p.clicks / maxClicks) * usableHeight;
-      return { x, y, ...p };
-    });
-
-    const linePath = coordinates.reduce((acc, curr, idx) => {
-      return idx === 0 ? `M ${curr.x},${curr.y}` : `${acc} L ${curr.x},${curr.y}`;
-    }, '');
-
-    const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
-
-    return { areaPath, linePath, coordinates };
-  }, [timelineData]);
+    return {
+      points,
+      total,
+      peak,
+      peakIndex: peak.clicks > 0 ? peakIndex : -1,
+      average: total / count,
+      unit: (isHourly ? 'hour' : 'day') as TimelineData['unit'],
+      axisMax,
+      ticks,
+      labelEvery
+    };
+  }, [velocityRange, filteredClicks]);
 
   // 5. Hourly Peak Matrix (00:00 to 23:00)
   const hourlyData = useMemo(() => {
@@ -816,137 +810,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         {/* ─── Bento Section: Click Velocity Timeline + Hourly Peak Matrix ─── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Click Velocity & Timeline Curve (Span 8) */}
-          <div className="lg:col-span-8 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 gap-2 border-b border-outline-variant">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-[14px] font-semibold text-on-surface">Clicks over time</h2>
-                  </div>
-                </div>
-
-                <div className="inline-flex bg-surface-container-low p-1 gap-1 rounded-lg border-[0.5px] border-outline-variant self-start sm:self-center">
-                  {(['24h', '7d', '30d'] as const).map(range => (
-                    <button
-                      key={range}
-                      type="button"
-                      onClick={() => setVelocityRange(range)}
-                      className={`px-3 py-1 rounded text-xs font-semibold transition-all cursor-pointer ${
-                        velocityRange === range
-                          ? 'bg-surface-container-lowest text-primary-ink shadow-sm font-bold'
-                          : 'text-on-surface-variant hover:text-on-surface'
-                      }`}
-                    >
-                      {range}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Interactive SVG Chart */}
-              <div className="relative w-full h-64 mt-4">
-                {/* Horizontal Grid lines */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-                  <div className="w-full h-px bg-outline-variant" />
-                  <div className="w-full h-px bg-outline-variant" />
-                  <div className="w-full h-px bg-outline-variant" />
-                  <div className="w-full h-px bg-outline-variant" />
-                </div>
-
-                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 800 200">
-                  <defs>
-                    <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#65A30D" stopOpacity="0.25" />
-                      <stop offset="100%" stopColor="#65A30D" stopOpacity="0.00" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Gradient fill area */}
-                  {svgPathData.areaPath && (
-                    <path d={svgPathData.areaPath} fill="url(#chartGradient)" />
-                  )}
-
-                  {/* Stroke Line */}
-                  {svgPathData.linePath && (
-                    <path
-                      d={svgPathData.linePath}
-                      fill="none"
-                      stroke="#65A30D"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2.5"
-                    />
-                  )}
-
-                  {/* Interactive Points */}
-                  {svgPathData.coordinates.map((pt, i) => (
-                    <g key={i}>
-                      <circle
-                        cx={pt.x}
-                        cy={pt.y}
-                        r={hoveredDataPoint?.date === pt.date ? 5 : 3}
-                        className={`${
-                          hoveredDataPoint?.date === pt.date
-                            ? 'fill-primary-strong stroke-white stroke-2'
-                            : 'fill-surface-container-lowest stroke-primary-strong stroke-2'
-                        } transition-all cursor-pointer`}
-                        onMouseEnter={() => setHoveredDataPoint(pt)}
-                      />
-                    </g>
-                  ))}
-                </svg>
-
-                {/* Floating Interactive Hover Tooltip */}
-                {hoveredDataPoint && (
-                  <div 
-                    className="absolute bg-surface-container-lowest p-2.5 shadow-lg rounded-lg border-[0.5px] border-outline-variant flex flex-col gap-1 pointer-events-none z-20 text-xs animate-fade-in"
-                    style={{
-                      left: `${Math.min(75, Math.max(10, (hoveredDataPoint.x / 800) * 100))}%`,
-                      top: '10%'
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-4 font-mono text-[11px] text-on-surface-variant">
-                      <span>{hoveredDataPoint.date}</span>
-                      <span className="text-primary-ink font-bold">{hoveredDataPoint.clicks} Clicks</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 text-xs text-on-surface">
-                      <span className="text-on-surface-variant">Daily velocity</span>
-                      <span className="font-mono text-emerald-600 font-medium">Active</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* X-Axis Labels */}
-              <div className="flex justify-between items-center text-on-surface-variant font-mono text-[11px] pt-2">
-                <span>{timelineData.points[0]?.label || 'Start'}</span>
-                <span className="hidden sm:inline">{timelineData.points[Math.floor(timelineData.points.length / 4)]?.label}</span>
-                <span>{timelineData.points[Math.floor(timelineData.points.length / 2)]?.label}</span>
-                <span className="hidden sm:inline">{timelineData.points[Math.floor((timelineData.points.length * 3) / 4)]?.label}</span>
-                <span className="font-semibold text-primary-ink">{timelineData.points[timelineData.points.length - 1]?.label || 'Now'}</span>
-              </div>
-            </div>
-
-            {/* Bottom Sub-card: Peak Day & Daily Average */}
-            <div className="grid grid-cols-2 gap-3 pt-4 mt-4 bg-surface-container-low/50 p-3 rounded-lg border border-outline-variant">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                  Peak Velocity Day
-                </span>
-                <span className="font-mono text-sm font-bold text-on-surface">
-                  {timelineData.peakDay.date} ({timelineData.peakDay.clicks} clicks)
-                </span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider">
-                  Daily Average
-                </span>
-                <span className="font-mono text-sm font-bold text-on-surface">
-                  {timelineData.dailyAvg} clicks / day
-                </span>
-              </div>
-            </div>
-          </div>
+          <ClicksTimelineChart className="lg:col-span-8" data={timelineData} range={velocityRange} onRangeChange={setVelocityRange} />
 
           {/* Hourly Peak Engagement Breakdown (Span 4) */}
           <div className="lg:col-span-4 bg-surface-container-lowest p-5 sm:p-6 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
