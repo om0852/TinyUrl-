@@ -17,6 +17,21 @@ export function isWebUrl(value: unknown): boolean {
 }
 
 /**
+ * Smart-routing rules may only send visitors to web addresses. A target with no scheme
+ * ("example.com/page") is fine, the redirect adds https://; any other scheme is refused.
+ */
+export function hasUnsafeRuleTarget(rules: unknown): boolean {
+  if (!Array.isArray(rules)) return false;
+  return rules.some(rule => {
+    const target = rule && typeof rule === 'object' ? (rule as { target_url?: unknown }).target_url : undefined;
+    if (target === undefined || target === null || target === '') return false;
+    if (typeof target !== 'string') return true;
+    const value = target.trim();
+    return !isWebUrl(/^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value.replace(/^\/+/, '')}`);
+  });
+}
+
+/**
  * A link may only point at a built-in domain or one of its own workspace's domains.
  * Otherwise anyone could publish a link on another workspace's custom domain.
  */

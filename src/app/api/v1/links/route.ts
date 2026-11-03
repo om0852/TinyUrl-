@@ -7,7 +7,7 @@ import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { hashLinkPassword } from '@/lib/security';
 import { evictCustomDomainCache } from '@/lib/linkCacheEviction';
 import { RESERVED_SLUGS } from '@/lib/db';
-import { isWebUrl, domainAllowed, campaignAllowed, slugTaken, SLUG_PATTERN } from '@/lib/linkGuards';
+import { isWebUrl, hasUnsafeRuleTarget, domainAllowed, campaignAllowed, slugTaken, SLUG_PATTERN } from '@/lib/linkGuards';
 
 interface RawLinkRow {
   id: string;
@@ -98,7 +98,13 @@ export async function GET(request: Request) {
       const userAgent = request.headers.get('user-agent') || '';
 
       const formattedLinks: Link[] = rows.map((l: RawLinkRow) => {
-        const isPasswordLocked = isPublicCodeQuery && !!l.password_hash;
+        // A public ?code= lookup (the visitor page) never reveals where a locked, disabled, expired
+        // or used-up link points, nor the owner's private fields
+        const isInactive = l.status === 'disabled'
+          || (!!l.expires_at && new Date(l.expires_at) < new Date())
+          || (!!l.max_clicks && Number(l.clicks_count || 0) >= Number(l.max_clicks));
+        const isPasswordLocked = isPublicCodeQuery && (!!l.password_hash || isInactive);
+        const ownerOnly = <T,>(value: T): T | undefined => (isPublicCodeQuery ? undefined : value);
         const parsedRules: LinkRule[] = isPasswordLocked
           ? []
           : (typeof l.rules === 'string' ? JSON.parse(l.rules) : (Array.isArray(l.rules) ? l.rules : []));
@@ -122,7 +128,7 @@ export async function GET(request: Request) {
 
         return {
           id: l.id,
-          workspace_id: l.workspace_id || '',
+          workspace_id: isPublicCodeQuery ? '' : (l.workspace_id || ''),
           short_code: l.short_code,
           custom_slug: l.custom_slug || l.short_code,
           domain_id: l.domain_id || 'dom_primary',
@@ -138,22 +144,22 @@ export async function GET(request: Request) {
           broken_code: l.broken_code ? Number(l.broken_code) : undefined,
           broken_reason: l.broken_reason || undefined,
           last_health_check: l.last_health_check ? new Date(l.last_health_check).toISOString() : undefined,
-          fallback_url: l.fallback_url || undefined,
-          created_by: l.created_by || 'Owner',
+          fallback_url: ownerOnly(l.fallback_url || undefined),
+          created_by: isPublicCodeQuery ? 'Owner' : (l.created_by || 'Owner'),
           created_at: l.created_at || new Date().toISOString(),
           rules: parsedRules,
-          campaign_id: l.campaign_id || undefined,
-          utm_source: l.utm_source || undefined,
-          utm_medium: l.utm_medium || undefined,
-          utm_campaign: l.utm_campaign || undefined,
-          utm_term: l.utm_term || undefined,
-          utm_content: l.utm_content || undefined,
+          campaign_id: ownerOnly(l.campaign_id || undefined),
+          utm_source: ownerOnly(l.utm_source || undefined),
+          utm_medium: ownerOnly(l.utm_medium || undefined),
+          utm_campaign: ownerOnly(l.utm_campaign || undefined),
+          utm_term: ownerOnly(l.utm_term || undefined),
+          utm_content: ownerOnly(l.utm_content || undefined),
           expires_at: l.expires_at || undefined,
           max_clicks: l.max_clicks ? Number(l.max_clicks) : undefined,
           password_hash: l.password_hash ? 'PROTECTED' : undefined,
           redirect_type: (l.redirect_type as 'direct' | 'frame' | 'splash') || 'direct',
           http_status_code: (Number(l.http_status_code) as 301 | 302 | 307 | 308) || 301,
-          notes: l.notes || undefined,
+          notes: ownerOnly(l.notes || undefined),
           shield_protection: !!l.shield_protection,
           hide_referrer: !!l.hide_referrer,
           channel: l.channel || undefined,
@@ -259,6 +265,7 @@ export async function PATCH(request: Request) {
     }
     if (og_image_url && !isWebUrl(og_image_url)) return bad('Preview image must be an http:// or https:// address.');
     if (fallback_url && !isWebUrl(fallback_url)) return bad('Fallback must be an http:// or https:// address.');
+    if (hasUnsafeRuleTarget(rules)) return bad('Every rule target must be an http:// or https:// address.');
     for (const [label, value] of [['Short code', short_code], ['Slug', custom_slug]] as const) {
       if (!value) continue;
       const v = String(value).trim();

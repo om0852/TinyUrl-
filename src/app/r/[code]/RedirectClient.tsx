@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/storeContext';
 import { Link } from '@/lib/types';
 import { Link2, ArrowRight, Shield, ShieldAlert, AlertTriangle, ExternalLink, Lock, Globe, Zap, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -12,6 +11,26 @@ import { PLATFORM_URL } from '@/lib/platformUrl';
 
 // Seconds a Splash (or unverified) link waits before redirecting; the effect below counts it down
 const SPLASH_SECONDS = 3;
+
+// Only http(s) destinations are ever navigated to; javascript:, data: and the like become ''
+function webUrlOrEmpty(raw: string | null | undefined): string {
+  let value = (raw || '').trim();
+  if (!value) return '';
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) value = 'https://' + value.replace(/^\/+/, '');
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
+// Disabled, expired and used-up links behave like unknown links
+function isLinkInactive(link: Link): boolean {
+  if (link.status === 'disabled') return true;
+  if (link.expires_at && new Date(link.expires_at) < new Date()) return true;
+  return !!link.max_clicks && (link.clicks_count || 0) >= Number(link.max_clicks);
+}
 
 /* ─── Page shell: one centered card, no platform branding on customer domains ─── */
 function PageShell({ children, isPlatform, wide = false }: { children: React.ReactNode; isPlatform: boolean; wide?: boolean }) {
@@ -49,24 +68,12 @@ export interface RedirectClientProps {
 }
 
 export function RedirectClient({ code, initialTarget, initialLink, trackToken }: RedirectClientProps) {
-  const searchParams = useSearchParams();
   const { links, logClick } = useStore();
   const isPlatform = typeof window !== 'undefined' ? isPlatformHost(window.location.hostname) : true;
 
-  const edgeTarget = useMemo(() => {
-    if (initialTarget) return initialTarget;
-    const fromParams = searchParams?.get('target');
-    if (fromParams) return fromParams;
-    if (typeof window !== 'undefined') {
-      try {
-        const url = new URL(window.location.href);
-        return url.searchParams.get('target') || '';
-      } catch {
-        return '';
-      }
-    }
-    return '';
-  }, [initialTarget, searchParams]);
+  // The server checks any ?target= against the link's own destinations before passing it in, so the
+  // query string itself is never read here (it would let anyone choose where this page navigates)
+  const edgeTarget = useMemo(() => webUrlOrEmpty(initialTarget), [initialTarget]);
 
   const [mounted, setMounted] = useState(true);
   const [resolvedLink, setResolvedLink] = useState<Link | null>(initialLink || null);
@@ -202,13 +209,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
   // Compute smart destination URL
   const resolvedTarget = useMemo(() => {
     // 1. If edge/server middleware already computed the resolved destination URL, use it directly
-    if (edgeTarget) {
-      let finalUrl = edgeTarget;
-      if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.includes('://')) {
-        finalUrl = 'https://' + finalUrl;
-      }
-      return finalUrl;
-    }
+    if (edgeTarget) return edgeTarget;
 
     // 2. Otherwise calculate using resolveSmartTargetUrl
     let finalUrl = (link && link.destination_url) || '';
@@ -222,10 +223,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
       });
     }
 
-    if (finalUrl && !finalUrl.startsWith('http://') && !finalUrl.startsWith('https://') && !finalUrl.includes('://')) {
-      finalUrl = 'https://' + finalUrl;
-    }
-    return finalUrl;
+    return webUrlOrEmpty(finalUrl);
   }, [edgeTarget, link, abRoll]);
 
   // Client device and in-app browser detection
@@ -459,7 +457,11 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
       if (res.ok && data.success && data.destination_url) {
         setIsUnlocked(true);
         setPasswordError(false);
-        const unlockedUrl = data.destination_url;
+        const unlockedUrl = webUrlOrEmpty(data.destination_url);
+        if (!unlockedUrl) {
+          setPasswordError(true);
+          return;
+        }
         setResolvedLink(prev => prev ? { ...prev, destination_url: unlockedUrl } : ({ id: code, short_code: code, destination_url: unlockedUrl, redirect_type: 'direct' } as any));
 
         // Frame + Password combination: render the masked frame upon unlock
@@ -513,8 +515,8 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
     );
   }
 
-  // ━━━ 2. Unknown link ━━━
-  if (!link) {
+  // ━━━ 2. Unknown or inactive link ━━━
+  if (!link || isLinkInactive(link)) {
     return (
       <PageShell isPlatform={isPlatform}>
         <div className={`${card} flex flex-col items-center text-center gap-4`}>
@@ -619,7 +621,7 @@ export function RedirectClient({ code, initialTarget, initialLink, trackToken }:
           </ul>
 
           <button type="button" onClick={goBack} className={primaryBtn}>Go back</button>
-          <button type="button" onClick={() => window.location.replace(link.destination_url)} className={`${quietLink} self-center text-error`}>
+          <button type="button" onClick={() => { const dest = webUrlOrEmpty(link.destination_url); if (dest) window.location.replace(dest); }} className={`${quietLink} self-center text-error`}>
             Continue anyway
           </button>
         </div>

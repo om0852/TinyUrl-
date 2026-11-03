@@ -8,7 +8,7 @@ import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { hashLinkPassword } from '@/lib/security';
-import { domainAllowed, campaignAllowed } from '@/lib/linkGuards';
+import { domainAllowed, campaignAllowed, isWebUrl, hasUnsafeRuleTarget } from '@/lib/linkGuards';
 
 export async function POST(request: Request) {
   try {
@@ -63,6 +63,19 @@ export async function POST(request: Request) {
       return NextResponse.json<ShortenApiResponse>({ 
         success: false, 
         error: 'Security Error: Destination URL must use http:// or https:// protocol.' 
+      }, { status: 422 });
+    }
+
+    if (hasUnsafeRuleTarget(rules)) {
+      return NextResponse.json<ShortenApiResponse>({
+        success: false,
+        error: 'Security Error: Every rule target must use http:// or https://.'
+      }, { status: 422 });
+    }
+    if (og_image_url && !isWebUrl(og_image_url)) {
+      return NextResponse.json<ShortenApiResponse>({
+        success: false,
+        error: 'Security Error: Preview image must use http:// or https://.'
       }, { status: 422 });
     }
 

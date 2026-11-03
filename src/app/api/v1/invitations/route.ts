@@ -76,7 +76,9 @@ export async function GET(request: Request) {
       });
     }
 
-    // 2. Fetch Incoming Invitations for a logged-in user
+    // 2. Fetch Incoming Invitations for a logged-in user. No tokens: signup doesn't verify email, so
+    // whoever registered an address first would otherwise get its invitations; joining takes the
+    // emailed link instead.
     if (email && !token) {
       const cleanEmail = callerEmail(request, email);
       if (!cleanEmail) {
@@ -93,7 +95,6 @@ export async function GET(request: Request) {
           i.name,
           i.email,
           i.role,
-          i.token,
           i.status,
           i.expires_at,
           i.created_at

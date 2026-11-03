@@ -1,8 +1,7 @@
 import { put, get } from '@vercel/blob';
 
-// Default Vercel Blob credentials provided for store_oI8nR4XOe5lQd52s
+// Store ID is not secret; the read/write token must come from the environment (never committed)
 const DEFAULT_BLOB_STORE_ID = 'store_oI8nR4XOe5lQd52s';
-const DEFAULT_BLOB_TOKEN = 'vercel_blob_rw_oI8nR4XOe5lQd52s_VyLOz0KFw0z1BXZecNDK3ZukeYyK6h';
 
 /**
  * Clean and retrieve the Vercel Blob Read/Write token.
@@ -16,7 +15,7 @@ export function getBlobToken(): string {
       return cleaned;
     }
   }
-  return DEFAULT_BLOB_TOKEN;
+  return '';
 }
 
 /**

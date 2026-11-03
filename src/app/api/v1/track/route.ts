@@ -6,7 +6,6 @@ import { TrackApiRequest, TrackApiResponse } from '@/lib/types';
 import { extractGeoFromHeaders, getTrustedEdgeClientIp } from '@/lib/geo';
 import { dispatchWorkspaceWebhooks } from '@/lib/webhooks';
 import { verifyClickToken } from '@/lib/session';
-import { isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
 
 export async function POST(request: Request) {
   try {
@@ -36,12 +35,37 @@ export async function POST(request: Request) {
     }
 
     const id = token.linkId;
-    const linkRow = (await sql.query(`SELECT short_code FROM links WHERE id = $1 LIMIT 1`, [id]).catch(() => [])) as { short_code?: string }[];
+    const linkRow = (await sql.query(`SELECT short_code, destination_url FROM links WHERE id = $1 LIMIT 1`, [id]).catch(() => [])) as { short_code?: string; destination_url?: string }[];
     if (!linkRow?.[0]) {
       return NextResponse.json<TrackApiResponse>({ success: false, error: 'Link not found.' }, { status: 404 });
     }
     const code = String(linkRow[0].short_code || '').toLowerCase();
-    const isBotClick = !!click.is_bot;
+    // Beacon fields are visitor-supplied: cap them to the column sizes so the insert can't fail
+    // after the counter already moved
+    const text = (value: unknown, max: number) => (typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : null);
+    const userAgent = (request.headers.get('user-agent') || '').slice(0, 500);
+    // The beacon's own is_bot can't be trusted; crawlers and scripts are recognised from the request
+    const isBotClick = !!click.is_bot
+      || /bot|spider|crawl|slurp|facebookexternalhit|whatsapp|telegrambot|twitterbot|pinterest|slackbot|curl|wget|python|postman|insomnia|go-http-client|headlesschrome/i.test(userAgent);
+
+    // Visitor identity from the network only (verified edge IP, else Vercel's X-Forwarded-For);
+    // CF-Connecting-IP / X-Real-IP / visitor_id are client-settable and would make every click unique
+    const trustedIp = getTrustedEdgeClientIp(name => request.headers.get(name));
+    const forwarded = request.headers.get('x-forwarded-for');
+    const clientIp = (trustedIp || (forwarded ? forwarded.split(',')[0].trim() : '') || '127.0.0.1').trim();
+    const deterministicIpHash = crypto.createHash('sha256').update(clientIp).digest('hex').slice(0, 16);
+
+    // One counted click per visitor per link every 30 seconds. Tokens are free to mint by loading
+    // the page, so without this a script could inflate the count or burn through max_clicks.
+    const recent = (await sql.query(
+      `SELECT 1 FROM click_events
+       WHERE link_id = $1 AND ip_hash = $2 AND timestamp > NOW() - INTERVAL '30 seconds'
+       LIMIT 1`,
+      [id, deterministicIpHash]
+    ).catch(() => [])) as unknown[];
+    if (recent.length > 0) {
+      return NextResponse.json<TrackApiResponse>({ success: true, message: 'Click already recorded.' }, { status: 200 });
+    }
 
     // Deduplication guard: ignore repeated beacons with the same click.id within 60 seconds using atomic Redis SETNX
     if (click && typeof click === 'object' && click.id) {
@@ -58,39 +82,35 @@ export async function POST(request: Request) {
     // 1. Update PostgreSQL counters
     try {
       if (!isBotClick) {
-        await sql.query(
-          `UPDATE links SET clicks_count = COALESCE(clicks_count, 0) + 1, updated_at = NOW() WHERE id = $1`,
+        // Count only while the link is live and under its click limit, checked in the same statement
+        // so parallel clicks can't overshoot max_clicks
+        const counted = (await sql.query(
+          `UPDATE links SET clicks_count = COALESCE(clicks_count, 0) + 1, updated_at = NOW()
+           WHERE id = $1
+             AND COALESCE(status, 'active') <> 'disabled'
+             AND (expires_at IS NULL OR expires_at > NOW())
+             AND (max_clicks IS NULL OR max_clicks <= 0 OR COALESCE(clicks_count, 0) < max_clicks)
+           RETURNING id`,
           [id]
-        );
+        )) as unknown[];
+        if (!counted?.length) {
+          return NextResponse.json<TrackApiResponse>({ success: false, error: 'This link is no longer active.' }, { status: 410 });
+        }
       }
 
       {
         const headerGeo = extractGeoFromHeaders(name => request.headers.get(name));
 
-        const resolvedCode = (headerGeo.countryCode || click.country_code || '').trim().toUpperCase() || 'Unknown';
-        const resolvedCountry = (headerGeo.countryName || click.country || (resolvedCode !== 'Unknown' ? resolvedCode : 'Unknown')).trim();
+        const resolvedCode = (headerGeo.countryCode || text(click.country_code, 16) || '').trim().toUpperCase() || 'Unknown';
+        const resolvedCountry = (headerGeo.countryName || text(click.country, 128) || (resolvedCode !== 'Unknown' ? resolvedCode : 'Unknown')).trim();
         // When the server resolved the country, take region/city from the same source only. The
         // browser's values are a timezone guess (e.g. any IST visitor -> Mumbai) and mixing them
         // produced impossible rows like a real US country with a guessed Indian city.
         const hasServerGeo = !!headerGeo.countryCode;
-        const resolvedRegion = (hasServerGeo ? headerGeo.regionName : (click.region || '')).trim() || null;
-        const resolvedCity = ((hasServerGeo ? headerGeo.city : click.city) || 'Direct').trim();
+        const resolvedRegion = (hasServerGeo ? headerGeo.regionName : (text(click.region, 128) || '')).trim() || null;
+        const resolvedCity = ((hasServerGeo ? headerGeo.city : text(click.city, 128)) || 'Direct').trim();
 
-        // 1. Extract real client IP: verified edge proxy first, then standard proxy and CDN headers
-        const trustedIp = getTrustedEdgeClientIp(name => request.headers.get(name));
-        const forwarded = request.headers.get('x-forwarded-for');
-        const realIp = request.headers.get('x-real-ip');
-        const cfIp = request.headers.get('cf-connecting-ip');
-        const clientIp = (trustedIp || cfIp || (forwarded ? forwarded.split(',')[0].trim() : '') || realIp || '127.0.0.1').trim();
-        const userAgent = (request.headers.get('user-agent') || '').slice(0, 500);
         const language = (request.headers.get('accept-language')?.split(',')[0]?.split(';')[0]?.trim() || 'en-US').slice(0, 64);
-
-        // 2. Generate deterministic visitor IP hash (SHA-256 of IP + UA or persistent visitor ID)
-        const visitorToken = (click.visitor_id || click.ip_hash || clientIp).trim();
-        const realVisitorIp = !!trustedIp || isPlatformHost(resolveRequestHost(name => request.headers.get(name)));
-        const deterministicIpHash = realVisitorIp
-          ? crypto.createHash('sha256').update(clientIp).digest('hex').slice(0, 16)
-          : crypto.createHash('sha256').update(`${clientIp}:${visitorToken}:${userAgent}`).digest('hex').substring(0, 32);
 
         // 3. Server-side Uniqueness Verification: Check if this visitor has ever visited this link before
         let isUniqueVisitor = true;
@@ -114,7 +134,7 @@ export async function POST(request: Request) {
           isUniqueVisitor = false;
         }
 
-        const clickId = click.id || `clk_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
+        const clickId = text(click.id, 64) || `clk_${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${crypto.randomBytes(4).toString('hex')}`}`;
 
         try {
           await sql.query(
@@ -140,21 +160,21 @@ export async function POST(request: Request) {
               resolvedCode,
               resolvedRegion || null,
               resolvedCity,
-              click.device || 'mobile',
-              click.os || 'iOS',
-              click.browser || 'Safari',
-              click.referrer || 'Direct / Mobile',
-              click.language || language,
-              click.user_agent || userAgent,
-              click.utm_source || null,
-              click.utm_medium || null,
-              click.utm_campaign || null,
-              click.utm_term || null,
-              click.utm_content || null,
-              click.destination_url || null,
-              !!click.is_bot,
+              text(click.device, 64) || 'mobile',
+              text(click.os, 64) || 'iOS',
+              text(click.browser, 64) || 'Safari',
+              text(click.referrer, 255) || 'Direct / Mobile',
+              text(click.language, 64) || language,
+              userAgent,
+              text(click.utm_source, 128),
+              text(click.utm_medium, 128),
+              text(click.utm_campaign, 128),
+              text(click.utm_term, 128),
+              text(click.utm_content, 128),
+              linkRow[0].destination_url || null,
+              isBotClick,
               isUniqueVisitor,
-              click.latency_ms || 20
+              Math.min(Math.max(Number(click.latency_ms) || 20, 0), 60000)
             ]
           );
         } catch {
@@ -171,13 +191,13 @@ export async function POST(request: Request) {
               resolvedCountry,
               resolvedCode,
               resolvedCity,
-              click.device || 'mobile',
-              click.os || 'iOS',
-              click.browser || 'Safari',
-              click.referrer || 'Direct / Mobile',
-              !!click.is_bot,
+              text(click.device, 64) || 'mobile',
+              text(click.os, 64) || 'iOS',
+              text(click.browser, 64) || 'Safari',
+              text(click.referrer, 255) || 'Direct / Mobile',
+              isBotClick,
               isUniqueVisitor,
-              click.latency_ms || 20
+              Math.min(Math.max(Number(click.latency_ms) || 20, 0), 60000)
             ]
           );
         }

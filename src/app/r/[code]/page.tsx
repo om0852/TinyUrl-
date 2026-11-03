@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
-import { redirect, notFound } from 'next/navigation';
+import { redirect, notFound, unstable_rethrow } from 'next/navigation';
 import { after } from 'next/server';
 import { Metadata } from 'next';
 import crypto from 'crypto';
@@ -72,7 +72,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
     if (link) {
       const title = link.og_title?.trim() || link.title?.trim() || `Link /${link.short_code}`;
-      const description = link.og_description?.trim() || `Open link: ${link.destination_url || 'destination'}`;
+      // Never the destination itself: page metadata is public, also for password-protected and disabled links
+      const description = link.og_description?.trim() || 'Open this short link';
 
       const headersList = await headers().catch(() => null);
       const rawHost = (headersList && resolveRequestHost(name => headersList.get(name))) || 'creataurus.work.gd';
@@ -333,7 +334,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
               <h1 style={{ fontSize: '24px', fontWeight: 600, color: '#1a1a1a', marginBottom: '10px' }}>{ogTitle}</h1>
               <p style={{ fontSize: '15px', color: '#666666', lineHeight: '1.5', marginBottom: '20px' }}>{ogDesc}</p>
               <a
-                href={initialTarget || row.destination_url}
+                href={initialTarget && !isPasswordLocked && !row.is_flagged ? initialTarget : `/${code}`}
                 style={{ display: 'inline-block', backgroundColor: '#a3e635', color: '#1a2e05', padding: '12px 24px', borderRadius: '5px', textDecoration: 'none', fontWeight: 600 }}
               >
                 Continue to Destination &rarr;
@@ -476,6 +477,8 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         }
       }
     } catch (err) {
+      // notFound() above throws; let it through instead of rendering the link anyway
+      unstable_rethrow(err);
       console.warn('Server redirect lookup error:', err);
     }
   }
@@ -492,7 +495,7 @@ export default async function RedirectPage({ params, searchParams }: PageProps) 
         code={code}
         initialTarget={initialTarget}
         initialLink={initialLink}
-        trackToken={initialLink?.id ? createClickToken(initialLink.id) : undefined}
+        trackToken={initialLink?.id && !initialLink.password_hash ? createClickToken(initialLink.id) : undefined}
       />
     </Suspense>
   );

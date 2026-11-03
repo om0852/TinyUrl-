@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/lib/storeContext';
-import { useToast } from '@/components/ui/ToastHub';
 import { WorkspaceRole, WorkspaceInvitation, TeamMember } from '@/lib/types';
 import { Permission, hasPermission } from '@/lib/rbac';
 import {
@@ -40,8 +39,6 @@ export const TeamsView: React.FC<TeamsViewProps> = () => {
     currentUser,
     incomingInvitations,
     refreshIncomingInvitations,
-    acceptInvitationDirect,
-    declineInvitationDirect,
     updateWorkspace,
     deleteWorkspace,
     currentUserRole,
@@ -49,7 +46,6 @@ export const TeamsView: React.FC<TeamsViewProps> = () => {
     isInitialLoading
   } = useStore();
 
-  const { showToast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -74,7 +70,6 @@ export const TeamsView: React.FC<TeamsViewProps> = () => {
   const [deletingWs, setDeletingWs] = useState(false);
 
   // Incoming invite action loading state
-  const [processingToken, setProcessingToken] = useState<string | null>(null);
 
   const handleManualRefresh = async () => {
     setRefreshing(true);
@@ -135,28 +130,6 @@ export const TeamsView: React.FC<TeamsViewProps> = () => {
     navigator.clipboard.writeText(url);
     setCopiedToken(id);
     setTimeout(() => setCopiedToken(null), 2000);
-  };
-
-  const handleAcceptInvite = async (token: string) => {
-    setProcessingToken(token);
-    try {
-      const result = await acceptInvitationDirect(token);
-      if (!result.success) showToast('error', 'Could not join', result.error || 'Please try again.');
-      await refreshIncomingInvitations();
-    } finally {
-      setProcessingToken(null);
-    }
-  };
-
-  const handleDeclineInvite = async (token: string) => {
-    setProcessingToken(token);
-    try {
-      const result = await declineInvitationDirect(token);
-      if (!result.success) showToast('error', 'Could not decline', result.error || 'Please try again.');
-      await refreshIncomingInvitations();
-    } finally {
-      setProcessingToken(null);
-    }
   };
 
   const handleSaveWorkspace = async (e: React.FormEvent) => {
@@ -374,24 +347,8 @@ export const TeamsView: React.FC<TeamsViewProps> = () => {
                   {[`${inv.role} invite from ${inv.inviter_email || 'an admin'}`, inv.expires_at ? `expires ${new Date(inv.expires_at).toLocaleDateString()}` : ''].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  disabled={processingToken === inv.token}
-                  onClick={() => handleDeclineInvite(inv.token)}
-                  className="h-[30px] px-3 rounded-md text-xs text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  Decline
-                </button>
-                <button
-                  type="button"
-                  disabled={processingToken === inv.token}
-                  onClick={() => handleAcceptInvite(inv.token)}
-                  className="h-[30px] px-3 rounded-md bg-primary-container text-on-primary text-xs font-medium hover:bg-primary transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  {processingToken === inv.token ? 'Joining…' : 'Accept'}
-                </button>
-              </div>
+              {/* Joining needs the emailed link: it proves this inbox is yours (accounts aren't email-verified) */}
+              <span className="text-[11px] text-on-surface-variant shrink-0">Open the link in your invitation email to join</span>
             </div>
           ))}
         </div>
