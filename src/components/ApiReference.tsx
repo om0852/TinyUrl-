@@ -421,7 +421,7 @@ const MethodBadge: React.FC<{ method: Method }> = ({ method }) => (
   <span className={`inline-flex items-center justify-center min-w-[46px] h-[20px] px-1.5 rounded text-[10px] font-mono font-semibold ${METHOD_STYLE[method]}`}>{method}</span>
 );
 
-const CodeBlock: React.FC<{ code: string; id: string; label?: string; copied: string | null; onCopy: (text: string, id: string) => void }> = ({ code, id, label, copied, onCopy }) => (
+export const CodeBlock: React.FC<{ code: string; id: string; label?: string; copied: string | null; onCopy: (text: string, id: string) => void }> = ({ code, id, label, copied, onCopy }) => (
   <div className="rounded-md border-[0.5px] border-outline-variant overflow-hidden min-w-0">
     <div className="flex items-center justify-between px-3 h-[30px] bg-surface-container-low border-b-[0.5px] border-outline-variant">
       <span className="text-[11px] text-outline">{label}</span>

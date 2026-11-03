@@ -8,6 +8,7 @@ import { SkeletonSettingsView } from '@/components/ui';
 import { hasPermission, Permission } from '@/lib/rbac';
 import { ApiKey, Webhook } from '@/lib/types';
 import { ApiReference } from '@/components/ApiReference';
+import { McpSetup } from '@/components/McpSetup';
 import {
   Key,
   Trash2,
@@ -25,7 +26,7 @@ import {
   Clock
 } from 'lucide-react';
 
-type ApiTab = 'keys' | 'webhooks' | 'console' | 'reference';
+type ApiTab = 'keys' | 'webhooks' | 'console' | 'mcp' | 'reference';
 type LangType = 'curl' | 'js' | 'python';
 type Endpoint = 'shorten' | 'bulk' | 'links' | 'audit' | 'analytics';
 
@@ -281,6 +282,7 @@ print(res.status_code, res.json())`;
           { id: 'keys', label: 'API keys' },
           { id: 'webhooks', label: 'Webhooks' },
           { id: 'console', label: 'Try it' },
+          { id: 'mcp', label: 'MCP' },
           { id: 'reference', label: 'Docs' },
         ] as const).map(tab => (
           <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={segmented(activeTab === tab.id)}>
@@ -514,6 +516,8 @@ const ok = crypto.timingSafeEqual(
       )}
 
       {/* ── Docs ── */}
+      {activeTab === 'mcp' && <McpSetup origin={origin} copied={copied} onCopy={copy} onCreateKey={() => setActiveTab('keys')} />}
+
       {activeTab === 'reference' && <ApiReference origin={origin} workspaceId={wsId} />}
 
       {/* New key: shown once */}
