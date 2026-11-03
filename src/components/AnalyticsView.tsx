@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
-import { InfoTooltip } from '@/components/ui';
+
+import { StatCard } from '@/components/ui/StatCard';
 import { detectSourcePlatform } from '@/lib/sourcePlatform';
 import { ClicksTimelineChart, TimelineData } from '@/components/ClicksTimelineChart';
 import { Link as LinkType, ClickEvent } from '@/lib/types';
@@ -715,96 +716,38 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
           </div>
         </div>
 
-        {/* ─── 5 KPI Cards: Geometric Rhythm (Square 0px-rounded Architectural Cards) ─── */}
+        {/* ─── KPI cards ─── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-          {/* Card 1: Total Links */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
-                Total Links
-              </span>
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-bold text-on-surface font-mono">
-                {totalLinksCount}
-              </div>
-              <div className="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                <span>All active workspace links</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Total Clicks */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
-                  Total Clicks
-                </span>
-                <InfoTooltip text="Every click, including repeat visits." />
-              </div>
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-bold text-on-surface font-mono">
-                {totalClicksCount.toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Unique Visitors */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
-                Unique Visitors
-              </span>
-              <InfoTooltip text="Each visitor counted once, however often they click." />
-            </div>
-            <div>
-              <div className="text-2xl sm:text-3xl font-bold text-on-surface font-mono">
-                {uniqueVisitorsCount.toLocaleString()}
-              </div>
-              <div className="text-xs text-on-surface-variant mt-1">
-                <span className="font-semibold text-primary-ink">{uniqueVisitorRate}%</span> unique visitor rate
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Top Link */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
-                Top Link
-              </span>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-primary-ink truncate font-mono">
-                {topLink ? `/${topLink.link.custom_slug || topLink.link.short_code}` : 'None'}
-              </div>
-              <div className="text-xs text-on-surface-variant mt-1">
-                {topLink ? `${topLink.clicks} clicks (${topLink.percent}%)` : 'No clicks yet'}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 5: Top Referrer */}
-          <div className="bg-surface-container-lowest p-4 sm:p-5 shadow-sm rounded-xl border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-semibold tracking-wide uppercase text-on-surface-variant">
-                Top Referrer
-              </span>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-on-surface truncate">
-                {topReferrer.name}
-              </div>
-              <div className="text-xs text-on-surface-variant mt-1">
-                {topReferrer.percent ? (
-                  <><span className="font-semibold text-on-surface">{topReferrer.percent}</span> of total traffic</>
-                ) : 'No clicks yet'}
-              </div>
-            </div>
-          </div>
+          <StatCard
+            label="Total links"
+            value={totalLinksCount.toLocaleString()}
+            note={<span className="inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Active in this workspace</span>}
+          />
+          <StatCard
+            label="Total clicks"
+            info="Every click, including repeat visits."
+            value={totalClicksCount.toLocaleString()}
+            note={`${Math.max(0, totalClicksCount - uniqueVisitorsCount).toLocaleString()} repeat clicks`}
+          />
+          <StatCard
+            label="Unique visitors"
+            info="Each visitor counted once, however often they click."
+            value={uniqueVisitorsCount.toLocaleString()}
+            note={<><span className="font-semibold text-primary-ink">{uniqueVisitorRate}%</span> unique visitor rate</>}
+          />
+          <StatCard
+            label="Top link"
+            kind="text"
+            valueClassName="font-mono text-primary-ink"
+            value={topLink ? `/${topLink.link.custom_slug || topLink.link.short_code}` : 'None'}
+            note={topLink ? `${topLink.clicks} clicks (${topLink.percent}%)` : 'No clicks yet'}
+          />
+          <StatCard
+            label="Top referrer"
+            kind="text"
+            value={topReferrer.name}
+            note={topReferrer.percent ? <><span className="font-semibold text-on-surface">{topReferrer.percent}</span> of total traffic</> : 'No clicks yet'}
+          />
         </div>
 
         {/* ─── Bento Section: Click Velocity Timeline + Hourly Peak Matrix ─── */}

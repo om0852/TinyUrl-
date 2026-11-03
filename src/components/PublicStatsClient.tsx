@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Link, ClickEvent, AnalyticsMetrics } from '@/lib/types';
 import { Skeleton, SkeletonKpiGrid, SkeletonChart } from '@/components/ui';
+import { StatCard } from '@/components/ui/StatCard';
 
 interface PublicStatsClientProps {
   link: Link;
@@ -226,57 +227,31 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
 
         {/* 4 Core Summary Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-on-surface-variant">Total Clicks</span>
-              <div className="w-8 h-8 rounded-lg bg-surface-container text-primary-ink flex items-center justify-center">
-                <MousePointerClick className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="font-mono text-3xl font-extrabold text-on-surface">{totalClicks.toLocaleString()}</div>
-            <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-1">
-              <TrendingUp className="w-3 h-3" /> Live Telemetry Synced
-            </span>
-          </div>
-
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-on-surface-variant">Unique Visitors</span>
-              <div className="w-8 h-8 rounded-lg bg-surface-container text-secondary flex items-center justify-center">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="font-mono text-3xl font-extrabold text-on-surface">{uniqueVisitors.toLocaleString()}</div>
-            <span className="text-[11px] text-on-surface-variant mt-1">
-              {totalClicks > 0 ? `${Math.round((uniqueVisitors / totalClicks) * 100)}% Distinct IPs` : 'Filtered repeat hits'}
-            </span>
-          </div>
-
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-on-surface-variant">Repeat Rate</span>
-              <div className="w-8 h-8 rounded-lg bg-surface-container text-amber-600 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="font-mono text-3xl font-extrabold text-on-surface">{repeatRate}</div>
-            <span className="text-[11px] text-on-surface-variant mt-1">Loyal / return audience</span>
-          </div>
-
-          <div className="bg-surface-container-lowest p-5 rounded-xl shadow-xs border-[0.5px] border-outline-variant flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-on-surface-variant">Top Country</span>
-              <div className="w-8 h-8 rounded-lg bg-surface-container text-emerald-600 flex items-center justify-center">
-                <Globe2 className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="font-bold text-2xl text-on-surface truncate">
-              {metrics?.top_countries?.[0]?.country || 'Global'}
-            </div>
-            <span className="text-[11px] text-on-surface-variant mt-1">
-              {metrics?.top_countries?.[0]?.clicks ? `${metrics.top_countries[0].clicks} clicks recorded` : 'Edge CDN routed'}
-            </span>
-          </div>
+          <StatCard
+            label="Total clicks"
+            icon={<MousePointerClick className="text-primary-ink" />}
+            value={totalClicks.toLocaleString()}
+            note={<span className="inline-flex items-center gap-1 text-emerald-600 font-medium"><TrendingUp className="w-3 h-3" /> Live</span>}
+          />
+          <StatCard
+            label="Unique visitors"
+            icon={<Users className="text-secondary" />}
+            value={uniqueVisitors.toLocaleString()}
+            note={totalClicks > 0 ? `${Math.round((uniqueVisitors / totalClicks) * 100)}% of clicks` : 'Repeat visits filtered'}
+          />
+          <StatCard
+            label="Repeat rate"
+            icon={<TrendingUp className="text-amber-600" />}
+            value={repeatRate}
+            note="Visitors who came back"
+          />
+          <StatCard
+            label="Top country"
+            icon={<Globe2 className="text-emerald-600" />}
+            kind="text"
+            value={metrics?.top_countries?.[0]?.country || 'None yet'}
+            note={metrics?.top_countries?.[0]?.clicks ? `${metrics.top_countries[0].clicks} clicks` : 'No clicks yet'}
+          />
         </div>
 
         {/* Time Series Bezier Chart */}

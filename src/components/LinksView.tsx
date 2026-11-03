@@ -36,6 +36,7 @@ import { detectAppDeepLink } from '@/lib/deepLink';
 import { EditLinkModal } from '@/components/EditLinkModal';
 import { SkeletonLinksView } from '@/components/ui/Skeleton';
 import { DropdownMenu } from '@/components/ui/DropdownMenu';
+import { StatCard } from '@/components/ui/StatCard';
 
 type LinkSort = 'clicks' | 'least_clicks' | 'newest' | 'oldest' | 'name';
 
@@ -756,68 +757,39 @@ export const LinksView: React.FC<LinksViewProps> = ({
 
       {/* 3. METRIC OVERVIEW STRIP (4 Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        
-        {/* Card 1: Total Clicks */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
-            <span>Total Clicks · {rangeLabel}</span>
-            <TrendingUp className="w-4 h-4 text-primary-ink" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold font-mono text-on-surface tracking-tight">
-              {totalClicksCount.toLocaleString()}
+        <StatCard
+          label={`Total clicks · ${rangeLabel}`}
+          icon={<TrendingUp className="text-primary-ink" />}
+          value={totalClicksCount.toLocaleString()}
+          suffix={rangeChangePct !== null && (
+            <span className={`font-semibold ${rangeChangePct >= 0 ? 'text-emerald-600' : 'text-error'}`}>
+              {rangeChangePct >= 0 ? '+' : ''}{rangeChangePct}%
             </span>
-            {rangeChangePct !== null && (
-              <span className={`inline-flex items-center text-xs font-semibold ${rangeChangePct >= 0 ? 'text-emerald-600' : 'text-error'}`}>
-                {rangeChangePct >= 0 ? '+' : ''}{rangeChangePct}%
-              </span>
-            )}
-          </div>
-          <div className="mt-3 flex items-center gap-1 text-[11px] text-on-surface-variant">
-            <span>
-              {!rangeMs
-                ? 'Since each link was created'
-                : rangeChangePct !== null
-                  ? `vs previous ${rangeLabel.replace('Last ', '')}`
-                  : 'No clicks in the period before'}
-            </span>
-          </div>
-        </div>
+          )}
+          note={!rangeMs
+            ? 'Since each link was created'
+            : rangeChangePct !== null
+              ? `vs previous ${rangeLabel.replace('Last ', '')}`
+              : 'No clicks in the period before'}
+        />
 
-        {/* Card 2: Top Link */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
-            <span>Top Performing Link</span>
-            <Flame className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="flex flex-col mt-1 min-w-0">
-            <span className="font-mono text-xs font-bold text-primary-ink truncate">
-              {topPerformingLink ? `${originDomain}/${topPerformingLink.custom_slug || topPerformingLink.short_code}` : 'No links yet'}
-            </span>
-            <span className="text-base font-bold text-on-surface mt-0.5">
-              {(topPerformingLink ? getLinkClicks(topPerformingLink) : 0).toLocaleString()} clicks
-            </span>
-          </div>
-          <div className="mt-3 flex items-center gap-1 text-[11px] text-on-surface-variant">
-            <span>Top converting creator asset</span>
-          </div>
-        </div>
+        <StatCard
+          label="Top performing link"
+          icon={<Flame className="text-amber-500" />}
+          kind="text"
+          valueClassName="font-mono text-primary-ink"
+          value={topPerformingLink ? `/${topPerformingLink.custom_slug || topPerformingLink.short_code}` : 'No links yet'}
+          note={topPerformingLink ? `${getLinkClicks(topPerformingLink).toLocaleString()} clicks on ${originDomain}` : 'Create a link to see it here'}
+        />
 
-        {/* Card 3: Top Channel */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
-            <span>Top Channel</span>
-            <Video className="w-4 h-4 text-primary-ink" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold text-on-surface">
-              {topChannel ? topChannel.name : 'No traffic yet'}
-            </span>
-            {topChannel && (
-              <span className="text-xs font-bold text-primary-ink">{topChannel.pct}%</span>
-            )}
-          </div>
-          <div className="mt-3">
+        <StatCard
+          label="Top channel"
+          icon={<Video className="text-primary-ink" />}
+          kind="text"
+          value={topChannel ? topChannel.name : 'No traffic yet'}
+          suffix={topChannel && <span className="font-semibold text-primary-ink">{topChannel.pct}%</span>}
+          note={topChannel ? 'Share of clicks' : 'Clicks by source appear here'}
+          footer={
             <div className="w-full bg-surface-container-high rounded-full h-1.5 flex overflow-hidden">
               {channelDistribution.length > 0 ? (
                 channelDistribution.map((ch, idx) => (
@@ -827,31 +799,27 @@ export const LinksView: React.FC<LinksViewProps> = ({
                 <div className="bg-surface-container h-full w-full" />
               )}
             </div>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Card 4: Quota / Capacity */}
-        <div className="bg-surface-container-lowest p-4 rounded-xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] border-[0.5px] border-outline-variant flex flex-col justify-between">
-          <div className="flex items-center justify-between text-on-surface-variant text-xs font-medium mb-1">
-            <span>Active Short Links</span>
-            <Link2 className="w-4 h-4 text-outline" />
-          </div>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-bold font-mono text-on-surface">{links.length}</span>
-            <span className="text-xs text-on-surface-variant font-medium">/ 50 limit</span>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] text-on-surface-variant">
-            <span>{Math.round((links.length / 50) * 100)}% allocated</span>
-            <button 
-              type="button"
-              onClick={() => onNavigateTab && onNavigateTab('pricing')}
-              className="text-primary-ink font-semibold hover:underline cursor-pointer"
-            >
-              Upgrade plan
-            </button>
-          </div>
-        </div>
-
+        <StatCard
+          label="Active short links"
+          icon={<Link2 />}
+          value={links.length}
+          suffix="/ 50 limit"
+          note={
+            <span className="flex items-center justify-between gap-2">
+              <span>{Math.round((links.length / 50) * 100)}% allocated</span>
+              <button
+                type="button"
+                onClick={() => onNavigateTab && onNavigateTab('pricing')}
+                className="text-primary-ink font-semibold hover:underline cursor-pointer"
+              >
+                Upgrade plan
+              </button>
+            </span>
+          }
+        />
       </div>
 
       {/* 4. PRIMARY CONTENT GRID (Table 8 cols + Side Panel 4 cols) */}

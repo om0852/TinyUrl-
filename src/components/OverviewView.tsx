@@ -23,6 +23,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { detectAppDeepLink } from '@/lib/deepLink';
 import { SocialCardModal } from './SocialCardModal';
 import { SkeletonOverviewView } from '@/components/ui/Skeleton';
+import { StatCard } from '@/components/ui/StatCard';
 
 interface OverviewViewProps {
   onOpenCreateModal: () => void;
@@ -185,89 +186,33 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
       </div>
 
-      {/* 2. Stat Metric Cards (Simplified & User-Centric) */}
+      {/* 2. Stat Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Card 1: Total Links */}
-        <div className="bg-surface-container-lowest p-4.5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              Total Links
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-ink">
-              <Layers className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-extrabold text-on-surface">
-              {links.length.toLocaleString()}
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-              <span className="text-emerald-600 font-semibold">{activeLinksCount} active</span> in workspace
-            </p>
-          </div>
-        </div>
-
-        {/* Card 2: Total Clicks */}
-        <div className="bg-surface-container-lowest p-4.5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              Total Clicks
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
-              <MousePointerClick className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-extrabold text-on-surface">
-              {totalClicksCount.toLocaleString()}
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-              <span className="text-emerald-600 font-semibold">{totalClicksCount} events</span> tracked in real time
-            </p>
-          </div>
-        </div>
-
-        {/* Card 3: Mobile App Opens */}
-        <div className="bg-surface-container-lowest p-4.5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              OpeninApp Routing
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-              <Smartphone className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-extrabold text-on-surface">
-              {appDeepLinksCount} Links
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-              <span className="text-emerald-600 font-semibold">100% Native</span> in-app launch enabled
-            </p>
-          </div>
-        </div>
-
-        {/* Card 4: Active Health */}
-        <div className="bg-surface-container-lowest p-4.5 rounded-xl border-[0.5px] border-outline-variant shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
-              Network Health
-            </span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
-              <CheckCircle2 className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="text-2xl font-extrabold text-on-surface">
-              {activePercentage}%
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5 flex items-center gap-1">
-              <span className="text-emerald-600 font-semibold">{activeLinksCount} of {links.length}</span> running healthy
-            </p>
-          </div>
-        </div>
-
+        <StatCard
+          label="Total links"
+          icon={<Layers className="text-primary-ink" />}
+          value={links.length.toLocaleString()}
+          note={<><span className="text-emerald-600 font-semibold">{activeLinksCount} active</span> in workspace</>}
+        />
+        <StatCard
+          label="Total clicks"
+          icon={<MousePointerClick className="text-blue-600" />}
+          value={totalClicksCount.toLocaleString()}
+          note="Tracked in real time"
+        />
+        <StatCard
+          label="OpeninApp routing"
+          icon={<Smartphone className="text-emerald-600" />}
+          value={appDeepLinksCount.toLocaleString()}
+          suffix={appDeepLinksCount === 1 ? 'link' : 'links'}
+          note="Open straight in the app on phones"
+        />
+        <StatCard
+          label="Network health"
+          icon={<CheckCircle2 className="text-amber-600" />}
+          value={`${activePercentage}%`}
+          note={<><span className="text-emerald-600 font-semibold">{activeLinksCount} of {links.length}</span> running healthy</>}
+        />
       </div>
 
       {/* 3. Quick Shorten Hero Bar */}
