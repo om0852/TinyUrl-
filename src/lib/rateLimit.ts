@@ -49,7 +49,8 @@ export async function rateLimit(bucket: string, limit: number, windowSeconds: nu
     const hits = Number(rows?.[0]?.hits) || 0;
     const windowEnd = (Number(rows?.[0]?.window_epoch) || 0) + windowSeconds;
     return { ok: hits <= limit, retryAfter: Math.max(1, Math.ceil(windowEnd - Date.now() / 1000)) };
-  } catch {
+  } catch (err) {
+    console.warn(`[rateLimit] ${bucket.split(':')[0]} check skipped:`, err instanceof Error ? err.message : err);
     return { ok: true, retryAfter: 0 };
   }
 }

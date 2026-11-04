@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
-import { isSafeOutboundUrl } from '@/lib/security';
+import { checkOutboundUrl } from '@/lib/security';
 
 export interface WebhookPayload {
   event: 'link.created' | 'link.clicked' | 'link.updated' | 'link.deleted';
@@ -48,7 +48,7 @@ export async function dispatchWorkspaceWebhooks(
 
         if (!matchesEvent) return;
 
-        const safeCheck = isSafeOutboundUrl(hook.url);
+        const safeCheck = await checkOutboundUrl(hook.url);
         if (!safeCheck.safe) {
           console.warn(`[Webhook] Blocked dispatch to unsafe/private address (${hook.url}): ${safeCheck.reason}`);
           return;

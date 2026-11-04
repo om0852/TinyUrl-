@@ -33,17 +33,12 @@ export async function GET(request: Request) {
       .replace(/\/.*$/, '')
       .replace(/:\d+$/, '');
 
-    // Allow internal platform domains & bridge domain automatically
+    // Only the bridge host itself; every other name must be a verified customer domain. Wildcards
+    // like *.vercel.app (or localhost) let anyone make Caddy start a certificate order for a name it
+    // can't validate, which burns the Let's Encrypt rate limits real custom domains need.
     const primaryBridge = (process.env.CUSTOM_DOMAIN_CNAME_TARGET || process.env.NEXT_PUBLIC_CNAME_TARGET || 'creataurus.work.gd').toLowerCase();
 
-    if (
-      cleanHost === 'localhost' ||
-      cleanHost === '127.0.0.1' ||
-      cleanHost.endsWith('.vercel.app') ||
-      cleanHost === 'tinyurl.dev' ||
-      cleanHost === primaryBridge ||
-      cleanHost === 'creataurus.work.gd'
-    ) {
+    if (cleanHost === primaryBridge || cleanHost === 'creataurus.work.gd') {
       return new NextResponse('OK', { status: 200 });
     }
 

@@ -369,7 +369,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
             </div>
 
             <div className="mt-4 pt-3 border-t-[0.5px] border-outline-variant flex items-center justify-between text-[11px] text-on-surface-variant">
-              <span>Cities: {metrics?.top_cities?.map(ct => ct.city).slice(0, 3).join(', ') || 'Global network'}</span>
+              <span>{metrics?.top_countries?.length || 0} countr{metrics?.top_countries?.length === 1 ? 'y' : 'ies'}</span>
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             </div>
           </div>
@@ -448,16 +448,14 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               <thead>
                 <tr className="bg-surface-container-low text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">
                   <th className="py-2.5 px-3 rounded-l-lg">Time</th>
-                  <th className="py-2.5 px-3">Location</th>
-                  <th className="py-2.5 px-3">Device &amp; OS</th>
-                  <th className="py-2.5 px-3">Browser &amp; Language</th>
-                  <th className="py-2.5 px-3 rounded-r-lg">Referrer</th>
+                  <th className="py-2.5 px-3">Country</th>
+                  <th className="py-2.5 px-3 rounded-r-lg">Device</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant font-mono">
                 {recentClicks.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-on-surface-variant font-sans text-xs">
+                    <td colSpan={3} className="py-6 text-center text-on-surface-variant font-sans text-xs">
                       No individual clicks recorded in stream yet.
                     </td>
                   </tr>
@@ -468,16 +466,10 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
                         {c.timestamp ? new Date(c.timestamp).toLocaleTimeString() : 'Just now'}
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap text-on-surface font-sans">
-                        {c.city || 'Mumbai'}, {c.country || 'India'}
+                        {c.country || 'Unknown'}
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap text-on-surface capitalize font-sans">
-                        {c.device || 'Mobile'} &bull; {c.os || 'Android'}
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap text-on-surface font-sans">
-                        {c.browser || 'Chrome'} <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-container">{c.language || 'en-US'}</span>
-                      </td>
-                      <td className="py-2.5 px-3 whitespace-nowrap text-on-surface-variant truncate max-w-[160px] font-sans">
-                        {c.referrer || 'Direct'}
+                        {c.device || 'Unknown'}
                       </td>
                     </tr>
                   ))

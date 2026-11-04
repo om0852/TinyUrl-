@@ -1,29 +1,39 @@
 import crypto from 'crypto';
+import net from 'node:net';
+import { lookup } from 'node:dns/promises';
 
 /**
  * Security validation and defense utilities
  * Prevents Server-Side Request Forgery (SSRF), open redirects, and private IP leakage.
  */
 
-// Private IPv4 CIDR blocks and special addresses
-const PRIVATE_IP_PATTERNS = [
-  /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,                // Loopback (127.0.0.0/8)
-  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,                 // RFC1918 Class A (10.0.0.0/8)
-  /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/,    // RFC1918 Class B (172.16.0.0/12)
-  /^192\.168\.\d{1,3}\.\d{1,3}$/,                    // RFC1918 Class C (192.168.0.0/16)
-  /^169\.254\.\d{1,3}\.\d{1,3}$/,                    // Link-Local & Cloud Metadata (169.254.0.0/16)
-  /^100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.\d{1,3}\.\d{1,3}$/, // CGNAT (100.64.0.0/10)
-  /^0\.0\.0\.0$/,                                    // Current network
-  /^255\.255\.255\.255$/                             // Broadcast
-];
+// Addresses the server must never fetch: loopback, private networks, link-local and cloud metadata,
+// carrier NAT, benchmarking, multicast/reserved, and the IPv6 equivalents (incl. NAT64 and unique-local)
+const BLOCKED_RANGES = new net.BlockList();
+for (const [address, prefix] of [
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16],
+  ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 4], ['240.0.0.0', 4]
+] as const) BLOCKED_RANGES.addSubnet(address, prefix, 'ipv4');
+for (const [address, prefix] of [
+  ['::', 128], ['::1', 128], ['64:ff9b::', 96], ['2001:db8::', 32], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8]
+] as const) BLOCKED_RANGES.addSubnet(address, prefix, 'ipv6');
 
-// Special IPv6 representations
-const PRIVATE_IPV6_PATTERNS = [
-  /^::1$/i,                                          // IPv6 Loopback
-  /^fe80:/i,                                         // Link-Local unicast
-  /^fc00:/i,                                         // Unique local address
-  /^fd00:/i                                          // Unique local address
-];
+/** True for an IP literal in a blocked range; IPv4-mapped IPv6 (::ffff:7f00:1) is checked as IPv4 */
+export function isBlockedAddress(ip: string): boolean {
+  const value = ip.trim().toLowerCase().replace(/^\[|\]$/g, '');
+  const family = net.isIP(value);
+  if (family === 4) return BLOCKED_RANGES.check(value, 'ipv4');
+  if (family !== 6) return false;
+  const dotted = value.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (dotted) return BLOCKED_RANGES.check(dotted[1], 'ipv4');
+  const hex = value.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hex) {
+    const hi = parseInt(hex[1], 16);
+    const lo = parseInt(hex[2], 16);
+    return BLOCKED_RANGES.check(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`, 'ipv4');
+  }
+  return BLOCKED_RANGES.check(value, 'ipv6');
+}
 
 const BLOCKED_HOSTNAMES = new Set([
   'localhost',
@@ -61,21 +71,34 @@ export function isSafeOutboundUrl(rawUrl: string): { safe: boolean; reason?: str
     return { safe: false, reason: 'Target hostname is reserved or internal.' };
   }
 
-  // 3. Block IPv4 private ranges
-  for (const pattern of PRIVATE_IP_PATTERNS) {
-    if (pattern.test(hostname)) {
-      return { safe: false, reason: 'Target resolves to a private or loopback IPv4 address.' };
-    }
-  }
-
-  // 4. Block IPv6 private ranges
-  for (const pattern of PRIVATE_IPV6_PATTERNS) {
-    if (pattern.test(hostname)) {
-      return { safe: false, reason: 'Target resolves to a private or loopback IPv6 address.' };
-    }
+  // 3. IP literals in private, loopback, metadata or other reserved ranges (v4, v6 and v4-mapped)
+  if (isBlockedAddress(hostname)) {
+    return { safe: false, reason: 'Target is a private, loopback or reserved address.' };
   }
 
   return { safe: true, url: parsed };
+}
+
+/**
+ * isSafeOutboundUrl plus a DNS lookup: refuses a hostname when any address it resolves to is
+ * private or reserved (e.g. a domain pointed at 169.254.169.254 or 10.0.0.5). Use this before every
+ * server-side fetch of a user-supplied URL.
+ */
+export async function checkOutboundUrl(rawUrl: string): Promise<{ safe: boolean; reason?: string; url?: URL }> {
+  const check = isSafeOutboundUrl(rawUrl);
+  if (!check.safe || !check.url) return check;
+  const hostname = check.url.hostname.replace(/^\[|\]$/g, '');
+  if (net.isIP(hostname)) return check;
+  try {
+    const addresses = await lookup(hostname, { all: true, verbatim: true });
+    if (addresses.length === 0) return { safe: false, reason: 'Hostname does not resolve.' };
+    if (addresses.some(a => isBlockedAddress(a.address))) {
+      return { safe: false, reason: 'Hostname resolves to a private, loopback or reserved address.' };
+    }
+  } catch {
+    return { safe: false, reason: 'Hostname does not resolve.' };
+  }
+  return check;
 }
 
 /**

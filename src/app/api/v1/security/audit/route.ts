@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
-import { isSafeOutboundUrl } from '@/lib/security';
+import { checkOutboundUrl } from '@/lib/security';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
 import { evictCustomDomainCache } from '@/lib/linkCacheEviction';
 
@@ -104,7 +104,7 @@ async function notifyFlagged(wsId: string, flagged: SecurityAuditResult[]) {
     let events: string[] = [];
     try { events = typeof hook.events === 'string' ? JSON.parse(hook.events) : (hook.events || []); } catch {}
     const event = events.includes('link.flagged') ? 'link.flagged' : events.includes('security.alert') ? 'security.alert' : null;
-    if (!event || !isSafeOutboundUrl(hook.url).safe) return;
+    if (!event || !(await checkOutboundUrl(hook.url)).safe) return;
     const body = JSON.stringify({
       event,
       timestamp: new Date().toISOString(),
@@ -178,7 +178,7 @@ export async function POST(request: Request) {
         let statusCode: number;
         let httpStatus: string;
         let latencyMs = 0;
-        const safeOutbound = isSafeOutboundUrl(l.destination_url);
+        const safeOutbound = await checkOutboundUrl(l.destination_url);
         if (!safeOutbound.safe) {
           threatFlags.push(`Blocked destination: ${safeOutbound.reason}`);
           statusCode = 403;

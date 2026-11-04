@@ -2,7 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { sql } from '@/lib/postgres';
 import { linkCache } from '@/lib/cache';
 import { Link, LinkRule } from '@/lib/types';
-import { extractGeoFromHeaders, resolveSmartTargetUrl } from '@/lib/geo';
+import { extractGeoFromHeaders, getTrustedEdgeClientIp, resolveSmartTargetUrl } from '@/lib/geo';
+import { rateLimit } from '@/lib/rateLimit';
 import { cleanHost, isPlatformHost, resolveRequestHost } from '@/lib/domainHelper';
 
 // Prefixes that belong exclusively to the main platform and must NEVER be served on custom domains
@@ -31,6 +32,26 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.')
   ) {
     return NextResponse.next();
+  }
+
+  // API flood guard: 300 requests a minute per visitor IP. Skips the cert check Caddy calls for every
+  // TLS handshake (one IP) and /api/mcp, which limits per key itself.
+  if (
+    pathname.startsWith('/api/') &&
+    request.method !== 'OPTIONS' &&
+    pathname !== '/api/v1/internal/domain-check' &&
+    pathname !== '/api/mcp'
+  ) {
+    const ip = getTrustedEdgeClientIp(name => request.headers.get(name))
+      || request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+      || 'unknown';
+    const limited = await rateLimit(`api:ip:${ip}`, 300, 60);
+    if (!limited.ok) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests. Slow down and retry shortly.' },
+        { status: 429, headers: { 'Retry-After': String(limited.retryAfter) } }
+      );
+    }
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

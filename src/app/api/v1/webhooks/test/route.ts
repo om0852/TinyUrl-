@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
-import { isSafeOutboundUrl } from '@/lib/security';
+import { checkOutboundUrl } from '@/lib/security';
 
 export async function POST(request: Request) {
   const start = Date.now();
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         error: 'A valid HTTP/HTTPS destination URL is required for webhook testing.'
       }, { status: 400 });
     }
-    const safe = isSafeOutboundUrl(targetUrl);
+    const safe = await checkOutboundUrl(targetUrl);
     if (!safe.safe) {
       return NextResponse.json({ success: false, error: `That URL can't be pinged: ${safe.reason}` }, { status: 422 });
     }

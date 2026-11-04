@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { TeamMember, WorkspaceInvitation, WorkspaceRole } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
+import { PLATFORM_URL } from '@/lib/platformUrl';
+import { rateLimit } from '@/lib/rateLimit';
 
 interface RawMemberRow {
   id: string;
@@ -28,14 +30,9 @@ interface RawInvitationRow {
   created_at?: string | null;
 }
 
-function getBaseUrl(request: Request): string {
-  const origin = request.headers.get('origin');
-  if (origin) return origin;
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  const proto = request.headers.get('x-forwarded-proto') || 'https';
-  if (host) return `${proto}://${host}`;
-  return 'https://tiny-url-self.vercel.app';
-}
+const escapeHtml = (value: string) => value
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 export async function GET(request: Request) {
   try {
@@ -55,7 +52,9 @@ export async function GET(request: Request) {
     }
     const canManageMembers = ['owner', 'admin'].includes(authResult.context.role);
 
-    const baseUrl = getBaseUrl(request);
+    // Always the configured platform: following the request's Origin/Host let a caller send invite
+    // emails whose Accept button led to their own site
+    const baseUrl = PLATFORM_URL;
 
     // Fetch workspace to know who the designated owner is
     const wsRows = (await sql.query(`
@@ -175,9 +174,17 @@ export async function POST(request: Request) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const cleanName = name.trim();
+    const cleanName = name.trim().slice(0, 80);
+
+    // Invites send email from your sender: 30 an hour per workspace
+    const inviteLimit = await rateLimit(`invite:${workspace_id.trim()}`, 30, 3600);
+    if (!inviteLimit.ok) {
+      return NextResponse.json({ success: false, error: 'Too many invitations sent. Try again later.' }, { status: 429 });
+    }
     const cleanRole: WorkspaceRole = ['admin', 'editor', 'viewer'].includes(role) ? role : 'editor';
-    const baseUrl = getBaseUrl(request);
+    // Always the configured platform: following the request's Origin/Host let a caller send invite
+    // emails whose Accept button led to their own site
+    const baseUrl = PLATFORM_URL;
 
     // Prevent inviting the workspace owner as a subordinate collaborator
     const wsRows = (await sql.query(`
@@ -256,7 +263,7 @@ export async function POST(request: Request) {
                 <div style="font-size: 20px; font-weight: 700; color: #4d7c0f; margin-bottom: 24px;">TinyURL Workspace</div>
                 <h1 style="font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #ffffff;">Team Invitation</h1>
                 <p style="font-size: 15px; color: #94a3b8; line-height: 1.6; margin-bottom: 24px;">
-                  Hello <strong style="color: #f1f5f9;">${cleanName}</strong>, you have been invited to join the workspace as a <span style="background: #312e81; color: #c7d2fe; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 12px;">${cleanRole}</span>.
+                  Hello <strong style="color: #f1f5f9;">${escapeHtml(cleanName)}</strong>, you have been invited to join the workspace as a <span style="background: #312e81; color: #c7d2fe; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; font-size: 12px;">${escapeHtml(cleanRole)}</span>.
                 </p>
                 <div style="margin: 32px 0;">
                   <a href="${inviteUrl}" style="background: #a3e635; color: #1a2e05; padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">

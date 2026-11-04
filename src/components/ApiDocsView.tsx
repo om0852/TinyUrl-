@@ -139,7 +139,7 @@ export const ApiDocsView: React.FC = () => {
     setSavingWebhook(false);
     if (created) {
       setWebhookUrl('');
-      showToast('success', 'Webhook added', 'Copy its signing secret from the list.');
+      showToast('success', 'Webhook added', 'Copy its signing secret now: it is shown only until you leave this page.');
     }
   };
 
@@ -406,6 +406,9 @@ const ok = crypto.timingSafeEqual(
                           <span className="text-xs font-medium text-on-surface truncate" title={wh.url}>{wh.url}</span>
                         </div>
                         <div className="text-[11px] text-outline truncate">{(wh.events || []).join(', ')}</div>
+                        {!hasSecret && wh.secret && (
+                          <div className="mt-0.5 text-[11px] text-outline font-mono truncate" title="The full secret is shown once, when the webhook is created">{wh.secret}</div>
+                        )}
                         {hasSecret && (
                           <div className="mt-0.5 flex items-center gap-1 text-[11px] text-outline">
                             <span className="font-mono truncate">{revealed[wh.id] ? wh.secret : 'whsec_••••••••••••'}</span>

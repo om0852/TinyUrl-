@@ -63,6 +63,9 @@ export async function GET(request: Request) {
 
     let rows: RawDomainRow[] = [];
     if (workspaceId) {
+      // Members only: the list includes verification tokens and who added each domain
+      const auth = await verifyWorkspacePermission(request, 'analytics:read', { workspaceId: workspaceId.trim() });
+      if (!auth.success) return auth.response;
       rows = (await sql.query(
         `SELECT * FROM domains WHERE workspace_id = $1 ORDER BY created_at DESC`,
         [workspaceId.trim()]

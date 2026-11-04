@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { sql } from '@/lib/postgres';
 import { Webhook } from '@/lib/types';
 import { verifyWorkspacePermission } from '@/lib/serverAuth';
-import { isSafeOutboundUrl } from '@/lib/security';
+import { checkOutboundUrl } from '@/lib/security';
 
 const WEBHOOK_EVENTS = ['link.created', 'link.clicked', 'link.flagged', 'security.alert'];
 
@@ -49,7 +49,8 @@ export async function GET(request: Request) {
       events: typeof r.events === 'string'
         ? JSON.parse(r.events)
         : (Array.isArray(r.events) ? r.events : ['click']),
-      secret: r.secret || '••••••••',
+      // Only the last 4 characters: the full secret is returned once, when the webhook is created
+      secret: r.secret ? `whsec_••••${String(r.secret).slice(-4)}` : '••••••••',
       active: r.is_active !== false,
       created_at: r.created_at || new Date().toISOString()
     }));
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Valid webhook URL (HTTP/HTTPS) is required.' }, { status: 400 });
     }
 
-    const safeUrlCheck = isSafeOutboundUrl(url.trim());
+    const safeUrlCheck = await checkOutboundUrl(url.trim());
     if (!safeUrlCheck.safe) {
       return NextResponse.json({
         success: false,

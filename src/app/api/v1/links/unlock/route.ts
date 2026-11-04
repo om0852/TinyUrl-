@@ -3,7 +3,7 @@ import { sql } from '@/lib/postgres';
 import { after } from 'next/server';
 import crypto from 'crypto';
 import { verifyLinkPassword } from '@/lib/security';
-import { linkCache } from '@/lib/cache';
+import { rateLimit } from '@/lib/rateLimit';
 import { extractGeoFromHeaders, getTrustedEdgeClientIp } from '@/lib/geo';
 
 export async function POST(request: Request) {
@@ -48,17 +48,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'This link has reached its maximum click limit.' }, { status: 410 });
     }
 
-    // 10 wrong guesses per link and visitor IP, then a 15 minute pause
-    const guessIp = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-    const guessKey = `unlock_fail_${link.id}_${guessIp}`;
-    const fails = Number(await linkCache.get<number>(guessKey).catch(() => 0)) || 0;
-    if (fails >= 10) {
-      return NextResponse.json({ success: false, error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 });
+    // 10 tries per link and visitor every 15 minutes, counted atomically (parallel guesses all count),
+    // and keyed on the real visitor IP: behind Caddy, X-Forwarded-For is the proxy's IP, so every
+    // custom-domain visitor used to share one counter. The per-link cap stops guessing spread over
+    // many IPs while staying far above normal use.
+    const guessIp = getTrustedEdgeClientIp(name => request.headers.get(name))
+      || request.headers.get('x-forwarded-for')?.split(',')[0].trim()
+      || 'unknown';
+    const [perVisitor, perLink] = await Promise.all([
+      rateLimit(`unlock:${link.id}:${guessIp}`, 10, 15 * 60),
+      rateLimit(`unlock:${link.id}`, 300, 15 * 60)
+    ]);
+    if (!perVisitor.ok || !perLink.ok) {
+      const minutes = Math.ceil(Math.max(perVisitor.retryAfter, perLink.retryAfter) / 60);
+      return NextResponse.json(
+        { success: false, error: `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` },
+        { status: 429, headers: { 'Retry-After': String(minutes * 60) } }
+      );
     }
 
     // Server-side password verification
     if (verifyLinkPassword(password, link.password_hash)) {
-      await linkCache.delete(guessKey).catch(() => {});
       const dest = link.destination_url;
       const rules = typeof link.rules === 'string' ? JSON.parse(link.rules) : (link.rules || []);
 
@@ -102,7 +112,6 @@ export async function POST(request: Request) {
       });
     }
 
-    await linkCache.set(guessKey, fails + 1, 15 * 60).catch(() => {});
     return NextResponse.json({ success: false, error: 'Incorrect password. Access denied.' }, { status: 401 });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Server verification error';

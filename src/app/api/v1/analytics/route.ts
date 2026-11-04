@@ -457,22 +457,27 @@ export async function GET(request: Request) {
     hourly_activity: hourlyActivity
   };
 
-  // ?code= is public (the + stats page). Strangers get aggregates and coarse click rows only:
-  // no IP hash, user agent, destination or UTM values. Adding any workspace_id used to skip this.
+  // ?code= is public (the + stats page). Strangers get country-level totals and, per click, only
+  // the time, country and device: no city or region, referrer, browser, language, UTM values, IP
+  // hash, user agent or destination (those identify visitors and leak campaign details).
   if (code && code !== 'all') {
     const auth = await verifyWorkspacePermission(request, 'analytics:read', { linkId: code });
     if (!auth.success) {
       recentClicks = recentClicks.map(c => ({
-        ...c,
-        ip_hash: '',
-        user_agent: undefined,
-        destination_url: undefined,
-        utm_source: undefined,
-        utm_medium: undefined,
-        utm_campaign: undefined,
-        utm_term: undefined,
-        utm_content: undefined
-      }));
+        id: c.id,
+        link_id: c.link_id,
+        short_code: c.short_code,
+        timestamp: c.timestamp,
+        country: c.country,
+        country_code: c.country_code,
+        device: c.device,
+        is_bot: c.is_bot,
+        is_unique: c.is_unique
+      }) as ClickEvent);
+      metrics.top_cities = [];
+      metrics.top_regions = [];
+      metrics.languages = [];
+      metrics.utm_breakdown = { sources: [], mediums: [], campaigns: [], terms: [], contents: [] };
     }
   }
 

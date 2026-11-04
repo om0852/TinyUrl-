@@ -3,6 +3,11 @@ import crypto from 'crypto';
 import { sql, initializeDatabase } from '@/lib/postgres';
 import { AuthApiRequest, AuthApiResponse } from '@/lib/types';
 import { SESSION_COOKIE, createSessionToken, getSessionEmail, sessionCookieOptions } from '@/lib/session';
+import { rateLimit } from '@/lib/rateLimit';
+import { getTrustedEdgeClientIp } from '@/lib/geo';
+
+// One message for an unknown email and a wrong password, so login can't be used to find accounts
+const LOGIN_FAILED = 'Email or password is incorrect.';
 
 function hashPassword(password: string, salt: string, iterations = 210000): string {
   return crypto.pbkdf2Sync(password, salt, iterations, 64, 'sha512').toString('hex');
@@ -89,6 +94,20 @@ export async function POST(request: Request) {
       }, { status: 422 });
     }
 
+    // Brute force and hashing load: each attempt costs two PBKDF2 hashes
+    const ip = getTrustedEdgeClientIp(n => request.headers.get(n)) || request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    const [byIp, byEmail] = await Promise.all([
+      rateLimit(`auth:ip:${ip}`, 20, 600),
+      rateLimit(`auth:email:${cleanEmail}`, 10, 600)
+    ]);
+    if (!byIp.ok || !byEmail.ok) {
+      const retryAfter = Math.max(byIp.retryAfter, byEmail.retryAfter);
+      return NextResponse.json<AuthApiResponse>({
+        success: false,
+        error: `Too many attempts. Try again in ${Math.ceil(retryAfter / 60)} minute${retryAfter > 60 ? 's' : ''}.`
+      }, { status: 429, headers: { 'Retry-After': String(retryAfter) } });
+    }
+
     // Non-blocking background database initialization (avoids lock contention on login/signup)
     if (!isDbInitialized) {
       isDbInitialized = true;
@@ -170,7 +189,8 @@ export async function POST(request: Request) {
           if (!isMatch) {
             return NextResponse.json<AuthApiResponse>({ 
               success: false, 
-              error: 'Incorrect password. Please verify your credentials.' 
+              error: LOGIN_FAILED,
+              allowLocalFallback: true
             }, { status: 401 });
           }
 
@@ -196,7 +216,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json<AuthApiResponse>({
         success: false,
-        error: 'No account found with this email. Please create an account first.',
+        error: LOGIN_FAILED,
         allowLocalFallback: true
       }, { status: 401 });
     }
