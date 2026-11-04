@@ -23,6 +23,7 @@ import {
 import { Link, ClickEvent, AnalyticsMetrics } from '@/lib/types';
 import { Skeleton, SkeletonKpiGrid, SkeletonChart } from '@/components/ui';
 import { StatCard } from '@/components/ui/StatCard';
+import { PLATFORM_URL } from '@/lib/platformUrl';
 
 interface PublicStatsClientProps {
   link: Link;
@@ -207,7 +208,7 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               <span className="text-xs font-mono font-bold text-primary-ink px-2.5 py-0.5 rounded-md bg-surface-container">
                 /{slug}
               </span>
-              <span className="text-xs text-on-surface-variant">Created {new Date(link.created_at || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span className="text-xs text-on-surface-variant">{link.created_at ? `Created ${new Date(link.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold text-on-surface tracking-tight truncate mt-1">
               {link.title || `Short Link /${slug}`}
@@ -491,8 +492,9 @@ export const PublicStatsClient: React.FC<PublicStatsClientProps> = ({ link, host
               Track multi-platform engagement, customize Open Graph cards, schedule links, and protect with edge bot shielding.
             </p>
           </div>
+          {/* Absolute: this page is also served on customers' domains, where "/" is their site */}
           <a
-            href="/"
+            href={PLATFORM_URL}
             className="px-6 py-2.5 bg-white text-primary-ink font-bold text-xs rounded-xl shadow-md hover:bg-white/90 transition-all shrink-0 cursor-pointer"
           >
             Create Free Short Link &rarr;

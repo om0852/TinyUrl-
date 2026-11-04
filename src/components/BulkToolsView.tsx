@@ -179,15 +179,16 @@ export const BulkToolsView: React.FC = () => {
   };
 
   // Fetch real jobs from backend database
+  const wsId = currentWorkspace?.id;
+  const userEmail = currentUser?.email;
   const fetchJobs = useCallback(async () => {
-    if (!currentWorkspace?.id) return;
+    if (!wsId) return;
     setLoadingJobs(true);
     try {
-      const headers: Record<string, string> = {};
-      if (currentUser?.email) headers['x-user-email'] = currentUser.email;
-      if (currentWorkspace.id) headers['x-workspace-id'] = currentWorkspace.id;
+      const headers: Record<string, string> = { 'x-workspace-id': wsId };
+      if (userEmail) headers['x-user-email'] = userEmail;
 
-      const res = await fetch(`/api/v1/bulk/jobs?workspace_id=${encodeURIComponent(currentWorkspace.id)}`, { headers });
+      const res = await fetch(`/api/v1/bulk/jobs?workspace_id=${encodeURIComponent(wsId)}`, { headers });
       const data = await res.json();
       if (res.ok && data.success && Array.isArray(data.jobs)) {
         setJobs(data.jobs);
@@ -197,7 +198,7 @@ export const BulkToolsView: React.FC = () => {
     } finally {
       setLoadingJobs(false);
     }
-  }, [currentWorkspace?.id, currentUser?.email]);
+  }, [wsId, userEmail]);
 
   useEffect(() => {
     fetchJobs();

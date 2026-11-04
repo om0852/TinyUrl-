@@ -416,25 +416,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [incomingInvitations, setIncomingInvitations] = useState<WorkspaceInvitation[]>([]);
   const { showToast } = useToast();
 
+  // Plain values for hook dependencies, so the React compiler can keep the memoization below
+  const userEmail = currentUser?.email;
+  const wsId = currentWorkspace?.id;
+  const wsRole = currentWorkspace?.role;
+
   const currentUserRole: WorkspaceRole = useMemo(() => {
     // 1. If current user is in teamMembers for this workspace, use their explicit member role
-    if (currentUser?.email && teamMembers.length > 0) {
-      const myMember = teamMembers.find(m => m.email.toLowerCase().trim() === currentUser.email.toLowerCase().trim());
+    if (userEmail && teamMembers.length > 0) {
+      const myMember = teamMembers.find(m => m.email.toLowerCase().trim() === userEmail.toLowerCase().trim());
       if (myMember?.role) {
         return myMember.role;
       }
     }
     // 2. Check current workspace role
-    if (currentWorkspace?.role) {
-      return currentWorkspace.role;
+    if (wsRole) {
+      return wsRole;
     }
     // 3. Fallback to matching workspace in state
-    if (currentWorkspace?.id && workspaces.length > 0) {
-      const match = workspaces.find(w => w.id === currentWorkspace.id);
+    if (wsId && workspaces.length > 0) {
+      const match = workspaces.find(w => w.id === wsId);
       if (match?.role) return match.role;
     }
     return 'owner';
-  }, [currentUser?.email, teamMembers, currentWorkspace?.id, currentWorkspace?.role, workspaces]);
+  }, [userEmail, teamMembers, wsId, wsRole, workspaces]);
 
   const checkPermissionOrToast = useCallback((perm: Permission, actionDescription: string): boolean => {
     const role: WorkspaceRole = currentUserRole;
@@ -453,14 +458,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const apiFetch = useCallback((url: string, init?: RequestInit): Promise<Response> => {
     const headers = new Headers(init?.headers || {});
-    if (currentUser?.email && !headers.has('x-user-email')) {
-      headers.set('x-user-email', currentUser.email);
+    if (userEmail && !headers.has('x-user-email')) {
+      headers.set('x-user-email', userEmail);
     }
-    if (currentWorkspace?.id && !headers.has('x-workspace-id')) {
-      headers.set('x-workspace-id', currentWorkspace.id);
+    if (wsId && !headers.has('x-workspace-id')) {
+      headers.set('x-workspace-id', wsId);
     }
     return fetch(url, { ...init, headers });
-  }, [currentUser?.email, currentWorkspace?.id]);
+  }, [userEmail, wsId]);
 
   useEffect(() => {
     if (currentWorkspace && currentUserRole && currentWorkspace.role !== currentUserRole) {
@@ -918,8 +923,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     currentWorkspaceRef.current = ws;
     try {
       localStorage.setItem('url_shortener_current_workspace_id', ws.id);
-      if (currentUser?.email) {
-        localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', currentUser.email), ws.id);
+      if (userEmail) {
+        localStorage.setItem(getUserStorageKey('url_shortener_current_workspace_id', userEmail), ws.id);
       }
     } catch {}
 
@@ -928,7 +933,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       refreshLinks(true);
       refreshDomains(true);
     }
-  }, [currentUser?.email, refreshLinks, refreshDomains]);
+  }, [userEmail, refreshLinks, refreshDomains]);
 
   // The server's list (workspaces the user owns or is an active member of) is the source of
   // truth. Workspaces kept only in this browser, such as the old shared ws_default or one that

@@ -88,6 +88,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const { showToast } = useToast();
 
   const [mounted, setMounted] = useState(false);
+  // "2m ago" labels are measured from this, refreshed every 30 seconds (Date.now() can't run in render)
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
   useEffect(() => {
     setMounted(true);
     refreshAnalytics();
@@ -513,7 +520,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   const originHost = typeof window !== 'undefined' ? window.location.host : 'snip.to';
 
   const formatRelativeTime = (ts: string) => {
-    const diffMs = Date.now() - new Date(ts).getTime();
+    const diffMs = now - new Date(ts).getTime();
     const diffSec = Math.floor(diffMs / 1000);
     if (diffSec < 60) return 'Just now';
     const diffMin = Math.floor(diffSec / 60);

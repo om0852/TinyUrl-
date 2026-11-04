@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local tool folders (agent worktrees, code index), never committed
+    ".claude/**",
+    ".codebase/**",
   ]),
   {
     rules: {

@@ -79,7 +79,7 @@ export async function GET(request: Request) {
 
     const activeEmails = new Set<string>();
 
-    let formattedMembers: TeamMember[] = (memberRows || []).map(m => {
+    const formattedMembers: TeamMember[] = (memberRows || []).map(m => {
       const emailLower = m.email.toLowerCase().trim();
       activeEmails.add(emailLower);
       const isOwner = ownerEmail ? emailLower === ownerEmail : m.role === 'owner';

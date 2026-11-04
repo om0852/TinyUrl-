@@ -129,7 +129,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // E. Extract short code
-    let code = pathname.slice(1).replace(/\/$/, '').toLowerCase();
+    const code = pathname.slice(1).replace(/\/$/, '').toLowerCase();
     if (!code) {
       const notFoundUrl = new URL('/not-found', request.url);
       notFoundUrl.searchParams.set('domain', currentHost);
