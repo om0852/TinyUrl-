@@ -1,0 +1,34 @@
+name: Security - dependency audit
+
+# Weekly, on every change to the lockfile, and on demand. Fails (and GitHub emails the repo
+# owner) when a production dependency has a high or critical advisory.
+on:
+  schedule:
+    - cron: '30 3 * * 1' # Mondays 03:30 UTC (09:00 IST)
+  push:
+    branches: [ main ]
+    paths: [ 'package.json', 'package-lock.json' ]
+  pull_request:
+    paths: [ 'package.json', 'package-lock.json' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    name: npm audit (production dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Full report (all dependencies, informational)
+        if: always()
+        run: npm audit || true

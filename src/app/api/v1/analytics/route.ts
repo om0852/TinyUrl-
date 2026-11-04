@@ -89,14 +89,14 @@ export async function GET(request: Request) {
       const stats = (await sql.query(`
         SELECT
           COUNT(*) FILTER (WHERE NOT COALESCE(is_bot, false))::int as total_clicks,
-          COUNT(DISTINCT ip_hash)::int as unique_visitors,
-          COUNT(*) FILTER (WHERE is_unique = true)::int as unique_clicks,
-          COUNT(*) FILTER (WHERE is_unique = false)::int as repeat_clicks,
+          COUNT(DISTINCT ip_hash) FILTER (WHERE NOT COALESCE(is_bot, false))::int as unique_visitors,
+          COUNT(*) FILTER (WHERE is_unique = true AND NOT COALESCE(is_bot, false))::int as unique_clicks,
+          COUNT(*) FILTER (WHERE is_unique = false AND NOT COALESCE(is_bot, false))::int as repeat_clicks,
           COUNT(*) FILTER (WHERE is_bot = true)::int as bot_clicks,
-          ROUND(AVG(COALESCE(latency_ms, 20))::numeric, 1) as avg_latency,
-          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'mobile')::int as mobile_clicks,
-          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'desktop')::int as desktop_clicks,
-          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'tablet')::int as tablet_clicks
+          ROUND((AVG(COALESCE(latency_ms, 20)) FILTER (WHERE NOT COALESCE(is_bot, false)))::numeric, 1) as avg_latency,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'mobile' AND NOT COALESCE(is_bot, false))::int as mobile_clicks,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'desktop' AND NOT COALESCE(is_bot, false))::int as desktop_clicks,
+          COUNT(*) FILTER (WHERE LOWER(COALESCE(device, '')) = 'tablet' AND NOT COALESCE(is_bot, false))::int as tablet_clicks
         FROM click_events
         WHERE LOWER(short_code) = $1
       `, [code])) as unknown as ClickStatRow[];
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
       const countries = (await sql.query(`
         SELECT country, country_code as code, COUNT(*)::int as clicks
         FROM click_events
-        WHERE LOWER(short_code) = $1
+        WHERE LOWER(short_code) = $1 AND NOT COALESCE(is_bot, false)
         GROUP BY country, country_code
         ORDER BY clicks DESC
         LIMIT 5
@@ -142,14 +142,14 @@ export async function GET(request: Request) {
       const stats = (await sql.query(`
         SELECT
           COUNT(c.id) FILTER (WHERE NOT COALESCE(c.is_bot, false))::int as total_clicks,
-          COUNT(DISTINCT c.ip_hash)::int as unique_visitors,
-          COUNT(c.id) FILTER (WHERE c.is_unique = true)::int as unique_clicks,
-          COUNT(c.id) FILTER (WHERE c.is_unique = false)::int as repeat_clicks,
+          COUNT(DISTINCT c.ip_hash) FILTER (WHERE NOT COALESCE(c.is_bot, false))::int as unique_visitors,
+          COUNT(c.id) FILTER (WHERE c.is_unique = true AND NOT COALESCE(c.is_bot, false))::int as unique_clicks,
+          COUNT(c.id) FILTER (WHERE c.is_unique = false AND NOT COALESCE(c.is_bot, false))::int as repeat_clicks,
           COUNT(c.id) FILTER (WHERE c.is_bot = true)::int as bot_clicks,
-          ROUND(AVG(COALESCE(c.latency_ms, 20))::numeric, 1) as avg_latency,
-          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'mobile')::int as mobile_clicks,
-          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'desktop')::int as desktop_clicks,
-          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'tablet')::int as tablet_clicks
+          ROUND((AVG(COALESCE(c.latency_ms, 20)) FILTER (WHERE NOT COALESCE(c.is_bot, false)))::numeric, 1) as avg_latency,
+          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'mobile' AND NOT COALESCE(c.is_bot, false))::int as mobile_clicks,
+          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'desktop' AND NOT COALESCE(c.is_bot, false))::int as desktop_clicks,
+          COUNT(c.id) FILTER (WHERE LOWER(COALESCE(c.device, '')) = 'tablet' AND NOT COALESCE(c.is_bot, false))::int as tablet_clicks
         FROM click_events c
         INNER JOIN links l ON (c.link_id = l.id OR (c.link_id IS NULL AND LOWER(c.short_code) = LOWER(l.short_code)))
         WHERE l.workspace_id = $1
@@ -171,7 +171,7 @@ export async function GET(request: Request) {
         SELECT c.country, c.country_code as code, COUNT(c.id)::int as clicks
         FROM click_events c
         INNER JOIN links l ON (c.link_id = l.id OR (c.link_id IS NULL AND LOWER(c.short_code) = LOWER(l.short_code)))
-        WHERE l.workspace_id = $1
+        WHERE l.workspace_id = $1 AND NOT COALESCE(c.is_bot, false)
         GROUP BY c.country, c.country_code
         ORDER BY clicks DESC
         LIMIT 5
@@ -288,7 +288,7 @@ export async function GET(request: Request) {
         sql.query(`
           SELECT c.region, COUNT(*)::int AS clicks
           FROM click_events c
-          WHERE ${scopeFilter}
+          WHERE ${scopeFilter} AND NOT COALESCE(c.is_bot, false)
             AND c.region IS NOT NULL AND c.region <> '' AND c.region <> 'Unknown'
           GROUP BY c.region
           ORDER BY clicks DESC, MAX(c.timestamp) DESC
@@ -299,7 +299,7 @@ export async function GET(request: Request) {
                  (ARRAY_AGG(c.country ORDER BY c.timestamp DESC))[1] AS country,
                  COUNT(*)::int AS clicks
           FROM click_events c
-          WHERE ${scopeFilter}
+          WHERE ${scopeFilter} AND NOT COALESCE(c.is_bot, false)
             AND c.city IS NOT NULL AND c.city <> '' AND c.city NOT IN ('Direct', 'Unknown')
           GROUP BY c.city, NULLIF(c.region, '')
           ORDER BY clicks DESC, MAX(c.timestamp) DESC
@@ -319,53 +319,67 @@ export async function GET(request: Request) {
     }
   }
 
-  // 1. Browsers aggregation
+  // Browsers, OS, languages, UTM values and hours over every non-bot click in scope. These used to be
+  // counted from the newest 1000 (link) / 5000 (workspace) rows only, so busy links were cut short.
+  // Hours are in ?tz= (an IANA zone, default UTC).
   const browserMap = new Map<string, number>();
-  // 2. Operating Systems aggregation
   const osMap = new Map<string, number>();
-  // 3. Languages aggregation
   const langMap = new Map<string, number>();
-  // 4. UTM breakdown maps
   const utmSourceMap = new Map<string, number>();
   const utmMediumMap = new Map<string, number>();
   const utmCampaignMap = new Map<string, number>();
   const utmTermMap = new Map<string, number>();
   const utmContentMap = new Map<string, number>();
-  // 5. Hourly activity (0-23)
   const hourlyCounts = new Array(24).fill(0);
 
-  recentClicks.forEach((c) => {
-    // Browser
-    const b = c.browser || 'Chrome';
-    browserMap.set(b, (browserMap.get(b) || 0) + 1);
+  const rawTz = (searchParams.get('tz') || '').trim();
+  let tz = 'UTC';
+  if (/^[A-Za-z_]+(?:\/[A-Za-z0-9_+-]+){0,2}$/.test(rawTz)) {
+    try { new Intl.DateTimeFormat('en-US', { timeZone: rawTz }); tz = rawTz; } catch {}
+  }
+  const isSingleLinkScope = !!(code && code !== 'all');
+  const breakdownParam = isSingleLinkScope ? code : workspaceId;
+  if (breakdownParam) {
+    try {
+      const scope = isSingleLinkScope
+        ? `LOWER(c.short_code) = $1`
+        : `EXISTS (SELECT 1 FROM links l WHERE l.workspace_id = $1 AND (c.link_id = l.id OR LOWER(c.short_code) = LOWER(l.short_code)))`;
+      const rows = (await sql.query(
+        `SELECT kind, value, COUNT(*)::int AS clicks FROM (
+           SELECT 'browser' AS kind, COALESCE(NULLIF(c.browser, ''), 'Chrome') AS value FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false)
+           UNION ALL SELECT 'os', COALESCE(NULLIF(c.os, ''), 'Windows') FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false)
+           UNION ALL SELECT 'lang', COALESCE(NULLIF(c.language, ''), 'en-US') FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false)
+           UNION ALL SELECT 'utm_source', c.utm_source FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false) AND COALESCE(c.utm_source, '') <> ''
+           UNION ALL SELECT 'utm_medium', c.utm_medium FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false) AND COALESCE(c.utm_medium, '') <> ''
+           UNION ALL SELECT 'utm_campaign', c.utm_campaign FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false) AND COALESCE(c.utm_campaign, '') <> ''
+           UNION ALL SELECT 'utm_term', c.utm_term FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false) AND COALESCE(c.utm_term, '') <> ''
+           UNION ALL SELECT 'utm_content', c.utm_content FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false) AND COALESCE(c.utm_content, '') <> ''
+           UNION ALL SELECT 'hour', EXTRACT(HOUR FROM c.timestamp AT TIME ZONE $2)::int::text FROM click_events c WHERE ${scope} AND NOT COALESCE(c.is_bot, false)
+         ) t
+         GROUP BY kind, value`,
+        [breakdownParam, tz]
+      )) as unknown as Array<{ kind: string; value: string; clicks: number | string }>;
 
-    // OS
-    const o = c.os || 'Windows';
-    osMap.set(o, (osMap.get(o) || 0) + 1);
-
-    // Language
-    const l = c.language || 'en-US';
-    langMap.set(l, (langMap.get(l) || 0) + 1);
-
-    // UTMs
-    if (c.utm_source) utmSourceMap.set(c.utm_source, (utmSourceMap.get(c.utm_source) || 0) + 1);
-    if (c.utm_medium) utmMediumMap.set(c.utm_medium, (utmMediumMap.get(c.utm_medium) || 0) + 1);
-    if (c.utm_campaign) utmCampaignMap.set(c.utm_campaign, (utmCampaignMap.get(c.utm_campaign) || 0) + 1);
-    if (c.utm_term) utmTermMap.set(c.utm_term, (utmTermMap.get(c.utm_term) || 0) + 1);
-    if (c.utm_content) utmContentMap.set(c.utm_content, (utmContentMap.get(c.utm_content) || 0) + 1);
-
-    // Hourly
-    if (c.timestamp) {
-      try {
-        const hour = new Date(c.timestamp).getHours();
-        if (hour >= 0 && hour < 24) {
-          hourlyCounts[hour]++;
+      const maps: Record<string, Map<string, number>> = {
+        browser: browserMap, os: osMap, lang: langMap,
+        utm_source: utmSourceMap, utm_medium: utmMediumMap, utm_campaign: utmCampaignMap,
+        utm_term: utmTermMap, utm_content: utmContentMap
+      };
+      for (const r of rows || []) {
+        const n = Number(r.clicks) || 0;
+        if (r.kind === 'hour') {
+          const hour = Number(r.value);
+          if (hour >= 0 && hour < 24) hourlyCounts[hour] += n;
+        } else if (maps[r.kind]) {
+          maps[r.kind].set(r.value, n);
         }
-      } catch {}
+      }
+    } catch (e) {
+      console.warn('Analytics breakdown aggregation error:', e);
     }
-  });
+  }
 
-  const totalAnalyzed = Math.max(1, recentClicks.length || totalClicks);
+  const totalAnalyzed = Math.max(1, totalClicks);
 
   const topBrowsers = Array.from(browserMap.entries())
     .map(([browser, clicks]) => ({ browser, clicks, pct: Math.round((clicks / totalAnalyzed) * 100) }))

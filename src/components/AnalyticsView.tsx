@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useStore } from '@/lib/storeContext';
 import { useToast } from '@/components/ui/ToastHub';
 
@@ -42,6 +42,29 @@ import {
 } from 'lucide-react';
 import { SkeletonAnalyticsView } from '@/components/ui/Skeleton';
 
+// GET /api/v1/analytics/summary
+interface AnalyticsSummary {
+  total_clicks: number;
+  unique_visitors: number;
+  per_link: { link_id: string; clicks: number }[];
+  referrers: { referrer: string; clicks: number }[];
+  devices: { device: string; clicks: number }[];
+  operating_systems: { os: string; clicks: number }[];
+  countries: { country: string; clicks: number }[];
+  hourly: { hour: number; clicks: number }[];
+  series: { unit: 'hour' | 'day'; from: string; buckets: { bucket: string; clicks: number }[] };
+  recent: { id: string; link_id: string; short_code: string; timestamp: string; country?: string; city?: string; device?: string; os?: string; referrer?: string }[];
+}
+
+const localDateString = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** "2026-11-04" as local midnight (new Date('2026-11-04') is UTC midnight) */
+const localDayStart = (value: string) => {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
 interface AnalyticsViewProps {
   onNavigateTab?: (tab: string) => void;
 }
@@ -55,6 +78,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     setSelectedAnalyticsLinkId, 
     refreshAnalytics,
     refreshLinks,
+    currentWorkspace,
     isAnalyticsLoading,
     isLinksLoading,
     isInitialLoading,
@@ -102,14 +126,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
   // Date Range State
   const [dateRange, setDateRange] = useState<'30d' | '7d' | '24h' | 'custom'>('30d');
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
+  // Local calendar dates (toISOString() gave the UTC date, a day off near midnight outside UTC)
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
-    return d.toISOString().split('T')[0];
+    return localDateString(d);
   });
-  const [customEndDate, setCustomEndDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const [customEndDate, setCustomEndDate] = useState<string>(() => localDateString(new Date()));
 
   // Velocity Chart Range
   const [velocityRange, setVelocityRange] = useState<'30d' | '7d' | '24h'>('30d');
@@ -141,101 +164,98 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     });
   }, [links, selectedCampaignId, selectedLinkId]);
 
-  // 2. Filtered Clicks by Date and Selection
-  const filteredClicks = useMemo(() => {
-    const now = Date.now();
-    let startTime = now - 30 * 86400 * 1000;
+  // 2. Server summary: every figure below is computed in the database over all non-bot clicks
+  // in the range (it used to come from at most the 5000 newest clicks loaded in the browser),
+  // with days and hours in this browser's time zone
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const summaryParams = useRef('');
 
-    if (dateRange === '24h') {
-      startTime = now - 24 * 3600 * 1000;
-    } else if (dateRange === '7d') {
-      startTime = now - 7 * 86400 * 1000;
-    } else if (dateRange === '30d') {
-      startTime = now - 30 * 86400 * 1000;
-    } else if (dateRange === 'custom') {
-      startTime = new Date(customStartDate).getTime();
+  useEffect(() => {
+    const wsId = currentWorkspace?.id;
+    if (!wsId) return;
+    const now = Date.now();
+    let from = now - 30 * 86400 * 1000;
+    let to = now;
+    if (dateRange === '24h') from = now - 24 * 3600 * 1000;
+    else if (dateRange === '7d') from = now - 7 * 86400 * 1000;
+    else if (dateRange === 'custom') {
+      // Whole local days: start of the first day to the start of the day after the last
+      from = localDayStart(customStartDate).getTime();
+      const end = localDayStart(customEndDate);
+      end.setDate(end.getDate() + 1);
+      to = end.getTime();
     }
 
-    const endTime = dateRange === 'custom' 
-      ? new Date(customEndDate).getTime() + 86400000 
-      : now;
+    // The velocity chart's own window (last 24 hours, or the last 7 / 30 local days)
+    const seriesStart = new Date(now);
+    if (velocityRange === '24h') {
+      seriesStart.setMinutes(0, 0, 0);
+      seriesStart.setHours(seriesStart.getHours() - 23);
+    } else {
+      seriesStart.setHours(0, 0, 0, 0);
+      seriesStart.setDate(seriesStart.getDate() - (velocityRange === '7d' ? 6 : 29));
+    }
 
-    const scopedLinkIds = new Set(filteredLinks.map(l => l.id));
-    const scopedShortCodes = new Set(filteredLinks.map(l => (l.short_code || '').toLowerCase()));
-    const scopedCustomSlugs = new Set(filteredLinks.map(l => (l.custom_slug || '').toLowerCase()));
-
-    return clicks.filter(c => {
-      const clickTime = new Date(c.timestamp).getTime();
-      if (clickTime < startTime || clickTime > endTime) return false;
-
-      if (selectedLinkId !== 'all') {
-        const matchesId = c.link_id && c.link_id === selectedLinkId;
-        const matchesCode = c.short_code && (scopedShortCodes.has(c.short_code.toLowerCase()) || scopedCustomSlugs.has(c.short_code.toLowerCase()));
-        return matchesId || matchesCode;
-      }
-
-      if (selectedCampaignId !== 'all') {
-        const matchesId = c.link_id && scopedLinkIds.has(c.link_id);
-        const matchesCode = c.short_code && (scopedShortCodes.has(c.short_code.toLowerCase()) || scopedCustomSlugs.has(c.short_code.toLowerCase()));
-        return matchesId || matchesCode;
-      }
-
-      return true;
+    const params = new URLSearchParams({
+      workspace_id: wsId,
+      from: new Date(from).toISOString(),
+      to: new Date(to).toISOString(),
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      series: velocityRange === '24h' ? 'hour' : 'day',
+      series_from: seriesStart.toISOString(),
     });
-  }, [clicks, dateRange, customStartDate, customEndDate, filteredLinks, selectedLinkId, selectedCampaignId]);
+    if (selectedLinkId !== 'all') params.set('link_id', selectedLinkId);
+    else if (selectedCampaignId !== 'all') params.set('campaign_id', selectedCampaignId);
+    const query = params.toString();
+    summaryParams.current = query;
+
+    const controller = new AbortController();
+    fetch(`/api/v1/analytics/summary?${query}`, { cache: 'no-store', signal: controller.signal })
+      .then(res => res.json())
+      .then((data: AnalyticsSummary & { success?: boolean }) => {
+        if (data?.success) setSummary(data);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [currentWorkspace?.id, dateRange, customStartDate, customEndDate, velocityRange, selectedLinkId, selectedCampaignId, clicks.length]);
 
   // 3. Core KPI Calculations
   const totalLinksCount = filteredLinks.length;
-  const totalClicksCount = filteredClicks.length;
-  // Unique Visitors (deduplicated by ip_hash or id)
-  const uniqueVisitorsCount = useMemo(() => {
-    const uniqueIps = new Set<string>();
-    filteredClicks.forEach(c => {
-      if (c.ip_hash) uniqueIps.add(c.ip_hash);
-      else uniqueIps.add(c.id);
-    });
-    return uniqueIps.size;
-  }, [filteredClicks]);
+  const totalClicksCount = summary?.total_clicks || 0;
+  const uniqueVisitorsCount = summary?.unique_visitors || 0;
 
-  const uniqueVisitorRate = totalClicksCount > 0 
-    ? Math.round((uniqueVisitorsCount / totalClicksCount) * 100) 
+  const uniqueVisitorRate = totalClicksCount > 0
+    ? Math.round((uniqueVisitorsCount / totalClicksCount) * 100)
     : 0;
 
-  // Top Performing Link
+  const clicksByLink = useMemo(() => {
+    const map: Record<string, number> = {};
+    (summary?.per_link || []).forEach(p => { map[p.link_id] = p.clicks; });
+    return map;
+  }, [summary]);
+
+  // Top Performing Link: most clicks in the selected range
   const topLink = useMemo(() => {
     if (filteredLinks.length === 0) return null;
-    const clickCounts: Record<string, number> = {};
-    filteredClicks.forEach(c => {
-      const key = c.link_id || c.short_code;
-      if (key) clickCounts[key] = (clickCounts[key] || 0) + 1;
-    });
-
     let bestLink: LinkType = filteredLinks[0];
-    let maxClicks = 0;
-
+    let maxClicks = -1;
     filteredLinks.forEach(l => {
-      const count = (clickCounts[l.id] || 0) + (clickCounts[l.short_code] || 0);
-      const effectiveCount = Math.max(count, l.clicks_count || 0);
-      if (effectiveCount >= maxClicks) {
-        maxClicks = effectiveCount;
+      const count = clicksByLink[l.id] || 0;
+      if (count > maxClicks) {
+        maxClicks = count;
         bestLink = l;
       }
     });
-
     const percent = totalClicksCount > 0 ? ((maxClicks / totalClicksCount) * 100).toFixed(1) : '0';
-    return {
-      link: bestLink,
-      clicks: maxClicks,
-      percent
-    };
-  }, [filteredLinks, filteredClicks, totalClicksCount]);
+    return { link: bestLink, clicks: Math.max(0, maxClicks), percent };
+  }, [filteredLinks, clicksByLink, totalClicksCount]);
 
   // Top Referrer
   const topReferrer = useMemo(() => {
-    if (filteredClicks.length === 0) return { name: 'None', percent: '' };
+    const referrers = summary?.referrers || [];
+    if (totalClicksCount === 0) return { name: 'None', percent: '' };
     const counts: Record<string, number> = {};
-    filteredClicks.forEach(c => {
-      const raw = c.referrer || 'Direct';
+    referrers.forEach(({ referrer: raw, clicks: n }) => {
       let name = 'Direct';
       if (/youtube\.com/i.test(raw)) name = 'YouTube';
       else if (/instagram\.com/i.test(raw)) name = 'Instagram';
@@ -247,7 +267,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       else if (raw.startsWith('http')) {
         try { name = new URL(raw).hostname.replace('www.', ''); } catch { name = 'Referral'; }
       }
-      counts[name] = (counts[name] || 0) + 1;
+      counts[name] = (counts[name] || 0) + n;
     });
 
     let topName = 'Direct';
@@ -261,7 +281,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
 
     const percent = totalClicksCount > 0 ? `${Math.round((topVal / totalClicksCount) * 100)}%` : '100%';
     return { name: topName, percent, count: topVal };
-  }, [filteredClicks, totalClicksCount]);
+  }, [summary, totalClicksCount]);
 
   // 4. Click Velocity Timeline (24h, 7d, 30d): one bucket per hour or day, oldest first
   const timelineData = useMemo((): TimelineData => {
@@ -269,6 +289,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     const count = isHourly ? 24 : velocityRange === '7d' ? 7 : 30;
     const now = new Date();
     const points: { label: string; date: string; clicks: number }[] = [];
+    const byBucket: Record<string, number> = {};
+    if (summary?.series.unit === (isHourly ? 'hour' : 'day')) {
+      summary.series.buckets.forEach(b => { byBucket[b.bucket] = b.clicks; });
+    }
 
     for (let i = count - 1; i >= 0; i--) {
       const start = new Date(now);
@@ -279,16 +303,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
         start.setHours(0, 0, 0, 0);
         start.setDate(start.getDate() - i);
       }
-      const end = new Date(start);
-      if (isHourly) end.setHours(end.getHours() + 1);
-      else end.setDate(end.getDate() + 1);
-
-      const from = start.getTime();
-      const to = end.getTime();
-      const clicks = filteredClicks.filter(c => {
-        const t = new Date(c.timestamp).getTime();
-        return t >= from && t < to;
-      }).length;
+      // Same keys the server builds in this time zone: YYYY-MM-DD or YYYY-MM-DDTHH
+      const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
+        + (isHourly ? `T${String(start.getHours()).padStart(2, '0')}` : '');
+      const clicks = byBucket[key] || 0;
 
       const day = start.toLocaleDateString([], { month: 'short', day: 'numeric' });
       const hour = `${start.getHours().toString().padStart(2, '0')}:00`;
@@ -322,9 +340,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       ticks,
       labelEvery
     };
-  }, [velocityRange, filteredClicks]);
+  }, [velocityRange, summary]);
 
-  // 5. Hourly Peak Matrix (00:00 to 23:00)
+  // 5. Hourly Peak Matrix (00:00 to 23:00, local time)
   const hourlyData = useMemo(() => {
     const hours = Array.from({ length: 24 }, (_, i) => ({
       hour: i,
@@ -332,9 +350,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       clicks: 0
     }));
 
-    filteredClicks.forEach(c => {
-      const h = new Date(c.timestamp).getHours();
-      if (hours[h]) hours[h].clicks++;
+    (summary?.hourly || []).forEach(h => {
+      if (hours[h.hour]) hours[h.hour].clicks = h.clicks;
     });
 
     const maxHourClicks = Math.max(1, ...hours.map(h => h.clicks));
@@ -344,7 +361,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     });
 
     return { hours, maxHourClicks, peakHour };
-  }, [filteredClicks]);
+  }, [summary]);
 
   // 6. Traffic Sources Breakdown
   const trafficSources = useMemo(() => {
@@ -357,14 +374,14 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       other: { name: 'Other Referral', desc: 'External websites and search', count: 0, color: 'bg-emerald-500' },
     };
 
-    filteredClicks.forEach(c => {
-      const ref = (c.referrer || '').toLowerCase();
-      if (!ref || ref === 'direct') map.direct.count++;
-      else if (ref.includes('localhost') || ref.includes('127.0.0.1')) map.internal.count++;
-      else if (ref.includes('youtube.com')) map.youtube.count++;
-      else if (ref.includes('instagram.com')) map.instagram.count++;
-      else if (ref.includes('twitter.com') || ref.includes('t.co') || ref.includes('x.com')) map.twitter.count++;
-      else map.other.count++;
+    (summary?.referrers || []).forEach(({ referrer, clicks: n }) => {
+      const ref = (referrer || '').toLowerCase();
+      if (!ref || ref === 'direct' || ref.startsWith('direct /')) map.direct.count += n;
+      else if (ref.includes('localhost') || ref.includes('127.0.0.1')) map.internal.count += n;
+      else if (ref.includes('youtube.com')) map.youtube.count += n;
+      else if (ref.includes('instagram.com')) map.instagram.count += n;
+      else if (ref.includes('twitter.com') || ref.includes('t.co') || ref.includes('x.com')) map.twitter.count += n;
+      else map.other.count += n;
     });
 
     const activeList = Object.values(map).filter(s => s.count > 0);
@@ -373,61 +390,48 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     }
 
     return activeList.sort((a, b) => b.count - a.count);
-  }, [filteredClicks]);
+  }, [summary]);
 
   // 7. Devices & OS Distribution
   const devicesDistribution = useMemo(() => {
     const devices: Record<string, number> = { Desktop: 0, Mobile: 0, Tablet: 0 };
-    filteredClicks.forEach(c => {
-      const dev = (c.device || '').toLowerCase();
+    (summary?.devices || []).forEach(({ device, clicks: n }) => {
+      const dev = (device || '').toLowerCase();
       if (dev.includes('mobile') || dev.includes('phone') || dev.includes('android') || dev.includes('iphone')) {
-        devices.Mobile++;
+        devices.Mobile += n;
       } else if (dev.includes('tablet') || dev.includes('ipad')) {
-        devices.Tablet++;
+        devices.Tablet += n;
       } else {
-        devices.Desktop++;
+        devices.Desktop += n;
       }
     });
 
-    const total = Math.max(1, filteredClicks.length);
+    const total = Math.max(1, totalClicksCount);
     return [
       { name: 'Desktop', count: devices.Desktop, pct: ((devices.Desktop / total) * 100).toFixed(1), icon: Laptop },
       { name: 'Mobile', count: devices.Mobile, pct: ((devices.Mobile / total) * 100).toFixed(1), icon: Smartphone },
       { name: 'Tablet', count: devices.Tablet, pct: ((devices.Tablet / total) * 100).toFixed(1), icon: Tablet },
     ];
-  }, [filteredClicks]);
+  }, [summary, totalClicksCount]);
 
   const osDistribution = useMemo(() => {
-    const osMap: Record<string, number> = {};
-    filteredClicks.forEach(c => {
-      const os = c.os || 'Windows';
-      osMap[os] = (osMap[os] || 0) + 1;
-    });
-    const total = Math.max(1, filteredClicks.length);
-    return Object.entries(osMap)
-      .map(([name, count]) => ({ name, count, pct: ((count / total) * 100).toFixed(1) }))
-      .sort((a, b) => b.count - a.count)
+    const total = Math.max(1, totalClicksCount);
+    return (summary?.operating_systems || [])
+      .map(({ os, clicks: count }) => ({ name: os, count, pct: ((count / total) * 100).toFixed(1) }))
       .slice(0, 4);
-  }, [filteredClicks]);
+  }, [summary, totalClicksCount]);
 
   // 8. Top Locations
   const topLocations = useMemo(() => {
-    const countryMap: Record<string, number> = {};
-    filteredClicks.forEach(c => {
-      const loc = c.country || 'Global';
-      countryMap[loc] = (countryMap[loc] || 0) + 1;
-    });
-
-    const total = Math.max(1, filteredClicks.length);
-    const sorted = Object.entries(countryMap)
-      .map(([country, count]) => ({ country, count, pct: ((count / total) * 100).toFixed(1) }))
-      .sort((a, b) => b.count - a.count);
+    const total = Math.max(1, totalClicksCount);
+    const sorted = (summary?.countries || [])
+      .map(({ country, clicks: count }) => ({ country, count, pct: ((count / total) * 100).toFixed(1) }));
 
     if (sorted.length === 0) {
       return [{ country: 'Global Direct', count: 0, pct: '100' }];
     }
     return sorted.slice(0, 4);
-  }, [filteredClicks]);
+  }, [summary, totalClicksCount]);
 
   // 9. UTM Campaigns List
   const utmCampaignsList = useMemo(() => {
@@ -460,12 +464,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     leaderboardPage * LEADERBOARD_PAGE_SIZE
   );
 
-  // 11. Recent Clicks Stream
-  const recentClicksStream = useMemo(() => {
-    return [...filteredClicks]
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 8);
-  }, [filteredClicks]);
+  // 11. Recent Clicks Stream (newest 8 in the range, from the summary)
+  const recentClicksStream = summary?.recent || [];
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard?.writeText(text);
@@ -473,23 +473,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleExportCsv = () => {
+  // Every click in the range, built by the server (not just the clicks loaded in this page)
+  const handleExportCsv = async () => {
+    if (!summaryParams.current) return;
     try {
-      const headers = ['Timestamp', 'Link Short Code', 'Destination URL', 'Referrer', 'Country', 'City', 'Device', 'OS', 'Browser'];
-      const rows = filteredClicks.map(c => [
-        new Date(c.timestamp).toISOString(),
-        c.short_code || '',
-        c.destination_url || '',
-        c.referrer || 'Direct',
-        c.country || 'Global',
-        c.city || '',
-        c.device || 'Desktop',
-        c.os || 'Windows',
-        c.browser || 'Browser'
-      ]);
-
-      const csvContent = [headers.join(','), ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))].join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const res = await fetch(`/api/v1/analytics/export?${summaryParams.current}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -497,9 +487,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ onNavigateTab }) =
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast('success', 'CSV Export Complete', 'Analytics report downloaded successfully.');
-    } catch (err) {
-      showToast('error', 'Export Failed', 'Could not generate CSV file.');
+      URL.revokeObjectURL(url);
+      const rows = Number(res.headers.get('X-Row-Count')) || 0;
+      showToast('success', 'CSV exported', res.headers.get('X-Row-Limit-Reached') === '1'
+        ? `First ${rows.toLocaleString()} clicks. Narrow the date range for the rest.`
+        : `${rows.toLocaleString()} click${rows === 1 ? '' : 's'} downloaded.`);
+    } catch {
+      showToast('error', 'Export failed', 'Could not generate the CSV file.');
     }
   };
 
